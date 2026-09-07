@@ -1,0 +1,25 @@
+{
+  "checked_at": "2026-09-07T06:42:32.190061+00:00",
+  "baseline_head": "d5bddaa57aba7af84f778f9d59d1df8f0e9f1181",
+  "source": "git archive HEAD into isolated temporary directory; node_modules symlink only",
+  "command": "env -u TKOS_MODE node node_modules/vitest/vitest.mjs run src/app/api/chat/route.test.ts",
+  "exit_code": 1,
+  "passed": 12,
+  "failed": 1,
+  "pending": 0,
+  "failures": [
+    {
+      "test_name": "/api/chat \u7684\u56db\u6761\u4ef6\u95f8\uff1a\u4ec0\u4e48\u65f6\u5019\u8fdb\u8bae\u4e8b\u5bf9\u8bdd\u90a3\u4e00\u8def \u56db\u4e2a\u6761\u4ef6\u90fd\u6ee1\u8db3 \u2192 \u8fdb\u5bf9\u8c08\u8def\uff1a\u7cfb\u7edf\u63d0\u793a\u662f\u5bf9\u8c08\u90a3\u4e00\u4efd\uff0c\u5de5\u5177\u662f\u5bf9\u8c08\u90a3\u56db\u4e2a",
+      "reason": "Baseline TALK_TOOLS includes report_calculate; route.test.ts expected list does not."
+    }
+  ],
+  "temporary_checkout_removed": true,
+  "original_worktree_modified": false,
+  "env_files_read": false,
+  "baseline_source_confirmation": {
+    "report_calculate_in_TALK_TOOLS": true,
+    "report_calculate_in_expected_tool_list": false,
+    "tools_source": "src/lib/agent/talk/tools.ts:175",
+    "test_assertion": "src/app/api/chat/route.test.ts:176"
+  }
+}

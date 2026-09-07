@@ -22,12 +22,20 @@ def _timestamp(value: str) -> str:
     return parsed.astimezone(timezone.utc).isoformat()
 
 
+def _non_blank(value: str) -> str:
+    if not value.strip():
+        raise ValueError("text must contain non-whitespace characters")
+    return value
+
+
 UUIDText = Annotated[StrictStr, AfterValidator(_uuid)]
 Timestamp = Annotated[StrictStr, AfterValidator(_timestamp)]
 Version = Annotated[StrictInt, Field(ge=1)]
 Title = Annotated[StrictStr, Field(min_length=1, max_length=500)]
 Hash256 = Annotated[StrictStr, Field(pattern=r"^[0-9a-f]{64}$")]
 Number = Union[StrictInt, Annotated[float, Field(strict=True, allow_inf_nan=False)]]
+NonBlankText = Annotated[StrictStr, Field(min_length=1, max_length=20000), AfterValidator(_non_blank)]
+CriterionId = Annotated[StrictStr, Field(min_length=1, max_length=200), AfterValidator(_non_blank)]
 
 
 class StrictModel(BaseModel):
@@ -122,10 +130,33 @@ class ObservationPayload(StrictModel):
         return self
 
 
+class AcceptanceCriterion(StrictModel):
+    criterion_id: CriterionId
+    description: NonBlankText
+
+
+class WorkItemPayload(StrictModel):
+    title: Title
+    execution_commitment_ref: RevisionRef
+    dri_assignment_id: UUIDText
+    acceptor_assignment_id: UUIDText
+    acceptance_criteria: Annotated[list[AcceptanceCriterion], Field(min_length=1)]
+    feedback_ref: RevisionRef | None = None
+    due_at: Timestamp | None = None
+
+    @model_validator(mode="after")
+    def distinct_criteria(self) -> "WorkItemPayload":
+        ids = [criterion.criterion_id for criterion in self.acceptance_criteria]
+        if len(set(ids)) != len(ids):
+            raise ValueError("duplicate acceptance criterion ids")
+        return self
+
+
 BusinessPayload = Union[CommitmentPayload, FeedbackPayload, DecisionPayload,
-                        AdjustmentPayload, ObservationPayload, OutcomePayload]
+                        AdjustmentPayload, ObservationPayload, OutcomePayload, WorkItemPayload]
 ObjectType = Literal["CompanyOutcome", "BusinessCommitment", "ExecutionCommitment",
-                     "FeedbackThread", "ManagementAdjustment", "Decision", "MetricObservation"]
+                     "FeedbackThread", "ManagementAdjustment", "Decision", "MetricObservation",
+                     "WorkItem"]
 PAYLOAD_MODELS: dict[str, type[StrictModel]] = {
     "CompanyOutcome": OutcomePayload,
     "BusinessCommitment": CommitmentPayload,
@@ -134,6 +165,7 @@ PAYLOAD_MODELS: dict[str, type[StrictModel]] = {
     "ManagementAdjustment": AdjustmentPayload,
     "Decision": DecisionPayload,
     "MetricObservation": ObservationPayload,
+    "WorkItem": WorkItemPayload,
 }
 
 
@@ -224,6 +256,56 @@ class RevokeAssignmentParams(StrictModel):
     assignment_id: UUIDText
 
 
+class SubmitDeliverableParams(StrictModel):
+    title: Title
+    summary: NonBlankText
+    evidence_revision_ids: Annotated[list[UUIDText], Field(min_length=1)]
+    responds_to_acceptance_id: UUIDText | None = None
+
+    @model_validator(mode="after")
+    def distinct_evidence(self) -> "SubmitDeliverableParams":
+        if len(set(self.evidence_revision_ids)) != len(self.evidence_revision_ids):
+            raise ValueError("duplicate evidence revisions")
+        return self
+
+
+class CriterionResult(StrictModel):
+    criterion_id: CriterionId
+    result: Literal["passed", "failed"]
+    note: NonBlankText
+
+
+class ReviewDeliverableParams(StrictModel):
+    deliverable_revision_id: UUIDText
+    delivery_payload_hash: Hash256
+    verification_result: Literal["accepted", "changes_requested"]
+    criterion_results: Annotated[list[CriterionResult], Field(min_length=1)]
+    review_note: NonBlankText
+
+    @model_validator(mode="after")
+    def distinct_criteria(self) -> "ReviewDeliverableParams":
+        ids = [result.criterion_id for result in self.criterion_results]
+        if len(set(ids)) != len(ids):
+            raise ValueError("duplicate criterion result ids")
+        return self
+
+
+class RecordOutcomeAssessmentParams(StrictModel):
+    assessment_result: Literal["achieved", "not_achieved", "inconclusive"]
+    observation_revision_ids: Annotated[list[UUIDText], Field(min_length=1)]
+    evidence_revision_ids: Annotated[list[UUIDText], Field(min_length=1)]
+    assessment_note: NonBlankText
+    delivery_acceptance_ids: list[UUIDText] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def distinct_references(self) -> "RecordOutcomeAssessmentParams":
+        for field in ("observation_revision_ids", "evidence_revision_ids", "delivery_acceptance_ids"):
+            values = getattr(self, field)
+            if len(set(values)) != len(values):
+                raise ValueError(f"duplicate {field}")
+        return self
+
+
 class EmptyParams(StrictModel):
     pass
 
@@ -244,16 +326,23 @@ ACTION_PARAMS: dict[str, type[StrictModel]] = {
     "request_feedback_acceptance": RequestFeedbackAcceptanceParams,
     "reopen_feedback": EmptyParams,
     "revoke_assignment": RevokeAssignmentParams,
+    "accept_work_item": EmptyParams,
+    "submit_deliverable": SubmitDeliverableParams,
+    "review_deliverable": ReviewDeliverableParams,
+    "record_outcome_assessment": RecordOutcomeAssessmentParams,
 }
 
 ActionType = Literal["create_object", "propose_revision", "accept_commitment", "activate_commitment",
                      "confirm_adjustment", "confirm_closure", "route_feedback", "accept_feedback",
                      "investigate_feedback", "confirm_decision", "confirm_outcome", "record_acceptance",
-                     "request_feedback_acceptance", "reopen_feedback", "revoke_assignment"]
+                     "request_feedback_acceptance", "reopen_feedback", "revoke_assignment",
+                     "accept_work_item", "submit_deliverable", "review_deliverable",
+                     "record_outcome_assessment"]
 ActionParams = Union[CreateObjectParams, ProposeRevisionParams, AcceptCommitmentParams,
                      ActivateCommitmentParams, ConfirmAdjustmentParams, ConfirmClosureParams,
                      RouteFeedbackParams, RecordAcceptanceParams, RequestFeedbackAcceptanceParams,
-                     RevokeAssignmentParams, EmptyParams]
+                     RevokeAssignmentParams, SubmitDeliverableParams, ReviewDeliverableParams,
+                     RecordOutcomeAssessmentParams, EmptyParams]
 
 
 class ActionRequest(StrictModel):

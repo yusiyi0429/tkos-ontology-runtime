@@ -21,6 +21,8 @@ python3 acceptance/runtime/infra.py up
 .venv/bin/python acceptance/runtime/run.py
 ```
 
+完整 runner 另外执行 5 组 v0.2 交付验收：任务基线与精确 DRI、版本化提交及并发/幂等、退回与 v2 精确验收、交付/Outcome/MF 独立判断，以及同人多角色、非指定人和撤权后的权限拒绝。恢复阶段核对这些新记录和原始证据。
+
 runner 每次建立新的合成业务 scope，按真实 HTTP 完成八组业务与故障测试，并补充跨域撤权、完整依赖遗漏、S3 不可用、数据库/S3 停启、第二数据库和独立对象存储卷恢复、原有 pytest 与构建检查。所有必需步骤通过才写 `runtime_accepted: true`。`--through N` 仅供开发定位，始终不构成完整验收。
 
 本地验收证据位于 `artifacts/runtime-acceptance/<run_id>/`：结构化报告、脱敏 HTTP 记录、OpenAPI、SQL 断言、恢复比对、回归 JUnit、接收端 SQLite 账本、源文件 hash 和 `SHA256SUMS`。真实令牌与数据库/S3 凭据仅位于私有目录。不要同时运行两个完整 runner 或备份演练，它们会串行停止自己的 PostgreSQL/MinIO。
@@ -59,7 +61,7 @@ python3 acceptance/runtime/infra.py run --migration -- .venv/bin/python -m pytes
 
 ## 迁移与权限
 
-PG bootstrap 的 superuser 创建独立数据库、vector 扩展及 owner/app 两个角色，隔离迁移测试和备份恢复也使用该管理身份。迁移由 owner 执行，应用角色不拥有表、不拥有数据库、不具备 CREATE ROLE/DB 或 BYPASSRLS。旧非 `gov_*` 表按照已有测试需要授予 CRUD；`schema_migrations` 只授 SELECT。`gov_*` 授 SELECT/INSERT，且仅 `gov_scopes`、`gov_principals`、`gov_credentials`、`gov_role_assignments`、`gov_objects`、`gov_feedback_state` 允许 UPDATE，所有 `gov_*` 均不授 DELETE。infra 不使用全 schema DEFAULT PRIVILEGES；API/Worker 环境无管理身份。
+PG bootstrap 的 superuser 创建独立数据库、vector 扩展及 owner/app 两个角色，隔离迁移测试和备份恢复也使用该管理身份。迁移由 owner 执行，应用角色不拥有表、不拥有数据库、不具备 CREATE ROLE/DB 或 BYPASSRLS。旧非 `gov_*` 表按照已有测试需要授予 CRUD；`schema_migrations` 只授 SELECT。`gov_*` 授 SELECT/INSERT，且仅 `gov_scopes`、`gov_principals`、`gov_credentials`、`gov_role_assignments`、`gov_objects`、`gov_feedback_state`、`gov_work_item_state` 允许 UPDATE，所有 `gov_*` 均不授 DELETE。infra 不使用全 schema DEFAULT PRIVILEGES；API/Worker 环境无管理身份。
 
 新增治理迁移文件到位后执行：
 

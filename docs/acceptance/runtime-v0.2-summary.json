@@ -1,0 +1,173 @@
+{
+  "test_run_id": "runtime-a15a50851637",
+  "started_at": "2026-09-07T05:56:35.006848+00:00",
+  "environment": "isolated local HTTP API/Worker + PostgreSQL + versioned MinIO",
+  "status": "passed",
+  "runtime_accepted": true,
+  "clark_integration_accepted": false,
+  "released": false,
+  "production_deployed": false,
+  "runtime_version": "0.2.0",
+  "finished_at": "2026-09-07T05:57:28.481957+00:00",
+  "groups": [
+    {
+      "name": "00_application_role_and_contract_preflight",
+      "status": "passed"
+    },
+    {
+      "name": "01_authenticated_two_party_activation",
+      "status": "passed"
+    },
+    {
+      "name": "extra_reverse_active_dependency_omission",
+      "status": "passed"
+    },
+    {
+      "name": "02_atomic_adjustment_and_rollback",
+      "status": "passed"
+    },
+    {
+      "name": "03_real_concurrent_version_compare_and_swap",
+      "status": "passed"
+    },
+    {
+      "name": "04_idempotency_after_committed_response_loss",
+      "status": "passed"
+    },
+    {
+      "name": "05_evidence_independent_acceptance_and_closure",
+      "status": "passed"
+    },
+    {
+      "name": "extra_real_evidence_unavailable_blocks_closure",
+      "status": "passed"
+    },
+    {
+      "name": "07_valid_time_known_time_and_immutable_sources",
+      "status": "passed"
+    },
+    {
+      "name": "08_worker_crash_replay_and_external_reconciliation",
+      "status": "passed"
+    },
+    {
+      "name": "v02_01_frozen_work_item_and_exact_dri_authority",
+      "status": "passed"
+    },
+    {
+      "name": "v02_02_versioned_submission_cas_and_idempotency",
+      "status": "passed"
+    },
+    {
+      "name": "v02_03_return_supplement_and_exact_version_acceptance",
+      "status": "passed"
+    },
+    {
+      "name": "v02_04_delivery_outcome_and_mf_are_independent",
+      "status": "passed"
+    },
+    {
+      "name": "v02_05_distinct_humans_named_acceptor_and_revocation",
+      "status": "passed"
+    },
+    {
+      "name": "06_revocation_old_reads_and_authorization_races",
+      "status": "passed"
+    },
+    {
+      "name": "extra_old_receipt_after_single_domain_revocation",
+      "status": "passed"
+    },
+    {
+      "name": "09_volume_restart_and_independent_backup_restore",
+      "status": "passed"
+    },
+    {
+      "name": "10_original_regression_migration_replay_and_build",
+      "status": "passed"
+    },
+    {
+      "name": "11_source_manifest_and_durable_receiver_evidence",
+      "status": "passed"
+    }
+  ],
+  "regression": {
+    "passed": 164,
+    "skipped": [
+      {
+        "test": "test_viewer_rejects_non_human",
+        "reason": "\u6570\u636e\u5e93\u6ca1\u6709 agent_service \u7528\u6237\u53ef\u7528\u4e8e\u975e human viewer \u68c0\u67e5"
+      }
+    ],
+    "failed": 0,
+    "source_distribution_and_wheel_built": true
+  },
+  "independent_restore": {
+    "objects": {
+      "equal": true,
+      "count": 37,
+      "sha256": "0d17ffacbfeb3414ad6fce8a154573b0923efc8a16617f1f050e79647e137e05"
+    },
+    "revisions": {
+      "equal": true,
+      "count": 47,
+      "sha256": "a3062694615a3cc8cdf675581af10a9acfc933e6b70f1bd62c4f254f72bcfc2e"
+    },
+    "receipts": {
+      "equal": true,
+      "count": 126,
+      "sha256": "7270697243a070f3da3d0b4dfce143dd1af4669be316539ff7913425bbb4ca10"
+    },
+    "snapshots": {
+      "equal": true,
+      "count": 10,
+      "sha256": "6ae73b6aa0063f1d01a5bb51f13451356830960e0c4bab6dd990853274830c81"
+    },
+    "evidence": {
+      "equal": true,
+      "count": 4,
+      "sha256": "87664b86617aca798002dce6768c330b6ed70d8fac2100f27b01ee8bd3e12f17"
+    }
+  },
+  "restored_table_count": 46,
+  "restore_boundary": "new database in the same PostgreSQL instance and a separate MinIO volume; not whole-host disaster recovery",
+  "receiver_ledger": {
+    "unique_effects": 9,
+    "calls": 10
+  },
+  "judgment_separation": {
+    "after_delivery_acceptance": {
+      "delivery": "delivery_accepted",
+      "outcome": "not_assessed",
+      "mf": "investigating"
+    },
+    "outcome_assessment_history": [
+      "not_achieved",
+      "achieved"
+    ],
+    "after_separate_actions": {
+      "delivery": "delivery_accepted",
+      "outcome": "achieved",
+      "mf": "closed"
+    }
+  },
+  "authority_checks": {
+    "same_human_different_assignment_rejected": true,
+    "same_role_wrong_person_rejected": true,
+    "legacy_policy_rejected": true,
+    "revoked_prepared_review_status": 404,
+    "revoked_receipt_replay_status": 403,
+    "revoked_receipt_read_status": 403,
+    "retained_domain_positive_read_status": 200
+  },
+  "authority_only_scope": {
+    "commitment_effects": [
+      {
+        "state": "queued",
+        "count": 2
+      }
+    ],
+    "external_effects_accepted": false
+  },
+  "note": "Isolated local API/Worker acceptance with synthetic identities and business data; not Clark integration, release, or remote deployment acceptance."
+}

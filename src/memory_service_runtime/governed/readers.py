@@ -6,11 +6,11 @@ import uuid
 
 from psycopg.types.json import Jsonb
 
-from memory_service_runtime.governed import db
+from memory_service_runtime.governed import db, delivery
 from memory_service_runtime.governed.errors import GovernedError
 
 
-FORMAL_TYPES = {"BusinessCommitment", "ExecutionCommitment", "CompanyOutcome", "Decision"}
+FORMAL_TYPES = {"BusinessCommitment", "ExecutionCommitment", "CompanyOutcome", "Decision", "WorkItem"}
 
 
 def timestamp(value):
@@ -25,7 +25,60 @@ def object_state(conn, ctx, object_id: str) -> dict:
     for label in ("latest", "effective"):
         rid = obj.get(f"{label}_revision_id")
         result[f"{label}_revision"] = db.revision_row(conn, ctx, object_id, str(rid)) if rid else None
+    if obj["object_type"] == "WorkItem":
+        result["delivery"] = delivery.read_work_item(conn, ctx, obj)
+    elif obj["object_type"] == "FeedbackThread":
+        result["feedback"] = feedback_state(conn, ctx, obj)
+    elif obj["object_type"] == "CompanyOutcome":
+        assessment = delivery.read_outcome_assessment(conn, ctx, object_id, obj["effective_revision_id"])
+        result["outcome_assessment"] = assessment
+        result["outcome_achievement"] = assessment["assessment_result"] if assessment else "not_assessed"
+    elif obj["object_type"] == "Deliverable":
+        result["delivery_review"] = delivery.read_delivery_review(conn, ctx, object_id, obj["latest_revision_id"])
     return db.jsonable(result)
+
+
+def feedback_state(conn, ctx, obj: dict) -> dict:
+    """Read MF handoff evidence with current authorization on every source.
+
+    Consumers can resume the independent MF review after another person logs in
+    without maintaining a second business ledger or reusing a delivery review.
+    """
+    state = conn.execute(
+        "SELECT * FROM gov_feedback_state WHERE scope_id=%s AND object_id=%s",
+        (ctx.scope_id, obj["object_id"]),
+    ).fetchone()
+    reviews = conn.execute(
+        "SELECT * FROM gov_acceptances WHERE scope_id=%s AND feedback_object_id=%s ORDER BY recorded_at,acceptance_id",
+        (ctx.scope_id, obj["object_id"]),
+    ).fetchall()
+    revision_ids = set()
+    if state and state["resolution_decision_revision_id"]:
+        revision_ids.add(str(state["resolution_decision_revision_id"]))
+    for review in reviews:
+        revision_ids.add(str(review["decision_revision_id"]))
+        revision_ids.update(str(rid) for rid in review["evidence_revision_ids"])
+    sources = {}
+    for rid in sorted(revision_ids):
+        source = conn.execute(
+            "SELECT object_id FROM gov_object_revisions WHERE scope_id=%s AND revision_id=%s",
+            (ctx.scope_id, rid),
+        ).fetchone()
+        if source is None:
+            raise GovernedError("NOT_FOUND")
+        source_id = str(source["object_id"])
+        db.revision_row(conn, ctx, source_id, rid)
+        sources[rid] = source_id
+    decision = None
+    decision_revision = None
+    if state and state["resolution_decision_revision_id"]:
+        rid = str(state["resolution_decision_revision_id"])
+        decision = object_state(conn, ctx, sources[rid])
+        decision_revision = db.revision_row(conn, ctx, sources[rid], rid)
+    if state and state["resolution_adjustment_object_id"]:
+        db.object_row(conn, ctx, str(state["resolution_adjustment_object_id"]))
+    return db.jsonable({"state": state, "resolution_decision": decision,
+                       "resolution_decision_revision": decision_revision, "acceptances": reviews})
 
 
 def revision(conn, ctx, object_id: str, revision_id: str) -> dict:
@@ -94,7 +147,7 @@ def _selected_revision(conn, ctx, obj: dict, valid_at: datetime, known_at: datet
 
 def _sources(conn, ctx, row: dict, known_at: datetime) -> list[dict] | None:
     sources = []
-    for reference in row["payload"].get("upstream_refs", []):
+    for reference in delivery.payload_references(row["payload"]):
         parent = db.object_row(conn, ctx, reference["object_id"])
         source = db.revision_row(conn, ctx, parent["object_id"], reference["revision_id"])
         if timestamp(source["recorded_at"]) > known_at:
@@ -119,11 +172,20 @@ def context_pack(conn, ctx, object_ids: list[str], valid_at: datetime, known_at:
         if sources is None:
             excluded.append({"object_id": object_id, "reason": "source_not_known_at_requested_time"})
             continue
-        selected.append(db.jsonable({"object_id": object_id, "object_type": obj["object_type"],
+        selection = {"object_id": object_id, "object_type": obj["object_type"],
                                      "revision_id": row["revision_id"], "payload": row["payload"],
                                      "payload_hash": row["payload_hash"], "recorded_at": row["recorded_at"],
                                      "valid_from": row["valid_from"], "valid_to": row["valid_to"],
-                                     "source_refs": sources}))
+                                     "source_refs": sources}
+        if obj["object_type"] == "CompanyOutcome":
+            assessment = delivery.read_outcome_assessment(conn, ctx, object_id, str(row["revision_id"]), known_at=known_at, valid_at=valid_at)
+            selection["outcome_assessment"] = assessment
+            selection["outcome_achievement"] = assessment["assessment_result"] if assessment else "not_assessed"
+        elif obj["object_type"] == "Deliverable":
+            review = delivery.read_delivery_review(conn, ctx, object_id, str(row["revision_id"]), known_at=known_at, valid_at=valid_at)
+            selection["delivery_review"] = review
+            selection["delivery_status"] = review["verification_result"] if review else "submitted"
+        selected.append(db.jsonable(selection))
     snapshot_id = str(uuid.uuid4())
     stored = conn.execute(
         "INSERT INTO gov_context_snapshots(snapshot_id,scope_id,principal_id,valid_at,known_at,selected,excluded) VALUES(%s,%s,%s,%s,%s,%s,%s) RETURNING recorded_at",
@@ -142,6 +204,12 @@ def context_snapshot(conn, ctx, snapshot_id: str) -> dict:
         db.object_row(conn, ctx, item["object_id"])
         for source in item.get("source_refs", []):
             db.revision_row(conn, ctx, source["object_id"], source["revision_id"])
+        review = item.get("delivery_review")
+        if review:
+            db.revision_row(conn, ctx, review["work_item_object_id"], review["work_item_revision_id"])
+        assessment = item.get("outcome_assessment")
+        if assessment:
+            delivery.read_outcome_assessment(conn, ctx, item["object_id"], item["revision_id"], known_at=row["known_at"], valid_at=row["valid_at"])
     return db.jsonable({"context_snapshot_id": row["snapshot_id"], "valid_at": row["valid_at"],
                         "known_at": row["known_at"], "selected": row["selected"], "excluded": row["excluded"],
                         "recorded_at": row["recorded_at"]})

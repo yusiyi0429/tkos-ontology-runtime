@@ -1,0 +1,162 @@
+{
+  "run_id": "clark-v02-0fcfdf991d35",
+  "status": "passed",
+  "clark_local_business_integration_accepted": true,
+  "real_employee_identity_integration_accepted": false,
+  "released": false,
+  "production_deployed": false,
+  "http_groups": [
+    {
+      "name": "clark_01_cookie_identity_and_authority",
+      "status": "passed"
+    },
+    {
+      "name": "clark_02_versioned_real_dri_delivery",
+      "status": "passed"
+    },
+    {
+      "name": "clark_03_independent_outcome_and_mf",
+      "status": "passed"
+    },
+    {
+      "name": "clark_04_read_only_physical_oracle",
+      "status": "passed"
+    }
+  ],
+  "browser_groups": [
+    {
+      "name": "browser_delivery_v1_return_v2_accept_and_response_loss",
+      "status": "passed",
+      "work_item_id": "73622377-075e-419e-9c3e-9e402f12147b"
+    },
+    {
+      "name": "browser_outcome_not_achieved_then_achieved_mf_stays_open",
+      "status": "passed"
+    },
+    {
+      "name": "browser_mf_independent_three_person_closure_and_mobile",
+      "status": "passed"
+    }
+  ],
+  "browser_response_loss": {
+    "committed_receipt": "77388780-21bc-4645-90f7-4075feeaa0bd",
+    "replay_receipt": "77388780-21bc-4645-90f7-4075feeaa0bd",
+    "survived_page_reload": true
+  },
+  "unavailable": {
+    "run_id": "clark-v02-0fcfdf991d35",
+    "checked_at": "2026-09-07T06:47:05.719639+00:00",
+    "status": "passed",
+    "http_status": 503,
+    "code": "RUNTIME_UNAVAILABLE",
+    "mock_fallback": false,
+    "recovery_read_passed": true
+  },
+  "controlled_restart": {
+    "run_id": "clark-v02-0fcfdf991d35",
+    "checked_at": "2026-09-07T06:49:59.330040+00:00",
+    "status": "passed",
+    "raw_read_objects_equal": false,
+    "unchanged_existing_fields": true,
+    "projection_change": {
+      "object": "feedback",
+      "path": "/feedback/resolution_decision_revision",
+      "change": "added_read_projection",
+      "value": null
+    },
+    "objects": {
+      "work_item": {
+        "object_id": "73622377-075e-419e-9c3e-9e402f12147b",
+        "lifecycle_status": "delivery_accepted",
+        "outcome_achievement": null,
+        "sha256": "b956039018ac09279999f33ed235d0fb183dbdd4c1bb8df5140215643fc817dc"
+      },
+      "outcome": {
+        "object_id": "e5f68ce5-1672-4eb4-b391-ffbd55e250d5",
+        "lifecycle_status": "confirmed",
+        "outcome_achievement": "achieved",
+        "sha256": "434dd63f3bd7d785ba7b0029737343226c41dfd22a6253e5f1e6e815c7ae114c"
+      },
+      "feedback": {
+        "object_id": "478df063-75f0-4f2a-837d-73ee05f86fb8",
+        "lifecycle_status": "investigating",
+        "outcome_achievement": null,
+        "sha256": "56bc7377ac21e50f8a61ea8f6971c0715b314bed6e9d27fdbe7e8186b683bb07"
+      }
+    },
+    "business_recreated": false,
+    "original_hashes": {
+      "work_item": {
+        "object_id": "73622377-075e-419e-9c3e-9e402f12147b",
+        "lifecycle_status": "delivery_accepted",
+        "outcome_achievement": null,
+        "sha256": "b956039018ac09279999f33ed235d0fb183dbdd4c1bb8df5140215643fc817dc"
+      },
+      "outcome": {
+        "object_id": "e5f68ce5-1672-4eb4-b391-ffbd55e250d5",
+        "lifecycle_status": "confirmed",
+        "outcome_achievement": "achieved",
+        "sha256": "434dd63f3bd7d785ba7b0029737343226c41dfd22a6253e5f1e6e815c7ae114c"
+      },
+      "feedback": {
+        "object_id": "478df063-75f0-4f2a-837d-73ee05f86fb8",
+        "lifecycle_status": "investigating",
+        "outcome_achievement": null,
+        "sha256": "08dcd3c9ceed78e056428768403013d0768ad684b1e84bd3b8e8559b918097d7"
+      }
+    }
+  },
+  "physical_oracle": {
+    "status": "passed",
+    "database_role": "application",
+    "transaction": "REPEATABLE READ READ ONLY",
+    "business_mutations": 0,
+    "receipt_counts": {
+      "accept_work_item": 1,
+      "submit_deliverable": 2,
+      "review_deliverable": 2,
+      "record_outcome_assessment": 2,
+      "confirm_decision": 1,
+      "request_feedback_acceptance": 1,
+      "record_acceptance": 1,
+      "confirm_closure": 1
+    },
+    "lost_response_replay_did_not_duplicate_submission": true,
+    "decision_statement_projection_matches_exact_accepted_revision": true,
+    "final_states": {
+      "delivery": "delivery_accepted",
+      "outcome": "achieved",
+      "mf": "closed"
+    }
+  },
+  "physical_counts": {
+    "delivery_revisions": 2,
+    "delivery_reviews": 2,
+    "outcome_assessments": 2,
+    "metric_observations": 2,
+    "mf_acceptances": 1,
+    "mf_closures": 1,
+    "principal_checked_receipts": 11
+  },
+  "runtime_independent_regression": {
+    "run_id": "runtime-9922503fbe7f",
+    "accepted": true,
+    "groups": 20,
+    "pytest_passed": 164,
+    "pytest_skipped": 1,
+    "build_passed": true
+  },
+  "clark_checks": {
+    "targeted_passed": 83,
+    "typescript_passed": true,
+    "changed_file_eslint_passed": true,
+    "next_build_passed": true,
+    "full_suite_passed": 2096,
+    "full_suite_skipped": 12,
+    "full_suite_failed": 1,
+    "baseline_failure_reproduced": true,
+    "baseline_failure": "src/app/api/chat/route.test.ts:176 expects a tool list without report_calculate; unchanged upstream d5bddaa reproduces 12 passed and 1 failed."
+  },
+  "source_manifest": "clark-v02-source-sha256.json",
+  "note": "Synthetic separate identities and isolated data. The dedicated delivery page calls the real Runtime through Clark BFF. Legacy Clark business objects are not migrated. No production credential provisioning, Git push, merge, or remote deployment."
+}

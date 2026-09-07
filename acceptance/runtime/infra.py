@@ -27,7 +27,7 @@ ADMIN = "tkos_acceptance_admin"
 OWNER = "tkos_acceptance_owner"
 APP = "tkos_acceptance_app"
 GOV_MUTABLE_TABLES = frozenset({"gov_scopes", "gov_principals", "gov_credentials",
-                                "gov_role_assignments", "gov_objects", "gov_feedback_state"})
+                                "gov_role_assignments", "gov_objects", "gov_feedback_state", "gov_work_item_state"})
 SECRETS = STATE / "secrets.json"
 ENV_FILE = STATE / "env.json"
 COMPOSE_ENV = STATE / "compose.env"

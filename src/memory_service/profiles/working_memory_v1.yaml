@@ -1,0 +1,14 @@
+# Working Memory Context Profile v1.
+# Only fields consumed by rendering or effective-query assembly are configurable.
+# The six retrieval tiers, confirmation rules, and source integrity checks remain code-level
+# invariants.  The loader rejects unknown, duplicate, and empty values and caches this profile.
+profile_id: working_memory_v1
+name: Working Memory Context Profile v1
+
+character_budget: 6000
+
+effective_query:
+  object_types: [Signal, Issue]
+  signal_fields: [title, description]
+  issue_fields: [key_question, rationale]
+  max_added_chars: 1200

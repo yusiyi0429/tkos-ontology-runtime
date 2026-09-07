@@ -1,0 +1,1983 @@
+{
+  "components": {
+    "schemas": {
+      "AcceptCommitmentParams": {
+        "additionalProperties": false,
+        "properties": {
+          "accepted_terms_hash": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Accepted Terms Hash",
+            "type": "string"
+          },
+          "party_assignment_id": {
+            "title": "Party Assignment Id",
+            "type": "string"
+          },
+          "understanding": {
+            "minLength": 10,
+            "title": "Understanding",
+            "type": "string"
+          }
+        },
+        "required": [
+          "party_assignment_id",
+          "understanding",
+          "accepted_terms_hash"
+        ],
+        "title": "AcceptCommitmentParams",
+        "type": "object"
+      },
+      "ActionRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "action_type": {
+            "enum": [
+              "create_object",
+              "propose_revision",
+              "accept_commitment",
+              "activate_commitment",
+              "confirm_adjustment",
+              "confirm_closure",
+              "route_feedback",
+              "accept_feedback",
+              "investigate_feedback",
+              "confirm_decision",
+              "confirm_outcome",
+              "record_acceptance",
+              "request_feedback_acceptance",
+              "reopen_feedback",
+              "revoke_assignment"
+            ],
+            "title": "Action Type",
+            "type": "string"
+          },
+          "expected_versions": {
+            "items": {
+              "$ref": "#/components/schemas/ExpectedVersion"
+            },
+            "title": "Expected Versions",
+            "type": "array"
+          },
+          "idempotency_key": {
+            "maxLength": 128,
+            "minLength": 16,
+            "title": "Idempotency Key",
+            "type": "string"
+          },
+          "params": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CreateObjectParams"
+              },
+              {
+                "$ref": "#/components/schemas/ProposeRevisionParams"
+              },
+              {
+                "$ref": "#/components/schemas/AcceptCommitmentParams"
+              },
+              {
+                "$ref": "#/components/schemas/ActivateCommitmentParams"
+              },
+              {
+                "$ref": "#/components/schemas/ConfirmAdjustmentParams"
+              },
+              {
+                "$ref": "#/components/schemas/ConfirmClosureParams"
+              },
+              {
+                "$ref": "#/components/schemas/RouteFeedbackParams"
+              },
+              {
+                "$ref": "#/components/schemas/RecordAcceptanceParams"
+              },
+              {
+                "$ref": "#/components/schemas/RequestFeedbackAcceptanceParams"
+              },
+              {
+                "$ref": "#/components/schemas/RevokeAssignmentParams"
+              },
+              {
+                "$ref": "#/components/schemas/EmptyParams"
+              }
+            ],
+            "title": "Params"
+          },
+          "reason": {
+            "minLength": 5,
+            "title": "Reason",
+            "type": "string"
+          },
+          "target": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ActionTarget"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "action_type",
+          "target",
+          "expected_versions",
+          "idempotency_key",
+          "reason",
+          "params"
+        ],
+        "title": "ActionRequest",
+        "type": "object"
+      },
+      "ActionTarget": {
+        "additionalProperties": false,
+        "properties": {
+          "expected_version": {
+            "minimum": 1.0,
+            "title": "Expected Version",
+            "type": "integer"
+          },
+          "object_id": {
+            "title": "Object Id",
+            "type": "string"
+          },
+          "revision_id": {
+            "title": "Revision Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "object_id",
+          "revision_id",
+          "expected_version"
+        ],
+        "title": "ActionTarget",
+        "type": "object"
+      },
+      "ActivateCommitmentParams": {
+        "additionalProperties": false,
+        "properties": {
+          "activation_policy_revision_id": {
+            "title": "Activation Policy Revision Id",
+            "type": "string"
+          },
+          "handshake_record_ids": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 2,
+            "title": "Handshake Record Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "handshake_record_ids",
+          "activation_policy_revision_id"
+        ],
+        "title": "ActivateCommitmentParams",
+        "type": "object"
+      },
+      "AdjustmentPayload": {
+        "additionalProperties": false,
+        "properties": {
+          "changes": {
+            "items": {
+              "$ref": "#/components/schemas/RevisionChange"
+            },
+            "title": "Changes",
+            "type": "array"
+          },
+          "decision_revision_id": {
+            "title": "Decision Revision Id",
+            "type": "string"
+          },
+          "feedback_revision_id": {
+            "title": "Feedback Revision Id",
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "feedback_revision_id",
+          "decision_revision_id",
+          "changes"
+        ],
+        "title": "AdjustmentPayload",
+        "type": "object"
+      },
+      "CommitmentPayload": {
+        "additionalProperties": false,
+        "properties": {
+          "required_assignment_ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 2,
+            "minItems": 2,
+            "title": "Required Assignment Ids",
+            "type": "array"
+          },
+          "terms": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "title": "Terms",
+            "type": "object"
+          },
+          "title": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          },
+          "upstream_refs": {
+            "items": {
+              "$ref": "#/components/schemas/RevisionRef"
+            },
+            "minItems": 1,
+            "title": "Upstream Refs",
+            "type": "array"
+          }
+        },
+        "required": [
+          "title",
+          "terms",
+          "required_assignment_ids",
+          "upstream_refs"
+        ],
+        "title": "CommitmentPayload",
+        "type": "object"
+      },
+      "ConfirmAdjustmentParams": {
+        "additionalProperties": false,
+        "properties": {
+          "changes": {
+            "items": {
+              "$ref": "#/components/schemas/RevisionChange"
+            },
+            "minItems": 1,
+            "title": "Changes",
+            "type": "array"
+          },
+          "decision_revision_id": {
+            "title": "Decision Revision Id",
+            "type": "string"
+          },
+          "feedback_revision_id": {
+            "title": "Feedback Revision Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "decision_revision_id",
+          "changes",
+          "feedback_revision_id"
+        ],
+        "title": "ConfirmAdjustmentParams",
+        "type": "object"
+      },
+      "ConfirmClosureParams": {
+        "additionalProperties": false,
+        "properties": {
+          "acceptance_record_id": {
+            "title": "Acceptance Record Id",
+            "type": "string"
+          },
+          "closure_evidence_revision_ids": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Closure Evidence Revision Ids",
+            "type": "array"
+          },
+          "closure_note": {
+            "minLength": 10,
+            "title": "Closure Note",
+            "type": "string"
+          },
+          "disposition": {
+            "enum": [
+              "resolved",
+              "dismissed",
+              "no_change"
+            ],
+            "title": "Disposition",
+            "type": "string"
+          },
+          "resolution_decision_revision_id": {
+            "title": "Resolution Decision Revision Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "acceptance_record_id",
+          "resolution_decision_revision_id",
+          "closure_evidence_revision_ids",
+          "disposition",
+          "closure_note"
+        ],
+        "title": "ConfirmClosureParams",
+        "type": "object"
+      },
+      "ContextRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "known_at": {
+            "format": "date-time",
+            "title": "Known At",
+            "type": "string"
+          },
+          "object_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Object Ids",
+            "type": "array"
+          },
+          "valid_at": {
+            "format": "date-time",
+            "title": "Valid At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "object_ids",
+          "valid_at",
+          "known_at"
+        ],
+        "title": "ContextRequest",
+        "type": "object"
+      },
+      "CreateObjectParams": {
+        "additionalProperties": false,
+        "properties": {
+          "domain_id": {
+            "title": "Domain Id",
+            "type": "string"
+          },
+          "object_type": {
+            "enum": [
+              "CompanyOutcome",
+              "BusinessCommitment",
+              "ExecutionCommitment",
+              "FeedbackThread",
+              "ManagementAdjustment",
+              "Decision",
+              "MetricObservation"
+            ],
+            "title": "Object Type",
+            "type": "string"
+          },
+          "payload": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CommitmentPayload"
+              },
+              {
+                "$ref": "#/components/schemas/FeedbackPayload"
+              },
+              {
+                "$ref": "#/components/schemas/DecisionPayload"
+              },
+              {
+                "$ref": "#/components/schemas/AdjustmentPayload"
+              },
+              {
+                "$ref": "#/components/schemas/ObservationPayload"
+              },
+              {
+                "$ref": "#/components/schemas/OutcomePayload"
+              }
+            ],
+            "title": "Payload"
+          },
+          "valid_from": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valid From"
+          }
+        },
+        "required": [
+          "object_type",
+          "domain_id",
+          "payload"
+        ],
+        "title": "CreateObjectParams",
+        "type": "object"
+      },
+      "DecisionPayload": {
+        "additionalProperties": false,
+        "properties": {
+          "statement": {
+            "maxLength": 20000,
+            "minLength": 1,
+            "title": "Statement",
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "statement"
+        ],
+        "title": "DecisionPayload",
+        "type": "object"
+      },
+      "EmptyParams": {
+        "additionalProperties": false,
+        "properties": {},
+        "title": "EmptyParams",
+        "type": "object"
+      },
+      "EvidenceRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "content_base64": {
+            "maxLength": 2796204,
+            "minLength": 1,
+            "title": "Content Base64",
+            "type": "string"
+          },
+          "domain_id": {
+            "format": "uuid",
+            "title": "Domain Id",
+            "type": "string"
+          },
+          "media_type": {
+            "default": "application/octet-stream",
+            "maxLength": 120,
+            "minLength": 3,
+            "pattern": "^[A-Za-z0-9!#$&^_.+-]+/[A-Za-z0-9!#$&^_.+-]+$",
+            "title": "Media Type",
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "domain_id",
+          "title",
+          "content_base64"
+        ],
+        "title": "EvidenceRequest",
+        "type": "object"
+      },
+      "ExpectedVersion": {
+        "additionalProperties": false,
+        "properties": {
+          "expected_version": {
+            "minimum": 1.0,
+            "title": "Expected Version",
+            "type": "integer"
+          },
+          "object_id": {
+            "title": "Object Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "object_id",
+          "expected_version"
+        ],
+        "title": "ExpectedVersion",
+        "type": "object"
+      },
+      "FeedbackPayload": {
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "maxLength": 20000,
+            "minLength": 1,
+            "title": "Description",
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "description"
+        ],
+        "title": "FeedbackPayload",
+        "type": "object"
+      },
+      "GkDynamic": {
+        "description": "P3 \u8fd4\u56de\u4f53\u3002warning \u662f\u670d\u52a1\u7aef\u81ea\u62a5\u7684\u964d\u7ea7\uff08\u5982 embedding \u672a\u7f13\u5b58\uff09\uff0c\u4e0d\u662f\u9519\u8bef\u3002",
+        "properties": {
+          "query": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Query"
+          },
+          "seeds": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/GkSeed"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seeds"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text"
+          },
+          "warning": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Warning"
+          }
+        },
+        "title": "GkDynamic",
+        "type": "object"
+      },
+      "GkEntity": {
+        "description": "P1/P2 \u8fd4\u56de\u4f53\u3002relations \u662f {\u5173\u7cfb\u540d: [\u5bf9\u65b9\u77ed\u7801]} \u7684\u888b\u5b50\uff08M7 \u8bed\u4e49\uff09\u3002",
+        "properties": {
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "properties": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Properties"
+          },
+          "relations": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Relations"
+          },
+          "versions": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/GkVersion"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Versions"
+          }
+        },
+        "title": "GkEntity",
+        "type": "object"
+      },
+      "GkEntitySummary": {
+        "description": "\u53ea\u8bfb\u951a\u70b9\u76ee\u5f55\u4e2d\u7684\u6700\u5c0f\u5b9e\u4f53\u5f62\u72b6\u3002",
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "label"
+        ],
+        "title": "GkEntitySummary",
+        "type": "object"
+      },
+      "GkSeed": {
+        "description": "P3 \u53ec\u56de\u79cd\u5b50\u3002code \u5fc5\u987b\u662f\u7a33\u5b9a\u4e1a\u52a1\u77ed\u7801\uff08\u89c1 adapter/codes.py\uff09\u3002",
+        "properties": {
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score"
+          },
+          "type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Type"
+          }
+        },
+        "title": "GkSeed",
+        "type": "object"
+      },
+      "GkVersion": {
+        "description": "P2 \u7248\u672c\u94fe\u4e2d\u7684\u4e00\u7248\u3002\u5168\u90e8\u53ef\u7a7a\u2014\u2014\u670d\u52a1\u7aef\u7f3a\u5b57\u6bb5\u4e0d\u5d29\uff0c\u6d88\u8d39\u65b9\u6309\u7f3a\u7701\u5904\u7406\u3002",
+        "properties": {
+          "at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At"
+          },
+          "index": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Index"
+          },
+          "meetingLabel": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Meetinglabel"
+          },
+          "statement": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Statement"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          }
+        },
+        "title": "GkVersion",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "HealthReport": {
+        "description": "Database and embedding readiness for one configured service scope.",
+        "properties": {
+          "chains": {
+            "default": 0,
+            "title": "Chains",
+            "type": "integer"
+          },
+          "db": {
+            "default": false,
+            "title": "Db",
+            "type": "boolean"
+          },
+          "embedding": {
+            "default": false,
+            "title": "Embedding",
+            "type": "boolean"
+          },
+          "mode": {
+            "default": "memory_service",
+            "title": "Mode",
+            "type": "string"
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "ok"
+        ],
+        "title": "HealthReport",
+        "type": "object"
+      },
+      "JsonValue": {},
+      "ObservationPayload": {
+        "additionalProperties": false,
+        "properties": {
+          "metric_id": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Metric Id",
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          },
+          "unit": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Unit",
+            "type": "string"
+          },
+          "upstream_refs": {
+            "items": {
+              "$ref": "#/components/schemas/RevisionRef"
+            },
+            "title": "Upstream Refs",
+            "type": "array"
+          },
+          "valid_from": {
+            "title": "Valid From",
+            "type": "string"
+          },
+          "valid_to": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valid To"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "required": [
+          "title",
+          "metric_id",
+          "value",
+          "unit",
+          "valid_from"
+        ],
+        "title": "ObservationPayload",
+        "type": "object"
+      },
+      "OutcomePayload": {
+        "additionalProperties": false,
+        "properties": {
+          "outcome_statement": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Outcome Statement"
+          },
+          "terms": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "title": "Terms",
+            "type": "object"
+          },
+          "title": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          },
+          "upstream_refs": {
+            "items": {
+              "$ref": "#/components/schemas/RevisionRef"
+            },
+            "title": "Upstream Refs",
+            "type": "array"
+          }
+        },
+        "required": [
+          "title"
+        ],
+        "title": "OutcomePayload",
+        "type": "object"
+      },
+      "ProposeRevisionParams": {
+        "additionalProperties": false,
+        "properties": {
+          "bundle_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bundle Id"
+          },
+          "payload": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CommitmentPayload"
+              },
+              {
+                "$ref": "#/components/schemas/FeedbackPayload"
+              },
+              {
+                "$ref": "#/components/schemas/DecisionPayload"
+              },
+              {
+                "$ref": "#/components/schemas/AdjustmentPayload"
+              },
+              {
+                "$ref": "#/components/schemas/ObservationPayload"
+              },
+              {
+                "$ref": "#/components/schemas/OutcomePayload"
+              }
+            ],
+            "title": "Payload"
+          }
+        },
+        "required": [
+          "payload"
+        ],
+        "title": "ProposeRevisionParams",
+        "type": "object"
+      },
+      "RecordAcceptanceParams": {
+        "additionalProperties": false,
+        "properties": {
+          "decision_revision_id": {
+            "title": "Decision Revision Id",
+            "type": "string"
+          },
+          "evidence_revision_ids": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Evidence Revision Ids",
+            "type": "array"
+          },
+          "verification_result": {
+            "enum": [
+              "accepted",
+              "changes_requested"
+            ],
+            "title": "Verification Result",
+            "type": "string"
+          }
+        },
+        "required": [
+          "decision_revision_id",
+          "evidence_revision_ids",
+          "verification_result"
+        ],
+        "title": "RecordAcceptanceParams",
+        "type": "object"
+      },
+      "RequestFeedbackAcceptanceParams": {
+        "additionalProperties": false,
+        "properties": {
+          "decision_revision_id": {
+            "title": "Decision Revision Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "decision_revision_id"
+        ],
+        "title": "RequestFeedbackAcceptanceParams",
+        "type": "object"
+      },
+      "RevisionChange": {
+        "additionalProperties": false,
+        "properties": {
+          "from_revision_id": {
+            "title": "From Revision Id",
+            "type": "string"
+          },
+          "object_id": {
+            "title": "Object Id",
+            "type": "string"
+          },
+          "to_revision_id": {
+            "title": "To Revision Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "object_id",
+          "from_revision_id",
+          "to_revision_id"
+        ],
+        "title": "RevisionChange",
+        "type": "object"
+      },
+      "RevisionRef": {
+        "additionalProperties": false,
+        "properties": {
+          "object_id": {
+            "title": "Object Id",
+            "type": "string"
+          },
+          "revision_id": {
+            "title": "Revision Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "object_id",
+          "revision_id"
+        ],
+        "title": "RevisionRef",
+        "type": "object"
+      },
+      "RevokeAssignmentParams": {
+        "additionalProperties": false,
+        "properties": {
+          "assignment_id": {
+            "title": "Assignment Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "assignment_id"
+        ],
+        "title": "RevokeAssignmentParams",
+        "type": "object"
+      },
+      "RouteFeedbackParams": {
+        "additionalProperties": false,
+        "properties": {
+          "responsible_assignment_id": {
+            "title": "Responsible Assignment Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "responsible_assignment_id"
+        ],
+        "title": "RouteFeedbackParams",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "HTTPBasic": {
+        "scheme": "basic",
+        "type": "http"
+      }
+    }
+  },
+  "info": {
+    "description": "Standalone governed Memory Service with a native API and a temporary Clark GraphKnowledge compatibility fa\u00e7ade.",
+    "title": "TKOS Memory Service",
+    "version": "0.1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/v1/context/dynamic": {
+      "get": {
+        "description": "Run one scoped strategic-path retrieval and project its Context Pack.",
+        "operationId": "dynamic_api_v1_context_dynamic_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "required": true,
+            "schema": {
+              "maxLength": 100,
+              "minLength": 1,
+              "title": "Q",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "k",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "K",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "budget",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "title": "Budget",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GkDynamic"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBasic": []
+          }
+        ],
+        "summary": "Dynamic",
+        "tags": [
+          "dynamic"
+        ]
+      }
+    },
+    "/api/v1/context/static": {
+      "get": {
+        "description": "Return P0 markdown using the configured in-scope human as authority.\n\n``viewer`` remains in the signature for M7 wire compatibility.  Clark's\nlegacy business code (for example ``PSN-01``) is not an identity authority;\ngovernance uses ``VIEWER_USER_ID`` after canonical human/scope validation.",
+        "operationId": "static_context_api_v1_context_static_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "viewer",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Viewer",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "as_of",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "As Of"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBasic": []
+          }
+        ],
+        "summary": "Static Context",
+        "tags": [
+          "context"
+        ]
+      }
+    },
+    "/api/v1/entities": {
+      "get": {
+        "description": "List exact-title ISS anchor candidates for the clark compatibility path.",
+        "operationId": "entities_api_v1_entities_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "prefix",
+            "required": true,
+            "schema": {
+              "const": "ISS-",
+              "title": "Prefix",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/GkEntitySummary"
+                  },
+                  "title": "Response Entities Api V1 Entities Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBasic": []
+          }
+        ],
+        "summary": "Entities",
+        "tags": [
+          "entities"
+        ]
+      }
+    },
+    "/api/v1/entities/{code}": {
+      "get": {
+        "description": "Return one scoped WM entity in M7 P1/P2 shape.",
+        "operationId": "entity_api_v1_entities__code__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "code",
+            "required": true,
+            "schema": {
+              "title": "Code",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "view",
+            "required": false,
+            "schema": {
+              "default": "latest",
+              "enum": [
+                "latest",
+                "chain"
+              ],
+              "title": "View",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GkEntity"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBasic": []
+          }
+        ],
+        "summary": "Entity",
+        "tags": [
+          "entities"
+        ]
+      }
+    },
+    "/healthz": {
+      "get": {
+        "description": "Return 503 with the stable report body when the database is unavailable.",
+        "operationId": "healthz_healthz_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthReport"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBasic": []
+          }
+        ],
+        "summary": "Healthz",
+        "tags": [
+          "health"
+        ]
+      }
+    },
+    "/v1/action-receipts/{receipt_id}": {
+      "get": {
+        "operationId": "receipt_get_v1_action_receipts__receipt_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "receipt_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Receipt Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Receipt Get",
+        "tags": [
+          "governed-runtime"
+        ]
+      }
+    },
+    "/v1/actions": {
+      "post": {
+        "operationId": "action_v1_actions_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ActionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Action",
+        "tags": [
+          "governed-runtime"
+        ]
+      }
+    },
+    "/v1/actions/prepare": {
+      "post": {
+        "operationId": "prepare_v1_actions_prepare_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ActionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Prepare",
+        "tags": [
+          "governed-runtime"
+        ]
+      }
+    },
+    "/v1/context-packs": {
+      "post": {
+        "operationId": "context_create_v1_context_packs_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContextRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Context Create",
+        "tags": [
+          "governed-runtime"
+        ]
+      }
+    },
+    "/v1/context-packs/{snapshot_id}": {
+      "get": {
+        "operationId": "snapshot_get_v1_context_packs__snapshot_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "snapshot_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Snapshot Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Snapshot Get",
+        "tags": [
+          "governed-runtime"
+        ]
+      }
+    },
+    "/v1/evidence-assets": {
+      "post": {
+        "operationId": "evidence_create_v1_evidence_assets_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EvidenceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Evidence Create",
+        "tags": [
+          "governed-runtime"
+        ]
+      }
+    },
+    "/v1/evidence-assets/{object_id}/revisions/{revision_id}": {
+      "get": {
+        "operationId": "evidence_download_v1_evidence_assets__object_id__revisions__revision_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "object_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Object Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "revision_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Revision Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Evidence Download",
+        "tags": [
+          "governed-runtime"
+        ]
+      }
+    },
+    "/v1/health": {
+      "get": {
+        "description": "Report service, database, and embedding readiness.",
+        "operationId": "health_v1_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthReport"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Health",
+        "tags": [
+          "memory-service"
+        ]
+      }
+    },
+    "/v1/objects/{object_id}": {
+      "get": {
+        "operationId": "object_get_v1_objects__object_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "object_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Object Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Object Get",
+        "tags": [
+          "governed-runtime"
+        ]
+      }
+    },
+    "/v1/objects/{object_id}/revisions/{revision_id}": {
+      "get": {
+        "operationId": "revision_get_v1_objects__object_id__revisions__revision_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "object_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Object Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "revision_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Revision Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Revision Get",
+        "tags": [
+          "governed-runtime"
+        ]
+      }
+    }
+  }
+}

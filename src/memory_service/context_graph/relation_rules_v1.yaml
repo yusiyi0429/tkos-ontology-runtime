@@ -1,0 +1,26 @@
+version: 1
+relations:
+  primary_alignment:
+    source: any_non_root
+    target: any
+  sub_strategy_of:
+    source: StrategicChoice
+    target: StrategicChoice
+  domain_outcome_of:
+    source: Outcome
+    target: Outcome
+  responsible_for:
+    source: Outcome
+    target: Organization
+  supports:
+    source: any_non_root
+    target: any
+  depends_on:
+    source: any_non_root
+    target: any
+  influences:
+    source: any_non_root
+    target: any
+  conflicts_with:
+    source: any_non_root
+    target: any

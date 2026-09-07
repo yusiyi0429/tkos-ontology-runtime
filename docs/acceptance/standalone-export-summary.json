@@ -1,0 +1,118 @@
+{
+  "test_run_id": "runtime-246ed4a1bc03",
+  "started_at": "2026-09-07T03:44:06.959192+00:00",
+  "environment": "isolated local HTTP API/Worker + PostgreSQL + versioned MinIO",
+  "status": "passed",
+  "runtime_accepted": true,
+  "clark_integration_accepted": false,
+  "released": false,
+  "production_deployed": false,
+  "finished_at": "2026-09-07T03:44:47.135448+00:00",
+  "groups": [
+    {
+      "name": "00_application_role_and_contract_preflight",
+      "status": "passed"
+    },
+    {
+      "name": "01_authenticated_two_party_activation",
+      "status": "passed"
+    },
+    {
+      "name": "extra_reverse_active_dependency_omission",
+      "status": "passed"
+    },
+    {
+      "name": "02_atomic_adjustment_and_rollback",
+      "status": "passed"
+    },
+    {
+      "name": "03_real_concurrent_version_compare_and_swap",
+      "status": "passed"
+    },
+    {
+      "name": "04_idempotency_after_committed_response_loss",
+      "status": "passed"
+    },
+    {
+      "name": "05_evidence_independent_acceptance_and_closure",
+      "status": "passed"
+    },
+    {
+      "name": "extra_real_evidence_unavailable_blocks_closure",
+      "status": "passed"
+    },
+    {
+      "name": "07_valid_time_known_time_and_immutable_sources",
+      "status": "passed"
+    },
+    {
+      "name": "08_worker_crash_replay_and_external_reconciliation",
+      "status": "passed"
+    },
+    {
+      "name": "06_revocation_old_reads_and_authorization_races",
+      "status": "passed"
+    },
+    {
+      "name": "extra_old_receipt_after_single_domain_revocation",
+      "status": "passed"
+    },
+    {
+      "name": "09_volume_restart_and_independent_backup_restore",
+      "status": "passed"
+    },
+    {
+      "name": "10_original_regression_migration_replay_and_build",
+      "status": "passed"
+    },
+    {
+      "name": "11_source_manifest_and_durable_receiver_evidence",
+      "status": "passed"
+    }
+  ],
+  "regression": {
+    "passed": 137,
+    "skipped": [
+      {
+        "test": "test_viewer_rejects_non_human",
+        "reason": "数据库没有 agent_service 用户可用于非 human viewer 检查"
+      }
+    ],
+    "failed": 0,
+    "source_distribution_and_wheel_built": true
+  },
+  "independent_restore": {
+    "objects": {
+      "equal": true,
+      "count": 23,
+      "sha256": "e0b177ca903ec487843724acc7fe2257178f58a5b7f0f00bc658b56fe7ec9fd3"
+    },
+    "revisions": {
+      "equal": true,
+      "count": 32,
+      "sha256": "2c28b56719af66882d7068a660cdf8ec464b02ee72b0d19346101791c37aa97d"
+    },
+    "receipts": {
+      "equal": true,
+      "count": 92,
+      "sha256": "d842518d015defd91dba9ba7c47eed69f7e10dcffef3e7b69c8b90a456665142"
+    },
+    "snapshots": {
+      "equal": true,
+      "count": 5,
+      "sha256": "f747543d332aac55cfa406bcaedb99a4dd0152ebfbd0b9652fbfbb357857fdad"
+    },
+    "evidence": {
+      "equal": true,
+      "count": 1,
+      "sha256": "8b8818f29d6fd106a67624bdf72acf7eea5761f5a71add342b8f701eb21d9a1f"
+    }
+  },
+  "restore_boundary": "new database in the same PostgreSQL instance and a separate MinIO volume; not whole-host disaster recovery",
+  "restored_table_count": 43,
+  "receiver_ledger": {
+    "unique_effects": 7,
+    "calls": 8
+  },
+  "note": "Acceptance rerun in this standalone export before its initial Git commit; raw runtime data and credentials are not published."
+}

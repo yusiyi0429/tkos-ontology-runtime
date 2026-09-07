@@ -1,0 +1,57 @@
+version: 1
+types:
+  CompanyVision:
+    label_zh: 公司愿景
+    definition: 当前公司经营方向的唯一根节点
+    required_content: [statement]
+    rationale_required: false
+  OperatingPrinciple:
+    label_zh: 经营原则
+    definition: 长期做事约束和判断边界
+    required_content: [principle]
+    rationale_required: true
+  ValueProposition:
+    label_zh: 价值主张
+    definition: 公司为客户和市场创造的核心价值
+    required_content: [customer_segment, value_claim]
+    rationale_required: true
+  StrategicChoice:
+    label_zh: 战略选择
+    definition: 阶段性的方向、取舍和资源选择
+    required_content: [choice, trade_off]
+    rationale_required: true
+  BusinessModel:
+    label_zh: 商业模型
+    definition: 收入、成本、客户和交付结构
+    required_any_content: [revenue_stream, cost_structure, delivery]
+    rationale_required: true
+  Organization:
+    label_zh: 组织
+    definition: 公司、部门、角色和人员归属
+    required_content: [display_name]
+    rationale_required: false
+  ProductArchitecture:
+    label_zh: 产品架构
+    definition: 产品能力、模块和技术结构
+    required_content: [component, purpose]
+    rationale_required: false
+  ManagementMethod:
+    label_zh: 管理方法
+    definition: TKOS 等可复用经营方法
+    required_content: [method_family, core_practice]
+    rationale_required: true
+  Outcome:
+    label_zh: 结果
+    definition: Company Outcome 与 Domain Outcome
+    required_content: [outcome_statement, responsible_org_name]
+    rationale_required: true
+  OperatingStatus:
+    label_zh: 运行状态
+    definition: 公司经营现状或结果推进状态
+    required_content: [status_statement, as_of]
+    rationale_required: false
+  OrganizationalCapability:
+    label_zh: 组织能力
+    definition: 可积累、可复用的能力
+    required_content: [capability]
+    rationale_required: false

@@ -904,6 +904,188 @@
         "type": "object"
       },
       "JsonValue": {},
+      "NarrativeRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "domain_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Domain Id"
+          },
+          "include_raw": {
+            "default": false,
+            "title": "Include Raw",
+            "type": "boolean"
+          },
+          "known_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Known At"
+          },
+          "object_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                "maxItems": 50,
+                "minItems": 1,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Object Ids"
+          },
+          "org": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Org"
+          },
+          "query": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Query",
+            "type": "string"
+          },
+          "tenant": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tenant"
+          },
+          "valid_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valid At"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "title": "NarrativeRequest",
+        "type": "object"
+      },
+      "NarrativeResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "governed_facts": {
+            "additionalProperties": true,
+            "title": "Governed Facts",
+            "type": "object"
+          },
+          "hit_paths": {
+            "minimum": 0.0,
+            "title": "Hit Paths",
+            "type": "integer"
+          },
+          "lateral_nodes": {
+            "minimum": 0.0,
+            "title": "Lateral Nodes",
+            "type": "integer"
+          },
+          "model": {
+            "title": "Model",
+            "type": "string"
+          },
+          "narrative": {
+            "minLength": 1,
+            "title": "Narrative",
+            "type": "string"
+          },
+          "narrative_chars": {
+            "minimum": 0.0,
+            "title": "Narrative Chars",
+            "type": "integer"
+          },
+          "narrative_raw": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Narrative Raw"
+          },
+          "narrative_raw_chars": {
+            "minimum": 0.0,
+            "title": "Narrative Raw Chars",
+            "type": "integer"
+          },
+          "org": {
+            "title": "Org",
+            "type": "string"
+          },
+          "provenance": {
+            "additionalProperties": true,
+            "title": "Provenance",
+            "type": "object"
+          },
+          "root_statement": {
+            "title": "Root Statement",
+            "type": "string"
+          },
+          "tenant": {
+            "title": "Tenant",
+            "type": "string"
+          }
+        },
+        "required": [
+          "narrative",
+          "hit_paths",
+          "lateral_nodes",
+          "root_statement",
+          "tenant",
+          "org",
+          "model",
+          "narrative_raw_chars",
+          "narrative_chars",
+          "governed_facts",
+          "provenance"
+        ],
+        "title": "NarrativeResponse",
+        "type": "object"
+      },
       "ObservationPayload": {
         "additionalProperties": false,
         "properties": {
@@ -1866,6 +2048,65 @@
         "summary": "Prepare",
         "tags": [
           "governed-runtime"
+        ]
+      }
+    },
+    "/v1/context-graph/narrative": {
+      "post": {
+        "operationId": "narrative_v1_context_graph_narrative_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NarrativeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NarrativeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Narrative",
+        "tags": [
+          "narrative"
         ]
       }
     },

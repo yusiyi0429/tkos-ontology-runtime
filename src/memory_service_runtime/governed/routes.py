@@ -159,7 +159,7 @@ def install_errors(app):
     # Keep compatibility routes' existing validation format unchanged.
     @app.exception_handler(RequestValidationError)
     async def validation_error(request: Request, exc: RequestValidationError):
-        if request.url.path.startswith(("/v1/actions", "/v1/objects", "/v1/action-receipts", "/v1/evidence-assets", "/v1/context-packs")):
+        if request.url.path.startswith(("/v1/actions", "/v1/objects", "/v1/action-receipts", "/v1/evidence-assets", "/v1/context-packs", "/v1/context-graph/narrative")):
             return JSONResponse(status_code=422, content={"error": {"code": "INVALID_REQUEST", "message": "Request does not match the governed API schema"}})
         from fastapi.exception_handlers import request_validation_exception_handler
         return await request_validation_exception_handler(request, exc)

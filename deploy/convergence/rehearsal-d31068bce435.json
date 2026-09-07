@@ -1,0 +1,2476 @@
+{
+  "schema": "tkos.convergence.rehearsal/1",
+  "run_id": "convergence-d31068bce435",
+  "started_at": "2026-09-07T09:52:46.119487+00:00",
+  "status": "passed",
+  "production_mutations": false,
+  "production_services_restarted": false,
+  "local_isolated_restore": true,
+  "backups": [
+    {
+      "source": "memory",
+      "file": "memory.dump",
+      "bytes": 3651107,
+      "sha256": "5ec275bfe6401e2a18bf8fec5ba7fc87e84ff5d7e0ae486fc9698a25f410ecc5",
+      "source_stable_around_original_dump": true,
+      "production_stability_rechecked_this_run": false,
+      "table_count": 53
+    },
+    {
+      "source": "aw",
+      "file": "aw.dump",
+      "bytes": 3704734,
+      "sha256": "f7cab47e5d74d7c1a6f3d417cf761f92c8472164175114cbd9ac515524a099fc",
+      "source_stable_around_original_dump": true,
+      "production_stability_rechecked_this_run": false,
+      "table_count": 53
+    }
+  ],
+  "restores": [
+    {
+      "source": "memory",
+      "legacy_tables_equal": true,
+      "table_count": 53,
+      "ownership": {
+        "objects_transferred": 55,
+        "functions_transferred": 2,
+        "roles_created_or_altered": 0
+      },
+      "fingerprints": [
+        {
+          "schema": "dbg_97b840c7",
+          "table": "context_graph_snapshots",
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "schema": "dbg_97b840c7",
+          "table": "context_graph_switch_log",
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "schema": "dbg_97b840c7",
+          "table": "context_graph_versions",
+          "rows": 1,
+          "sha256": "8b056a2d2524baded1930c94b2ac284661749bc5805a7aba656a40111852913d"
+        },
+        {
+          "schema": "dbg_97b840c7",
+          "table": "conversations",
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "schema": "dbg_97b840c7",
+          "table": "document_fragments",
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "schema": "dbg_97b840c7",
+          "table": "documents",
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "schema": "dbg_97b840c7",
+          "table": "episodic_summaries",
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "schema": "dbg_97b840c7",
+          "table": "evals_sync_state",
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "schema": "dbg_97b840c7",
+          "table": "memory_audit",
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "schema": "dbg_97b840c7",
+          "table": "memory_proposals",
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "schema": "dbg_97b840c7",
+          "table": "run_events",
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "schema": "dbg_97b840c7",
+          "table": "runs",
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "schema": "dbg_97b840c7",
+          "table": "semantic_entities",
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "schema": "dbg_97b840c7",
+          "table": "semantic_entity_source_refs",
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "schema": "dbg_97b840c7",
+          "table": "semantic_relation_source_refs",
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "schema": "dbg_97b840c7",
+          "table": "semantic_relations",
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "schema": "dbg_97b840c7",
+          "table": "strategic_periods",
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "schema": "dbg_97b840c7",
+          "table": "user_memories",
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "schema": "dbg_97b840c7",
+          "table": "users",
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "schema": "dbg_97b840c7",
+          "table": "wm_agreement_confirmations",
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "schema": "dbg_97b840c7",
+          "table": "wm_agreement_parties",
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "schema": "dbg_97b840c7",
+          "table": "wm_issue_chains",
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "schema": "dbg_97b840c7",
+          "table": "wm_issue_signals",
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "schema": "dbg_97b840c7",
+          "table": "wm_object_versions",
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "schema": "dbg_97b840c7",
+          "table": "wm_objects",
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "schema": "dbg_97b840c7",
+          "table": "wm_version_source_refs",
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "schema": "public",
+          "table": "context_graph_snapshots",
+          "rows": 1,
+          "sha256": "b2a6909407c3dd6a3d85025f7d6eaffef9e25fcab45940ff13dd62a1a4eaeb3a"
+        },
+        {
+          "schema": "public",
+          "table": "context_graph_switch_log",
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "schema": "public",
+          "table": "context_graph_versions",
+          "rows": 2,
+          "sha256": "c24a3393be71fe654b26052735559d9fcf65bbbf5a28b7af9ddaa7ee86d45a0f"
+        },
+        {
+          "schema": "public",
+          "table": "conversations",
+          "rows": 4086,
+          "sha256": "d65d3f56bdcbe1396af42cf11b6dc16512965aeb11103e7d240b1dcf40424b7c"
+        },
+        {
+          "schema": "public",
+          "table": "document_fragments",
+          "rows": 49,
+          "sha256": "f8b46f11139f565c3e7af663cd02ee054ad1be90d61a18bd743afb070fc59225"
+        },
+        {
+          "schema": "public",
+          "table": "documents",
+          "rows": 9,
+          "sha256": "e488057ef88389f4033a607a5aa17a8f601d9db9dcc12d8bf4740847b4dc41f5"
+        },
+        {
+          "schema": "public",
+          "table": "episodic_summaries",
+          "rows": 303,
+          "sha256": "9fd02c5b16cd7e280bcea1068cb465fffae1eb79d125dc20c2945ac7550d6ea5"
+        },
+        {
+          "schema": "public",
+          "table": "evals_sync_state",
+          "rows": 435,
+          "sha256": "336a6e752cf7ec12010951001550ba579c6610fefc905758a194c0f8d0016a72"
+        },
+        {
+          "schema": "public",
+          "table": "memory_audit",
+          "rows": 380,
+          "sha256": "f78b21690fe3ed21daf82e7e3380210fa11ef2c5893e6d7487f5e94a19de7502"
+        },
+        {
+          "schema": "public",
+          "table": "memory_proposals",
+          "rows": 380,
+          "sha256": "b1a44828a8f64c1113ec7972ec5ce3cbe008b2511df66bdf546f1db1e43059f4"
+        },
+        {
+          "schema": "public",
+          "table": "run_events",
+          "rows": 37034,
+          "sha256": "c3679e1e21334e11e8a3721db2a8c6152ca958f0efb7cdf7be34e2fb7ac74c14"
+        },
+        {
+          "schema": "public",
+          "table": "runs",
+          "rows": 4096,
+          "sha256": "fcb3bc41cd20b3a5e42c80e14b98c4d3619ca26f5a76e7d23f0020ae8ca877b1"
+        },
+        {
+          "schema": "public",
+          "table": "schema_migrations",
+          "rows": 7,
+          "sha256": "1b1ce6addb2b6a140871b8b47c554eeab9217fd32b84d61c6a2b4d9a069a2a67"
+        },
+        {
+          "schema": "public",
+          "table": "semantic_entities",
+          "rows": 38,
+          "sha256": "5dfab4cf97be748f39e4d50265bd1ba786139a0c7c1ca619cd64aec1bcd3e259"
+        },
+        {
+          "schema": "public",
+          "table": "semantic_entity_source_refs",
+          "rows": 40,
+          "sha256": "9197babd6ba29890740406bde3a53b44cd6bd74195bf03d972098a84560d8285"
+        },
+        {
+          "schema": "public",
+          "table": "semantic_relation_source_refs",
+          "rows": 55,
+          "sha256": "05f7f4f995e9927d96e4febb9d87df2663542029e630e504996935853b0fdd65"
+        },
+        {
+          "schema": "public",
+          "table": "semantic_relations",
+          "rows": 55,
+          "sha256": "53ba94cc1a6b2650f00a8f8fbf87521c39ea4f876bc13eb48bf0d9a5fa3b8509"
+        },
+        {
+          "schema": "public",
+          "table": "strategic_periods",
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "schema": "public",
+          "table": "user_memories",
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "schema": "public",
+          "table": "users",
+          "rows": 4,
+          "sha256": "45ec002a756398b648d1c5b8c40b5090f6c543b6eac0bca8257fbb2e9c52f489"
+        },
+        {
+          "schema": "public",
+          "table": "wm_agreement_confirmations",
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "schema": "public",
+          "table": "wm_agreement_parties",
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "schema": "public",
+          "table": "wm_issue_chains",
+          "rows": 14,
+          "sha256": "0f6d57c4eef06fb53f38ceb816e8f1c211c345c973bf8db6592b657589a68ba1"
+        },
+        {
+          "schema": "public",
+          "table": "wm_issue_signals",
+          "rows": 20,
+          "sha256": "7c1b3913128b372ae37527d94b429b404564a5c7838588d7877908d55a7143b9"
+        },
+        {
+          "schema": "public",
+          "table": "wm_object_versions",
+          "rows": 42,
+          "sha256": "97c23a9f39a2194139a8d739c99e324a5bacdfcd4f47f580fd8c23972a33a8b8"
+        },
+        {
+          "schema": "public",
+          "table": "wm_objects",
+          "rows": 34,
+          "sha256": "630396a8bb8e84ecdad7cc46b4092e0c53ac1eaf75d92d2d55dcfa11631f2b65"
+        },
+        {
+          "schema": "public",
+          "table": "wm_version_source_refs",
+          "rows": 12,
+          "sha256": "ec92acd1b62acac2f37720a9603a6784e4735c5ec467b88b4eee0f0f8ab8a503"
+        }
+      ]
+    },
+    {
+      "source": "aw",
+      "legacy_tables_equal": true,
+      "table_count": 53,
+      "ownership": {
+        "objects_transferred": 55,
+        "functions_transferred": 2,
+        "roles_created_or_altered": 0
+      },
+      "fingerprints": [
+        {
+          "schema": "dbg_97b840c7",
+          "table": "context_graph_snapshots",
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "schema": "dbg_97b840c7",
+          "table": "context_graph_switch_log",
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "schema": "dbg_97b840c7",
+          "table": "context_graph_versions",
+          "rows": 1,
+          "sha256": "8b056a2d2524baded1930c94b2ac284661749bc5805a7aba656a40111852913d"
+        },
+        {
+          "schema": "dbg_97b840c7",
+          "table": "conversations",
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "schema": "dbg_97b840c7",
+          "table": "document_fragments",
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "schema": "dbg_97b840c7",
+          "table": "documents",
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "schema": "dbg_97b840c7",
+          "table": "episodic_summaries",
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "schema": "dbg_97b840c7",
+          "table": "evals_sync_state",
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "schema": "dbg_97b840c7",
+          "table": "memory_audit",
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "schema": "dbg_97b840c7",
+          "table": "memory_proposals",
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "schema": "dbg_97b840c7",
+          "table": "run_events",
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "schema": "dbg_97b840c7",
+          "table": "runs",
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "schema": "dbg_97b840c7",
+          "table": "semantic_entities",
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "schema": "dbg_97b840c7",
+          "table": "semantic_entity_source_refs",
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "schema": "dbg_97b840c7",
+          "table": "semantic_relation_source_refs",
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "schema": "dbg_97b840c7",
+          "table": "semantic_relations",
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "schema": "dbg_97b840c7",
+          "table": "strategic_periods",
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "schema": "dbg_97b840c7",
+          "table": "user_memories",
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "schema": "dbg_97b840c7",
+          "table": "users",
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "schema": "dbg_97b840c7",
+          "table": "wm_agreement_confirmations",
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "schema": "dbg_97b840c7",
+          "table": "wm_agreement_parties",
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "schema": "dbg_97b840c7",
+          "table": "wm_issue_chains",
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "schema": "dbg_97b840c7",
+          "table": "wm_issue_signals",
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "schema": "dbg_97b840c7",
+          "table": "wm_object_versions",
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "schema": "dbg_97b840c7",
+          "table": "wm_objects",
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "schema": "dbg_97b840c7",
+          "table": "wm_version_source_refs",
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "schema": "public",
+          "table": "context_graph_snapshots",
+          "rows": 1,
+          "sha256": "b2a6909407c3dd6a3d85025f7d6eaffef9e25fcab45940ff13dd62a1a4eaeb3a"
+        },
+        {
+          "schema": "public",
+          "table": "context_graph_switch_log",
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "schema": "public",
+          "table": "context_graph_versions",
+          "rows": 2,
+          "sha256": "c24a3393be71fe654b26052735559d9fcf65bbbf5a28b7af9ddaa7ee86d45a0f"
+        },
+        {
+          "schema": "public",
+          "table": "conversations",
+          "rows": 4190,
+          "sha256": "7d538b12d3d392f78acaee7d654b77b39c68e038e113104360550f0d443c765d"
+        },
+        {
+          "schema": "public",
+          "table": "document_fragments",
+          "rows": 49,
+          "sha256": "f8b46f11139f565c3e7af663cd02ee054ad1be90d61a18bd743afb070fc59225"
+        },
+        {
+          "schema": "public",
+          "table": "documents",
+          "rows": 9,
+          "sha256": "e488057ef88389f4033a607a5aa17a8f601d9db9dcc12d8bf4740847b4dc41f5"
+        },
+        {
+          "schema": "public",
+          "table": "episodic_summaries",
+          "rows": 303,
+          "sha256": "9fd02c5b16cd7e280bcea1068cb465fffae1eb79d125dc20c2945ac7550d6ea5"
+        },
+        {
+          "schema": "public",
+          "table": "evals_sync_state",
+          "rows": 451,
+          "sha256": "98607dbf8d86aa201add007d0cb66fc547b073b62593508f059620335544930f"
+        },
+        {
+          "schema": "public",
+          "table": "memory_audit",
+          "rows": 380,
+          "sha256": "f78b21690fe3ed21daf82e7e3380210fa11ef2c5893e6d7487f5e94a19de7502"
+        },
+        {
+          "schema": "public",
+          "table": "memory_proposals",
+          "rows": 380,
+          "sha256": "b1a44828a8f64c1113ec7972ec5ce3cbe008b2511df66bdf546f1db1e43059f4"
+        },
+        {
+          "schema": "public",
+          "table": "run_events",
+          "rows": 37938,
+          "sha256": "5810f39aa33a9bd36fc38a7cba24627dd5dc707603629095be20d2f643d52f7a"
+        },
+        {
+          "schema": "public",
+          "table": "runs",
+          "rows": 4200,
+          "sha256": "8c8dccd706051eb084a61037430405ee94f89907917ac5ea0bdd6519801e6dc6"
+        },
+        {
+          "schema": "public",
+          "table": "schema_migrations",
+          "rows": 7,
+          "sha256": "1b1ce6addb2b6a140871b8b47c554eeab9217fd32b84d61c6a2b4d9a069a2a67"
+        },
+        {
+          "schema": "public",
+          "table": "semantic_entities",
+          "rows": 38,
+          "sha256": "5dfab4cf97be748f39e4d50265bd1ba786139a0c7c1ca619cd64aec1bcd3e259"
+        },
+        {
+          "schema": "public",
+          "table": "semantic_entity_source_refs",
+          "rows": 40,
+          "sha256": "9197babd6ba29890740406bde3a53b44cd6bd74195bf03d972098a84560d8285"
+        },
+        {
+          "schema": "public",
+          "table": "semantic_relation_source_refs",
+          "rows": 55,
+          "sha256": "05f7f4f995e9927d96e4febb9d87df2663542029e630e504996935853b0fdd65"
+        },
+        {
+          "schema": "public",
+          "table": "semantic_relations",
+          "rows": 55,
+          "sha256": "53ba94cc1a6b2650f00a8f8fbf87521c39ea4f876bc13eb48bf0d9a5fa3b8509"
+        },
+        {
+          "schema": "public",
+          "table": "strategic_periods",
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "schema": "public",
+          "table": "user_memories",
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "schema": "public",
+          "table": "users",
+          "rows": 4,
+          "sha256": "45ec002a756398b648d1c5b8c40b5090f6c543b6eac0bca8257fbb2e9c52f489"
+        },
+        {
+          "schema": "public",
+          "table": "wm_agreement_confirmations",
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "schema": "public",
+          "table": "wm_agreement_parties",
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "schema": "public",
+          "table": "wm_issue_chains",
+          "rows": 7,
+          "sha256": "633122845548ed83e854086a23c58edf3152d11f29c8a1f9d9cb5b868409ceb3"
+        },
+        {
+          "schema": "public",
+          "table": "wm_issue_signals",
+          "rows": 13,
+          "sha256": "dd46f7081ce4dabbc7eb478672d153a0f120efe650c5b5bddd3dd567ed427a2f"
+        },
+        {
+          "schema": "public",
+          "table": "wm_object_versions",
+          "rows": 21,
+          "sha256": "f58e83873269838588b61f5fada7a112de9218d8118de29f512b0444c939787d"
+        },
+        {
+          "schema": "public",
+          "table": "wm_objects",
+          "rows": 20,
+          "sha256": "0179f4e2edee356af03c45b99b5a433bda832efd796e1dfab61fb4a67b62fae6"
+        },
+        {
+          "schema": "public",
+          "table": "wm_version_source_refs",
+          "rows": 12,
+          "sha256": "ec92acd1b62acac2f37720a9603a6784e4735c5ec467b88b4eee0f0f8ab8a503"
+        }
+      ]
+    }
+  ],
+  "migrations": [
+    "0015_runtime_tasks.sql",
+    "0016_governed_runtime.sql",
+    "0017_dri_delivery.sql"
+  ],
+  "s3_objects_restored": false,
+  "production_roles_restored": false,
+  "gov_identity_or_authority_imported": false,
+  "traffic_switched": false,
+  "rehearsal_script_sha256": "44101bd1f2adc0f47c87a2b50c3a129760d81414d989dd5af6f44c3be72c1c9e",
+  "approved_inventory_sha256": "7877fd36bff152d7b7689396eb8193646b7cfec51cea3a1b2755ca3a6bde2bae",
+  "preservation_merge_enabled": true,
+  "reused_backup_run": "convergence-74faddfde9b8",
+  "production_contacted_this_run": false,
+  "aw_subset_comparison": [
+    {
+      "table": "wm_issue_chains",
+      "memory_only": 7,
+      "aw_only": 0,
+      "shared": 7,
+      "shared_changed": 0
+    },
+    {
+      "table": "wm_objects",
+      "memory_only": 14,
+      "aw_only": 0,
+      "shared": 20,
+      "shared_changed": 0
+    },
+    {
+      "table": "wm_object_versions",
+      "memory_only": 21,
+      "aw_only": 0,
+      "shared": 21,
+      "shared_changed": 0
+    },
+    {
+      "table": "wm_version_source_refs",
+      "memory_only": 0,
+      "aw_only": 0,
+      "shared": 12,
+      "shared_changed": 0
+    },
+    {
+      "table": "wm_issue_signals",
+      "memory_only": 7,
+      "aw_only": 0,
+      "shared": 13,
+      "shared_changed": 0
+    },
+    {
+      "table": "wm_agreement_parties",
+      "memory_only": 0,
+      "aw_only": 0,
+      "shared": 0,
+      "shared_changed": 0
+    },
+    {
+      "table": "wm_agreement_confirmations",
+      "memory_only": 0,
+      "aw_only": 0,
+      "shared": 0,
+      "shared_changed": 0
+    }
+  ],
+  "preservation_merge": {
+    "manifest_sha256": "e9ecb3157c73d479ae1162a32f96ca792f4ac2edcf010754aa113c8c04085b1c",
+    "implementation_sha256": "561bae957ec4a1f7059db68f3d7dd70dadbe44d3d9abed88b7b115033b3325c1",
+    "source_checks": [
+      {
+        "schema": "dbg_97b840c7",
+        "table": "context_graph_snapshots",
+        "mode": "equal",
+        "memory_only": 0,
+        "aw_only": 0,
+        "shared": 0,
+        "shared_changed": 0,
+        "union_fingerprint": {
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      {
+        "schema": "dbg_97b840c7",
+        "table": "context_graph_switch_log",
+        "mode": "equal",
+        "memory_only": 0,
+        "aw_only": 0,
+        "shared": 0,
+        "shared_changed": 0,
+        "union_fingerprint": {
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      {
+        "schema": "dbg_97b840c7",
+        "table": "context_graph_versions",
+        "mode": "equal",
+        "memory_only": 0,
+        "aw_only": 0,
+        "shared": 1,
+        "shared_changed": 0,
+        "union_fingerprint": {
+          "rows": 1,
+          "sha256": "8b056a2d2524baded1930c94b2ac284661749bc5805a7aba656a40111852913d"
+        }
+      },
+      {
+        "schema": "dbg_97b840c7",
+        "table": "conversations",
+        "mode": "equal",
+        "memory_only": 0,
+        "aw_only": 0,
+        "shared": 0,
+        "shared_changed": 0,
+        "union_fingerprint": {
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      {
+        "schema": "dbg_97b840c7",
+        "table": "document_fragments",
+        "mode": "equal",
+        "memory_only": 0,
+        "aw_only": 0,
+        "shared": 0,
+        "shared_changed": 0,
+        "union_fingerprint": {
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      {
+        "schema": "dbg_97b840c7",
+        "table": "documents",
+        "mode": "equal",
+        "memory_only": 0,
+        "aw_only": 0,
+        "shared": 0,
+        "shared_changed": 0,
+        "union_fingerprint": {
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      {
+        "schema": "dbg_97b840c7",
+        "table": "episodic_summaries",
+        "mode": "equal",
+        "memory_only": 0,
+        "aw_only": 0,
+        "shared": 0,
+        "shared_changed": 0,
+        "union_fingerprint": {
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      {
+        "schema": "dbg_97b840c7",
+        "table": "evals_sync_state",
+        "mode": "equal",
+        "memory_only": 0,
+        "aw_only": 0,
+        "shared": 0,
+        "shared_changed": 0,
+        "union_fingerprint": {
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      {
+        "schema": "dbg_97b840c7",
+        "table": "memory_audit",
+        "mode": "equal",
+        "memory_only": 0,
+        "aw_only": 0,
+        "shared": 0,
+        "shared_changed": 0,
+        "union_fingerprint": {
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      {
+        "schema": "dbg_97b840c7",
+        "table": "memory_proposals",
+        "mode": "equal",
+        "memory_only": 0,
+        "aw_only": 0,
+        "shared": 0,
+        "shared_changed": 0,
+        "union_fingerprint": {
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      {
+        "schema": "dbg_97b840c7",
+        "table": "run_events",
+        "mode": "equal",
+        "memory_only": 0,
+        "aw_only": 0,
+        "shared": 0,
+        "shared_changed": 0,
+        "union_fingerprint": {
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      {
+        "schema": "dbg_97b840c7",
+        "table": "runs",
+        "mode": "equal",
+        "memory_only": 0,
+        "aw_only": 0,
+        "shared": 0,
+        "shared_changed": 0,
+        "union_fingerprint": {
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      {
+        "schema": "dbg_97b840c7",
+        "table": "semantic_entities",
+        "mode": "equal",
+        "memory_only": 0,
+        "aw_only": 0,
+        "shared": 0,
+        "shared_changed": 0,
+        "union_fingerprint": {
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      {
+        "schema": "dbg_97b840c7",
+        "table": "semantic_entity_source_refs",
+        "mode": "equal",
+        "memory_only": 0,
+        "aw_only": 0,
+        "shared": 0,
+        "shared_changed": 0,
+        "union_fingerprint": {
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      {
+        "schema": "dbg_97b840c7",
+        "table": "semantic_relation_source_refs",
+        "mode": "equal",
+        "memory_only": 0,
+        "aw_only": 0,
+        "shared": 0,
+        "shared_changed": 0,
+        "union_fingerprint": {
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      {
+        "schema": "dbg_97b840c7",
+        "table": "semantic_relations",
+        "mode": "equal",
+        "memory_only": 0,
+        "aw_only": 0,
+        "shared": 0,
+        "shared_changed": 0,
+        "union_fingerprint": {
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      {
+        "schema": "dbg_97b840c7",
+        "table": "strategic_periods",
+        "mode": "equal",
+        "memory_only": 0,
+        "aw_only": 0,
+        "shared": 0,
+        "shared_changed": 0,
+        "union_fingerprint": {
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      {
+        "schema": "dbg_97b840c7",
+        "table": "user_memories",
+        "mode": "equal",
+        "memory_only": 0,
+        "aw_only": 0,
+        "shared": 0,
+        "shared_changed": 0,
+        "union_fingerprint": {
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      {
+        "schema": "dbg_97b840c7",
+        "table": "users",
+        "mode": "equal",
+        "memory_only": 0,
+        "aw_only": 0,
+        "shared": 0,
+        "shared_changed": 0,
+        "union_fingerprint": {
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      {
+        "schema": "dbg_97b840c7",
+        "table": "wm_agreement_confirmations",
+        "mode": "equal",
+        "memory_only": 0,
+        "aw_only": 0,
+        "shared": 0,
+        "shared_changed": 0,
+        "union_fingerprint": {
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      {
+        "schema": "dbg_97b840c7",
+        "table": "wm_agreement_parties",
+        "mode": "equal",
+        "memory_only": 0,
+        "aw_only": 0,
+        "shared": 0,
+        "shared_changed": 0,
+        "union_fingerprint": {
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      {
+        "schema": "dbg_97b840c7",
+        "table": "wm_issue_chains",
+        "mode": "equal",
+        "memory_only": 0,
+        "aw_only": 0,
+        "shared": 0,
+        "shared_changed": 0,
+        "union_fingerprint": {
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      {
+        "schema": "dbg_97b840c7",
+        "table": "wm_issue_signals",
+        "mode": "equal",
+        "memory_only": 0,
+        "aw_only": 0,
+        "shared": 0,
+        "shared_changed": 0,
+        "union_fingerprint": {
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      {
+        "schema": "dbg_97b840c7",
+        "table": "wm_object_versions",
+        "mode": "equal",
+        "memory_only": 0,
+        "aw_only": 0,
+        "shared": 0,
+        "shared_changed": 0,
+        "union_fingerprint": {
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      {
+        "schema": "dbg_97b840c7",
+        "table": "wm_objects",
+        "mode": "equal",
+        "memory_only": 0,
+        "aw_only": 0,
+        "shared": 0,
+        "shared_changed": 0,
+        "union_fingerprint": {
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      {
+        "schema": "dbg_97b840c7",
+        "table": "wm_version_source_refs",
+        "mode": "equal",
+        "memory_only": 0,
+        "aw_only": 0,
+        "shared": 0,
+        "shared_changed": 0,
+        "union_fingerprint": {
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      {
+        "schema": "public",
+        "table": "context_graph_snapshots",
+        "mode": "equal",
+        "memory_only": 0,
+        "aw_only": 0,
+        "shared": 1,
+        "shared_changed": 0,
+        "union_fingerprint": {
+          "rows": 1,
+          "sha256": "b2a6909407c3dd6a3d85025f7d6eaffef9e25fcab45940ff13dd62a1a4eaeb3a"
+        }
+      },
+      {
+        "schema": "public",
+        "table": "context_graph_switch_log",
+        "mode": "equal",
+        "memory_only": 0,
+        "aw_only": 0,
+        "shared": 0,
+        "shared_changed": 0,
+        "union_fingerprint": {
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      {
+        "schema": "public",
+        "table": "context_graph_versions",
+        "mode": "equal",
+        "memory_only": 0,
+        "aw_only": 0,
+        "shared": 2,
+        "shared_changed": 0,
+        "union_fingerprint": {
+          "rows": 2,
+          "sha256": "c24a3393be71fe654b26052735559d9fcf65bbbf5a28b7af9ddaa7ee86d45a0f"
+        }
+      },
+      {
+        "schema": "public",
+        "table": "conversations",
+        "mode": "aw_superset",
+        "memory_only": 0,
+        "aw_only": 104,
+        "shared": 4086,
+        "shared_changed": 0,
+        "union_fingerprint": {
+          "rows": 4190,
+          "sha256": "7d538b12d3d392f78acaee7d654b77b39c68e038e113104360550f0d443c765d"
+        }
+      },
+      {
+        "schema": "public",
+        "table": "document_fragments",
+        "mode": "equal",
+        "memory_only": 0,
+        "aw_only": 0,
+        "shared": 49,
+        "shared_changed": 0,
+        "union_fingerprint": {
+          "rows": 49,
+          "sha256": "f8b46f11139f565c3e7af663cd02ee054ad1be90d61a18bd743afb070fc59225"
+        }
+      },
+      {
+        "schema": "public",
+        "table": "documents",
+        "mode": "equal",
+        "memory_only": 0,
+        "aw_only": 0,
+        "shared": 9,
+        "shared_changed": 0,
+        "union_fingerprint": {
+          "rows": 9,
+          "sha256": "e488057ef88389f4033a607a5aa17a8f601d9db9dcc12d8bf4740847b4dc41f5"
+        }
+      },
+      {
+        "schema": "public",
+        "table": "episodic_summaries",
+        "mode": "equal",
+        "memory_only": 0,
+        "aw_only": 0,
+        "shared": 303,
+        "shared_changed": 0,
+        "union_fingerprint": {
+          "rows": 303,
+          "sha256": "9fd02c5b16cd7e280bcea1068cb465fffae1eb79d125dc20c2945ac7550d6ea5"
+        }
+      },
+      {
+        "schema": "public",
+        "table": "evals_sync_state",
+        "mode": "aw_superset",
+        "memory_only": 0,
+        "aw_only": 16,
+        "shared": 435,
+        "shared_changed": 0,
+        "union_fingerprint": {
+          "rows": 451,
+          "sha256": "98607dbf8d86aa201add007d0cb66fc547b073b62593508f059620335544930f"
+        }
+      },
+      {
+        "schema": "public",
+        "table": "memory_audit",
+        "mode": "equal",
+        "memory_only": 0,
+        "aw_only": 0,
+        "shared": 380,
+        "shared_changed": 0,
+        "union_fingerprint": {
+          "rows": 380,
+          "sha256": "f78b21690fe3ed21daf82e7e3380210fa11ef2c5893e6d7487f5e94a19de7502"
+        }
+      },
+      {
+        "schema": "public",
+        "table": "memory_proposals",
+        "mode": "equal",
+        "memory_only": 0,
+        "aw_only": 0,
+        "shared": 380,
+        "shared_changed": 0,
+        "union_fingerprint": {
+          "rows": 380,
+          "sha256": "b1a44828a8f64c1113ec7972ec5ce3cbe008b2511df66bdf546f1db1e43059f4"
+        }
+      },
+      {
+        "schema": "public",
+        "table": "run_events",
+        "mode": "aw_superset",
+        "memory_only": 0,
+        "aw_only": 904,
+        "shared": 37034,
+        "shared_changed": 0,
+        "union_fingerprint": {
+          "rows": 37938,
+          "sha256": "5810f39aa33a9bd36fc38a7cba24627dd5dc707603629095be20d2f643d52f7a"
+        }
+      },
+      {
+        "schema": "public",
+        "table": "runs",
+        "mode": "aw_superset",
+        "memory_only": 0,
+        "aw_only": 104,
+        "shared": 4096,
+        "shared_changed": 0,
+        "union_fingerprint": {
+          "rows": 4200,
+          "sha256": "8c8dccd706051eb084a61037430405ee94f89907917ac5ea0bdd6519801e6dc6"
+        }
+      },
+      {
+        "schema": "public",
+        "table": "schema_migrations",
+        "mode": "equal",
+        "memory_only": 0,
+        "aw_only": 0,
+        "shared": 7,
+        "shared_changed": 0,
+        "union_fingerprint": {
+          "rows": 7,
+          "sha256": "1b1ce6addb2b6a140871b8b47c554eeab9217fd32b84d61c6a2b4d9a069a2a67"
+        }
+      },
+      {
+        "schema": "public",
+        "table": "semantic_entities",
+        "mode": "equal",
+        "memory_only": 0,
+        "aw_only": 0,
+        "shared": 38,
+        "shared_changed": 0,
+        "union_fingerprint": {
+          "rows": 38,
+          "sha256": "5dfab4cf97be748f39e4d50265bd1ba786139a0c7c1ca619cd64aec1bcd3e259"
+        }
+      },
+      {
+        "schema": "public",
+        "table": "semantic_entity_source_refs",
+        "mode": "equal",
+        "memory_only": 0,
+        "aw_only": 0,
+        "shared": 40,
+        "shared_changed": 0,
+        "union_fingerprint": {
+          "rows": 40,
+          "sha256": "9197babd6ba29890740406bde3a53b44cd6bd74195bf03d972098a84560d8285"
+        }
+      },
+      {
+        "schema": "public",
+        "table": "semantic_relation_source_refs",
+        "mode": "equal",
+        "memory_only": 0,
+        "aw_only": 0,
+        "shared": 55,
+        "shared_changed": 0,
+        "union_fingerprint": {
+          "rows": 55,
+          "sha256": "05f7f4f995e9927d96e4febb9d87df2663542029e630e504996935853b0fdd65"
+        }
+      },
+      {
+        "schema": "public",
+        "table": "semantic_relations",
+        "mode": "equal",
+        "memory_only": 0,
+        "aw_only": 0,
+        "shared": 55,
+        "shared_changed": 0,
+        "union_fingerprint": {
+          "rows": 55,
+          "sha256": "53ba94cc1a6b2650f00a8f8fbf87521c39ea4f876bc13eb48bf0d9a5fa3b8509"
+        }
+      },
+      {
+        "schema": "public",
+        "table": "strategic_periods",
+        "mode": "equal",
+        "memory_only": 0,
+        "aw_only": 0,
+        "shared": 0,
+        "shared_changed": 0,
+        "union_fingerprint": {
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      {
+        "schema": "public",
+        "table": "user_memories",
+        "mode": "equal",
+        "memory_only": 0,
+        "aw_only": 0,
+        "shared": 0,
+        "shared_changed": 0,
+        "union_fingerprint": {
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      {
+        "schema": "public",
+        "table": "users",
+        "mode": "equal",
+        "memory_only": 0,
+        "aw_only": 0,
+        "shared": 4,
+        "shared_changed": 0,
+        "union_fingerprint": {
+          "rows": 4,
+          "sha256": "45ec002a756398b648d1c5b8c40b5090f6c543b6eac0bca8257fbb2e9c52f489"
+        }
+      },
+      {
+        "schema": "public",
+        "table": "wm_agreement_confirmations",
+        "mode": "memory_superset",
+        "memory_only": 0,
+        "aw_only": 0,
+        "shared": 0,
+        "shared_changed": 0,
+        "union_fingerprint": {
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      {
+        "schema": "public",
+        "table": "wm_agreement_parties",
+        "mode": "memory_superset",
+        "memory_only": 0,
+        "aw_only": 0,
+        "shared": 0,
+        "shared_changed": 0,
+        "union_fingerprint": {
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      {
+        "schema": "public",
+        "table": "wm_issue_chains",
+        "mode": "memory_superset",
+        "memory_only": 7,
+        "aw_only": 0,
+        "shared": 7,
+        "shared_changed": 0,
+        "union_fingerprint": {
+          "rows": 14,
+          "sha256": "0f6d57c4eef06fb53f38ceb816e8f1c211c345c973bf8db6592b657589a68ba1"
+        }
+      },
+      {
+        "schema": "public",
+        "table": "wm_issue_signals",
+        "mode": "memory_superset",
+        "memory_only": 7,
+        "aw_only": 0,
+        "shared": 13,
+        "shared_changed": 0,
+        "union_fingerprint": {
+          "rows": 20,
+          "sha256": "7c1b3913128b372ae37527d94b429b404564a5c7838588d7877908d55a7143b9"
+        }
+      },
+      {
+        "schema": "public",
+        "table": "wm_object_versions",
+        "mode": "memory_superset",
+        "memory_only": 21,
+        "aw_only": 0,
+        "shared": 21,
+        "shared_changed": 0,
+        "union_fingerprint": {
+          "rows": 42,
+          "sha256": "97c23a9f39a2194139a8d739c99e324a5bacdfcd4f47f580fd8c23972a33a8b8"
+        }
+      },
+      {
+        "schema": "public",
+        "table": "wm_objects",
+        "mode": "memory_superset",
+        "memory_only": 14,
+        "aw_only": 0,
+        "shared": 20,
+        "shared_changed": 0,
+        "union_fingerprint": {
+          "rows": 34,
+          "sha256": "630396a8bb8e84ecdad7cc46b4092e0c53ac1eaf75d92d2d55dcfa11631f2b65"
+        }
+      },
+      {
+        "schema": "public",
+        "table": "wm_version_source_refs",
+        "mode": "memory_superset",
+        "memory_only": 0,
+        "aw_only": 0,
+        "shared": 12,
+        "shared_changed": 0,
+        "union_fingerprint": {
+          "rows": 12,
+          "sha256": "ec92acd1b62acac2f37720a9603a6784e4735c5ec467b88b4eee0f0f8ab8a503"
+        }
+      }
+    ],
+    "inserted": {
+      "conversations": 104,
+      "runs": 104,
+      "run_events": 904,
+      "evals_sync_state": 16
+    },
+    "replay_scope": "original missing-row insert plan; full preserve() requires a fresh restore",
+    "union_after_insert": {
+      "passed": true,
+      "tables": [
+        {
+          "table": "dbg_97b840c7.context_graph_snapshots",
+          "union_equal": true,
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "table": "dbg_97b840c7.context_graph_switch_log",
+          "union_equal": true,
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "table": "dbg_97b840c7.context_graph_versions",
+          "union_equal": true,
+          "rows": 1,
+          "sha256": "8b056a2d2524baded1930c94b2ac284661749bc5805a7aba656a40111852913d"
+        },
+        {
+          "table": "dbg_97b840c7.conversations",
+          "union_equal": true,
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "table": "dbg_97b840c7.document_fragments",
+          "union_equal": true,
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "table": "dbg_97b840c7.documents",
+          "union_equal": true,
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "table": "dbg_97b840c7.episodic_summaries",
+          "union_equal": true,
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "table": "dbg_97b840c7.evals_sync_state",
+          "union_equal": true,
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "table": "dbg_97b840c7.memory_audit",
+          "union_equal": true,
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "table": "dbg_97b840c7.memory_proposals",
+          "union_equal": true,
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "table": "dbg_97b840c7.run_events",
+          "union_equal": true,
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "table": "dbg_97b840c7.runs",
+          "union_equal": true,
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "table": "dbg_97b840c7.semantic_entities",
+          "union_equal": true,
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "table": "dbg_97b840c7.semantic_entity_source_refs",
+          "union_equal": true,
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "table": "dbg_97b840c7.semantic_relation_source_refs",
+          "union_equal": true,
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "table": "dbg_97b840c7.semantic_relations",
+          "union_equal": true,
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "table": "dbg_97b840c7.strategic_periods",
+          "union_equal": true,
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "table": "dbg_97b840c7.user_memories",
+          "union_equal": true,
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "table": "dbg_97b840c7.users",
+          "union_equal": true,
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "table": "dbg_97b840c7.wm_agreement_confirmations",
+          "union_equal": true,
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "table": "dbg_97b840c7.wm_agreement_parties",
+          "union_equal": true,
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "table": "dbg_97b840c7.wm_issue_chains",
+          "union_equal": true,
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "table": "dbg_97b840c7.wm_issue_signals",
+          "union_equal": true,
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "table": "dbg_97b840c7.wm_object_versions",
+          "union_equal": true,
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "table": "dbg_97b840c7.wm_objects",
+          "union_equal": true,
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "table": "dbg_97b840c7.wm_version_source_refs",
+          "union_equal": true,
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "table": "public.context_graph_snapshots",
+          "union_equal": true,
+          "rows": 1,
+          "sha256": "b2a6909407c3dd6a3d85025f7d6eaffef9e25fcab45940ff13dd62a1a4eaeb3a"
+        },
+        {
+          "table": "public.context_graph_switch_log",
+          "union_equal": true,
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "table": "public.context_graph_versions",
+          "union_equal": true,
+          "rows": 2,
+          "sha256": "c24a3393be71fe654b26052735559d9fcf65bbbf5a28b7af9ddaa7ee86d45a0f"
+        },
+        {
+          "table": "public.conversations",
+          "union_equal": true,
+          "rows": 4190,
+          "sha256": "7d538b12d3d392f78acaee7d654b77b39c68e038e113104360550f0d443c765d"
+        },
+        {
+          "table": "public.document_fragments",
+          "union_equal": true,
+          "rows": 49,
+          "sha256": "f8b46f11139f565c3e7af663cd02ee054ad1be90d61a18bd743afb070fc59225"
+        },
+        {
+          "table": "public.documents",
+          "union_equal": true,
+          "rows": 9,
+          "sha256": "e488057ef88389f4033a607a5aa17a8f601d9db9dcc12d8bf4740847b4dc41f5"
+        },
+        {
+          "table": "public.episodic_summaries",
+          "union_equal": true,
+          "rows": 303,
+          "sha256": "9fd02c5b16cd7e280bcea1068cb465fffae1eb79d125dc20c2945ac7550d6ea5"
+        },
+        {
+          "table": "public.evals_sync_state",
+          "union_equal": true,
+          "rows": 451,
+          "sha256": "98607dbf8d86aa201add007d0cb66fc547b073b62593508f059620335544930f"
+        },
+        {
+          "table": "public.memory_audit",
+          "union_equal": true,
+          "rows": 380,
+          "sha256": "f78b21690fe3ed21daf82e7e3380210fa11ef2c5893e6d7487f5e94a19de7502"
+        },
+        {
+          "table": "public.memory_proposals",
+          "union_equal": true,
+          "rows": 380,
+          "sha256": "b1a44828a8f64c1113ec7972ec5ce3cbe008b2511df66bdf546f1db1e43059f4"
+        },
+        {
+          "table": "public.run_events",
+          "union_equal": true,
+          "rows": 37938,
+          "sha256": "5810f39aa33a9bd36fc38a7cba24627dd5dc707603629095be20d2f643d52f7a"
+        },
+        {
+          "table": "public.runs",
+          "union_equal": true,
+          "rows": 4200,
+          "sha256": "8c8dccd706051eb084a61037430405ee94f89907917ac5ea0bdd6519801e6dc6"
+        },
+        {
+          "table": "public.schema_migrations",
+          "union_equal": true,
+          "rows": 7,
+          "sha256": "1b1ce6addb2b6a140871b8b47c554eeab9217fd32b84d61c6a2b4d9a069a2a67"
+        },
+        {
+          "table": "public.semantic_entities",
+          "union_equal": true,
+          "rows": 38,
+          "sha256": "5dfab4cf97be748f39e4d50265bd1ba786139a0c7c1ca619cd64aec1bcd3e259"
+        },
+        {
+          "table": "public.semantic_entity_source_refs",
+          "union_equal": true,
+          "rows": 40,
+          "sha256": "9197babd6ba29890740406bde3a53b44cd6bd74195bf03d972098a84560d8285"
+        },
+        {
+          "table": "public.semantic_relation_source_refs",
+          "union_equal": true,
+          "rows": 55,
+          "sha256": "05f7f4f995e9927d96e4febb9d87df2663542029e630e504996935853b0fdd65"
+        },
+        {
+          "table": "public.semantic_relations",
+          "union_equal": true,
+          "rows": 55,
+          "sha256": "53ba94cc1a6b2650f00a8f8fbf87521c39ea4f876bc13eb48bf0d9a5fa3b8509"
+        },
+        {
+          "table": "public.strategic_periods",
+          "union_equal": true,
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "table": "public.user_memories",
+          "union_equal": true,
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "table": "public.users",
+          "union_equal": true,
+          "rows": 4,
+          "sha256": "45ec002a756398b648d1c5b8c40b5090f6c543b6eac0bca8257fbb2e9c52f489"
+        },
+        {
+          "table": "public.wm_agreement_confirmations",
+          "union_equal": true,
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "table": "public.wm_agreement_parties",
+          "union_equal": true,
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "table": "public.wm_issue_chains",
+          "union_equal": true,
+          "rows": 14,
+          "sha256": "0f6d57c4eef06fb53f38ceb816e8f1c211c345c973bf8db6592b657589a68ba1"
+        },
+        {
+          "table": "public.wm_issue_signals",
+          "union_equal": true,
+          "rows": 20,
+          "sha256": "7c1b3913128b372ae37527d94b429b404564a5c7838588d7877908d55a7143b9"
+        },
+        {
+          "table": "public.wm_object_versions",
+          "union_equal": true,
+          "rows": 42,
+          "sha256": "97c23a9f39a2194139a8d739c99e324a5bacdfcd4f47f580fd8c23972a33a8b8"
+        },
+        {
+          "table": "public.wm_objects",
+          "union_equal": true,
+          "rows": 34,
+          "sha256": "630396a8bb8e84ecdad7cc46b4092e0c53ac1eaf75d92d2d55dcfa11631f2b65"
+        },
+        {
+          "table": "public.wm_version_source_refs",
+          "union_equal": true,
+          "rows": 12,
+          "sha256": "ec92acd1b62acac2f37720a9603a6784e4735c5ec467b88b4eee0f0f8ab8a503"
+        }
+      ],
+      "all_53_union_preserved": true,
+      "authorized_migration_rows_excluded": false
+    },
+    "foreign_keys_after_insert": {
+      "checked": 108,
+      "all_validated": true,
+      "orphan_rows": 0
+    },
+    "union_after_replay": {
+      "passed": true,
+      "tables": [
+        {
+          "table": "dbg_97b840c7.context_graph_snapshots",
+          "union_equal": true,
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "table": "dbg_97b840c7.context_graph_switch_log",
+          "union_equal": true,
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "table": "dbg_97b840c7.context_graph_versions",
+          "union_equal": true,
+          "rows": 1,
+          "sha256": "8b056a2d2524baded1930c94b2ac284661749bc5805a7aba656a40111852913d"
+        },
+        {
+          "table": "dbg_97b840c7.conversations",
+          "union_equal": true,
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "table": "dbg_97b840c7.document_fragments",
+          "union_equal": true,
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "table": "dbg_97b840c7.documents",
+          "union_equal": true,
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "table": "dbg_97b840c7.episodic_summaries",
+          "union_equal": true,
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "table": "dbg_97b840c7.evals_sync_state",
+          "union_equal": true,
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "table": "dbg_97b840c7.memory_audit",
+          "union_equal": true,
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "table": "dbg_97b840c7.memory_proposals",
+          "union_equal": true,
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "table": "dbg_97b840c7.run_events",
+          "union_equal": true,
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "table": "dbg_97b840c7.runs",
+          "union_equal": true,
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "table": "dbg_97b840c7.semantic_entities",
+          "union_equal": true,
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "table": "dbg_97b840c7.semantic_entity_source_refs",
+          "union_equal": true,
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "table": "dbg_97b840c7.semantic_relation_source_refs",
+          "union_equal": true,
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "table": "dbg_97b840c7.semantic_relations",
+          "union_equal": true,
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "table": "dbg_97b840c7.strategic_periods",
+          "union_equal": true,
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "table": "dbg_97b840c7.user_memories",
+          "union_equal": true,
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "table": "dbg_97b840c7.users",
+          "union_equal": true,
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "table": "dbg_97b840c7.wm_agreement_confirmations",
+          "union_equal": true,
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "table": "dbg_97b840c7.wm_agreement_parties",
+          "union_equal": true,
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "table": "dbg_97b840c7.wm_issue_chains",
+          "union_equal": true,
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "table": "dbg_97b840c7.wm_issue_signals",
+          "union_equal": true,
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "table": "dbg_97b840c7.wm_object_versions",
+          "union_equal": true,
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "table": "dbg_97b840c7.wm_objects",
+          "union_equal": true,
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "table": "dbg_97b840c7.wm_version_source_refs",
+          "union_equal": true,
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "table": "public.context_graph_snapshots",
+          "union_equal": true,
+          "rows": 1,
+          "sha256": "b2a6909407c3dd6a3d85025f7d6eaffef9e25fcab45940ff13dd62a1a4eaeb3a"
+        },
+        {
+          "table": "public.context_graph_switch_log",
+          "union_equal": true,
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "table": "public.context_graph_versions",
+          "union_equal": true,
+          "rows": 2,
+          "sha256": "c24a3393be71fe654b26052735559d9fcf65bbbf5a28b7af9ddaa7ee86d45a0f"
+        },
+        {
+          "table": "public.conversations",
+          "union_equal": true,
+          "rows": 4190,
+          "sha256": "7d538b12d3d392f78acaee7d654b77b39c68e038e113104360550f0d443c765d"
+        },
+        {
+          "table": "public.document_fragments",
+          "union_equal": true,
+          "rows": 49,
+          "sha256": "f8b46f11139f565c3e7af663cd02ee054ad1be90d61a18bd743afb070fc59225"
+        },
+        {
+          "table": "public.documents",
+          "union_equal": true,
+          "rows": 9,
+          "sha256": "e488057ef88389f4033a607a5aa17a8f601d9db9dcc12d8bf4740847b4dc41f5"
+        },
+        {
+          "table": "public.episodic_summaries",
+          "union_equal": true,
+          "rows": 303,
+          "sha256": "9fd02c5b16cd7e280bcea1068cb465fffae1eb79d125dc20c2945ac7550d6ea5"
+        },
+        {
+          "table": "public.evals_sync_state",
+          "union_equal": true,
+          "rows": 451,
+          "sha256": "98607dbf8d86aa201add007d0cb66fc547b073b62593508f059620335544930f"
+        },
+        {
+          "table": "public.memory_audit",
+          "union_equal": true,
+          "rows": 380,
+          "sha256": "f78b21690fe3ed21daf82e7e3380210fa11ef2c5893e6d7487f5e94a19de7502"
+        },
+        {
+          "table": "public.memory_proposals",
+          "union_equal": true,
+          "rows": 380,
+          "sha256": "b1a44828a8f64c1113ec7972ec5ce3cbe008b2511df66bdf546f1db1e43059f4"
+        },
+        {
+          "table": "public.run_events",
+          "union_equal": true,
+          "rows": 37938,
+          "sha256": "5810f39aa33a9bd36fc38a7cba24627dd5dc707603629095be20d2f643d52f7a"
+        },
+        {
+          "table": "public.runs",
+          "union_equal": true,
+          "rows": 4200,
+          "sha256": "8c8dccd706051eb084a61037430405ee94f89907917ac5ea0bdd6519801e6dc6"
+        },
+        {
+          "table": "public.schema_migrations",
+          "union_equal": true,
+          "rows": 7,
+          "sha256": "1b1ce6addb2b6a140871b8b47c554eeab9217fd32b84d61c6a2b4d9a069a2a67"
+        },
+        {
+          "table": "public.semantic_entities",
+          "union_equal": true,
+          "rows": 38,
+          "sha256": "5dfab4cf97be748f39e4d50265bd1ba786139a0c7c1ca619cd64aec1bcd3e259"
+        },
+        {
+          "table": "public.semantic_entity_source_refs",
+          "union_equal": true,
+          "rows": 40,
+          "sha256": "9197babd6ba29890740406bde3a53b44cd6bd74195bf03d972098a84560d8285"
+        },
+        {
+          "table": "public.semantic_relation_source_refs",
+          "union_equal": true,
+          "rows": 55,
+          "sha256": "05f7f4f995e9927d96e4febb9d87df2663542029e630e504996935853b0fdd65"
+        },
+        {
+          "table": "public.semantic_relations",
+          "union_equal": true,
+          "rows": 55,
+          "sha256": "53ba94cc1a6b2650f00a8f8fbf87521c39ea4f876bc13eb48bf0d9a5fa3b8509"
+        },
+        {
+          "table": "public.strategic_periods",
+          "union_equal": true,
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "table": "public.user_memories",
+          "union_equal": true,
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "table": "public.users",
+          "union_equal": true,
+          "rows": 4,
+          "sha256": "45ec002a756398b648d1c5b8c40b5090f6c543b6eac0bca8257fbb2e9c52f489"
+        },
+        {
+          "table": "public.wm_agreement_confirmations",
+          "union_equal": true,
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "table": "public.wm_agreement_parties",
+          "union_equal": true,
+          "rows": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "table": "public.wm_issue_chains",
+          "union_equal": true,
+          "rows": 14,
+          "sha256": "0f6d57c4eef06fb53f38ceb816e8f1c211c345c973bf8db6592b657589a68ba1"
+        },
+        {
+          "table": "public.wm_issue_signals",
+          "union_equal": true,
+          "rows": 20,
+          "sha256": "7c1b3913128b372ae37527d94b429b404564a5c7838588d7877908d55a7143b9"
+        },
+        {
+          "table": "public.wm_object_versions",
+          "union_equal": true,
+          "rows": 42,
+          "sha256": "97c23a9f39a2194139a8d739c99e324a5bacdfcd4f47f580fd8c23972a33a8b8"
+        },
+        {
+          "table": "public.wm_objects",
+          "union_equal": true,
+          "rows": 34,
+          "sha256": "630396a8bb8e84ecdad7cc46b4092e0c53ac1eaf75d92d2d55dcfa11631f2b65"
+        },
+        {
+          "table": "public.wm_version_source_refs",
+          "union_equal": true,
+          "rows": 12,
+          "sha256": "ec92acd1b62acac2f37720a9603a6784e4735c5ec467b88b4eee0f0f8ab8a503"
+        }
+      ],
+      "all_53_union_preserved": true,
+      "authorized_migration_rows_excluded": false
+    },
+    "replay_inserted_rows": 0,
+    "negative_database_checks": {
+      "shared_content_conflict_rejected": true,
+      "unknown_table_rejected": true,
+      "not_valid_foreign_key_rejected": true,
+      "injections_rolled_back": true
+    }
+  },
+  "migrations_replay": [],
+  "application_role": {
+    "superuser": false,
+    "bypassrls": false,
+    "owned_tables": 0
+  },
+  "foreign_keys_after_migration": {
+    "foreign_keys": 158,
+    "unvalidated_foreign_keys": 0,
+    "wrong_public_table_owner": 0
+  },
+  "legacy_application_privileges": {
+    "legacy_public_tables": 27,
+    "select_only_verified": true,
+    "governed_privileges": "runtime mutable/append-only classification retained"
+  },
+  "union_after_migrations": {
+    "passed": true,
+    "tables": [
+      {
+        "table": "dbg_97b840c7.context_graph_snapshots",
+        "union_equal": true,
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "table": "dbg_97b840c7.context_graph_switch_log",
+        "union_equal": true,
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "table": "dbg_97b840c7.context_graph_versions",
+        "union_equal": true,
+        "rows": 1,
+        "sha256": "8b056a2d2524baded1930c94b2ac284661749bc5805a7aba656a40111852913d"
+      },
+      {
+        "table": "dbg_97b840c7.conversations",
+        "union_equal": true,
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "table": "dbg_97b840c7.document_fragments",
+        "union_equal": true,
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "table": "dbg_97b840c7.documents",
+        "union_equal": true,
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "table": "dbg_97b840c7.episodic_summaries",
+        "union_equal": true,
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "table": "dbg_97b840c7.evals_sync_state",
+        "union_equal": true,
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "table": "dbg_97b840c7.memory_audit",
+        "union_equal": true,
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "table": "dbg_97b840c7.memory_proposals",
+        "union_equal": true,
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "table": "dbg_97b840c7.run_events",
+        "union_equal": true,
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "table": "dbg_97b840c7.runs",
+        "union_equal": true,
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "table": "dbg_97b840c7.semantic_entities",
+        "union_equal": true,
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "table": "dbg_97b840c7.semantic_entity_source_refs",
+        "union_equal": true,
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "table": "dbg_97b840c7.semantic_relation_source_refs",
+        "union_equal": true,
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "table": "dbg_97b840c7.semantic_relations",
+        "union_equal": true,
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "table": "dbg_97b840c7.strategic_periods",
+        "union_equal": true,
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "table": "dbg_97b840c7.user_memories",
+        "union_equal": true,
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "table": "dbg_97b840c7.users",
+        "union_equal": true,
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "table": "dbg_97b840c7.wm_agreement_confirmations",
+        "union_equal": true,
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "table": "dbg_97b840c7.wm_agreement_parties",
+        "union_equal": true,
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "table": "dbg_97b840c7.wm_issue_chains",
+        "union_equal": true,
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "table": "dbg_97b840c7.wm_issue_signals",
+        "union_equal": true,
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "table": "dbg_97b840c7.wm_object_versions",
+        "union_equal": true,
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "table": "dbg_97b840c7.wm_objects",
+        "union_equal": true,
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "table": "dbg_97b840c7.wm_version_source_refs",
+        "union_equal": true,
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "table": "public.context_graph_snapshots",
+        "union_equal": true,
+        "rows": 1,
+        "sha256": "b2a6909407c3dd6a3d85025f7d6eaffef9e25fcab45940ff13dd62a1a4eaeb3a"
+      },
+      {
+        "table": "public.context_graph_switch_log",
+        "union_equal": true,
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "table": "public.context_graph_versions",
+        "union_equal": true,
+        "rows": 2,
+        "sha256": "c24a3393be71fe654b26052735559d9fcf65bbbf5a28b7af9ddaa7ee86d45a0f"
+      },
+      {
+        "table": "public.conversations",
+        "union_equal": true,
+        "rows": 4190,
+        "sha256": "7d538b12d3d392f78acaee7d654b77b39c68e038e113104360550f0d443c765d"
+      },
+      {
+        "table": "public.document_fragments",
+        "union_equal": true,
+        "rows": 49,
+        "sha256": "f8b46f11139f565c3e7af663cd02ee054ad1be90d61a18bd743afb070fc59225"
+      },
+      {
+        "table": "public.documents",
+        "union_equal": true,
+        "rows": 9,
+        "sha256": "e488057ef88389f4033a607a5aa17a8f601d9db9dcc12d8bf4740847b4dc41f5"
+      },
+      {
+        "table": "public.episodic_summaries",
+        "union_equal": true,
+        "rows": 303,
+        "sha256": "9fd02c5b16cd7e280bcea1068cb465fffae1eb79d125dc20c2945ac7550d6ea5"
+      },
+      {
+        "table": "public.evals_sync_state",
+        "union_equal": true,
+        "rows": 451,
+        "sha256": "98607dbf8d86aa201add007d0cb66fc547b073b62593508f059620335544930f"
+      },
+      {
+        "table": "public.memory_audit",
+        "union_equal": true,
+        "rows": 380,
+        "sha256": "f78b21690fe3ed21daf82e7e3380210fa11ef2c5893e6d7487f5e94a19de7502"
+      },
+      {
+        "table": "public.memory_proposals",
+        "union_equal": true,
+        "rows": 380,
+        "sha256": "b1a44828a8f64c1113ec7972ec5ce3cbe008b2511df66bdf546f1db1e43059f4"
+      },
+      {
+        "table": "public.run_events",
+        "union_equal": true,
+        "rows": 37938,
+        "sha256": "5810f39aa33a9bd36fc38a7cba24627dd5dc707603629095be20d2f643d52f7a"
+      },
+      {
+        "table": "public.runs",
+        "union_equal": true,
+        "rows": 4200,
+        "sha256": "8c8dccd706051eb084a61037430405ee94f89907917ac5ea0bdd6519801e6dc6"
+      },
+      {
+        "table": "public.schema_migrations",
+        "union_equal": true,
+        "rows": 7,
+        "sha256": "1b1ce6addb2b6a140871b8b47c554eeab9217fd32b84d61c6a2b4d9a069a2a67"
+      },
+      {
+        "table": "public.semantic_entities",
+        "union_equal": true,
+        "rows": 38,
+        "sha256": "5dfab4cf97be748f39e4d50265bd1ba786139a0c7c1ca619cd64aec1bcd3e259"
+      },
+      {
+        "table": "public.semantic_entity_source_refs",
+        "union_equal": true,
+        "rows": 40,
+        "sha256": "9197babd6ba29890740406bde3a53b44cd6bd74195bf03d972098a84560d8285"
+      },
+      {
+        "table": "public.semantic_relation_source_refs",
+        "union_equal": true,
+        "rows": 55,
+        "sha256": "05f7f4f995e9927d96e4febb9d87df2663542029e630e504996935853b0fdd65"
+      },
+      {
+        "table": "public.semantic_relations",
+        "union_equal": true,
+        "rows": 55,
+        "sha256": "53ba94cc1a6b2650f00a8f8fbf87521c39ea4f876bc13eb48bf0d9a5fa3b8509"
+      },
+      {
+        "table": "public.strategic_periods",
+        "union_equal": true,
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "table": "public.user_memories",
+        "union_equal": true,
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "table": "public.users",
+        "union_equal": true,
+        "rows": 4,
+        "sha256": "45ec002a756398b648d1c5b8c40b5090f6c543b6eac0bca8257fbb2e9c52f489"
+      },
+      {
+        "table": "public.wm_agreement_confirmations",
+        "union_equal": true,
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "table": "public.wm_agreement_parties",
+        "union_equal": true,
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "table": "public.wm_issue_chains",
+        "union_equal": true,
+        "rows": 14,
+        "sha256": "0f6d57c4eef06fb53f38ceb816e8f1c211c345c973bf8db6592b657589a68ba1"
+      },
+      {
+        "table": "public.wm_issue_signals",
+        "union_equal": true,
+        "rows": 20,
+        "sha256": "7c1b3913128b372ae37527d94b429b404564a5c7838588d7877908d55a7143b9"
+      },
+      {
+        "table": "public.wm_object_versions",
+        "union_equal": true,
+        "rows": 42,
+        "sha256": "97c23a9f39a2194139a8d739c99e324a5bacdfcd4f47f580fd8c23972a33a8b8"
+      },
+      {
+        "table": "public.wm_objects",
+        "union_equal": true,
+        "rows": 34,
+        "sha256": "630396a8bb8e84ecdad7cc46b4092e0c53ac1eaf75d92d2d55dcfa11631f2b65"
+      },
+      {
+        "table": "public.wm_version_source_refs",
+        "union_equal": true,
+        "rows": 12,
+        "sha256": "ec92acd1b62acac2f37720a9603a6784e4735c5ec467b88b4eee0f0f8ab8a503"
+      }
+    ],
+    "all_53_union_preserved": true,
+    "authorized_migration_rows_excluded": true
+  },
+  "foreign_keys_after_union_migrations": {
+    "checked": 158,
+    "all_validated": true,
+    "orphan_rows": 0
+  },
+  "legacy_data_unchanged_after_migrations": true,
+  "governed_tables": 17,
+  "governed_rows": 0,
+  "completed_at": "2026-09-07T09:52:51.173101+00:00",
+  "limits": [
+    "Database-only local rehearsal; external object bytes and global roles are not restored",
+    "Source writes were not fenced; stable before/after hashes and restore equivalence verified",
+    "Legacy rows retained; no automatic legacy-to-governed authority conversion",
+    "Target server deployment, personal identity acceptance and production cutover remain separate"
+  ]
+}

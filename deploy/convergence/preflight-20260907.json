@@ -1,0 +1,4238 @@
+{
+  "preflight": {
+    "schema": "tkos.convergence.preflight/1",
+    "observed_at": "2026-09-07T09:17:37.709149+00:00",
+    "host": "tokenhub-prod",
+    "read_only": true,
+    "business_text_collected": false,
+    "credentials_collected": false,
+    "containers": [
+      {
+        "name": "tkos-memory-memory-service-1",
+        "image": "tkos-memory-service:535fee7-amd64",
+        "image_id": "sha256:de92764e4bb9d482e9f7b44b3169ebf520c81e4f7beff3f08ad6e2a53c200b6e",
+        "ports": {
+          "8010/tcp": [
+            {
+              "HostIp": "127.0.0.1",
+              "HostPort": "8010"
+            }
+          ]
+        },
+        "networks": [
+          "tkos-memory_memory-internal",
+          "tkos-memory_service-egress"
+        ],
+        "running": true
+      },
+      {
+        "name": "tkos-memory-postgres-1",
+        "image": "pgvector/pgvector:pg17",
+        "image_id": "sha256:cf134a767f474095eeba57e0117be8e568e011a63f33fbf252f14c9b760f8e6f",
+        "ports": {
+          "5432/tcp": null
+        },
+        "networks": [
+          "tkos-memory_memory-internal"
+        ],
+        "running": true
+      },
+      {
+        "name": "aw-workspace-pg",
+        "image": "pgvector/pgvector:pg17",
+        "image_id": "sha256:cf134a767f474095eeba57e0117be8e568e011a63f33fbf252f14c9b760f8e6f",
+        "ports": {
+          "5432/tcp": [
+            {
+              "HostIp": "127.0.0.1",
+              "HostPort": "5435"
+            }
+          ]
+        },
+        "networks": [
+          "bridge"
+        ],
+        "running": true
+      },
+      {
+        "name": "tkos-target-staging-postgres-1",
+        "image": "tkos/vendor-pgvector:pg17-f193b9c8-amd64",
+        "image_id": "sha256:f193b9c848deb27b0e892f85ed07b53fd83ccb1feb634ba415b1cdc44411bedc",
+        "ports": {
+          "5432/tcp": null
+        },
+        "networks": [
+          "tkos-target-staging_data-internal"
+        ],
+        "running": true
+      },
+      {
+        "name": "tkos-target-staging-memory-api-1",
+        "image": "tkos/memory-api:stg-20260904-78135ac8-0e8c2e72-amd64",
+        "image_id": "sha256:93e001dcec860902afdab6322034ec335cd1bd5dfab8fa98bfa9171bd11c5a51",
+        "ports": {
+          "8010/tcp": null
+        },
+        "networks": [
+          "tkos-target-staging_app-internal",
+          "tkos-target-staging_data-internal",
+          "tkos-target-staging_egress"
+        ],
+        "running": true
+      },
+      {
+        "name": "tkos-target-staging-memory-worker-1",
+        "image": "tkos/memory-worker:stg-20260904-78135ac8-0e8c2e72-amd64",
+        "image_id": "sha256:f3420709cb5eb59e567d99cd333dbe4f01843257458a313418a917ad7bd719db",
+        "ports": {},
+        "networks": [
+          "tkos-target-staging_app-internal",
+          "tkos-target-staging_data-internal",
+          "tkos-target-staging_egress"
+        ],
+        "running": true
+      },
+      {
+        "name": "tkos-target-staging-minio-1",
+        "image": "tkos/vendor-minio:3f97c565-amd64",
+        "image_id": "sha256:3f97c5651cb6662b880c787a232b6b34fec8d8922e08d6617b25d241a21164bb",
+        "ports": {
+          "9000/tcp": null
+        },
+        "networks": [
+          "tkos-target-staging_data-internal"
+        ],
+        "running": true
+      },
+      {
+        "name": "tkos-target-staging-nginx-1",
+        "image": "tkos/vendor-nginx:0dcc8882-amd64",
+        "image_id": "sha256:0dcc88822d45581e65ae329f8be769762bf628d3b2bb7d2a077d4aa5c98b30e3",
+        "ports": {
+          "80/tcp": [
+            {
+              "HostIp": "127.0.0.1",
+              "HostPort": "3400"
+            }
+          ]
+        },
+        "networks": [
+          "tkos-target-staging_edge"
+        ],
+        "running": true
+      }
+    ],
+    "databases": [
+      {
+        "container": "tkos-memory-postgres-1",
+        "database_slot": 0,
+        "server_version": "17.11 (Debian 17.11-1.pgdg12+2)",
+        "tables": [],
+        "governed_rls": [],
+        "statistics": [],
+        "foreign_keys": []
+      },
+      {
+        "container": "tkos-memory-postgres-1",
+        "database_slot": 1,
+        "server_version": "17.11 (Debian 17.11-1.pgdg12+2)",
+        "tables": [
+          {
+            "schema": "dbg_97b840c7",
+            "table": "context_graph_snapshots"
+          },
+          {
+            "schema": "dbg_97b840c7",
+            "table": "context_graph_switch_log"
+          },
+          {
+            "schema": "dbg_97b840c7",
+            "table": "context_graph_versions"
+          },
+          {
+            "schema": "dbg_97b840c7",
+            "table": "conversations"
+          },
+          {
+            "schema": "dbg_97b840c7",
+            "table": "document_fragments"
+          },
+          {
+            "schema": "dbg_97b840c7",
+            "table": "documents"
+          },
+          {
+            "schema": "dbg_97b840c7",
+            "table": "episodic_summaries"
+          },
+          {
+            "schema": "dbg_97b840c7",
+            "table": "evals_sync_state"
+          },
+          {
+            "schema": "dbg_97b840c7",
+            "table": "memory_audit"
+          },
+          {
+            "schema": "dbg_97b840c7",
+            "table": "memory_proposals"
+          },
+          {
+            "schema": "dbg_97b840c7",
+            "table": "run_events"
+          },
+          {
+            "schema": "dbg_97b840c7",
+            "table": "runs"
+          },
+          {
+            "schema": "dbg_97b840c7",
+            "table": "semantic_entities"
+          },
+          {
+            "schema": "dbg_97b840c7",
+            "table": "semantic_entity_source_refs"
+          },
+          {
+            "schema": "dbg_97b840c7",
+            "table": "semantic_relation_source_refs"
+          },
+          {
+            "schema": "dbg_97b840c7",
+            "table": "semantic_relations"
+          },
+          {
+            "schema": "dbg_97b840c7",
+            "table": "strategic_periods"
+          },
+          {
+            "schema": "dbg_97b840c7",
+            "table": "user_memories"
+          },
+          {
+            "schema": "dbg_97b840c7",
+            "table": "users"
+          },
+          {
+            "schema": "dbg_97b840c7",
+            "table": "wm_agreement_confirmations"
+          },
+          {
+            "schema": "dbg_97b840c7",
+            "table": "wm_agreement_parties"
+          },
+          {
+            "schema": "dbg_97b840c7",
+            "table": "wm_issue_chains"
+          },
+          {
+            "schema": "dbg_97b840c7",
+            "table": "wm_issue_signals"
+          },
+          {
+            "schema": "dbg_97b840c7",
+            "table": "wm_object_versions"
+          },
+          {
+            "schema": "dbg_97b840c7",
+            "table": "wm_objects"
+          },
+          {
+            "schema": "dbg_97b840c7",
+            "table": "wm_version_source_refs"
+          },
+          {
+            "schema": "public",
+            "table": "context_graph_snapshots"
+          },
+          {
+            "schema": "public",
+            "table": "context_graph_switch_log"
+          },
+          {
+            "schema": "public",
+            "table": "context_graph_versions"
+          },
+          {
+            "schema": "public",
+            "table": "conversations"
+          },
+          {
+            "schema": "public",
+            "table": "document_fragments"
+          },
+          {
+            "schema": "public",
+            "table": "documents"
+          },
+          {
+            "schema": "public",
+            "table": "episodic_summaries"
+          },
+          {
+            "schema": "public",
+            "table": "evals_sync_state"
+          },
+          {
+            "schema": "public",
+            "table": "memory_audit"
+          },
+          {
+            "schema": "public",
+            "table": "memory_proposals"
+          },
+          {
+            "schema": "public",
+            "table": "run_events"
+          },
+          {
+            "schema": "public",
+            "table": "runs"
+          },
+          {
+            "schema": "public",
+            "table": "schema_migrations"
+          },
+          {
+            "schema": "public",
+            "table": "semantic_entities"
+          },
+          {
+            "schema": "public",
+            "table": "semantic_entity_source_refs"
+          },
+          {
+            "schema": "public",
+            "table": "semantic_relation_source_refs"
+          },
+          {
+            "schema": "public",
+            "table": "semantic_relations"
+          },
+          {
+            "schema": "public",
+            "table": "strategic_periods"
+          },
+          {
+            "schema": "public",
+            "table": "user_memories"
+          },
+          {
+            "schema": "public",
+            "table": "users"
+          },
+          {
+            "schema": "public",
+            "table": "wm_agreement_confirmations"
+          },
+          {
+            "schema": "public",
+            "table": "wm_agreement_parties"
+          },
+          {
+            "schema": "public",
+            "table": "wm_issue_chains"
+          },
+          {
+            "schema": "public",
+            "table": "wm_issue_signals"
+          },
+          {
+            "schema": "public",
+            "table": "wm_object_versions"
+          },
+          {
+            "schema": "public",
+            "table": "wm_objects"
+          },
+          {
+            "schema": "public",
+            "table": "wm_version_source_refs"
+          }
+        ],
+        "governed_rls": [],
+        "statistics": [
+          {
+            "kind": "count",
+            "table": "context_graph_snapshots",
+            "rows": 1
+          },
+          {
+            "kind": "count",
+            "table": "context_graph_switch_log",
+            "rows": 0
+          },
+          {
+            "kind": "count",
+            "table": "context_graph_versions",
+            "rows": 2
+          },
+          {
+            "kind": "fingerprint",
+            "table": "context_graph_versions",
+            "algorithm": "sha256-sorted-row-json-utc-v1",
+            "row_cap": 10000,
+            "complete": true,
+            "sha256": "c24a3393be71fe654b26052735559d9fcf65bbbf5a28b7af9ddaa7ee86d45a0f"
+          },
+          {
+            "kind": "count",
+            "table": "conversations",
+            "rows": 4086
+          },
+          {
+            "kind": "count",
+            "table": "document_fragments",
+            "rows": 49
+          },
+          {
+            "kind": "fingerprint",
+            "table": "document_fragments",
+            "algorithm": "sha256-sorted-row-json-utc-v1",
+            "row_cap": 10000,
+            "complete": true,
+            "sha256": "f8b46f11139f565c3e7af663cd02ee054ad1be90d61a18bd743afb070fc59225"
+          },
+          {
+            "kind": "count",
+            "table": "documents",
+            "rows": 9
+          },
+          {
+            "kind": "fingerprint",
+            "table": "documents",
+            "algorithm": "sha256-sorted-row-json-utc-v1",
+            "row_cap": 10000,
+            "complete": true,
+            "sha256": "e488057ef88389f4033a607a5aa17a8f601d9db9dcc12d8bf4740847b4dc41f5"
+          },
+          {
+            "kind": "scope_counts",
+            "table": "documents",
+            "scope_count": 1,
+            "sorted_row_counts": [
+              9
+            ]
+          },
+          {
+            "kind": "count",
+            "table": "episodic_summaries",
+            "rows": 303
+          },
+          {
+            "kind": "count",
+            "table": "evals_sync_state",
+            "rows": 435
+          },
+          {
+            "kind": "count",
+            "table": "memory_audit",
+            "rows": 380
+          },
+          {
+            "kind": "fingerprint",
+            "table": "memory_audit",
+            "algorithm": "sha256-sorted-row-json-utc-v1",
+            "row_cap": 10000,
+            "complete": true,
+            "sha256": "f78b21690fe3ed21daf82e7e3380210fa11ef2c5893e6d7487f5e94a19de7502"
+          },
+          {
+            "kind": "count",
+            "table": "memory_proposals",
+            "rows": 380
+          },
+          {
+            "kind": "fingerprint",
+            "table": "memory_proposals",
+            "algorithm": "sha256-sorted-row-json-utc-v1",
+            "row_cap": 10000,
+            "complete": true,
+            "sha256": "b1a44828a8f64c1113ec7972ec5ce3cbe008b2511df66bdf546f1db1e43059f4"
+          },
+          {
+            "kind": "count",
+            "table": "run_events",
+            "rows": 37034
+          },
+          {
+            "kind": "count",
+            "table": "runs",
+            "rows": 4096
+          },
+          {
+            "kind": "count",
+            "table": "schema_migrations",
+            "rows": 7
+          },
+          {
+            "kind": "count",
+            "table": "semantic_entities",
+            "rows": 38
+          },
+          {
+            "kind": "fingerprint",
+            "table": "semantic_entities",
+            "algorithm": "sha256-sorted-row-json-utc-v1",
+            "row_cap": 10000,
+            "complete": true,
+            "sha256": "5dfab4cf97be748f39e4d50265bd1ba786139a0c7c1ca619cd64aec1bcd3e259"
+          },
+          {
+            "kind": "scope_counts",
+            "table": "semantic_entities",
+            "scope_count": 1,
+            "sorted_row_counts": [
+              38
+            ]
+          },
+          {
+            "kind": "count",
+            "table": "semantic_entity_source_refs",
+            "rows": 40
+          },
+          {
+            "kind": "fingerprint",
+            "table": "semantic_entity_source_refs",
+            "algorithm": "sha256-sorted-row-json-utc-v1",
+            "row_cap": 10000,
+            "complete": true,
+            "sha256": "9197babd6ba29890740406bde3a53b44cd6bd74195bf03d972098a84560d8285"
+          },
+          {
+            "kind": "count",
+            "table": "semantic_relation_source_refs",
+            "rows": 55
+          },
+          {
+            "kind": "fingerprint",
+            "table": "semantic_relation_source_refs",
+            "algorithm": "sha256-sorted-row-json-utc-v1",
+            "row_cap": 10000,
+            "complete": true,
+            "sha256": "05f7f4f995e9927d96e4febb9d87df2663542029e630e504996935853b0fdd65"
+          },
+          {
+            "kind": "count",
+            "table": "semantic_relations",
+            "rows": 55
+          },
+          {
+            "kind": "fingerprint",
+            "table": "semantic_relations",
+            "algorithm": "sha256-sorted-row-json-utc-v1",
+            "row_cap": 10000,
+            "complete": true,
+            "sha256": "53ba94cc1a6b2650f00a8f8fbf87521c39ea4f876bc13eb48bf0d9a5fa3b8509"
+          },
+          {
+            "kind": "scope_counts",
+            "table": "semantic_relations",
+            "scope_count": 1,
+            "sorted_row_counts": [
+              55
+            ]
+          },
+          {
+            "kind": "count",
+            "table": "strategic_periods",
+            "rows": 0
+          },
+          {
+            "kind": "count",
+            "table": "user_memories",
+            "rows": 0
+          },
+          {
+            "kind": "count",
+            "table": "users",
+            "rows": 4
+          },
+          {
+            "kind": "count",
+            "table": "wm_agreement_confirmations",
+            "rows": 0
+          },
+          {
+            "kind": "fingerprint",
+            "table": "wm_agreement_confirmations",
+            "algorithm": "sha256-sorted-row-json-utc-v1",
+            "row_cap": 10000,
+            "complete": true,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "kind": "count",
+            "table": "wm_agreement_parties",
+            "rows": 0
+          },
+          {
+            "kind": "fingerprint",
+            "table": "wm_agreement_parties",
+            "algorithm": "sha256-sorted-row-json-utc-v1",
+            "row_cap": 10000,
+            "complete": true,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "kind": "count",
+            "table": "wm_issue_chains",
+            "rows": 14
+          },
+          {
+            "kind": "fingerprint",
+            "table": "wm_issue_chains",
+            "algorithm": "sha256-sorted-row-json-utc-v1",
+            "row_cap": 10000,
+            "complete": true,
+            "sha256": "0f6d57c4eef06fb53f38ceb816e8f1c211c345c973bf8db6592b657589a68ba1"
+          },
+          {
+            "kind": "scope_counts",
+            "table": "wm_issue_chains",
+            "scope_count": 1,
+            "sorted_row_counts": [
+              14
+            ]
+          },
+          {
+            "kind": "count",
+            "table": "wm_issue_signals",
+            "rows": 20
+          },
+          {
+            "kind": "fingerprint",
+            "table": "wm_issue_signals",
+            "algorithm": "sha256-sorted-row-json-utc-v1",
+            "row_cap": 10000,
+            "complete": true,
+            "sha256": "7c1b3913128b372ae37527d94b429b404564a5c7838588d7877908d55a7143b9"
+          },
+          {
+            "kind": "count",
+            "table": "wm_object_versions",
+            "rows": 42
+          },
+          {
+            "kind": "fingerprint",
+            "table": "wm_object_versions",
+            "algorithm": "sha256-sorted-row-json-utc-v1",
+            "row_cap": 10000,
+            "complete": true,
+            "sha256": "97c23a9f39a2194139a8d739c99e324a5bacdfcd4f47f580fd8c23972a33a8b8"
+          },
+          {
+            "kind": "count",
+            "table": "wm_objects",
+            "rows": 34
+          },
+          {
+            "kind": "fingerprint",
+            "table": "wm_objects",
+            "algorithm": "sha256-sorted-row-json-utc-v1",
+            "row_cap": 10000,
+            "complete": true,
+            "sha256": "630396a8bb8e84ecdad7cc46b4092e0c53ac1eaf75d92d2d55dcfa11631f2b65"
+          },
+          {
+            "kind": "count",
+            "table": "wm_version_source_refs",
+            "rows": 12
+          },
+          {
+            "kind": "fingerprint",
+            "table": "wm_version_source_refs",
+            "algorithm": "sha256-sorted-row-json-utc-v1",
+            "row_cap": 10000,
+            "complete": true,
+            "sha256": "ec92acd1b62acac2f37720a9603a6784e4735c5ec467b88b4eee0f0f8ab8a503"
+          },
+          {
+            "kind": "migrations",
+            "names": [
+              "0001_init.sql",
+              "0002_identity_uniq.sql",
+              "0003_entity_normalized_name.sql",
+              "0004_evals_sync_state.sql",
+              "0005_context_graph.sql",
+              "0006_working_memory.sql",
+              "0007_memory_service_boundary.sql"
+            ]
+          },
+          {
+            "kind": "graph_status",
+            "status": "current",
+            "rows": 1
+          },
+          {
+            "kind": "graph_status",
+            "status": "retired",
+            "rows": 1
+          }
+        ],
+        "foreign_keys": [
+          {
+            "source_table": "context_graph_snapshots",
+            "target_table": "users",
+            "validated": true,
+            "source_columns": [
+              "created_by"
+            ],
+            "target_columns": [
+              "user_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "context_graph_snapshots",
+            "target_table": "users",
+            "validated": true,
+            "source_columns": [
+              "hash_verified_by"
+            ],
+            "target_columns": [
+              "user_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "context_graph_snapshots",
+            "target_table": "users",
+            "validated": true,
+            "source_columns": [
+              "recovery_drill_by"
+            ],
+            "target_columns": [
+              "user_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "context_graph_snapshots",
+            "target_table": "context_graph_versions",
+            "validated": true,
+            "source_columns": [
+              "graph_generation_id",
+              "tenant_id",
+              "organization_id"
+            ],
+            "target_columns": [
+              "generation_id",
+              "tenant_id",
+              "organization_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "context_graph_switch_log",
+            "target_table": "users",
+            "validated": true,
+            "source_columns": [
+              "switched_by"
+            ],
+            "target_columns": [
+              "user_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "context_graph_switch_log",
+            "target_table": "context_graph_versions",
+            "validated": true,
+            "source_columns": [
+              "from_generation",
+              "tenant_id",
+              "organization_id"
+            ],
+            "target_columns": [
+              "generation_id",
+              "tenant_id",
+              "organization_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "context_graph_switch_log",
+            "target_table": "context_graph_snapshots",
+            "validated": true,
+            "source_columns": [
+              "snapshot_id",
+              "from_generation",
+              "tenant_id",
+              "organization_id"
+            ],
+            "target_columns": [
+              "snapshot_id",
+              "graph_generation_id",
+              "tenant_id",
+              "organization_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "context_graph_switch_log",
+            "target_table": "context_graph_versions",
+            "validated": true,
+            "source_columns": [
+              "to_generation",
+              "tenant_id",
+              "organization_id"
+            ],
+            "target_columns": [
+              "generation_id",
+              "tenant_id",
+              "organization_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "conversations",
+            "target_table": "users",
+            "validated": true,
+            "source_columns": [
+              "user_id"
+            ],
+            "target_columns": [
+              "user_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "document_fragments",
+            "target_table": "documents",
+            "validated": true,
+            "source_columns": [
+              "document_id",
+              "tenant_id",
+              "organization_id"
+            ],
+            "target_columns": [
+              "document_id",
+              "tenant_id",
+              "organization_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "documents",
+            "target_table": "users",
+            "validated": true,
+            "source_columns": [
+              "uploaded_by"
+            ],
+            "target_columns": [
+              "user_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "episodic_summaries",
+            "target_table": "conversations",
+            "validated": true,
+            "source_columns": [
+              "conversation_id"
+            ],
+            "target_columns": [
+              "conversation_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "episodic_summaries",
+            "target_table": "runs",
+            "validated": true,
+            "source_columns": [
+              "run_id"
+            ],
+            "target_columns": [
+              "run_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "memory_audit",
+            "target_table": "users",
+            "validated": true,
+            "source_columns": [
+              "decided_by"
+            ],
+            "target_columns": [
+              "user_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "memory_audit",
+            "target_table": "memory_proposals",
+            "validated": true,
+            "source_columns": [
+              "proposal_id"
+            ],
+            "target_columns": [
+              "proposal_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "memory_proposals",
+            "target_table": "context_graph_versions",
+            "validated": true,
+            "source_columns": [
+              "graph_generation_id",
+              "tenant_id",
+              "organization_id"
+            ],
+            "target_columns": [
+              "generation_id",
+              "tenant_id",
+              "organization_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "memory_proposals",
+            "target_table": "users",
+            "validated": true,
+            "source_columns": [
+              "proposed_by"
+            ],
+            "target_columns": [
+              "user_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "run_events",
+            "target_table": "runs",
+            "validated": true,
+            "source_columns": [
+              "run_id"
+            ],
+            "target_columns": [
+              "run_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "runs",
+            "target_table": "conversations",
+            "validated": true,
+            "source_columns": [
+              "conversation_id"
+            ],
+            "target_columns": [
+              "conversation_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "runs",
+            "target_table": "users",
+            "validated": true,
+            "source_columns": [
+              "user_id"
+            ],
+            "target_columns": [
+              "user_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "semantic_entities",
+            "target_table": "context_graph_versions",
+            "validated": true,
+            "source_columns": [
+              "graph_generation_id",
+              "tenant_id",
+              "organization_id"
+            ],
+            "target_columns": [
+              "generation_id",
+              "tenant_id",
+              "organization_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "semantic_entities",
+            "target_table": "strategic_periods",
+            "validated": true,
+            "source_columns": [
+              "tenant_id",
+              "organization_id",
+              "strategic_period"
+            ],
+            "target_columns": [
+              "tenant_id",
+              "organization_id",
+              "period_code"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "semantic_entities",
+            "target_table": "users",
+            "validated": true,
+            "source_columns": [
+              "confirmed_by"
+            ],
+            "target_columns": [
+              "user_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "semantic_entity_source_refs",
+            "target_table": "semantic_entities",
+            "validated": true,
+            "source_columns": [
+              "entity_id",
+              "graph_generation_id",
+              "tenant_id",
+              "organization_id"
+            ],
+            "target_columns": [
+              "entity_id",
+              "graph_generation_id",
+              "tenant_id",
+              "organization_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "semantic_relation_source_refs",
+            "target_table": "semantic_relations",
+            "validated": true,
+            "source_columns": [
+              "relation_id",
+              "graph_generation_id",
+              "tenant_id",
+              "organization_id"
+            ],
+            "target_columns": [
+              "relation_id",
+              "graph_generation_id",
+              "tenant_id",
+              "organization_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "semantic_relations",
+            "target_table": "context_graph_versions",
+            "validated": true,
+            "source_columns": [
+              "graph_generation_id",
+              "tenant_id",
+              "organization_id"
+            ],
+            "target_columns": [
+              "generation_id",
+              "tenant_id",
+              "organization_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "semantic_relations",
+            "target_table": "semantic_entities",
+            "validated": true,
+            "source_columns": [
+              "source_id",
+              "graph_generation_id",
+              "tenant_id",
+              "organization_id"
+            ],
+            "target_columns": [
+              "entity_id",
+              "graph_generation_id",
+              "tenant_id",
+              "organization_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "semantic_relations",
+            "target_table": "semantic_entities",
+            "validated": true,
+            "source_columns": [
+              "target_id",
+              "graph_generation_id",
+              "tenant_id",
+              "organization_id"
+            ],
+            "target_columns": [
+              "entity_id",
+              "graph_generation_id",
+              "tenant_id",
+              "organization_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "semantic_relations",
+            "target_table": "users",
+            "validated": true,
+            "source_columns": [
+              "confirmed_by"
+            ],
+            "target_columns": [
+              "user_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "semantic_relations",
+            "target_table": "semantic_entities",
+            "validated": true,
+            "source_columns": [
+              "source_id"
+            ],
+            "target_columns": [
+              "entity_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "semantic_relations",
+            "target_table": "semantic_entities",
+            "validated": true,
+            "source_columns": [
+              "target_id"
+            ],
+            "target_columns": [
+              "entity_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "user_memories",
+            "target_table": "users",
+            "validated": true,
+            "source_columns": [
+              "user_id"
+            ],
+            "target_columns": [
+              "user_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "wm_agreement_confirmations",
+            "target_table": "wm_object_versions",
+            "validated": true,
+            "source_columns": [
+              "agreement_record_id"
+            ],
+            "target_columns": [
+              "record_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "wm_agreement_confirmations",
+            "target_table": "users",
+            "validated": true,
+            "source_columns": [
+              "confirmer"
+            ],
+            "target_columns": [
+              "user_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "wm_agreement_parties",
+            "target_table": "users",
+            "validated": true,
+            "source_columns": [
+              "added_by"
+            ],
+            "target_columns": [
+              "user_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "wm_agreement_parties",
+            "target_table": "wm_object_versions",
+            "validated": true,
+            "source_columns": [
+              "agreement_record_id"
+            ],
+            "target_columns": [
+              "record_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "wm_agreement_parties",
+            "target_table": "users",
+            "validated": true,
+            "source_columns": [
+              "party"
+            ],
+            "target_columns": [
+              "user_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "wm_issue_chains",
+            "target_table": "wm_issue_chains",
+            "validated": true,
+            "source_columns": [
+              "derived_from_chain",
+              "tenant_id",
+              "organization_id"
+            ],
+            "target_columns": [
+              "chain_id",
+              "tenant_id",
+              "organization_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "wm_issue_chains",
+            "target_table": "users",
+            "validated": true,
+            "source_columns": [
+              "created_by"
+            ],
+            "target_columns": [
+              "user_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "wm_issue_signals",
+            "target_table": "wm_issue_chains",
+            "validated": true,
+            "source_columns": [
+              "chain_id"
+            ],
+            "target_columns": [
+              "chain_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "wm_issue_signals",
+            "target_table": "wm_objects",
+            "validated": true,
+            "source_columns": [
+              "issue_object_id",
+              "chain_id"
+            ],
+            "target_columns": [
+              "object_id",
+              "chain_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "wm_issue_signals",
+            "target_table": "wm_objects",
+            "validated": true,
+            "source_columns": [
+              "signal_object_id",
+              "chain_id"
+            ],
+            "target_columns": [
+              "object_id",
+              "chain_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "wm_object_versions",
+            "target_table": "wm_object_versions",
+            "validated": true,
+            "source_columns": [
+              "supersedes",
+              "object_id"
+            ],
+            "target_columns": [
+              "record_id",
+              "object_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "wm_object_versions",
+            "target_table": "wm_objects",
+            "validated": true,
+            "source_columns": [
+              "object_id",
+              "object_type"
+            ],
+            "target_columns": [
+              "object_id",
+              "object_type"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "wm_object_versions",
+            "target_table": "wm_object_versions",
+            "validated": true,
+            "source_columns": [
+              "agreement_record_id"
+            ],
+            "target_columns": [
+              "record_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "wm_object_versions",
+            "target_table": "users",
+            "validated": true,
+            "source_columns": [
+              "confirmed_by"
+            ],
+            "target_columns": [
+              "user_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "wm_object_versions",
+            "target_table": "wm_object_versions",
+            "validated": true,
+            "source_columns": [
+              "confirmed_judgment_record_id"
+            ],
+            "target_columns": [
+              "record_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "wm_object_versions",
+            "target_table": "users",
+            "validated": true,
+            "source_columns": [
+              "created_by"
+            ],
+            "target_columns": [
+              "user_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "wm_objects",
+            "target_table": "wm_objects",
+            "validated": true,
+            "source_columns": [
+              "issue_id",
+              "chain_id"
+            ],
+            "target_columns": [
+              "object_id",
+              "chain_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "wm_objects",
+            "target_table": "wm_issue_chains",
+            "validated": true,
+            "source_columns": [
+              "chain_id"
+            ],
+            "target_columns": [
+              "chain_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "wm_objects",
+            "target_table": "users",
+            "validated": true,
+            "source_columns": [
+              "created_by"
+            ],
+            "target_columns": [
+              "user_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "wm_version_source_refs",
+            "target_table": "wm_issue_chains",
+            "validated": true,
+            "source_columns": [
+              "chain_id",
+              "tenant_id",
+              "organization_id"
+            ],
+            "target_columns": [
+              "chain_id",
+              "tenant_id",
+              "organization_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "wm_version_source_refs",
+            "target_table": "wm_objects",
+            "validated": true,
+            "source_columns": [
+              "object_id",
+              "chain_id"
+            ],
+            "target_columns": [
+              "object_id",
+              "chain_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "wm_version_source_refs",
+            "target_table": "wm_object_versions",
+            "validated": true,
+            "source_columns": [
+              "record_id",
+              "object_id"
+            ],
+            "target_columns": [
+              "record_id",
+              "object_id"
+            ],
+            "orphan_rows": 0
+          }
+        ]
+      },
+      {
+        "container": "aw-workspace-pg",
+        "database_slot": 0,
+        "server_version": "17.11 (Debian 17.11-1.pgdg12+2)",
+        "tables": [
+          {
+            "schema": "dbg_97b840c7",
+            "table": "context_graph_snapshots"
+          },
+          {
+            "schema": "dbg_97b840c7",
+            "table": "context_graph_switch_log"
+          },
+          {
+            "schema": "dbg_97b840c7",
+            "table": "context_graph_versions"
+          },
+          {
+            "schema": "dbg_97b840c7",
+            "table": "conversations"
+          },
+          {
+            "schema": "dbg_97b840c7",
+            "table": "document_fragments"
+          },
+          {
+            "schema": "dbg_97b840c7",
+            "table": "documents"
+          },
+          {
+            "schema": "dbg_97b840c7",
+            "table": "episodic_summaries"
+          },
+          {
+            "schema": "dbg_97b840c7",
+            "table": "evals_sync_state"
+          },
+          {
+            "schema": "dbg_97b840c7",
+            "table": "memory_audit"
+          },
+          {
+            "schema": "dbg_97b840c7",
+            "table": "memory_proposals"
+          },
+          {
+            "schema": "dbg_97b840c7",
+            "table": "run_events"
+          },
+          {
+            "schema": "dbg_97b840c7",
+            "table": "runs"
+          },
+          {
+            "schema": "dbg_97b840c7",
+            "table": "semantic_entities"
+          },
+          {
+            "schema": "dbg_97b840c7",
+            "table": "semantic_entity_source_refs"
+          },
+          {
+            "schema": "dbg_97b840c7",
+            "table": "semantic_relation_source_refs"
+          },
+          {
+            "schema": "dbg_97b840c7",
+            "table": "semantic_relations"
+          },
+          {
+            "schema": "dbg_97b840c7",
+            "table": "strategic_periods"
+          },
+          {
+            "schema": "dbg_97b840c7",
+            "table": "user_memories"
+          },
+          {
+            "schema": "dbg_97b840c7",
+            "table": "users"
+          },
+          {
+            "schema": "dbg_97b840c7",
+            "table": "wm_agreement_confirmations"
+          },
+          {
+            "schema": "dbg_97b840c7",
+            "table": "wm_agreement_parties"
+          },
+          {
+            "schema": "dbg_97b840c7",
+            "table": "wm_issue_chains"
+          },
+          {
+            "schema": "dbg_97b840c7",
+            "table": "wm_issue_signals"
+          },
+          {
+            "schema": "dbg_97b840c7",
+            "table": "wm_object_versions"
+          },
+          {
+            "schema": "dbg_97b840c7",
+            "table": "wm_objects"
+          },
+          {
+            "schema": "dbg_97b840c7",
+            "table": "wm_version_source_refs"
+          },
+          {
+            "schema": "public",
+            "table": "context_graph_snapshots"
+          },
+          {
+            "schema": "public",
+            "table": "context_graph_switch_log"
+          },
+          {
+            "schema": "public",
+            "table": "context_graph_versions"
+          },
+          {
+            "schema": "public",
+            "table": "conversations"
+          },
+          {
+            "schema": "public",
+            "table": "document_fragments"
+          },
+          {
+            "schema": "public",
+            "table": "documents"
+          },
+          {
+            "schema": "public",
+            "table": "episodic_summaries"
+          },
+          {
+            "schema": "public",
+            "table": "evals_sync_state"
+          },
+          {
+            "schema": "public",
+            "table": "memory_audit"
+          },
+          {
+            "schema": "public",
+            "table": "memory_proposals"
+          },
+          {
+            "schema": "public",
+            "table": "run_events"
+          },
+          {
+            "schema": "public",
+            "table": "runs"
+          },
+          {
+            "schema": "public",
+            "table": "schema_migrations"
+          },
+          {
+            "schema": "public",
+            "table": "semantic_entities"
+          },
+          {
+            "schema": "public",
+            "table": "semantic_entity_source_refs"
+          },
+          {
+            "schema": "public",
+            "table": "semantic_relation_source_refs"
+          },
+          {
+            "schema": "public",
+            "table": "semantic_relations"
+          },
+          {
+            "schema": "public",
+            "table": "strategic_periods"
+          },
+          {
+            "schema": "public",
+            "table": "user_memories"
+          },
+          {
+            "schema": "public",
+            "table": "users"
+          },
+          {
+            "schema": "public",
+            "table": "wm_agreement_confirmations"
+          },
+          {
+            "schema": "public",
+            "table": "wm_agreement_parties"
+          },
+          {
+            "schema": "public",
+            "table": "wm_issue_chains"
+          },
+          {
+            "schema": "public",
+            "table": "wm_issue_signals"
+          },
+          {
+            "schema": "public",
+            "table": "wm_object_versions"
+          },
+          {
+            "schema": "public",
+            "table": "wm_objects"
+          },
+          {
+            "schema": "public",
+            "table": "wm_version_source_refs"
+          }
+        ],
+        "governed_rls": [],
+        "statistics": [
+          {
+            "kind": "count",
+            "table": "context_graph_snapshots",
+            "rows": 1
+          },
+          {
+            "kind": "count",
+            "table": "context_graph_switch_log",
+            "rows": 0
+          },
+          {
+            "kind": "count",
+            "table": "context_graph_versions",
+            "rows": 2
+          },
+          {
+            "kind": "fingerprint",
+            "table": "context_graph_versions",
+            "algorithm": "sha256-sorted-row-json-utc-v1",
+            "row_cap": 10000,
+            "complete": true,
+            "sha256": "c24a3393be71fe654b26052735559d9fcf65bbbf5a28b7af9ddaa7ee86d45a0f"
+          },
+          {
+            "kind": "count",
+            "table": "conversations",
+            "rows": 4190
+          },
+          {
+            "kind": "count",
+            "table": "document_fragments",
+            "rows": 49
+          },
+          {
+            "kind": "fingerprint",
+            "table": "document_fragments",
+            "algorithm": "sha256-sorted-row-json-utc-v1",
+            "row_cap": 10000,
+            "complete": true,
+            "sha256": "f8b46f11139f565c3e7af663cd02ee054ad1be90d61a18bd743afb070fc59225"
+          },
+          {
+            "kind": "count",
+            "table": "documents",
+            "rows": 9
+          },
+          {
+            "kind": "fingerprint",
+            "table": "documents",
+            "algorithm": "sha256-sorted-row-json-utc-v1",
+            "row_cap": 10000,
+            "complete": true,
+            "sha256": "e488057ef88389f4033a607a5aa17a8f601d9db9dcc12d8bf4740847b4dc41f5"
+          },
+          {
+            "kind": "scope_counts",
+            "table": "documents",
+            "scope_count": 1,
+            "sorted_row_counts": [
+              9
+            ]
+          },
+          {
+            "kind": "count",
+            "table": "episodic_summaries",
+            "rows": 303
+          },
+          {
+            "kind": "count",
+            "table": "evals_sync_state",
+            "rows": 451
+          },
+          {
+            "kind": "count",
+            "table": "memory_audit",
+            "rows": 380
+          },
+          {
+            "kind": "fingerprint",
+            "table": "memory_audit",
+            "algorithm": "sha256-sorted-row-json-utc-v1",
+            "row_cap": 10000,
+            "complete": true,
+            "sha256": "f78b21690fe3ed21daf82e7e3380210fa11ef2c5893e6d7487f5e94a19de7502"
+          },
+          {
+            "kind": "count",
+            "table": "memory_proposals",
+            "rows": 380
+          },
+          {
+            "kind": "fingerprint",
+            "table": "memory_proposals",
+            "algorithm": "sha256-sorted-row-json-utc-v1",
+            "row_cap": 10000,
+            "complete": true,
+            "sha256": "b1a44828a8f64c1113ec7972ec5ce3cbe008b2511df66bdf546f1db1e43059f4"
+          },
+          {
+            "kind": "count",
+            "table": "run_events",
+            "rows": 37938
+          },
+          {
+            "kind": "count",
+            "table": "runs",
+            "rows": 4200
+          },
+          {
+            "kind": "count",
+            "table": "schema_migrations",
+            "rows": 7
+          },
+          {
+            "kind": "count",
+            "table": "semantic_entities",
+            "rows": 38
+          },
+          {
+            "kind": "fingerprint",
+            "table": "semantic_entities",
+            "algorithm": "sha256-sorted-row-json-utc-v1",
+            "row_cap": 10000,
+            "complete": true,
+            "sha256": "5dfab4cf97be748f39e4d50265bd1ba786139a0c7c1ca619cd64aec1bcd3e259"
+          },
+          {
+            "kind": "scope_counts",
+            "table": "semantic_entities",
+            "scope_count": 1,
+            "sorted_row_counts": [
+              38
+            ]
+          },
+          {
+            "kind": "count",
+            "table": "semantic_entity_source_refs",
+            "rows": 40
+          },
+          {
+            "kind": "fingerprint",
+            "table": "semantic_entity_source_refs",
+            "algorithm": "sha256-sorted-row-json-utc-v1",
+            "row_cap": 10000,
+            "complete": true,
+            "sha256": "9197babd6ba29890740406bde3a53b44cd6bd74195bf03d972098a84560d8285"
+          },
+          {
+            "kind": "count",
+            "table": "semantic_relation_source_refs",
+            "rows": 55
+          },
+          {
+            "kind": "fingerprint",
+            "table": "semantic_relation_source_refs",
+            "algorithm": "sha256-sorted-row-json-utc-v1",
+            "row_cap": 10000,
+            "complete": true,
+            "sha256": "05f7f4f995e9927d96e4febb9d87df2663542029e630e504996935853b0fdd65"
+          },
+          {
+            "kind": "count",
+            "table": "semantic_relations",
+            "rows": 55
+          },
+          {
+            "kind": "fingerprint",
+            "table": "semantic_relations",
+            "algorithm": "sha256-sorted-row-json-utc-v1",
+            "row_cap": 10000,
+            "complete": true,
+            "sha256": "53ba94cc1a6b2650f00a8f8fbf87521c39ea4f876bc13eb48bf0d9a5fa3b8509"
+          },
+          {
+            "kind": "scope_counts",
+            "table": "semantic_relations",
+            "scope_count": 1,
+            "sorted_row_counts": [
+              55
+            ]
+          },
+          {
+            "kind": "count",
+            "table": "strategic_periods",
+            "rows": 0
+          },
+          {
+            "kind": "count",
+            "table": "user_memories",
+            "rows": 0
+          },
+          {
+            "kind": "count",
+            "table": "users",
+            "rows": 4
+          },
+          {
+            "kind": "count",
+            "table": "wm_agreement_confirmations",
+            "rows": 0
+          },
+          {
+            "kind": "fingerprint",
+            "table": "wm_agreement_confirmations",
+            "algorithm": "sha256-sorted-row-json-utc-v1",
+            "row_cap": 10000,
+            "complete": true,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "kind": "count",
+            "table": "wm_agreement_parties",
+            "rows": 0
+          },
+          {
+            "kind": "fingerprint",
+            "table": "wm_agreement_parties",
+            "algorithm": "sha256-sorted-row-json-utc-v1",
+            "row_cap": 10000,
+            "complete": true,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "kind": "count",
+            "table": "wm_issue_chains",
+            "rows": 7
+          },
+          {
+            "kind": "fingerprint",
+            "table": "wm_issue_chains",
+            "algorithm": "sha256-sorted-row-json-utc-v1",
+            "row_cap": 10000,
+            "complete": true,
+            "sha256": "633122845548ed83e854086a23c58edf3152d11f29c8a1f9d9cb5b868409ceb3"
+          },
+          {
+            "kind": "scope_counts",
+            "table": "wm_issue_chains",
+            "scope_count": 1,
+            "sorted_row_counts": [
+              7
+            ]
+          },
+          {
+            "kind": "count",
+            "table": "wm_issue_signals",
+            "rows": 13
+          },
+          {
+            "kind": "fingerprint",
+            "table": "wm_issue_signals",
+            "algorithm": "sha256-sorted-row-json-utc-v1",
+            "row_cap": 10000,
+            "complete": true,
+            "sha256": "dd46f7081ce4dabbc7eb478672d153a0f120efe650c5b5bddd3dd567ed427a2f"
+          },
+          {
+            "kind": "count",
+            "table": "wm_object_versions",
+            "rows": 21
+          },
+          {
+            "kind": "fingerprint",
+            "table": "wm_object_versions",
+            "algorithm": "sha256-sorted-row-json-utc-v1",
+            "row_cap": 10000,
+            "complete": true,
+            "sha256": "f58e83873269838588b61f5fada7a112de9218d8118de29f512b0444c939787d"
+          },
+          {
+            "kind": "count",
+            "table": "wm_objects",
+            "rows": 20
+          },
+          {
+            "kind": "fingerprint",
+            "table": "wm_objects",
+            "algorithm": "sha256-sorted-row-json-utc-v1",
+            "row_cap": 10000,
+            "complete": true,
+            "sha256": "0179f4e2edee356af03c45b99b5a433bda832efd796e1dfab61fb4a67b62fae6"
+          },
+          {
+            "kind": "count",
+            "table": "wm_version_source_refs",
+            "rows": 12
+          },
+          {
+            "kind": "fingerprint",
+            "table": "wm_version_source_refs",
+            "algorithm": "sha256-sorted-row-json-utc-v1",
+            "row_cap": 10000,
+            "complete": true,
+            "sha256": "ec92acd1b62acac2f37720a9603a6784e4735c5ec467b88b4eee0f0f8ab8a503"
+          },
+          {
+            "kind": "migrations",
+            "names": [
+              "0001_init.sql",
+              "0002_identity_uniq.sql",
+              "0003_entity_normalized_name.sql",
+              "0004_evals_sync_state.sql",
+              "0005_context_graph.sql",
+              "0006_working_memory.sql",
+              "0007_memory_service_boundary.sql"
+            ]
+          },
+          {
+            "kind": "graph_status",
+            "status": "current",
+            "rows": 1
+          },
+          {
+            "kind": "graph_status",
+            "status": "retired",
+            "rows": 1
+          }
+        ],
+        "foreign_keys": [
+          {
+            "source_table": "context_graph_snapshots",
+            "target_table": "users",
+            "validated": true,
+            "source_columns": [
+              "created_by"
+            ],
+            "target_columns": [
+              "user_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "context_graph_snapshots",
+            "target_table": "users",
+            "validated": true,
+            "source_columns": [
+              "hash_verified_by"
+            ],
+            "target_columns": [
+              "user_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "context_graph_snapshots",
+            "target_table": "users",
+            "validated": true,
+            "source_columns": [
+              "recovery_drill_by"
+            ],
+            "target_columns": [
+              "user_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "context_graph_snapshots",
+            "target_table": "context_graph_versions",
+            "validated": true,
+            "source_columns": [
+              "graph_generation_id",
+              "tenant_id",
+              "organization_id"
+            ],
+            "target_columns": [
+              "generation_id",
+              "tenant_id",
+              "organization_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "context_graph_switch_log",
+            "target_table": "users",
+            "validated": true,
+            "source_columns": [
+              "switched_by"
+            ],
+            "target_columns": [
+              "user_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "context_graph_switch_log",
+            "target_table": "context_graph_versions",
+            "validated": true,
+            "source_columns": [
+              "from_generation",
+              "tenant_id",
+              "organization_id"
+            ],
+            "target_columns": [
+              "generation_id",
+              "tenant_id",
+              "organization_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "context_graph_switch_log",
+            "target_table": "context_graph_snapshots",
+            "validated": true,
+            "source_columns": [
+              "snapshot_id",
+              "from_generation",
+              "tenant_id",
+              "organization_id"
+            ],
+            "target_columns": [
+              "snapshot_id",
+              "graph_generation_id",
+              "tenant_id",
+              "organization_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "context_graph_switch_log",
+            "target_table": "context_graph_versions",
+            "validated": true,
+            "source_columns": [
+              "to_generation",
+              "tenant_id",
+              "organization_id"
+            ],
+            "target_columns": [
+              "generation_id",
+              "tenant_id",
+              "organization_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "conversations",
+            "target_table": "users",
+            "validated": true,
+            "source_columns": [
+              "user_id"
+            ],
+            "target_columns": [
+              "user_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "document_fragments",
+            "target_table": "documents",
+            "validated": true,
+            "source_columns": [
+              "document_id",
+              "tenant_id",
+              "organization_id"
+            ],
+            "target_columns": [
+              "document_id",
+              "tenant_id",
+              "organization_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "documents",
+            "target_table": "users",
+            "validated": true,
+            "source_columns": [
+              "uploaded_by"
+            ],
+            "target_columns": [
+              "user_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "episodic_summaries",
+            "target_table": "conversations",
+            "validated": true,
+            "source_columns": [
+              "conversation_id"
+            ],
+            "target_columns": [
+              "conversation_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "episodic_summaries",
+            "target_table": "runs",
+            "validated": true,
+            "source_columns": [
+              "run_id"
+            ],
+            "target_columns": [
+              "run_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "memory_audit",
+            "target_table": "users",
+            "validated": true,
+            "source_columns": [
+              "decided_by"
+            ],
+            "target_columns": [
+              "user_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "memory_audit",
+            "target_table": "memory_proposals",
+            "validated": true,
+            "source_columns": [
+              "proposal_id"
+            ],
+            "target_columns": [
+              "proposal_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "memory_proposals",
+            "target_table": "context_graph_versions",
+            "validated": true,
+            "source_columns": [
+              "graph_generation_id",
+              "tenant_id",
+              "organization_id"
+            ],
+            "target_columns": [
+              "generation_id",
+              "tenant_id",
+              "organization_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "memory_proposals",
+            "target_table": "users",
+            "validated": true,
+            "source_columns": [
+              "proposed_by"
+            ],
+            "target_columns": [
+              "user_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "run_events",
+            "target_table": "runs",
+            "validated": true,
+            "source_columns": [
+              "run_id"
+            ],
+            "target_columns": [
+              "run_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "runs",
+            "target_table": "conversations",
+            "validated": true,
+            "source_columns": [
+              "conversation_id"
+            ],
+            "target_columns": [
+              "conversation_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "runs",
+            "target_table": "users",
+            "validated": true,
+            "source_columns": [
+              "user_id"
+            ],
+            "target_columns": [
+              "user_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "semantic_entities",
+            "target_table": "context_graph_versions",
+            "validated": true,
+            "source_columns": [
+              "graph_generation_id",
+              "tenant_id",
+              "organization_id"
+            ],
+            "target_columns": [
+              "generation_id",
+              "tenant_id",
+              "organization_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "semantic_entities",
+            "target_table": "strategic_periods",
+            "validated": true,
+            "source_columns": [
+              "tenant_id",
+              "organization_id",
+              "strategic_period"
+            ],
+            "target_columns": [
+              "tenant_id",
+              "organization_id",
+              "period_code"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "semantic_entities",
+            "target_table": "users",
+            "validated": true,
+            "source_columns": [
+              "confirmed_by"
+            ],
+            "target_columns": [
+              "user_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "semantic_entity_source_refs",
+            "target_table": "semantic_entities",
+            "validated": true,
+            "source_columns": [
+              "entity_id",
+              "graph_generation_id",
+              "tenant_id",
+              "organization_id"
+            ],
+            "target_columns": [
+              "entity_id",
+              "graph_generation_id",
+              "tenant_id",
+              "organization_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "semantic_relation_source_refs",
+            "target_table": "semantic_relations",
+            "validated": true,
+            "source_columns": [
+              "relation_id",
+              "graph_generation_id",
+              "tenant_id",
+              "organization_id"
+            ],
+            "target_columns": [
+              "relation_id",
+              "graph_generation_id",
+              "tenant_id",
+              "organization_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "semantic_relations",
+            "target_table": "context_graph_versions",
+            "validated": true,
+            "source_columns": [
+              "graph_generation_id",
+              "tenant_id",
+              "organization_id"
+            ],
+            "target_columns": [
+              "generation_id",
+              "tenant_id",
+              "organization_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "semantic_relations",
+            "target_table": "semantic_entities",
+            "validated": true,
+            "source_columns": [
+              "source_id",
+              "graph_generation_id",
+              "tenant_id",
+              "organization_id"
+            ],
+            "target_columns": [
+              "entity_id",
+              "graph_generation_id",
+              "tenant_id",
+              "organization_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "semantic_relations",
+            "target_table": "semantic_entities",
+            "validated": true,
+            "source_columns": [
+              "target_id",
+              "graph_generation_id",
+              "tenant_id",
+              "organization_id"
+            ],
+            "target_columns": [
+              "entity_id",
+              "graph_generation_id",
+              "tenant_id",
+              "organization_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "semantic_relations",
+            "target_table": "users",
+            "validated": true,
+            "source_columns": [
+              "confirmed_by"
+            ],
+            "target_columns": [
+              "user_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "semantic_relations",
+            "target_table": "semantic_entities",
+            "validated": true,
+            "source_columns": [
+              "source_id"
+            ],
+            "target_columns": [
+              "entity_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "semantic_relations",
+            "target_table": "semantic_entities",
+            "validated": true,
+            "source_columns": [
+              "target_id"
+            ],
+            "target_columns": [
+              "entity_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "user_memories",
+            "target_table": "users",
+            "validated": true,
+            "source_columns": [
+              "user_id"
+            ],
+            "target_columns": [
+              "user_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "wm_agreement_confirmations",
+            "target_table": "wm_object_versions",
+            "validated": true,
+            "source_columns": [
+              "agreement_record_id"
+            ],
+            "target_columns": [
+              "record_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "wm_agreement_confirmations",
+            "target_table": "users",
+            "validated": true,
+            "source_columns": [
+              "confirmer"
+            ],
+            "target_columns": [
+              "user_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "wm_agreement_parties",
+            "target_table": "users",
+            "validated": true,
+            "source_columns": [
+              "added_by"
+            ],
+            "target_columns": [
+              "user_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "wm_agreement_parties",
+            "target_table": "wm_object_versions",
+            "validated": true,
+            "source_columns": [
+              "agreement_record_id"
+            ],
+            "target_columns": [
+              "record_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "wm_agreement_parties",
+            "target_table": "users",
+            "validated": true,
+            "source_columns": [
+              "party"
+            ],
+            "target_columns": [
+              "user_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "wm_issue_chains",
+            "target_table": "wm_issue_chains",
+            "validated": true,
+            "source_columns": [
+              "derived_from_chain",
+              "tenant_id",
+              "organization_id"
+            ],
+            "target_columns": [
+              "chain_id",
+              "tenant_id",
+              "organization_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "wm_issue_chains",
+            "target_table": "users",
+            "validated": true,
+            "source_columns": [
+              "created_by"
+            ],
+            "target_columns": [
+              "user_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "wm_issue_signals",
+            "target_table": "wm_issue_chains",
+            "validated": true,
+            "source_columns": [
+              "chain_id"
+            ],
+            "target_columns": [
+              "chain_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "wm_issue_signals",
+            "target_table": "wm_objects",
+            "validated": true,
+            "source_columns": [
+              "issue_object_id",
+              "chain_id"
+            ],
+            "target_columns": [
+              "object_id",
+              "chain_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "wm_issue_signals",
+            "target_table": "wm_objects",
+            "validated": true,
+            "source_columns": [
+              "signal_object_id",
+              "chain_id"
+            ],
+            "target_columns": [
+              "object_id",
+              "chain_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "wm_object_versions",
+            "target_table": "wm_object_versions",
+            "validated": true,
+            "source_columns": [
+              "supersedes",
+              "object_id"
+            ],
+            "target_columns": [
+              "record_id",
+              "object_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "wm_object_versions",
+            "target_table": "wm_objects",
+            "validated": true,
+            "source_columns": [
+              "object_id",
+              "object_type"
+            ],
+            "target_columns": [
+              "object_id",
+              "object_type"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "wm_object_versions",
+            "target_table": "wm_object_versions",
+            "validated": true,
+            "source_columns": [
+              "agreement_record_id"
+            ],
+            "target_columns": [
+              "record_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "wm_object_versions",
+            "target_table": "users",
+            "validated": true,
+            "source_columns": [
+              "confirmed_by"
+            ],
+            "target_columns": [
+              "user_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "wm_object_versions",
+            "target_table": "wm_object_versions",
+            "validated": true,
+            "source_columns": [
+              "confirmed_judgment_record_id"
+            ],
+            "target_columns": [
+              "record_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "wm_object_versions",
+            "target_table": "users",
+            "validated": true,
+            "source_columns": [
+              "created_by"
+            ],
+            "target_columns": [
+              "user_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "wm_objects",
+            "target_table": "wm_objects",
+            "validated": true,
+            "source_columns": [
+              "issue_id",
+              "chain_id"
+            ],
+            "target_columns": [
+              "object_id",
+              "chain_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "wm_objects",
+            "target_table": "wm_issue_chains",
+            "validated": true,
+            "source_columns": [
+              "chain_id"
+            ],
+            "target_columns": [
+              "chain_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "wm_objects",
+            "target_table": "users",
+            "validated": true,
+            "source_columns": [
+              "created_by"
+            ],
+            "target_columns": [
+              "user_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "wm_version_source_refs",
+            "target_table": "wm_issue_chains",
+            "validated": true,
+            "source_columns": [
+              "chain_id",
+              "tenant_id",
+              "organization_id"
+            ],
+            "target_columns": [
+              "chain_id",
+              "tenant_id",
+              "organization_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "wm_version_source_refs",
+            "target_table": "wm_objects",
+            "validated": true,
+            "source_columns": [
+              "object_id",
+              "chain_id"
+            ],
+            "target_columns": [
+              "object_id",
+              "chain_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "wm_version_source_refs",
+            "target_table": "wm_object_versions",
+            "validated": true,
+            "source_columns": [
+              "record_id",
+              "object_id"
+            ],
+            "target_columns": [
+              "record_id",
+              "object_id"
+            ],
+            "orphan_rows": 0
+          }
+        ]
+      },
+      {
+        "container": "aw-workspace-pg",
+        "database_slot": 1,
+        "server_version": "17.11 (Debian 17.11-1.pgdg12+2)",
+        "tables": [],
+        "governed_rls": [],
+        "statistics": [],
+        "foreign_keys": []
+      },
+      {
+        "container": "tkos-target-staging-postgres-1",
+        "database_slot": 0,
+        "server_version": "17.10 (Debian 17.10-1.pgdg12+1)",
+        "tables": [],
+        "governed_rls": [],
+        "statistics": [],
+        "foreign_keys": []
+      },
+      {
+        "container": "tkos-target-staging-postgres-1",
+        "database_slot": 1,
+        "server_version": "17.10 (Debian 17.10-1.pgdg12+1)",
+        "tables": [
+          {
+            "schema": "public",
+            "table": "context_graph_snapshots"
+          },
+          {
+            "schema": "public",
+            "table": "context_graph_switch_log"
+          },
+          {
+            "schema": "public",
+            "table": "context_graph_versions"
+          },
+          {
+            "schema": "public",
+            "table": "conversations"
+          },
+          {
+            "schema": "public",
+            "table": "document_fragments"
+          },
+          {
+            "schema": "public",
+            "table": "documents"
+          },
+          {
+            "schema": "public",
+            "table": "episodic_summaries"
+          },
+          {
+            "schema": "public",
+            "table": "evals_sync_state"
+          },
+          {
+            "schema": "public",
+            "table": "memory_audit"
+          },
+          {
+            "schema": "public",
+            "table": "memory_proposals"
+          },
+          {
+            "schema": "public",
+            "table": "run_events"
+          },
+          {
+            "schema": "public",
+            "table": "runs"
+          },
+          {
+            "schema": "public",
+            "table": "runtime_tasks"
+          },
+          {
+            "schema": "public",
+            "table": "runtime_worker_heartbeats"
+          },
+          {
+            "schema": "public",
+            "table": "schema_migrations"
+          },
+          {
+            "schema": "public",
+            "table": "semantic_entities"
+          },
+          {
+            "schema": "public",
+            "table": "semantic_entity_source_refs"
+          },
+          {
+            "schema": "public",
+            "table": "semantic_relation_source_refs"
+          },
+          {
+            "schema": "public",
+            "table": "semantic_relations"
+          },
+          {
+            "schema": "public",
+            "table": "strategic_periods"
+          },
+          {
+            "schema": "public",
+            "table": "user_memories"
+          },
+          {
+            "schema": "public",
+            "table": "users"
+          },
+          {
+            "schema": "public",
+            "table": "wm_agreement_confirmations"
+          },
+          {
+            "schema": "public",
+            "table": "wm_agreement_parties"
+          },
+          {
+            "schema": "public",
+            "table": "wm_issue_chains"
+          },
+          {
+            "schema": "public",
+            "table": "wm_issue_signals"
+          },
+          {
+            "schema": "public",
+            "table": "wm_object_versions"
+          },
+          {
+            "schema": "public",
+            "table": "wm_objects"
+          },
+          {
+            "schema": "public",
+            "table": "wm_version_source_refs"
+          }
+        ],
+        "governed_rls": [],
+        "statistics": [
+          {
+            "kind": "count",
+            "table": "context_graph_snapshots",
+            "rows": 0
+          },
+          {
+            "kind": "count",
+            "table": "context_graph_switch_log",
+            "rows": 0
+          },
+          {
+            "kind": "count",
+            "table": "context_graph_versions",
+            "rows": 1
+          },
+          {
+            "kind": "fingerprint",
+            "table": "context_graph_versions",
+            "algorithm": "sha256-sorted-row-json-utc-v1",
+            "row_cap": 10000,
+            "complete": true,
+            "sha256": "06ed8a512cc3b8e4d65b87296f3dca3683d88c6ff1136d8c804f1a6b14cf824d"
+          },
+          {
+            "kind": "count",
+            "table": "conversations",
+            "rows": 0
+          },
+          {
+            "kind": "count",
+            "table": "document_fragments",
+            "rows": 0
+          },
+          {
+            "kind": "fingerprint",
+            "table": "document_fragments",
+            "algorithm": "sha256-sorted-row-json-utc-v1",
+            "row_cap": 10000,
+            "complete": true,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "kind": "count",
+            "table": "documents",
+            "rows": 0
+          },
+          {
+            "kind": "fingerprint",
+            "table": "documents",
+            "algorithm": "sha256-sorted-row-json-utc-v1",
+            "row_cap": 10000,
+            "complete": true,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "kind": "scope_counts",
+            "table": "documents",
+            "scope_count": 0,
+            "sorted_row_counts": []
+          },
+          {
+            "kind": "count",
+            "table": "episodic_summaries",
+            "rows": 0
+          },
+          {
+            "kind": "count",
+            "table": "evals_sync_state",
+            "rows": 0
+          },
+          {
+            "kind": "count",
+            "table": "memory_audit",
+            "rows": 0
+          },
+          {
+            "kind": "fingerprint",
+            "table": "memory_audit",
+            "algorithm": "sha256-sorted-row-json-utc-v1",
+            "row_cap": 10000,
+            "complete": true,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "kind": "count",
+            "table": "memory_proposals",
+            "rows": 0
+          },
+          {
+            "kind": "fingerprint",
+            "table": "memory_proposals",
+            "algorithm": "sha256-sorted-row-json-utc-v1",
+            "row_cap": 10000,
+            "complete": true,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "kind": "count",
+            "table": "run_events",
+            "rows": 0
+          },
+          {
+            "kind": "count",
+            "table": "runs",
+            "rows": 0
+          },
+          {
+            "kind": "count",
+            "table": "runtime_tasks",
+            "rows": 2
+          },
+          {
+            "kind": "count",
+            "table": "runtime_worker_heartbeats",
+            "rows": 1
+          },
+          {
+            "kind": "count",
+            "table": "schema_migrations",
+            "rows": 8
+          },
+          {
+            "kind": "count",
+            "table": "semantic_entities",
+            "rows": 0
+          },
+          {
+            "kind": "fingerprint",
+            "table": "semantic_entities",
+            "algorithm": "sha256-sorted-row-json-utc-v1",
+            "row_cap": 10000,
+            "complete": true,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "kind": "scope_counts",
+            "table": "semantic_entities",
+            "scope_count": 0,
+            "sorted_row_counts": []
+          },
+          {
+            "kind": "count",
+            "table": "semantic_entity_source_refs",
+            "rows": 0
+          },
+          {
+            "kind": "fingerprint",
+            "table": "semantic_entity_source_refs",
+            "algorithm": "sha256-sorted-row-json-utc-v1",
+            "row_cap": 10000,
+            "complete": true,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "kind": "count",
+            "table": "semantic_relation_source_refs",
+            "rows": 0
+          },
+          {
+            "kind": "fingerprint",
+            "table": "semantic_relation_source_refs",
+            "algorithm": "sha256-sorted-row-json-utc-v1",
+            "row_cap": 10000,
+            "complete": true,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "kind": "count",
+            "table": "semantic_relations",
+            "rows": 0
+          },
+          {
+            "kind": "fingerprint",
+            "table": "semantic_relations",
+            "algorithm": "sha256-sorted-row-json-utc-v1",
+            "row_cap": 10000,
+            "complete": true,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "kind": "scope_counts",
+            "table": "semantic_relations",
+            "scope_count": 0,
+            "sorted_row_counts": []
+          },
+          {
+            "kind": "count",
+            "table": "strategic_periods",
+            "rows": 0
+          },
+          {
+            "kind": "count",
+            "table": "user_memories",
+            "rows": 0
+          },
+          {
+            "kind": "count",
+            "table": "users",
+            "rows": 1
+          },
+          {
+            "kind": "count",
+            "table": "wm_agreement_confirmations",
+            "rows": 0
+          },
+          {
+            "kind": "fingerprint",
+            "table": "wm_agreement_confirmations",
+            "algorithm": "sha256-sorted-row-json-utc-v1",
+            "row_cap": 10000,
+            "complete": true,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "kind": "count",
+            "table": "wm_agreement_parties",
+            "rows": 0
+          },
+          {
+            "kind": "fingerprint",
+            "table": "wm_agreement_parties",
+            "algorithm": "sha256-sorted-row-json-utc-v1",
+            "row_cap": 10000,
+            "complete": true,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "kind": "count",
+            "table": "wm_issue_chains",
+            "rows": 0
+          },
+          {
+            "kind": "fingerprint",
+            "table": "wm_issue_chains",
+            "algorithm": "sha256-sorted-row-json-utc-v1",
+            "row_cap": 10000,
+            "complete": true,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "kind": "scope_counts",
+            "table": "wm_issue_chains",
+            "scope_count": 0,
+            "sorted_row_counts": []
+          },
+          {
+            "kind": "count",
+            "table": "wm_issue_signals",
+            "rows": 0
+          },
+          {
+            "kind": "fingerprint",
+            "table": "wm_issue_signals",
+            "algorithm": "sha256-sorted-row-json-utc-v1",
+            "row_cap": 10000,
+            "complete": true,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "kind": "count",
+            "table": "wm_object_versions",
+            "rows": 0
+          },
+          {
+            "kind": "fingerprint",
+            "table": "wm_object_versions",
+            "algorithm": "sha256-sorted-row-json-utc-v1",
+            "row_cap": 10000,
+            "complete": true,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "kind": "count",
+            "table": "wm_objects",
+            "rows": 0
+          },
+          {
+            "kind": "fingerprint",
+            "table": "wm_objects",
+            "algorithm": "sha256-sorted-row-json-utc-v1",
+            "row_cap": 10000,
+            "complete": true,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "kind": "count",
+            "table": "wm_version_source_refs",
+            "rows": 0
+          },
+          {
+            "kind": "fingerprint",
+            "table": "wm_version_source_refs",
+            "algorithm": "sha256-sorted-row-json-utc-v1",
+            "row_cap": 10000,
+            "complete": true,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "kind": "migrations",
+            "names": [
+              "0001_init.sql",
+              "0002_identity_uniq.sql",
+              "0003_entity_normalized_name.sql",
+              "0004_evals_sync_state.sql",
+              "0005_context_graph.sql",
+              "0006_working_memory.sql",
+              "0007_memory_service_boundary.sql",
+              "0015_runtime_tasks.sql"
+            ]
+          },
+          {
+            "kind": "graph_status",
+            "status": "current",
+            "rows": 1
+          }
+        ],
+        "foreign_keys": [
+          {
+            "source_table": "context_graph_snapshots",
+            "target_table": "users",
+            "validated": true,
+            "source_columns": [
+              "created_by"
+            ],
+            "target_columns": [
+              "user_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "context_graph_snapshots",
+            "target_table": "users",
+            "validated": true,
+            "source_columns": [
+              "hash_verified_by"
+            ],
+            "target_columns": [
+              "user_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "context_graph_snapshots",
+            "target_table": "users",
+            "validated": true,
+            "source_columns": [
+              "recovery_drill_by"
+            ],
+            "target_columns": [
+              "user_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "context_graph_snapshots",
+            "target_table": "context_graph_versions",
+            "validated": true,
+            "source_columns": [
+              "graph_generation_id",
+              "tenant_id",
+              "organization_id"
+            ],
+            "target_columns": [
+              "generation_id",
+              "tenant_id",
+              "organization_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "context_graph_switch_log",
+            "target_table": "users",
+            "validated": true,
+            "source_columns": [
+              "switched_by"
+            ],
+            "target_columns": [
+              "user_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "context_graph_switch_log",
+            "target_table": "context_graph_versions",
+            "validated": true,
+            "source_columns": [
+              "from_generation",
+              "tenant_id",
+              "organization_id"
+            ],
+            "target_columns": [
+              "generation_id",
+              "tenant_id",
+              "organization_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "context_graph_switch_log",
+            "target_table": "context_graph_snapshots",
+            "validated": true,
+            "source_columns": [
+              "snapshot_id",
+              "from_generation",
+              "tenant_id",
+              "organization_id"
+            ],
+            "target_columns": [
+              "snapshot_id",
+              "graph_generation_id",
+              "tenant_id",
+              "organization_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "context_graph_switch_log",
+            "target_table": "context_graph_versions",
+            "validated": true,
+            "source_columns": [
+              "to_generation",
+              "tenant_id",
+              "organization_id"
+            ],
+            "target_columns": [
+              "generation_id",
+              "tenant_id",
+              "organization_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "conversations",
+            "target_table": "users",
+            "validated": true,
+            "source_columns": [
+              "user_id"
+            ],
+            "target_columns": [
+              "user_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "document_fragments",
+            "target_table": "documents",
+            "validated": true,
+            "source_columns": [
+              "document_id",
+              "tenant_id",
+              "organization_id"
+            ],
+            "target_columns": [
+              "document_id",
+              "tenant_id",
+              "organization_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "documents",
+            "target_table": "users",
+            "validated": true,
+            "source_columns": [
+              "uploaded_by"
+            ],
+            "target_columns": [
+              "user_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "episodic_summaries",
+            "target_table": "conversations",
+            "validated": true,
+            "source_columns": [
+              "conversation_id"
+            ],
+            "target_columns": [
+              "conversation_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "episodic_summaries",
+            "target_table": "runs",
+            "validated": true,
+            "source_columns": [
+              "run_id"
+            ],
+            "target_columns": [
+              "run_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "memory_audit",
+            "target_table": "users",
+            "validated": true,
+            "source_columns": [
+              "decided_by"
+            ],
+            "target_columns": [
+              "user_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "memory_audit",
+            "target_table": "memory_proposals",
+            "validated": true,
+            "source_columns": [
+              "proposal_id"
+            ],
+            "target_columns": [
+              "proposal_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "memory_proposals",
+            "target_table": "context_graph_versions",
+            "validated": true,
+            "source_columns": [
+              "graph_generation_id",
+              "tenant_id",
+              "organization_id"
+            ],
+            "target_columns": [
+              "generation_id",
+              "tenant_id",
+              "organization_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "memory_proposals",
+            "target_table": "users",
+            "validated": true,
+            "source_columns": [
+              "proposed_by"
+            ],
+            "target_columns": [
+              "user_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "run_events",
+            "target_table": "runs",
+            "validated": true,
+            "source_columns": [
+              "run_id"
+            ],
+            "target_columns": [
+              "run_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "runs",
+            "target_table": "conversations",
+            "validated": true,
+            "source_columns": [
+              "conversation_id"
+            ],
+            "target_columns": [
+              "conversation_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "runs",
+            "target_table": "users",
+            "validated": true,
+            "source_columns": [
+              "user_id"
+            ],
+            "target_columns": [
+              "user_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "runtime_worker_heartbeats",
+            "target_table": "runtime_tasks",
+            "validated": true,
+            "source_columns": [
+              "current_task_id",
+              "tenant_id",
+              "organization_id"
+            ],
+            "target_columns": [
+              "task_id",
+              "tenant_id",
+              "organization_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "semantic_entities",
+            "target_table": "context_graph_versions",
+            "validated": true,
+            "source_columns": [
+              "graph_generation_id",
+              "tenant_id",
+              "organization_id"
+            ],
+            "target_columns": [
+              "generation_id",
+              "tenant_id",
+              "organization_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "semantic_entities",
+            "target_table": "strategic_periods",
+            "validated": true,
+            "source_columns": [
+              "tenant_id",
+              "organization_id",
+              "strategic_period"
+            ],
+            "target_columns": [
+              "tenant_id",
+              "organization_id",
+              "period_code"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "semantic_entities",
+            "target_table": "users",
+            "validated": true,
+            "source_columns": [
+              "confirmed_by"
+            ],
+            "target_columns": [
+              "user_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "semantic_entity_source_refs",
+            "target_table": "semantic_entities",
+            "validated": true,
+            "source_columns": [
+              "entity_id",
+              "graph_generation_id",
+              "tenant_id",
+              "organization_id"
+            ],
+            "target_columns": [
+              "entity_id",
+              "graph_generation_id",
+              "tenant_id",
+              "organization_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "semantic_relation_source_refs",
+            "target_table": "semantic_relations",
+            "validated": true,
+            "source_columns": [
+              "relation_id",
+              "graph_generation_id",
+              "tenant_id",
+              "organization_id"
+            ],
+            "target_columns": [
+              "relation_id",
+              "graph_generation_id",
+              "tenant_id",
+              "organization_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "semantic_relations",
+            "target_table": "context_graph_versions",
+            "validated": true,
+            "source_columns": [
+              "graph_generation_id",
+              "tenant_id",
+              "organization_id"
+            ],
+            "target_columns": [
+              "generation_id",
+              "tenant_id",
+              "organization_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "semantic_relations",
+            "target_table": "semantic_entities",
+            "validated": true,
+            "source_columns": [
+              "source_id",
+              "graph_generation_id",
+              "tenant_id",
+              "organization_id"
+            ],
+            "target_columns": [
+              "entity_id",
+              "graph_generation_id",
+              "tenant_id",
+              "organization_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "semantic_relations",
+            "target_table": "semantic_entities",
+            "validated": true,
+            "source_columns": [
+              "target_id",
+              "graph_generation_id",
+              "tenant_id",
+              "organization_id"
+            ],
+            "target_columns": [
+              "entity_id",
+              "graph_generation_id",
+              "tenant_id",
+              "organization_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "semantic_relations",
+            "target_table": "users",
+            "validated": true,
+            "source_columns": [
+              "confirmed_by"
+            ],
+            "target_columns": [
+              "user_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "semantic_relations",
+            "target_table": "semantic_entities",
+            "validated": true,
+            "source_columns": [
+              "source_id"
+            ],
+            "target_columns": [
+              "entity_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "semantic_relations",
+            "target_table": "semantic_entities",
+            "validated": true,
+            "source_columns": [
+              "target_id"
+            ],
+            "target_columns": [
+              "entity_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "user_memories",
+            "target_table": "users",
+            "validated": true,
+            "source_columns": [
+              "user_id"
+            ],
+            "target_columns": [
+              "user_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "wm_agreement_confirmations",
+            "target_table": "wm_object_versions",
+            "validated": true,
+            "source_columns": [
+              "agreement_record_id"
+            ],
+            "target_columns": [
+              "record_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "wm_agreement_confirmations",
+            "target_table": "users",
+            "validated": true,
+            "source_columns": [
+              "confirmer"
+            ],
+            "target_columns": [
+              "user_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "wm_agreement_parties",
+            "target_table": "users",
+            "validated": true,
+            "source_columns": [
+              "added_by"
+            ],
+            "target_columns": [
+              "user_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "wm_agreement_parties",
+            "target_table": "wm_object_versions",
+            "validated": true,
+            "source_columns": [
+              "agreement_record_id"
+            ],
+            "target_columns": [
+              "record_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "wm_agreement_parties",
+            "target_table": "users",
+            "validated": true,
+            "source_columns": [
+              "party"
+            ],
+            "target_columns": [
+              "user_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "wm_issue_chains",
+            "target_table": "wm_issue_chains",
+            "validated": true,
+            "source_columns": [
+              "derived_from_chain",
+              "tenant_id",
+              "organization_id"
+            ],
+            "target_columns": [
+              "chain_id",
+              "tenant_id",
+              "organization_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "wm_issue_chains",
+            "target_table": "users",
+            "validated": true,
+            "source_columns": [
+              "created_by"
+            ],
+            "target_columns": [
+              "user_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "wm_issue_signals",
+            "target_table": "wm_issue_chains",
+            "validated": true,
+            "source_columns": [
+              "chain_id"
+            ],
+            "target_columns": [
+              "chain_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "wm_issue_signals",
+            "target_table": "wm_objects",
+            "validated": true,
+            "source_columns": [
+              "issue_object_id",
+              "chain_id"
+            ],
+            "target_columns": [
+              "object_id",
+              "chain_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "wm_issue_signals",
+            "target_table": "wm_objects",
+            "validated": true,
+            "source_columns": [
+              "signal_object_id",
+              "chain_id"
+            ],
+            "target_columns": [
+              "object_id",
+              "chain_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "wm_object_versions",
+            "target_table": "wm_object_versions",
+            "validated": true,
+            "source_columns": [
+              "supersedes",
+              "object_id"
+            ],
+            "target_columns": [
+              "record_id",
+              "object_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "wm_object_versions",
+            "target_table": "wm_objects",
+            "validated": true,
+            "source_columns": [
+              "object_id",
+              "object_type"
+            ],
+            "target_columns": [
+              "object_id",
+              "object_type"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "wm_object_versions",
+            "target_table": "wm_object_versions",
+            "validated": true,
+            "source_columns": [
+              "agreement_record_id"
+            ],
+            "target_columns": [
+              "record_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "wm_object_versions",
+            "target_table": "users",
+            "validated": true,
+            "source_columns": [
+              "confirmed_by"
+            ],
+            "target_columns": [
+              "user_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "wm_object_versions",
+            "target_table": "wm_object_versions",
+            "validated": true,
+            "source_columns": [
+              "confirmed_judgment_record_id"
+            ],
+            "target_columns": [
+              "record_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "wm_object_versions",
+            "target_table": "users",
+            "validated": true,
+            "source_columns": [
+              "created_by"
+            ],
+            "target_columns": [
+              "user_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "wm_objects",
+            "target_table": "wm_objects",
+            "validated": true,
+            "source_columns": [
+              "issue_id",
+              "chain_id"
+            ],
+            "target_columns": [
+              "object_id",
+              "chain_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "wm_objects",
+            "target_table": "wm_issue_chains",
+            "validated": true,
+            "source_columns": [
+              "chain_id"
+            ],
+            "target_columns": [
+              "chain_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "wm_objects",
+            "target_table": "users",
+            "validated": true,
+            "source_columns": [
+              "created_by"
+            ],
+            "target_columns": [
+              "user_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "wm_version_source_refs",
+            "target_table": "wm_issue_chains",
+            "validated": true,
+            "source_columns": [
+              "chain_id",
+              "tenant_id",
+              "organization_id"
+            ],
+            "target_columns": [
+              "chain_id",
+              "tenant_id",
+              "organization_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "wm_version_source_refs",
+            "target_table": "wm_objects",
+            "validated": true,
+            "source_columns": [
+              "object_id",
+              "chain_id"
+            ],
+            "target_columns": [
+              "object_id",
+              "chain_id"
+            ],
+            "orphan_rows": 0
+          },
+          {
+            "source_table": "wm_version_source_refs",
+            "target_table": "wm_object_versions",
+            "validated": true,
+            "source_columns": [
+              "record_id",
+              "object_id"
+            ],
+            "target_columns": [
+              "record_id",
+              "object_id"
+            ],
+            "orphan_rows": 0
+          }
+        ]
+      }
+    ],
+    "errors": [],
+    "aw_memory_service": {
+      "WorkingDirectory": "/home/tokenhub-deploy/TKOS_Agent_WorkSpace",
+      "ActiveState": "active",
+      "SubState": "running",
+      "FragmentPath": "/etc/systemd/system/aw-memory-api.service"
+    },
+    "working_memory_row_comparison": [
+      {
+        "table": "wm_issue_chains",
+        "complete": true,
+        "legacy_only_rows": 7,
+        "aw_only_rows": 0,
+        "same_id_equal_rows": 7,
+        "same_id_changed_rows": 0,
+        "cross_database_atomic_snapshot": false
+      },
+      {
+        "table": "wm_objects",
+        "complete": true,
+        "legacy_only_rows": 14,
+        "aw_only_rows": 0,
+        "same_id_equal_rows": 20,
+        "same_id_changed_rows": 0,
+        "cross_database_atomic_snapshot": false
+      },
+      {
+        "table": "wm_object_versions",
+        "complete": true,
+        "legacy_only_rows": 21,
+        "aw_only_rows": 0,
+        "same_id_equal_rows": 21,
+        "same_id_changed_rows": 0,
+        "cross_database_atomic_snapshot": false
+      },
+      {
+        "table": "wm_version_source_refs",
+        "complete": true,
+        "legacy_only_rows": 0,
+        "aw_only_rows": 0,
+        "same_id_equal_rows": 12,
+        "same_id_changed_rows": 0,
+        "cross_database_atomic_snapshot": false
+      },
+      {
+        "table": "wm_issue_signals",
+        "complete": true,
+        "legacy_only_rows": 7,
+        "aw_only_rows": 0,
+        "same_id_equal_rows": 13,
+        "same_id_changed_rows": 0,
+        "cross_database_atomic_snapshot": false
+      },
+      {
+        "table": "wm_agreement_parties",
+        "complete": true,
+        "legacy_only_rows": 0,
+        "aw_only_rows": 0,
+        "same_id_equal_rows": 0,
+        "same_id_changed_rows": 0,
+        "cross_database_atomic_snapshot": false
+      },
+      {
+        "table": "wm_agreement_confirmations",
+        "complete": true,
+        "legacy_only_rows": 0,
+        "aw_only_rows": 0,
+        "same_id_equal_rows": 0,
+        "same_id_changed_rows": 0,
+        "cross_database_atomic_snapshot": false
+      }
+    ]
+  },
+  "plan": {
+    "schema": "tkos.convergence.plan/1",
+    "mode": "plan_only",
+    "applied": false,
+    "ready_for_production_replacement": false,
+    "target_migrations": [
+      {
+        "name": "0001_init.sql",
+        "sha256": "26a5ecca13468bd76616fa86f610d2745d703aba148c8ebc16aeb289d4e7f16e"
+      },
+      {
+        "name": "0002_identity_uniq.sql",
+        "sha256": "b65baf37d274bde0883c8d31076a0a651eec27b1d0d596efaa9b56ff317459f6"
+      },
+      {
+        "name": "0003_entity_normalized_name.sql",
+        "sha256": "3eed7602654e431de9c1b3375aa1dbb287435a09454bde7f7011b4f7faec2a39"
+      },
+      {
+        "name": "0004_evals_sync_state.sql",
+        "sha256": "cfb560a371056020d9569e79946b9c2adb11f60a039e022f87526eb09deaf109"
+      },
+      {
+        "name": "0005_context_graph.sql",
+        "sha256": "3b6078064167fd14174f7eec4a0b8ff20a9ecb571aa560de95c67d39d901ba19"
+      },
+      {
+        "name": "0006_working_memory.sql",
+        "sha256": "3b5d0ea432d24f281bbb741f668209d7aca16d8717759c455a8069af041be102"
+      },
+      {
+        "name": "0007_memory_service_boundary.sql",
+        "sha256": "e63a7ef6c46888b6997bcd68a4a615a7981bcf0bd25f82da6a8833e72cb36768"
+      },
+      {
+        "name": "0015_runtime_tasks.sql",
+        "sha256": "eebe891b9c3e7d13d7aa399fa6ae33cd076fad233aefa34dc6a22b436333c9e4"
+      },
+      {
+        "name": "0016_governed_runtime.sql",
+        "sha256": "51aee44b73d5e64424da306de4fd807154dafd866a079fe461983233a0ebfe49"
+      },
+      {
+        "name": "0017_dri_delivery.sql",
+        "sha256": "e3f35646ec5579e8a2f2bb503233cd635582fbaff2a389cd5ea8c520d5b2ffae"
+      }
+    ],
+    "database_gaps": [
+      {
+        "container": "tkos-memory-postgres-1",
+        "database_slot": 1,
+        "missing_migrations": [
+          "0015_runtime_tasks.sql",
+          "0016_governed_runtime.sql",
+          "0017_dri_delivery.sql"
+        ],
+        "unknown_migrations": [],
+        "governed_tables": 0
+      },
+      {
+        "container": "aw-workspace-pg",
+        "database_slot": 0,
+        "missing_migrations": [
+          "0015_runtime_tasks.sql",
+          "0016_governed_runtime.sql",
+          "0017_dri_delivery.sql"
+        ],
+        "unknown_migrations": [],
+        "governed_tables": 0
+      },
+      {
+        "container": "tkos-target-staging-postgres-1",
+        "database_slot": 1,
+        "missing_migrations": [
+          "0016_governed_runtime.sql",
+          "0017_dri_delivery.sql"
+        ],
+        "unknown_migrations": [],
+        "governed_tables": 0
+      }
+    ],
+    "required_gates": [
+      "Owner-approved source of truth and legacy-to-governed mapping, including conflicts",
+      "Complete PostgreSQL backups, roles/grants, source evidence objects and release/config manifest",
+      "Isolated restore with counts/hashes, foreign keys, roles/RLS and evidence byte verification",
+      "0015/0016/0017 migrations applied only on the isolated restore; governed records explicitly imported/reviewed",
+      "Real identities, assignments, policies and least-privilege application role; no acceptance fixture bootstrap",
+      "Narrative contract and authorized authoritative read comparison; no model-derived fact promotion",
+      "Target Runtime API/worker/receiver idempotency and the full DRI/Outcome/MF gate",
+      "Reviewed write fence/delta catch-up, reversible read canary and rollback manifest",
+      "Explicit cutover authorization after these concrete artifacts are reviewed"
+    ],
+    "rollback_rule": "Read-only canary may route back; after first governed write, preserve target writes and reconcile before rollback. Never discard the target database or replay receipts blindly.",
+    "not_performed": [
+      "backup",
+      "restore",
+      "migration",
+      "business_import",
+      "permission_changes",
+      "service_restart",
+      "traffic_cutover",
+      "external_narrative_request"
+    ],
+    "observed_at": "2026-09-07T09:17:37.709149+00:00",
+    "source_comparison": {
+      "comparable": true,
+      "tables": [
+        {
+          "table": "context_graph_versions",
+          "comparable": true,
+          "equal": true
+        },
+        {
+          "table": "document_fragments",
+          "comparable": true,
+          "equal": true
+        },
+        {
+          "table": "documents",
+          "comparable": true,
+          "equal": true
+        },
+        {
+          "table": "memory_audit",
+          "comparable": true,
+          "equal": true
+        },
+        {
+          "table": "memory_proposals",
+          "comparable": true,
+          "equal": true
+        },
+        {
+          "table": "semantic_entities",
+          "comparable": true,
+          "equal": true
+        },
+        {
+          "table": "semantic_entity_source_refs",
+          "comparable": true,
+          "equal": true
+        },
+        {
+          "table": "semantic_relation_source_refs",
+          "comparable": true,
+          "equal": true
+        },
+        {
+          "table": "semantic_relations",
+          "comparable": true,
+          "equal": true
+        },
+        {
+          "table": "wm_agreement_confirmations",
+          "comparable": true,
+          "equal": true
+        },
+        {
+          "table": "wm_agreement_parties",
+          "comparable": true,
+          "equal": true
+        },
+        {
+          "table": "wm_issue_chains",
+          "comparable": true,
+          "equal": false
+        },
+        {
+          "table": "wm_issue_signals",
+          "comparable": true,
+          "equal": false
+        },
+        {
+          "table": "wm_object_versions",
+          "comparable": true,
+          "equal": false
+        },
+        {
+          "table": "wm_objects",
+          "comparable": true,
+          "equal": false
+        },
+        {
+          "table": "wm_version_source_refs",
+          "comparable": true,
+          "equal": true
+        }
+      ],
+      "equal_fingerprints_do_not_establish_authority": true,
+      "cross_database_atomic_snapshot": false
+    },
+    "working_memory_row_comparison": [
+      {
+        "table": "wm_issue_chains",
+        "complete": true,
+        "legacy_only_rows": 7,
+        "aw_only_rows": 0,
+        "same_id_equal_rows": 7,
+        "same_id_changed_rows": 0,
+        "cross_database_atomic_snapshot": false
+      },
+      {
+        "table": "wm_objects",
+        "complete": true,
+        "legacy_only_rows": 14,
+        "aw_only_rows": 0,
+        "same_id_equal_rows": 20,
+        "same_id_changed_rows": 0,
+        "cross_database_atomic_snapshot": false
+      },
+      {
+        "table": "wm_object_versions",
+        "complete": true,
+        "legacy_only_rows": 21,
+        "aw_only_rows": 0,
+        "same_id_equal_rows": 21,
+        "same_id_changed_rows": 0,
+        "cross_database_atomic_snapshot": false
+      },
+      {
+        "table": "wm_version_source_refs",
+        "complete": true,
+        "legacy_only_rows": 0,
+        "aw_only_rows": 0,
+        "same_id_equal_rows": 12,
+        "same_id_changed_rows": 0,
+        "cross_database_atomic_snapshot": false
+      },
+      {
+        "table": "wm_issue_signals",
+        "complete": true,
+        "legacy_only_rows": 7,
+        "aw_only_rows": 0,
+        "same_id_equal_rows": 13,
+        "same_id_changed_rows": 0,
+        "cross_database_atomic_snapshot": false
+      },
+      {
+        "table": "wm_agreement_parties",
+        "complete": true,
+        "legacy_only_rows": 0,
+        "aw_only_rows": 0,
+        "same_id_equal_rows": 0,
+        "same_id_changed_rows": 0,
+        "cross_database_atomic_snapshot": false
+      },
+      {
+        "table": "wm_agreement_confirmations",
+        "complete": true,
+        "legacy_only_rows": 0,
+        "aw_only_rows": 0,
+        "same_id_equal_rows": 0,
+        "same_id_changed_rows": 0,
+        "cross_database_atomic_snapshot": false
+      }
+    ],
+    "source_recommendation": {
+      "candidate": "legacy_memory_as_source_aw_as_crosscheck",
+      "basis": "All checked AW working-memory rows occur unchanged in legacy Memory; source FK checks pass",
+      "governed_authority_import_approved": false,
+      "requires_fresh_write_fenced_comparison": true,
+      "does_not_cover": [
+        "unregistered tables",
+        "external object bytes",
+        "employee identity rights",
+        "semantic mapping"
+      ]
+    },
+    "blockers": [
+      "EXTERNAL_ACCEPTANCE_GATES_NOT_VERIFIED",
+      "NO_AUTHORIZED_CUTOVER_MANIFEST",
+      "SOURCE_SCHEMA_HAS_NOT_BEEN_REHEARSED_AT_TARGET_VERSION"
+    ]
+  }
+}

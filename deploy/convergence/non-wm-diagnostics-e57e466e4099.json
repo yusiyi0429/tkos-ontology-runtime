@@ -1,0 +1,40 @@
+{
+  "run_id": "convergence-e57e466e4099",
+  "read_only_local_diagnostics": true,
+  "production_contacted": false,
+  "source_selection_still_blocked": true,
+  "non_wm_differences": [
+    {
+      "table": "public.conversations",
+      "memory_only_rows": 0,
+      "aw_only_rows": 104,
+      "shared_rows": 4086,
+      "shared_changed_rows": 0,
+      "differing_field_counts": {}
+    },
+    {
+      "table": "public.evals_sync_state",
+      "memory_only_rows": 0,
+      "aw_only_rows": 16,
+      "shared_rows": 435,
+      "shared_changed_rows": 0,
+      "differing_field_counts": {}
+    },
+    {
+      "table": "public.run_events",
+      "memory_only_rows": 0,
+      "aw_only_rows": 904,
+      "shared_rows": 37034,
+      "shared_changed_rows": 0,
+      "differing_field_counts": {}
+    },
+    {
+      "table": "public.runs",
+      "memory_only_rows": 0,
+      "aw_only_rows": 104,
+      "shared_rows": 4096,
+      "shared_changed_rows": 0,
+      "differing_field_counts": {}
+    }
+  ]
+}

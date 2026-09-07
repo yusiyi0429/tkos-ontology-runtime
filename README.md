@@ -39,7 +39,13 @@ Native API 的完整路径、请求和响应见 [OpenAPI](contracts/openapi.json
 | `acceptance/runtime/` | 独立 HTTP、数据库、S3、故障和恢复验收 |
 | `tests/` | 原有回归与 Worker 测试 |
 
-Python 包名 `tkos-memory-service`、模块名和 CLI 保持兼容。Clark 应用由伙伴维护，不在本仓库中；当前兼容读取接口不能代替新的 Clark 联调验收。`/v1/context-graph/narrative` 和长任务续租不属于当前实现。WorkItem/Deliverable 的 API 已加入本仓库，Clark 仍需按新契约接入。
+Python 包名 `tkos-memory-service`、模块名和 CLI 保持兼容。Clark 应用由伙伴维护，不在本仓库中；当前兼容读取接口不能代替新的 Clark 联调验收。长任务续租不属于当前实现。WorkItem/Deliverable 的 API 与 Clark 独立交付入口已完成本地联调。
+
+## 本体叙述与记忆收敛
+
+新增 `POST /v1/context-graph/narrative`，保持 Clark 默认 NarrativeClient 的请求、Bearer 鉴权与返回字段。启用 `TKOS_NARRATIVE_ENABLED=1` 后，读取当前权限下的精确版本及历史交付、Outcome、MF 状态，返回带来源的确定性叙述；不创建业务记录、ActionReceipt 或 Context 快照。
+
+历史语义记忆可在单独的 `read_legacy_context` 授权下参与检索，模型只压缩历史背景，三项治理结论独立保留。详见 [叙述接口契约](docs/narrative-convergence-contract.md)、[本轮验收记录](docs/narrative-convergence-acceptance.md)、[可复跑验收](acceptance/narrative/README.md) 和 [迁移工具](deploy/convergence/README.md)。代码接入、真实数据迁移演练及生产切换分别记录，不因兼容接口存在就宣称旧服务已替换。
 
 ## 本地独立验收
 

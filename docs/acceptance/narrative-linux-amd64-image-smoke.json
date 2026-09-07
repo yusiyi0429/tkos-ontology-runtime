@@ -1,0 +1,47 @@
+{
+  "schema_version": "convergence-image-smoke.v1",
+  "status": "passed",
+  "platform": "linux/amd64",
+  "production_deployed": false,
+  "legacy_enabled": false,
+  "full_runtime_gate": "runtime-d9f7cc6f1c26",
+  "checks": {
+    "worker_imports_and_source_hashes": {
+      "uid": 10001,
+      "sha256": {
+        "memory_service_app/narrative.py": "6a73e3ca8730329b93e7516d0ab0119e05b11e9dd8d3c6158098c7741709a926",
+        "memory_service_app/main.py": "dbd7b5229167989176aab51466a4ce16517d73990fc8d594016fb0b6a55df914",
+        "memory_service_runtime/governed/narrative_facts.py": "b7068cccdbb0077b19ef781c84f64951d0c2677774d737c9c314a885a911e6d8",
+        "memory_service_runtime/governed/routes.py": "56e4379c26fdb98fc97993d8e155d76dcdf2fd2718048180339c0bcc4e59182c"
+      }
+    },
+    "anonymous_health": {
+      "ok": true,
+      "service": "tkos-ontology-runtime",
+      "narrative": true
+    },
+    "response_schema_present": true,
+    "authorized_narrative": {
+      "status": 200,
+      "facts": 13,
+      "model": "deterministic-v1",
+      "hash_verified": true,
+      "cache_control": "no-store"
+    },
+    "unauthenticated_denied": true
+  },
+  "images": [
+    {
+      "tag": "tkos-ontology-runtime:convergence-20260907",
+      "id": "sha256:14214a843e71ca42bb8274ed007d184a84426201034b4ef10fc1df859c77a8d7",
+      "os": "linux",
+      "architecture": "amd64"
+    },
+    {
+      "tag": "tkos-ontology-worker:convergence-20260907",
+      "id": "sha256:5f626e8e2d11e862034917cd3be04d6e8b9b8c2bbd08bc12b29b9acfc9e15d09",
+      "os": "linux",
+      "architecture": "amd64"
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "checked_at": "2026-09-07T09:38:13.510546+00:00",
+  "source_repository": "VanillaCoca/tkos-secrets",
+  "source_commit": "2423477f2260d588a45c06ef0ab57b71272b6bab",
+  "purpose": "single generic model connectivity probe",
+  "enterprise_data_sent": false,
+  "production_config_changed": false,
+  "narrative_quality_accepted": false,
+  "status": "passed",
+  "response_nonempty": true,
+  "used_configuration_fields": [
+    "ARK_API_KEY",
+    "ARK_BASE_URL",
+    "ARK_MODEL_DEEPSEEK_FLASH"
+  ]
+}

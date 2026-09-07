@@ -1,0 +1,276 @@
+{
+  "schema": "tkos.convergence.plan/1",
+  "mode": "plan_only",
+  "applied": false,
+  "ready_for_production_replacement": false,
+  "target_migrations": [
+    {
+      "name": "0001_init.sql",
+      "sha256": "26a5ecca13468bd76616fa86f610d2745d703aba148c8ebc16aeb289d4e7f16e"
+    },
+    {
+      "name": "0002_identity_uniq.sql",
+      "sha256": "b65baf37d274bde0883c8d31076a0a651eec27b1d0d596efaa9b56ff317459f6"
+    },
+    {
+      "name": "0003_entity_normalized_name.sql",
+      "sha256": "3eed7602654e431de9c1b3375aa1dbb287435a09454bde7f7011b4f7faec2a39"
+    },
+    {
+      "name": "0004_evals_sync_state.sql",
+      "sha256": "cfb560a371056020d9569e79946b9c2adb11f60a039e022f87526eb09deaf109"
+    },
+    {
+      "name": "0005_context_graph.sql",
+      "sha256": "3b6078064167fd14174f7eec4a0b8ff20a9ecb571aa560de95c67d39d901ba19"
+    },
+    {
+      "name": "0006_working_memory.sql",
+      "sha256": "3b5d0ea432d24f281bbb741f668209d7aca16d8717759c455a8069af041be102"
+    },
+    {
+      "name": "0007_memory_service_boundary.sql",
+      "sha256": "e63a7ef6c46888b6997bcd68a4a615a7981bcf0bd25f82da6a8833e72cb36768"
+    },
+    {
+      "name": "0015_runtime_tasks.sql",
+      "sha256": "eebe891b9c3e7d13d7aa399fa6ae33cd076fad233aefa34dc6a22b436333c9e4"
+    },
+    {
+      "name": "0016_governed_runtime.sql",
+      "sha256": "51aee44b73d5e64424da306de4fd807154dafd866a079fe461983233a0ebfe49"
+    },
+    {
+      "name": "0017_dri_delivery.sql",
+      "sha256": "e3f35646ec5579e8a2f2bb503233cd635582fbaff2a389cd5ea8c520d5b2ffae"
+    }
+  ],
+  "database_gaps": [
+    {
+      "container": "tkos-memory-postgres-1",
+      "database_slot": 1,
+      "missing_migrations": [
+        "0015_runtime_tasks.sql",
+        "0016_governed_runtime.sql",
+        "0017_dri_delivery.sql"
+      ],
+      "unknown_migrations": [],
+      "governed_tables": 0
+    },
+    {
+      "container": "aw-workspace-pg",
+      "database_slot": 0,
+      "missing_migrations": [
+        "0015_runtime_tasks.sql",
+        "0016_governed_runtime.sql",
+        "0017_dri_delivery.sql"
+      ],
+      "unknown_migrations": [],
+      "governed_tables": 0
+    },
+    {
+      "container": "tkos-target-staging-postgres-1",
+      "database_slot": 1,
+      "missing_migrations": [
+        "0016_governed_runtime.sql",
+        "0017_dri_delivery.sql"
+      ],
+      "unknown_migrations": [],
+      "governed_tables": 0
+    }
+  ],
+  "required_gates": [
+    "Owner-approved source of truth and legacy-to-governed mapping, including conflicts",
+    "Complete PostgreSQL backups, roles/grants, source evidence objects and release/config manifest",
+    "Isolated restore with counts/hashes, foreign keys, roles/RLS and evidence byte verification",
+    "0015/0016/0017 migrations applied only on the isolated restore; governed records explicitly imported/reviewed",
+    "Real identities, assignments, policies and least-privilege application role; no acceptance fixture bootstrap",
+    "Narrative contract and authorized authoritative read comparison; no model-derived fact promotion",
+    "Target Runtime API/worker/receiver idempotency and the full DRI/Outcome/MF gate",
+    "Reviewed write fence/delta catch-up, reversible read canary and rollback manifest",
+    "Explicit cutover authorization after these concrete artifacts are reviewed"
+  ],
+  "rollback_rule": "Read-only canary may route back; after first governed write, preserve target writes and reconcile before rollback. Never discard the target database or replay receipts blindly.",
+  "not_performed": [
+    "backup",
+    "restore",
+    "migration",
+    "business_import",
+    "permission_changes",
+    "service_restart",
+    "traffic_cutover",
+    "external_narrative_request"
+  ],
+  "observed_at": "2026-09-07T09:17:37.709149+00:00",
+  "source_comparison": {
+    "comparable": true,
+    "tables": [
+      {
+        "table": "context_graph_versions",
+        "comparable": true,
+        "equal": true
+      },
+      {
+        "table": "document_fragments",
+        "comparable": true,
+        "equal": true
+      },
+      {
+        "table": "documents",
+        "comparable": true,
+        "equal": true
+      },
+      {
+        "table": "memory_audit",
+        "comparable": true,
+        "equal": true
+      },
+      {
+        "table": "memory_proposals",
+        "comparable": true,
+        "equal": true
+      },
+      {
+        "table": "semantic_entities",
+        "comparable": true,
+        "equal": true
+      },
+      {
+        "table": "semantic_entity_source_refs",
+        "comparable": true,
+        "equal": true
+      },
+      {
+        "table": "semantic_relation_source_refs",
+        "comparable": true,
+        "equal": true
+      },
+      {
+        "table": "semantic_relations",
+        "comparable": true,
+        "equal": true
+      },
+      {
+        "table": "wm_agreement_confirmations",
+        "comparable": true,
+        "equal": true
+      },
+      {
+        "table": "wm_agreement_parties",
+        "comparable": true,
+        "equal": true
+      },
+      {
+        "table": "wm_issue_chains",
+        "comparable": true,
+        "equal": false
+      },
+      {
+        "table": "wm_issue_signals",
+        "comparable": true,
+        "equal": false
+      },
+      {
+        "table": "wm_object_versions",
+        "comparable": true,
+        "equal": false
+      },
+      {
+        "table": "wm_objects",
+        "comparable": true,
+        "equal": false
+      },
+      {
+        "table": "wm_version_source_refs",
+        "comparable": true,
+        "equal": true
+      }
+    ],
+    "equal_fingerprints_do_not_establish_authority": true,
+    "cross_database_atomic_snapshot": false
+  },
+  "working_memory_row_comparison": [
+    {
+      "table": "wm_issue_chains",
+      "complete": true,
+      "legacy_only_rows": 7,
+      "aw_only_rows": 0,
+      "same_id_equal_rows": 7,
+      "same_id_changed_rows": 0,
+      "cross_database_atomic_snapshot": false
+    },
+    {
+      "table": "wm_objects",
+      "complete": true,
+      "legacy_only_rows": 14,
+      "aw_only_rows": 0,
+      "same_id_equal_rows": 20,
+      "same_id_changed_rows": 0,
+      "cross_database_atomic_snapshot": false
+    },
+    {
+      "table": "wm_object_versions",
+      "complete": true,
+      "legacy_only_rows": 21,
+      "aw_only_rows": 0,
+      "same_id_equal_rows": 21,
+      "same_id_changed_rows": 0,
+      "cross_database_atomic_snapshot": false
+    },
+    {
+      "table": "wm_version_source_refs",
+      "complete": true,
+      "legacy_only_rows": 0,
+      "aw_only_rows": 0,
+      "same_id_equal_rows": 12,
+      "same_id_changed_rows": 0,
+      "cross_database_atomic_snapshot": false
+    },
+    {
+      "table": "wm_issue_signals",
+      "complete": true,
+      "legacy_only_rows": 7,
+      "aw_only_rows": 0,
+      "same_id_equal_rows": 13,
+      "same_id_changed_rows": 0,
+      "cross_database_atomic_snapshot": false
+    },
+    {
+      "table": "wm_agreement_parties",
+      "complete": true,
+      "legacy_only_rows": 0,
+      "aw_only_rows": 0,
+      "same_id_equal_rows": 0,
+      "same_id_changed_rows": 0,
+      "cross_database_atomic_snapshot": false
+    },
+    {
+      "table": "wm_agreement_confirmations",
+      "complete": true,
+      "legacy_only_rows": 0,
+      "aw_only_rows": 0,
+      "same_id_equal_rows": 0,
+      "same_id_changed_rows": 0,
+      "cross_database_atomic_snapshot": false
+    }
+  ],
+  "source_recommendation": {
+    "candidate": null,
+    "status": "two_source_preservation_manifest_required",
+    "working_memory_subset_checked": true,
+    "basis": "Working-memory subset checks do not cover AW-only runtime history; preserve both sources under the full 53-table manifest",
+    "governed_authority_import_approved": false,
+    "requires_fresh_write_fenced_comparison": true,
+    "does_not_cover": [
+      "unregistered tables",
+      "external object bytes",
+      "employee identity rights",
+      "semantic mapping"
+    ]
+  },
+  "blockers": [
+    "EXTERNAL_ACCEPTANCE_GATES_NOT_VERIFIED",
+    "NO_AUTHORIZED_CUTOVER_MANIFEST",
+    "SOURCE_SCHEMA_HAS_NOT_BEEN_REHEARSED_AT_TARGET_VERSION"
+  ]
+}

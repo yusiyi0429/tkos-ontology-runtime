@@ -61,9 +61,11 @@ def _inventory(env: dict, fixture: dict) -> dict:
     }
     types = {row["object_type"] for row in result["objects"]}
     assert {"CompanyOutcome", "BusinessCommitment", "ExecutionCommitment", "FeedbackThread",
-            "ManagementAdjustment", "Decision", "EvidenceAsset", "MetricObservation"} <= types, "recovery requires the exercised business loop"
+            "ManagementAdjustment", "Decision", "EvidenceAsset", "MetricObservation", "WorkItem", "Deliverable"} <= types, "recovery requires the exercised business loop"
     assert any(row["object_type"] == "FeedbackThread" and row["lifecycle_status"] == "closed"
                for row in result["objects"]), "recovery requires a previously closed feedback object"
+    assert any(row["object_type"] == "WorkItem" and row["lifecycle_status"] == "delivery_accepted"
+               for row in result["objects"]), "recovery requires the exercised v0.2 delivery loop"
     assert result["receipt_ids"] and result["snapshot_ids"], "recovery requires immutable receipts and historical context snapshots"
     return result
 
@@ -112,6 +114,12 @@ def _capture(harness: Harness, fixture: dict, env: dict, inventory: dict, stage:
             result["receipts"][receipt_id] = client.json("GET", f"/v1/action-receipts/{receipt_id}")
         for snapshot_id in inventory["snapshot_ids"]:
             result["snapshots"][snapshot_id] = client.json("GET", f"/v1/context-packs/{snapshot_id}")
+        delivered = [o for o in result["objects"].values() if o["object_type"] == "WorkItem" and o["lifecycle_status"] == "delivery_accepted"]
+        assert delivered, "no accepted delivery survived recovery"
+        assert any(o["delivery"]["state"]["submission_seq"] == 2 and len(o["delivery"]["submissions"]) == 2
+                   and [a["verification_result"] for a in o["delivery"]["acceptances"]] == ["changes_requested", "accepted"]
+                   for o in delivered), "versioned submission/review history did not survive"
+        assert any(o.get("outcome_achievement") == "achieved" for o in result["objects"].values()), "Outcome judgment did not survive"
         assert result["evidence"], "no real evidence bytes were verified"
         return result
     finally:

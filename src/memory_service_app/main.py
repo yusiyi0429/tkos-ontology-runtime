@@ -13,7 +13,7 @@ from memory_service_runtime.governed.routes import install_errors, router as gov
 
 app = FastAPI(
     title="TKOS Memory Service",
-    version="0.1.0",
+    version="0.2.0",
     description=(
         "Standalone governed Memory Service with a native API and a temporary "
         "Clark GraphKnowledge compatibility façade."

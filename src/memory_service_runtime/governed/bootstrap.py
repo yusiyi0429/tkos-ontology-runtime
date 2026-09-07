@@ -39,6 +39,10 @@ ACTION_ROLES = {
     "reopen_feedback": ["CEO", "DOMAIN_DRI"],
     "record_observation": ["CEO", "DOMAIN_DRI", "MISSION_DRI", "AGENT"],
     "revoke_assignment": ["CEO"],
+    "accept_work_item": ["MISSION_DRI"],
+    "submit_deliverable": ["MISSION_DRI"],
+    "review_deliverable": ["CEO", "DOMAIN_DRI", "VERIFIER"],
+    "record_outcome_assessment": ["CEO"],
 }
 
 
@@ -87,7 +91,7 @@ def seed_scope(conn: psycopg.Connection, tenant_id: str, company_id: str) -> dic
             )
             actors[name] = {"principal_id": principal_id, "assignment_id": assignment_id, "token": token}
         policy = {
-            "version": "tkos.governed-policy/0.1", "action_roles": ACTION_ROLES,
+            "version": "tkos.governed-policy/0.2", "action_roles": ACTION_ROLES,
             "commitment_party_roles": {"BusinessCommitment": ["CEO", "DOMAIN_DRI"],
                                        "ExecutionCommitment": ["DOMAIN_DRI", "MISSION_DRI"]},
             "independent_verifier": True,

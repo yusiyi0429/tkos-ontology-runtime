@@ -27,6 +27,29 @@
         "title": "AcceptCommitmentParams",
         "type": "object"
       },
+      "AcceptanceCriterion": {
+        "additionalProperties": false,
+        "properties": {
+          "criterion_id": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Criterion Id",
+            "type": "string"
+          },
+          "description": {
+            "maxLength": 20000,
+            "minLength": 1,
+            "title": "Description",
+            "type": "string"
+          }
+        },
+        "required": [
+          "criterion_id",
+          "description"
+        ],
+        "title": "AcceptanceCriterion",
+        "type": "object"
+      },
       "ActionRequest": {
         "additionalProperties": false,
         "properties": {
@@ -46,7 +69,11 @@
               "record_acceptance",
               "request_feedback_acceptance",
               "reopen_feedback",
-              "revoke_assignment"
+              "revoke_assignment",
+              "accept_work_item",
+              "submit_deliverable",
+              "review_deliverable",
+              "record_outcome_assessment"
             ],
             "title": "Action Type",
             "type": "string"
@@ -95,6 +122,15 @@
               },
               {
                 "$ref": "#/components/schemas/RevokeAssignmentParams"
+              },
+              {
+                "$ref": "#/components/schemas/SubmitDeliverableParams"
+              },
+              {
+                "$ref": "#/components/schemas/ReviewDeliverableParams"
+              },
+              {
+                "$ref": "#/components/schemas/RecordOutcomeAssessmentParams"
               },
               {
                 "$ref": "#/components/schemas/EmptyParams"
@@ -373,7 +409,8 @@
               "FeedbackThread",
               "ManagementAdjustment",
               "Decision",
-              "MetricObservation"
+              "MetricObservation",
+              "WorkItem"
             ],
             "title": "Object Type",
             "type": "string"
@@ -397,6 +434,9 @@
               },
               {
                 "$ref": "#/components/schemas/OutcomePayload"
+              },
+              {
+                "$ref": "#/components/schemas/WorkItemPayload"
               }
             ],
             "title": "Payload"
@@ -419,6 +459,38 @@
           "payload"
         ],
         "title": "CreateObjectParams",
+        "type": "object"
+      },
+      "CriterionResult": {
+        "additionalProperties": false,
+        "properties": {
+          "criterion_id": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Criterion Id",
+            "type": "string"
+          },
+          "note": {
+            "maxLength": 20000,
+            "minLength": 1,
+            "title": "Note",
+            "type": "string"
+          },
+          "result": {
+            "enum": [
+              "passed",
+              "failed"
+            ],
+            "title": "Result",
+            "type": "string"
+          }
+        },
+        "required": [
+          "criterion_id",
+          "result",
+          "note"
+        ],
+        "title": "CriterionResult",
         "type": "object"
       },
       "DecisionPayload": {
@@ -971,6 +1043,9 @@
               },
               {
                 "$ref": "#/components/schemas/OutcomePayload"
+              },
+              {
+                "$ref": "#/components/schemas/WorkItemPayload"
               }
             ],
             "title": "Payload"
@@ -1014,6 +1089,57 @@
         "title": "RecordAcceptanceParams",
         "type": "object"
       },
+      "RecordOutcomeAssessmentParams": {
+        "additionalProperties": false,
+        "properties": {
+          "assessment_note": {
+            "maxLength": 20000,
+            "minLength": 1,
+            "title": "Assessment Note",
+            "type": "string"
+          },
+          "assessment_result": {
+            "enum": [
+              "achieved",
+              "not_achieved",
+              "inconclusive"
+            ],
+            "title": "Assessment Result",
+            "type": "string"
+          },
+          "delivery_acceptance_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Delivery Acceptance Ids",
+            "type": "array"
+          },
+          "evidence_revision_ids": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Evidence Revision Ids",
+            "type": "array"
+          },
+          "observation_revision_ids": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Observation Revision Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "assessment_result",
+          "observation_revision_ids",
+          "evidence_revision_ids",
+          "assessment_note"
+        ],
+        "title": "RecordOutcomeAssessmentParams",
+        "type": "object"
+      },
       "RequestFeedbackAcceptanceParams": {
         "additionalProperties": false,
         "properties": {
@@ -1026,6 +1152,51 @@
           "decision_revision_id"
         ],
         "title": "RequestFeedbackAcceptanceParams",
+        "type": "object"
+      },
+      "ReviewDeliverableParams": {
+        "additionalProperties": false,
+        "properties": {
+          "criterion_results": {
+            "items": {
+              "$ref": "#/components/schemas/CriterionResult"
+            },
+            "minItems": 1,
+            "title": "Criterion Results",
+            "type": "array"
+          },
+          "deliverable_revision_id": {
+            "title": "Deliverable Revision Id",
+            "type": "string"
+          },
+          "delivery_payload_hash": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Delivery Payload Hash",
+            "type": "string"
+          },
+          "review_note": {
+            "maxLength": 20000,
+            "minLength": 1,
+            "title": "Review Note",
+            "type": "string"
+          },
+          "verification_result": {
+            "enum": [
+              "accepted",
+              "changes_requested"
+            ],
+            "title": "Verification Result",
+            "type": "string"
+          }
+        },
+        "required": [
+          "deliverable_revision_id",
+          "delivery_payload_hash",
+          "verification_result",
+          "criterion_results",
+          "review_note"
+        ],
+        "title": "ReviewDeliverableParams",
         "type": "object"
       },
       "RevisionChange": {
@@ -1099,6 +1270,49 @@
         "title": "RouteFeedbackParams",
         "type": "object"
       },
+      "SubmitDeliverableParams": {
+        "additionalProperties": false,
+        "properties": {
+          "evidence_revision_ids": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Evidence Revision Ids",
+            "type": "array"
+          },
+          "responds_to_acceptance_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Responds To Acceptance Id"
+          },
+          "summary": {
+            "maxLength": 20000,
+            "minLength": 1,
+            "title": "Summary",
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "summary",
+          "evidence_revision_ids"
+        ],
+        "title": "SubmitDeliverableParams",
+        "type": "object"
+      },
       "ValidationError": {
         "properties": {
           "ctx": {
@@ -1138,6 +1352,66 @@
         ],
         "title": "ValidationError",
         "type": "object"
+      },
+      "WorkItemPayload": {
+        "additionalProperties": false,
+        "properties": {
+          "acceptance_criteria": {
+            "items": {
+              "$ref": "#/components/schemas/AcceptanceCriterion"
+            },
+            "minItems": 1,
+            "title": "Acceptance Criteria",
+            "type": "array"
+          },
+          "acceptor_assignment_id": {
+            "title": "Acceptor Assignment Id",
+            "type": "string"
+          },
+          "dri_assignment_id": {
+            "title": "Dri Assignment Id",
+            "type": "string"
+          },
+          "due_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due At"
+          },
+          "execution_commitment_ref": {
+            "$ref": "#/components/schemas/RevisionRef"
+          },
+          "feedback_ref": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RevisionRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "execution_commitment_ref",
+          "dri_assignment_id",
+          "acceptor_assignment_id",
+          "acceptance_criteria"
+        ],
+        "title": "WorkItemPayload",
+        "type": "object"
       }
     },
     "securitySchemes": {
@@ -1150,7 +1424,7 @@
   "info": {
     "description": "Standalone governed Memory Service with a native API and a temporary Clark GraphKnowledge compatibility fa\u00e7ade.",
     "title": "TKOS Memory Service",
-    "version": "0.1.0"
+    "version": "0.2.0"
   },
   "openapi": "3.1.0",
   "paths": {

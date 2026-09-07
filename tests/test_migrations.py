@@ -41,6 +41,7 @@ def test_packaged_migrations_replay_from_empty_database() -> None:
             # 0008-0014 are reserved for the documented governance roadmap.
             "0015_runtime_tasks.sql",
             "0016_governed_runtime.sql",
+            "0017_dri_delivery.sql",
         ]
         assert migrate(test_url) == expected
         assert migrate(test_url) == []
@@ -63,6 +64,9 @@ def test_packaged_migrations_replay_from_empty_database() -> None:
             "gov_objects",
             "gov_object_revisions",
             "gov_action_receipts",
+            "gov_work_item_state",
+            "gov_delivery_acceptances",
+            "gov_outcome_assessments",
         } <= tables
     finally:
         with psycopg.connect(admin_url, autocommit=True) as admin:

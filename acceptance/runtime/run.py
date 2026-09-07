@@ -611,6 +611,11 @@ def main():
                   scenario.group_idempotency, scenario.group_closure, scenario.group_temporal,
                   scenario.group_worker, scenario.group_revocation]
         for index, group in enumerate(groups[:args.through]):
+            if index == 7 and args.through == 8:
+                from acceptance.runtime.delivery_checks import run_delivery_checks
+                run_delivery_checks(scenario)
+                from acceptance.runtime.delivery_authority_checks import run_delivery_authority_checks
+                run_delivery_authority_checks(scenario)
             group()
             if index == 0 and args.through > 1:
                 from acceptance.runtime.negative_checks import run_extra_bundle_checks

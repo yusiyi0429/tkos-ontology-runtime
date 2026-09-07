@@ -33,7 +33,7 @@ REJECTION_ONLY_TABLES = frozenset({
 })
 MUTABLE_GOV_TABLES = frozenset({
     "gov_scopes", "gov_principals", "gov_credentials",
-    "gov_role_assignments", "gov_objects", "gov_feedback_state",
+    "gov_role_assignments", "gov_objects", "gov_feedback_state", "gov_work_item_state",
 })
 # Credentials are an authentication bootstrap table whose RLS policy requires a
 # digest, not the business scope GUC. Do not read/set digests for this oracle or

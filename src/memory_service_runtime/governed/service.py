@@ -17,7 +17,7 @@ from psycopg.types.json import Jsonb
 from pydantic import ValidationError
 
 from memory_service_runtime.repository import enqueue_task
-from . import checkpoints, db
+from . import checkpoints, db, delivery
 from .errors import GovernedError
 from .models import ActionRequest, validated_payload
 
@@ -26,7 +26,7 @@ COMMITMENTS = {"BusinessCommitment", "ExecutionCommitment"}
 HUMAN_ACTIONS = {"accept_commitment", "activate_commitment", "confirm_adjustment", "confirm_closure",
                  "route_feedback", "accept_feedback", "investigate_feedback", "confirm_decision",
                  "confirm_outcome", "record_acceptance", "request_feedback_acceptance", "reopen_feedback",
-                 "revoke_assignment"}
+                 "revoke_assignment"} | delivery.ACTIONS
 _UNCHANGED = object()
 
 
@@ -169,6 +169,8 @@ class ActionExecution:
             object_type = self.params["object_type"]
         elif self.kind == "propose_revision":
             object_type = self.target["object_type"]
+            if object_type in {"WorkItem", "Deliverable"}:
+                _fail("INVALID_STATE", "Frozen work and delivery content require their dedicated actions.")
             self.payload = self.checked_payload(object_type, self.params["payload"])
         else:
             object_type = self.target["object_type"] if self.target else None
@@ -180,6 +182,8 @@ class ActionExecution:
         self.required_assignments.add(sorted(self.action_assignments, key=lambda row: row["assignment_id"])[0]["assignment_id"])
 
     def _payload_dependencies(self, payload: dict[str, Any], object_type: str) -> None:
+        if object_type == "WorkItem":
+            delivery.work_dependencies(self, payload)
         for ref in payload.get("upstream_refs", []):
             obj = self.add_dependency(ref["object_id"])
             self.same_domain(obj)
@@ -257,7 +261,9 @@ class ActionExecution:
         return db.jsonable(rows)
 
     def collect_dependencies(self) -> None:
-        if self.kind in {"create_object", "propose_revision"}:
+        if self.kind in delivery.ACTIONS:
+            delivery.collect_dependencies(self)
+        elif self.kind in {"create_object", "propose_revision"}:
             object_type = self.params["object_type"] if self.kind == "create_object" else self.target["object_type"]
             self._payload_dependencies(self.payload, object_type)
             if self.params.get("bundle_id"):
@@ -428,6 +434,8 @@ class ActionExecution:
         return obj, revision
 
     def validate_proposed_payload(self, obj: dict[str, Any], payload: dict[str, Any], bundle_id: str | None) -> None:
+        if obj["object_type"] == "WorkItem":
+            delivery.validate_work(self, payload, creating=True)
         if obj["object_type"] in COMMITMENTS:
             candidate = {"payload": payload, "bundle_id": bundle_id}
             self.validate_commitment(obj, candidate, allow_bundle=True)
@@ -453,7 +461,7 @@ class ActionExecution:
         self.validate_proposed_payload(provisional, self.payload, None)
         status = {"CompanyOutcome": "proposed", "Decision": "proposed", "ManagementAdjustment": "proposed",
                   "BusinessCommitment": "offered", "ExecutionCommitment": "offered",
-                  "FeedbackThread": "open", "MetricObservation": "recorded"}[object_type]
+                  "FeedbackThread": "open", "MetricObservation": "recorded", "WorkItem": "offered"}[object_type]
         obj = db.jsonable(self.conn.execute(
             """INSERT INTO gov_objects(object_id,scope_id,domain_id,object_type,lifecycle_status)
                VALUES (%s,%s,%s,%s,%s) RETURNING *""",
@@ -470,12 +478,16 @@ class ActionExecution:
                 "INSERT INTO gov_feedback_state(object_id,scope_id,cycle_id) VALUES (%s,%s,%s)",
                 (object_id, self.ctx.scope_id, obj["processing_cycle_id"]),
             )
+        if object_type == "WorkItem":
+            delivery.initialize_work(self, obj, revision)
         self.heads[object_id] = self.changed[object_id] = obj
         self.event(obj, None, "create_object")
         return {"object_id": object_id, "revision_id": revision["revision_id"]}
 
     def propose_revision(self) -> dict[str, Any]:
         obj = self.target
+        if obj["object_type"] in {"WorkItem", "Deliverable"}:
+            _fail("INVALID_STATE", "Work baselines are frozen; delivery versions require submit_deliverable.")
         if obj["object_type"] == "ManagementAdjustment" and obj["lifecycle_status"] != "proposed":
             _fail("INVALID_STATE", "Applied adjustments cannot be rewritten.")
         if obj["object_type"] == "FeedbackThread" and obj["lifecycle_status"] not in {"open", "routed", "accepted", "investigating"}:
@@ -848,6 +860,8 @@ class ActionExecution:
                 "after_active": False, "before_auth_epoch": previous_epoch, "auth_epoch": self.receipt_epoch}
 
     def run_action(self) -> dict[str, Any]:
+        if self.kind in delivery.ACTIONS:
+            return delivery.run_action(self)
         methods = {
             "create_object": self.create_object,
             "propose_revision": self.propose_revision,

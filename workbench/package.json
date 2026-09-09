@@ -1,0 +1,7 @@
+{
+  "name": "tkos-workbench-ui",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "TKOS 本体与记忆工作台静态前端（本地合成演练）"
+}

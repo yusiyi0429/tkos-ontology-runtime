@@ -1,0 +1,56 @@
+pid /tmp/nginx.pid;
+error_log /dev/stderr warn;
+events { worker_connections 256; }
+http {
+  include /etc/nginx/mime.types;
+  types { application/javascript mjs; }
+  default_type application/octet-stream;
+  access_log off;
+  client_body_temp_path /tmp/client_body;
+  proxy_temp_path /tmp/proxy;
+  fastcgi_temp_path /tmp/fastcgi;
+  uwsgi_temp_path /tmp/uwsgi;
+  scgi_temp_path /tmp/scgi;
+  resolver 127.0.0.11 valid=10s ipv6=off;
+  proxy_hide_header Cache-Control;
+  map $http_host $allowed_host { default 0; "127.0.0.1:8032" 1; "localhost:8032" 1; }
+  map "$request_method:$uri" $allowed_method {
+    default 0;
+    ~^GET: 1;
+    ~^POST:/(ceo|mission_dri|verifier|outsider)/v1/context-packs$ 1;
+  }
+  # The only write is an explicit same-origin audit snapshot request.
+  map "$request_method:$http_origin" $allowed_origin {
+    default 0;
+    ~^GET: 1;
+    "POST:http://127.0.0.1:8032" 1;
+    "POST:http://localhost:8032" 1;
+  }
+  map $demo_role $demo_authorization {
+__LOCAL_AUTH_MAP__
+  }
+  server {
+    listen 8080;
+    client_max_body_size 64k;
+    if ($allowed_host = 0) { return 403; }
+    if ($allowed_method = 0) { return 405; }
+    if ($allowed_origin = 0) { return 403; }
+    add_header Cache-Control "no-store" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "no-referrer" always;
+    add_header Content-Security-Policy "default-src 'self'; connect-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'; base-uri 'none'; object-src 'none'" always;
+    root /usr/share/nginx/html;
+    location = / { try_files /index.html =404; }
+    location = /case.json { try_files $uri =404; }
+    location = /workbench { return 302 /workbench/; }
+    location = /workbench/ { try_files /workbench/index.html =404; }
+    location ~ ^/workbench/[a-zA-Z0-9_/-]+\.(?:html|css|js|mjs|json)$ { try_files $uri =404; }
+    location ~ "^/(?<demo_role>ceo|mission_dri|verifier|outsider)/(?<api_path>v1/(?:object-types|domains|objects(?:/[0-9a-f-]+(?:/(?:revisions(?:/[0-9a-f-]+)?|relations|action-receipts|responsibility))?)?|action-receipts/[0-9a-f-]+|context-packs(?:/[0-9a-f-]+)?|evidence-assets/[0-9a-f-]+/revisions/[0-9a-f-]+))$" {
+      proxy_set_header Authorization $demo_authorization;
+      proxy_set_header Host runtime-api;
+      proxy_pass http://runtime-api:8010/$api_path$is_args$args;
+      proxy_buffering off;
+    }
+    location / { return 404; }
+  }
+}

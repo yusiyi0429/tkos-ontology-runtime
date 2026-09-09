@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TKOS 本体与记忆工作台</title>
+<link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+<div id="tkos-workbench" aria-label="TKOS 本体与记忆工作台">
+  <header class="tk-top">
+    <div class="tk-brand"><span class="tk-logo" aria-hidden="true">T</span>TKOS<span class="tk-topname">本体与记忆工作台</span></div>
+    <div class="tk-flex">
+      <label class="tk-field tk-tiny" for="tk-actor">演练身份
+        <select class="tk-select" id="tk-actor" data-control="actor">
+          <option value="ceo">CEO 视角</option>
+          <option value="mission_dri">交付 DRI</option>
+          <option value="verifier">验收人</option>
+          <option value="outsider">外部无关者</option>
+        </select>
+      </label>
+      <span class="tk-environment">本地合成演练 · 非正式登录</span>
+    </div>
+  </header>
+  <div class="tk-layout">
+    <aside class="tk-side">
+      <div>
+        <div class="tk-sidelabel">ONTOLOGY WORKSPACE</div>
+        <nav class="tk-nav" aria-label="工作台页面">
+          <button type="button" class="tk-navbutton" data-nav="catalog"><span>01</span><span>对象与关系</span></button>
+          <button type="button" class="tk-navbutton" data-nav="instance"><span>02</span><span>实例详情</span></button>
+          <button type="button" class="tk-navbutton" data-nav="receipts"><span>03</span><span>动作与回执</span></button>
+          <button type="button" class="tk-navbutton" data-nav="context"><span>04</span><span>Context Pack</span></button>
+        </nav>
+      </div>
+      <div class="tk-case" id="tk-case">正在读取演练配置 …</div>
+      <div class="tk-sidefoot">
+        身份选择器只切换本地合成代理视角，<br>
+        不构成正式登录或授权判定。<br>
+        正式 DRI 操作由 Clark 承载。
+      </div>
+    </aside>
+    <main class="tk-main" id="tk-main" tabindex="-1"></main>
+  </div>
+  <div class="tk-a11y" id="tk-announcement" aria-live="polite"></div>
+</div>
+<script type="module" src="./app.js"></script>
+</body>
+</html>

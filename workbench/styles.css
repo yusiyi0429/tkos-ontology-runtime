@@ -1,0 +1,163 @@
+/* TKOS 工作台样式：沿用已认可原型的灰蓝专业配色与组件语言，新增真实数据所需的状态、表单与快照组件。 */
+#tkos-workbench{--tk-bg:light-dark(#f3f5f8,#131820);--tk-panel:light-dark(#ffffff,#1b2330);--tk-soft:light-dark(#f7f8fb,#212b3b);--tk-ink:light-dark(#202c40,#e5eaf3);--tk-muted:light-dark(#626f83,#a5b2c8);--tk-line:light-dark(#e1e6ee,#344057);--tk-blue:light-dark(#345db4,#99b6ff);--tk-blue-bg:light-dark(#edf2fe,#253956);--tk-green:light-dark(#24715d,#84cfb6);--tk-green-bg:light-dark(#eaf5f0,#1d3b34);--tk-amber:light-dark(#8b5d1f,#e9be78);--tk-amber-bg:light-dark(#fbf3e5,#3c3020);--tk-red:light-dark(#a43f49,#f1a4ad);--tk-red-bg:light-dark(#fbedef,#442b33);--tk-space:22px;color:var(--tk-ink);font:400 14px/1.6 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;background:var(--tk-bg);min-width:0;color-scheme:light dark;overflow-wrap:anywhere}
+#tkos-workbench *{box-sizing:border-box}
+#tkos-workbench button,#tkos-workbench select,#tkos-workbench input{font:inherit;color:inherit}
+#tkos-workbench button{cursor:pointer}
+#tkos-workbench button:disabled{cursor:default;opacity:.55}
+#tkos-workbench h1,#tkos-workbench h2,#tkos-workbench h3,#tkos-workbench p{margin:0}
+#tkos-workbench h1{font-size:25px;line-height:1.35;font-weight:600;letter-spacing:-.7px}
+#tkos-workbench h2{font-size:17px;font-weight:600}
+#tkos-workbench h3{font-size:14px;font-weight:600}
+#tkos-workbench button:hover{filter:brightness(.97)}
+#tkos-workbench :focus-visible{outline:2px solid var(--tk-blue);outline-offset:1px;border-radius:3px}
+#tkos-workbench .tk-mono{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:11px;letter-spacing:.1px}
+#tkos-workbench .tk-muted{color:var(--tk-muted)}
+#tkos-workbench .tk-small{font-size:12px}
+#tkos-workbench .tk-tiny{font-size:11px}
+#tkos-workbench .tk-flex{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+#tkos-workbench .tk-between{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+#tkos-workbench .tk-top{background:var(--tk-panel);display:flex;align-items:center;justify-content:space-between;padding:17px 23px;border-bottom:1px solid var(--tk-line);gap:16px}
+#tkos-workbench .tk-brand{font-size:17px;font-weight:650;letter-spacing:-.5px}
+#tkos-workbench .tk-logo{display:inline-grid;place-items:center;width:29px;height:29px;border:1px solid var(--tk-blue);color:var(--tk-blue);font-size:19px;margin-right:9px;vertical-align:middle;border-radius:6px}
+#tkos-workbench .tk-topname{font-size:13px;margin-left:14px;color:var(--tk-muted);font-weight:400;letter-spacing:0}
+#tkos-workbench .tk-environment{color:var(--tk-amber);font-size:11px;background:var(--tk-amber-bg);padding:4px 9px;border-radius:4px;white-space:nowrap}
+#tkos-workbench .tk-layout{display:grid;grid-template-columns:174px minmax(0,1fr)}
+#tkos-workbench .tk-side{background:var(--tk-panel);border-right:1px solid var(--tk-line);padding:25px 12px;display:flex;flex-direction:column;gap:22px}
+#tkos-workbench .tk-sidelabel{font-size:10px;color:var(--tk-muted);letter-spacing:1.6px;padding:0 12px;margin-bottom:11px}
+#tkos-workbench .tk-nav{display:flex;flex-direction:column;gap:5px}
+#tkos-workbench .tk-navbutton{border:0;background:transparent;border-radius:6px;padding:11px 12px;display:flex;align-items:center;gap:12px;text-align:left;font-size:13px;white-space:nowrap}
+#tkos-workbench .tk-navbutton span:first-child{font:11px ui-monospace,monospace;color:var(--tk-muted)}
+#tkos-workbench .tk-navbutton[aria-current="page"]{background:var(--tk-blue-bg);color:var(--tk-blue);font-weight:550}
+#tkos-workbench .tk-navbutton[aria-current="page"] span:first-child{color:var(--tk-blue)}
+#tkos-workbench .tk-case{border-top:1px solid var(--tk-line);padding:18px 12px;color:var(--tk-muted);font-size:11px}
+#tkos-workbench .tk-case strong{display:block;color:var(--tk-ink);font-size:12px;font-weight:500;margin:7px 0}
+#tkos-workbench .tk-case .tk-link{display:block;margin:5px 0;text-align:left}
+#tkos-workbench .tk-sidefoot{margin-top:auto;padding:16px 12px 0;border-top:1px solid var(--tk-line);font-size:11px;color:var(--tk-muted)}
+#tkos-workbench .tk-main{min-width:0;padding:26px var(--tk-space) 30px}
+#tkos-workbench .tk-breadcrumb{font-size:11px;color:var(--tk-muted);margin-bottom:12px}
+#tkos-workbench .tk-pagehead{margin-bottom:22px}
+#tkos-workbench .tk-subtitle{font-size:12px;color:var(--tk-muted);margin-top:7px}
+#tkos-workbench .tk-eyebrow{font-size:10px;font-family:ui-monospace,monospace;color:var(--tk-muted);letter-spacing:1.5px;margin-bottom:6px}
+#tkos-workbench .tk-button{border:1px solid var(--tk-line);background:var(--tk-panel);border-radius:5px;padding:7px 11px;font-size:12px;line-height:1.5}
+#tkos-workbench .tk-button.tk-primary{background:var(--tk-blue);color:light-dark(#ffffff,#14233f);border-color:var(--tk-blue)}
+#tkos-workbench .tk-link{border:0;padding:0;background:transparent;color:var(--tk-blue);text-align:left;font-size:12px;overflow-wrap:anywhere}
+#tkos-workbench .tk-tag{display:inline-flex;align-items:center;gap:4px;border-radius:4px;font-size:11px;padding:3px 7px;background:var(--tk-soft);color:var(--tk-muted);line-height:1.5}
+#tkos-workbench .tk-tag.tk-good{color:var(--tk-green);background:var(--tk-green-bg)}
+#tkos-workbench .tk-tag.tk-wait{color:var(--tk-amber);background:var(--tk-amber-bg)}
+#tkos-workbench .tk-tag.tk-fail{color:var(--tk-red);background:var(--tk-red-bg)}
+#tkos-workbench .tk-tag.tk-info{color:var(--tk-blue);background:var(--tk-blue-bg)}
+#tkos-workbench .tk-panel{background:var(--tk-panel);border:1px solid var(--tk-line);border-radius:7px;min-width:0}
+#tkos-workbench .tk-panelhead{padding:14px 17px;border-bottom:1px solid var(--tk-line)}
+#tkos-workbench .tk-pad{padding:17px}
+#tkos-workbench .tk-section{margin-top:20px}
+#tkos-workbench .tk-split{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:16px}
+#tkos-workbench .tk-statusgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));background:var(--tk-panel);border:1px solid var(--tk-line);border-radius:7px;margin-bottom:18px}
+#tkos-workbench .tk-status{padding:15px 16px;min-width:0}
+#tkos-workbench .tk-status+.tk-status{border-left:1px solid var(--tk-line)}
+#tkos-workbench .tk-status strong{display:block;font-size:17px;font-weight:550;margin:6px 0 3px}
+#tkos-workbench .tk-status .tk-link{margin-top:8px;font-size:11px}
+#tkos-workbench .tk-kv{display:grid;grid-template-columns:91px minmax(0,1fr);gap:11px;font-size:12px;margin:0}
+#tkos-workbench .tk-kv dt{color:var(--tk-muted)}
+#tkos-workbench .tk-kv dd{margin:0;min-width:0}
+#tkos-workbench .tk-divider{height:1px;background:var(--tk-line);margin:17px 0}
+#tkos-workbench .tk-note{background:var(--tk-soft);border-left:2px solid var(--tk-blue);padding:10px 12px;font-size:12px;color:var(--tk-muted)}
+#tkos-workbench .tk-note.tk-warning{background:var(--tk-amber-bg);border-color:var(--tk-amber);color:var(--tk-amber)}
+#tkos-workbench .tk-tabbar{display:flex;gap:5px;padding:3px;background:var(--tk-soft);border-radius:5px}
+#tkos-workbench .tk-tabbutton{padding:5px 10px;background:transparent;border:0;border-radius:3px;font-size:12px}
+#tkos-workbench .tk-tabbutton[aria-pressed="true"]{background:var(--tk-panel);color:var(--tk-blue);box-shadow:0 1px 3px light-dark(#d6deeb,#101722)}
+#tkos-workbench .tk-criterion{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:start;padding:11px 0;font-size:12px}
+#tkos-workbench .tk-criterion+.tk-criterion{border-top:1px solid var(--tk-line)}
+#tkos-workbench .tk-criterionkey{color:var(--tk-muted);font:11px ui-monospace,monospace;margin-top:2px;display:block}
+#tkos-workbench .tk-evidence{display:flex;align-items:flex-start;gap:10px;text-align:left;width:100%;border:0;background:transparent;padding:11px 0}
+#tkos-workbench .tk-evidence+.tk-evidence{border-top:1px solid var(--tk-line)}
+#tkos-workbench .tk-file{width:29px;flex-shrink:0;display:grid;place-items:center;padding:6px 0;background:var(--tk-soft);border:1px solid var(--tk-line);border-radius:3px;font-size:9px;color:var(--tk-muted)}
+#tkos-workbench .tk-evidence strong{font-size:12px;font-weight:500;display:block;color:var(--tk-blue)}
+#tkos-workbench .tk-evidence small{display:block;font-size:10px;color:var(--tk-muted);margin-top:2px}
+#tkos-workbench .tk-catalog{display:grid;grid-template-columns:193px minmax(0,1fr);gap:16px}
+#tkos-workbench .tk-typebutton{width:100%;text-align:left;display:block;padding:11px 13px;background:transparent;border:0;border-bottom:1px solid var(--tk-line)}
+#tkos-workbench .tk-typebutton:last-child{border-bottom:0}
+#tkos-workbench .tk-typebutton[aria-pressed="true"]{background:var(--tk-blue-bg);box-shadow:inset 3px 0 var(--tk-blue)}
+#tkos-workbench .tk-typebutton strong{font-size:12px;font-weight:500;display:block}
+#tkos-workbench .tk-typebutton small{font:10px ui-monospace,monospace;color:var(--tk-muted)}
+#tkos-workbench .tk-relation{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:14px 0}
+#tkos-workbench .tk-node{background:var(--tk-soft);border:1px solid var(--tk-line);border-radius:5px;padding:10px 12px;min-width:95px;font-size:12px}
+#tkos-workbench .tk-node small{display:block;color:var(--tk-muted);font-size:10px}
+#tkos-workbench .tk-node.tk-active{background:var(--tk-blue-bg);border-color:var(--tk-blue);color:var(--tk-blue)}
+#tkos-workbench .tk-edge{font-size:10px;color:var(--tk-muted);text-align:center}
+#tkos-workbench .tk-table{width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed}
+#tkos-workbench .tk-table th{text-align:left;color:var(--tk-muted);font-size:11px;font-weight:400;padding:9px 8px;background:var(--tk-soft)}
+#tkos-workbench .tk-table td{padding:11px 8px;vertical-align:top;border-top:1px solid var(--tk-line)}
+#tkos-workbench .tk-table td:first-child{color:var(--tk-muted);width:32%}
+#tkos-workbench .tk-field{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--tk-muted)}
+#tkos-workbench .tk-select{padding:6px 9px;background:var(--tk-panel);border:1px solid var(--tk-line);border-radius:4px;font-size:12px;min-width:0;max-width:100%}
+#tkos-workbench .tk-receiptlist{display:flex;flex-direction:column}
+#tkos-workbench .tk-receiptbutton{text-align:left;padding:13px 15px;border:0;border-bottom:1px solid var(--tk-line);background:var(--tk-panel);display:grid;grid-template-columns:1fr auto;gap:5px;font-size:12px}
+#tkos-workbench .tk-receiptbutton:last-child{border-bottom:0}
+#tkos-workbench .tk-receiptbutton[aria-pressed="true"]{background:var(--tk-blue-bg);box-shadow:inset 3px 0 var(--tk-blue)}
+#tkos-workbench .tk-receiptbutton small{font-size:10px;color:var(--tk-muted)}
+#tkos-workbench .tk-checkline{display:flex;gap:8px;align-items:flex-start;padding:9px 0;font-size:12px}
+#tkos-workbench .tk-checkline+.tk-checkline{border-top:1px solid var(--tk-line)}
+#tkos-workbench .tk-checkmark{color:var(--tk-green)}
+#tkos-workbench .tk-error{color:var(--tk-red)}
+#tkos-workbench .tk-timeline{display:flex;list-style:none;margin:0;padding:20px 17px;gap:0}
+#tkos-workbench .tk-timeline li{flex:1;min-width:0;position:relative;font-size:11px}
+#tkos-workbench .tk-timeline li:before{content:"";height:1px;background:var(--tk-line);position:absolute;top:7px;left:13px;right:0}
+#tkos-workbench .tk-timeline li:last-child:before{display:none}
+#tkos-workbench .tk-point{width:15px;height:15px;border:4px solid var(--tk-blue-bg);background:var(--tk-blue);border-radius:50%;display:block;margin-bottom:9px;position:relative}
+#tkos-workbench .tk-timeline li:last-child .tk-point{border-color:var(--tk-green-bg);background:var(--tk-green)}
+#tkos-workbench .tk-timeline button{background:transparent;border:0;padding:0;text-align:left;font-size:11px;color:var(--tk-ink)}
+#tkos-workbench .tk-timeline small{display:block;font-size:10px;color:var(--tk-muted);margin-top:4px}
+#tkos-workbench .tk-codeblock{margin:0;font:11px/1.8 ui-monospace,monospace;white-space:pre-wrap;background:var(--tk-soft);padding:14px;border-radius:4px;color:var(--tk-muted);overflow-wrap:anywhere}
+#tkos-workbench .tk-packlist{counter-reset:pack}
+#tkos-workbench .tk-packitem{position:relative;padding:15px 17px 15px 44px;border-bottom:1px solid var(--tk-line)}
+#tkos-workbench .tk-packitem:last-child{border:0}
+#tkos-workbench .tk-packitem:before{counter-increment:pack;content:counter(pack,decimal-leading-zero);position:absolute;left:16px;top:18px;color:var(--tk-muted);font:10px ui-monospace,monospace}
+#tkos-workbench .tk-packitem strong{display:block;font-size:12px;font-weight:500}
+#tkos-workbench .tk-packitem p{font-size:12px;margin:6px 0 7px;color:var(--tk-muted)}
+#tkos-workbench .tk-packmeta{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+#tkos-workbench .tk-disabledrow{display:flex;gap:10px;justify-content:space-between;padding:11px 0;font-size:12px}
+#tkos-workbench .tk-disabledrow+.tk-disabledrow{border-top:1px solid var(--tk-line)}
+#tkos-workbench .tk-lens{display:flex;gap:10px;flex-wrap:wrap;background:var(--tk-panel);border:1px solid var(--tk-line);border-radius:6px;padding:12px 15px;margin-bottom:17px}
+#tkos-workbench .tk-lens .tk-field{flex:1}
+#tkos-workbench .tk-inlineinspect{margin-top:14px;border:1px solid var(--tk-blue);background:var(--tk-panel);border-radius:6px}
+#tkos-workbench .tk-footnote{font-size:10px;color:var(--tk-muted);display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:22px;padding-top:13px;border-top:1px solid var(--tk-line)}
+#tkos-workbench .tk-a11y{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+/* 真实数据新增组件 */
+#tkos-workbench .tk-loading{display:flex;align-items:center;gap:10px;color:var(--tk-muted);font-size:12px;padding:22px 0}
+#tkos-workbench .tk-spin{width:14px;height:14px;border:2px solid var(--tk-line);border-top-color:var(--tk-blue);border-radius:50%;animation:tk-rotate .8s linear infinite;flex-shrink:0}
+@keyframes tk-rotate{to{transform:rotate(360deg)}}
+#tkos-workbench .tk-errorbox{border:1px solid var(--tk-red);background:var(--tk-red-bg);border-radius:6px;padding:14px 16px;font-size:12px}
+#tkos-workbench .tk-errorbox strong{color:var(--tk-red);display:block;margin-bottom:4px}
+#tkos-workbench .tk-empty{padding:22px 0;color:var(--tk-muted);font-size:12px}
+#tkos-workbench .tk-objrow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 10px;width:100%;text-align:left;padding:12px 15px;border:0;border-bottom:1px solid var(--tk-line);background:var(--tk-panel);font-size:12px}
+#tkos-workbench .tk-objrow:last-child{border-bottom:0}
+#tkos-workbench .tk-objrow strong{font-weight:500;display:block}
+#tkos-workbench .tk-objrow small{font-size:10px;color:var(--tk-muted)}
+#tkos-workbench .tk-objrow:hover{background:var(--tk-soft)}
+#tkos-workbench .tk-copy{border:1px solid var(--tk-line);background:var(--tk-panel);border-radius:4px;padding:2px 7px;font-size:10px;color:var(--tk-muted);line-height:1.6;vertical-align:middle}
+#tkos-workbench .tk-input{padding:6px 9px;background:var(--tk-panel);border:1px solid var(--tk-line);border-radius:4px;font-size:12px;min-width:0;max-width:100%;width:100%}
+#tkos-workbench .tk-chiplist{display:flex;flex-wrap:wrap;gap:7px}
+#tkos-workbench .tk-chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--tk-line);background:var(--tk-soft);border-radius:4px;padding:4px 8px;font-size:11px}
+#tkos-workbench .tk-chip button{border:0;background:transparent;color:var(--tk-muted);padding:0;font-size:12px;line-height:1}
+#tkos-workbench .tk-checkrow{display:flex;align-items:flex-start;gap:9px;padding:9px 0;font-size:12px;border-bottom:1px solid var(--tk-line)}
+#tkos-workbench .tk-checkrow:last-child{border-bottom:0}
+#tkos-workbench .tk-checkrow input{margin-top:3px;min-height:0}
+#tkos-workbench .tk-checkrow small{display:block;font-size:10px;color:var(--tk-muted)}
+#tkos-workbench .tk-pre{font:11px/1.7 ui-monospace,monospace;white-space:pre-wrap;background:var(--tk-soft);padding:13px;border-radius:4px;max-height:260px;overflow:auto;overflow-wrap:anywhere;margin:0}
+#tkos-workbench .tk-idline{display:flex;align-items:flex-start;gap:6px;flex-wrap:wrap}
+#tkos-workbench .tk-idline .tk-mono{overflow-wrap:anywhere;word-break:break-all}
+#tkos-workbench .tk-formrow{display:grid;grid-template-columns:110px minmax(0,1fr);gap:10px;align-items:center;padding:8px 0;font-size:12px}
+#tkos-workbench .tk-formrow>span{color:var(--tk-muted)}
+#tkos-workbench .tk-snapmeta{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px;font-size:12px}
+#tkos-workbench .tk-snapmeta dt{color:var(--tk-muted)}
+#tkos-workbench .tk-snapmeta dd{margin:0;min-width:0}
+#tkos-workbench .tk-busy{pointer-events:none;opacity:.7}
+@media(max-width:850px){#tkos-workbench .tk-layout{grid-template-columns:146px minmax(0,1fr)}#tkos-workbench .tk-main{padding:22px 16px}#tkos-workbench .tk-split{grid-template-columns:1fr}#tkos-workbench .tk-catalog{grid-template-columns:160px minmax(0,1fr)}#tkos-workbench .tk-topname{display:none}#tkos-workbench .tk-navbutton{font-size:12px;gap:8px;padding:10px 8px}#tkos-workbench .tk-status{padding:13px 11px}#tkos-workbench .tk-status strong{font-size:15px}}
+@media(max-width:580px){#tkos-workbench .tk-layout{display:block}#tkos-workbench .tk-side{padding:10px;border-right:0;border-bottom:1px solid var(--tk-line);display:block}#tkos-workbench .tk-nav{display:grid;grid-template-columns:repeat(2,1fr);gap:3px}#tkos-workbench .tk-sidelabel,#tkos-workbench .tk-case,#tkos-workbench .tk-sidefoot{display:none}#tkos-workbench .tk-navbutton{padding:9px 10px}#tkos-workbench .tk-top{padding:13px 15px;gap:8px;flex-wrap:wrap}#tkos-workbench .tk-brand{font-size:15px}#tkos-workbench .tk-main{padding:20px 14px}#tkos-workbench h1{font-size:22px}#tkos-workbench .tk-statusgrid{grid-template-columns:1fr}#tkos-workbench .tk-status+.tk-status{border-left:0;border-top:1px solid var(--tk-line)}#tkos-workbench .tk-status{display:grid;grid-template-columns:1fr auto;gap:3px 12px;align-items:center}#tkos-workbench .tk-status strong{margin:0}#tkos-workbench .tk-status .tk-link{margin:0}#tkos-workbench .tk-catalog{grid-template-columns:1fr}#tkos-workbench .tk-typelist{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}#tkos-workbench .tk-typebutton{border-right:1px solid var(--tk-line)}#tkos-workbench .tk-timeline{flex-direction:column;gap:0}#tkos-workbench .tk-timeline li{padding:0 0 15px 28px}#tkos-workbench .tk-timeline li:before{height:auto;width:1px;top:12px;bottom:0;left:7px;right:auto}#tkos-workbench .tk-point{position:absolute;left:0;top:3px}#tkos-workbench .tk-timeline small{display:inline;margin-left:8px}#tkos-workbench .tk-timeline li:last-child{padding-bottom:0}#tkos-workbench .tk-kv{grid-template-columns:78px minmax(0,1fr)}#tkos-workbench .tk-pagehead{margin-bottom:17px}#tkos-workbench .tk-formrow{grid-template-columns:1fr;gap:4px}#tkos-workbench .tk-snapmeta{grid-template-columns:1fr}}
+@media(pointer:coarse){#tkos-workbench button{min-height:44px}#tkos-workbench select,#tkos-workbench input{font-size:16px}#tkos-workbench select,#tkos-workbench .tk-input{min-height:44px}#tkos-workbench .tk-tabbar{flex-wrap:wrap}}
+@media(prefers-reduced-motion:reduce){#tkos-workbench *{scroll-behavior:auto;animation:none;transition:none}}
+
+/* Preserve the approved hierarchy: business status first, technical references secondary. */
+#tkos-workbench .tk-status strong .tk-tag{font-size:17px;background:transparent;padding:0;line-height:1.4}
+#tkos-workbench .tk-status .tk-link{display:block;margin-top:8px}
+#tkos-workbench .tk-caseanchors{display:flex;gap:9px;flex-wrap:wrap}

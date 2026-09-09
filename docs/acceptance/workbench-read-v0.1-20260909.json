@@ -1,0 +1,56 @@
+{
+  "date": "2026-09-09",
+  "scope": "Workbench read APIs v0.1, local synthetic acceptance",
+  "baseline_commit": "c977da9588f48f08b7f76b6828e75e0b02576076",
+  "implementer": "Kimi Code 0.40.1",
+  "independent_verifier": "Codex",
+  "workbench_read_accepted": true,
+  "runtime_accepted": false,
+  "clark_integration_accepted": false,
+  "real_employee_pilot_accepted": false,
+  "released": false,
+  "production_deployed": false,
+  "pytest": {
+    "passed": 288,
+    "skipped": 1,
+    "workbench_tests_passed": 70,
+    "skip_reason": "tests/test_health.py:188: acceptance database has no agent_service user for non-human viewer check"
+  },
+  "independent_http": {
+    "run_id": "workbench-independent-20260909-final1",
+    "groups_passed": 11,
+    "groups_total": 11,
+    "source_unchanged": true
+  },
+  "generator": {
+    "run_id": "workbench-demo-20260909-final1",
+    "passed": true,
+    "repeat_run_rejected": true,
+    "prior_manifest_preserved": true
+  },
+  "final_states": {
+    "work_item": "delivery_accepted",
+    "deliverable": "accepted",
+    "outcome": "not_assessed",
+    "mf": "investigating"
+  },
+  "openapi": {
+    "new_get_paths": 7,
+    "matches_code": true,
+    "existing_contracts_unchanged": true
+  },
+  "preserved": {
+    "preexisting_changed_files": 24,
+    "unrelated_running_containers": 10
+  },
+  "test_infrastructure": {
+    "docker_context": "desktop-linux",
+    "restored_to_stopped": true,
+    "volumes_preserved": true
+  },
+  "code_sha256": {
+    "src/memory_service_runtime/governed/workbench.py": "935e4928928b28b925884f25ac632f8af42bc1689e1bbca834fde17bb2d246e6",
+    "src/memory_service_runtime/governed/routes.py": "9f79240d9145a898f1aeaaeac063ee043eeaf6fa4be104f6b08601169ff745ae",
+    "contracts/openapi.json": "1919003115dfcd2b1de194100b8cbb6440f18604816d34823c2aa2fe03175dea"
+  }
+}

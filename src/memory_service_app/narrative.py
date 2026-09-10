@@ -28,7 +28,7 @@ from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, field_validato
 from memory_service.context_graph import context_pack, query
 from memory_service.context_graph.query_contracts import RetrievalBudgets
 from memory_service_runtime.config import env_value
-from memory_service_runtime.governed import db, narrative_facts
+from memory_service_runtime.governed import db, narrative_facts, protocol
 from memory_service_runtime.governed.errors import GovernedError
 from memory_service_runtime.governed.routes import bearer
 
@@ -277,8 +277,25 @@ def build_narrative(body: NarrativeRequest, token: str) -> dict:
         _resolve_domain(conn, current, body, config)
         for fact in facts["selected"]:
             db.revision_row(conn, current, fact["object_id"], fact["revision_id"])
+            # Protocol read support is re-checked in this fresh transaction:
+            # a registry/binding change without an auth_epoch bump must still
+            # stop a stale legacy interpretation from being served.
+            # B09: the facts were assembled under legacy interpretation, so the
+            # CURRENT interpretation identity must still be exactly legacy_v0_2;
+            # an object that became readable Contract-A metadata is a changed
+            # source, not a passing one.
+            metadata = protocol.require_read_support(conn, current.scope_id, fact["object_id"])
+            if metadata["interpretation_status"] != "legacy_v0_2":
+                raise GovernedError("NARRATIVE_SOURCE_CHANGED",
+                                    "A fact source's protocol interpretation changed; retry.",
+                                    status=409)
             for source in fact.get("source_refs", []):
                 db.revision_row(conn, current, source["object_id"], source["revision_id"])
+                metadata = protocol.require_read_support(conn, current.scope_id, source["object_id"])
+                if metadata["interpretation_status"] != "legacy_v0_2":
+                    raise GovernedError("NARRATIVE_SOURCE_CHANGED",
+                                        "A fact source's protocol interpretation changed; retry.",
+                                        status=409)
         if pack:
             row = conn.execute("SELECT generation_id FROM context_graph_versions WHERE tenant_id=%s AND organization_id=%s AND status='current'",
                 (current.tenant_id, current.company_id)).fetchone()

@@ -1,0 +1,1836 @@
+{
+  "format": "tkos.a1.legacy-request-golden/1",
+  "legacy_git_head": "3cd9109d726a9a9069a7960a2f2665ce677785d2",
+  "source_files_sha256": {
+    "memory_service_runtime/governed/models.py": "c6ec3f40b5b3bc4c7a7bdc6e46b0bcdaa42e96f65366d5e5f2508ee8123e3050",
+    "memory_service_runtime/governed/service.py": "6ed097d9d5588d84803c1f4055495afbf1a09b6059232defae60c09d285a991e"
+  },
+  "generated_by": "isolated subprocess importing exported pre-A1 models only",
+  "canonicalization": "existing service json.dumps(sort_keys=True, ensure_ascii=False, separators=(',', ':'), allow_nan=False)",
+  "cases": [
+    {
+      "id": "create_CompanyOutcome_defaults",
+      "request": {
+        "action_type": "create_object",
+        "target": null,
+        "expected_versions": [
+          {
+            "object_id": "00000000-0000-0000-0000-00000000000b",
+            "expected_version": 3
+          }
+        ],
+        "idempotency_key": "a1-independent-golden-000",
+        "reason": "Independent legacy serialization golden",
+        "params": {
+          "object_type": "CompanyOutcome",
+          "domain_id": "00000000-0000-0000-0000-000000000003",
+          "payload": {
+            "title": "最小结果"
+          }
+        }
+      },
+      "expected": {
+        "canonical_payload": {
+          "action_type": "create_object",
+          "expected_versions": [
+            {
+              "object_id": "00000000-0000-0000-0000-00000000000b",
+              "expected_version": 3
+            }
+          ],
+          "idempotency_key": "a1-independent-golden-000",
+          "reason": "Independent legacy serialization golden",
+          "params": {
+            "object_type": "CompanyOutcome",
+            "domain_id": "00000000-0000-0000-0000-000000000003",
+            "payload": {
+              "title": "最小结果",
+              "terms": {},
+              "upstream_refs": []
+            }
+          }
+        },
+        "canonical_utf8_hex": "7b22616374696f6e5f74797065223a226372656174655f6f626a656374222c2265787065637465645f76657273696f6e73223a5b7b2265787065637465645f76657273696f6e223a332c226f626a6563745f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303062227d5d2c226964656d706f74656e63795f6b6579223a2261312d696e646570656e64656e742d676f6c64656e2d303030222c22706172616d73223a7b22646f6d61696e5f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303033222c226f626a6563745f74797065223a22436f6d70616e794f7574636f6d65222c227061796c6f6164223a7b227465726d73223a7b7d2c227469746c65223a22e69c80e5b08fe7bb93e69e9c222c22757073747265616d5f72656673223a5b5d7d7d2c22726561736f6e223a22496e646570656e64656e74206c65676163792073657269616c697a6174696f6e20676f6c64656e227d",
+        "request_hash": "435a208c23ceac86f499f3ac1883fe79b28f8662b8d65de0747c958506479361"
+      }
+    },
+    {
+      "id": "create_BusinessCommitment_defaults",
+      "request": {
+        "action_type": "create_object",
+        "target": null,
+        "expected_versions": [
+          {
+            "object_id": "00000000-0000-0000-0000-00000000000b",
+            "expected_version": 3
+          }
+        ],
+        "idempotency_key": "a1-independent-golden-001",
+        "reason": "Independent legacy serialization golden",
+        "params": {
+          "object_type": "BusinessCommitment",
+          "domain_id": "00000000-0000-0000-0000-000000000003",
+          "payload": {
+            "title": "Synthetic commitment",
+            "terms": {
+              "target": 3,
+              "label": "中文"
+            },
+            "required_assignment_ids": [
+              "00000000-0000-0000-0000-000000000001",
+              "00000000-0000-0000-0000-000000000002"
+            ],
+            "upstream_refs": [
+              {
+                "object_id": "00000000-0000-0000-0000-00000000000b",
+                "revision_id": "00000000-0000-0000-0000-00000000000c"
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "canonical_payload": {
+          "action_type": "create_object",
+          "expected_versions": [
+            {
+              "object_id": "00000000-0000-0000-0000-00000000000b",
+              "expected_version": 3
+            }
+          ],
+          "idempotency_key": "a1-independent-golden-001",
+          "reason": "Independent legacy serialization golden",
+          "params": {
+            "object_type": "BusinessCommitment",
+            "domain_id": "00000000-0000-0000-0000-000000000003",
+            "payload": {
+              "title": "Synthetic commitment",
+              "terms": {
+                "target": 3,
+                "label": "中文"
+              },
+              "required_assignment_ids": [
+                "00000000-0000-0000-0000-000000000001",
+                "00000000-0000-0000-0000-000000000002"
+              ],
+              "upstream_refs": [
+                {
+                  "object_id": "00000000-0000-0000-0000-00000000000b",
+                  "revision_id": "00000000-0000-0000-0000-00000000000c"
+                }
+              ]
+            }
+          }
+        },
+        "canonical_utf8_hex": "7b22616374696f6e5f74797065223a226372656174655f6f626a656374222c2265787065637465645f76657273696f6e73223a5b7b2265787065637465645f76657273696f6e223a332c226f626a6563745f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303062227d5d2c226964656d706f74656e63795f6b6579223a2261312d696e646570656e64656e742d676f6c64656e2d303031222c22706172616d73223a7b22646f6d61696e5f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303033222c226f626a6563745f74797065223a22427573696e657373436f6d6d69746d656e74222c227061796c6f6164223a7b2272657175697265645f61737369676e6d656e745f696473223a5b2230303030303030302d303030302d303030302d303030302d303030303030303030303031222c2230303030303030302d303030302d303030302d303030302d303030303030303030303032225d2c227465726d73223a7b226c6162656c223a22e4b8ade69687222c22746172676574223a337d2c227469746c65223a2253796e74686574696320636f6d6d69746d656e74222c22757073747265616d5f72656673223a5b7b226f626a6563745f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303062222c227265766973696f6e5f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303063227d5d7d7d2c22726561736f6e223a22496e646570656e64656e74206c65676163792073657269616c697a6174696f6e20676f6c64656e227d",
+        "request_hash": "4e44a8fbc49a046d85cecd82f06221b532780449f8d6c50c53850cc32d856019"
+      }
+    },
+    {
+      "id": "create_ExecutionCommitment_defaults",
+      "request": {
+        "action_type": "create_object",
+        "target": null,
+        "expected_versions": [
+          {
+            "object_id": "00000000-0000-0000-0000-00000000000b",
+            "expected_version": 3
+          }
+        ],
+        "idempotency_key": "a1-independent-golden-002",
+        "reason": "Independent legacy serialization golden",
+        "params": {
+          "object_type": "ExecutionCommitment",
+          "domain_id": "00000000-0000-0000-0000-000000000003",
+          "payload": {
+            "title": "Synthetic commitment",
+            "terms": {
+              "target": 3,
+              "label": "中文"
+            },
+            "required_assignment_ids": [
+              "00000000-0000-0000-0000-000000000001",
+              "00000000-0000-0000-0000-000000000002"
+            ],
+            "upstream_refs": [
+              {
+                "object_id": "00000000-0000-0000-0000-00000000000b",
+                "revision_id": "00000000-0000-0000-0000-00000000000c"
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "canonical_payload": {
+          "action_type": "create_object",
+          "expected_versions": [
+            {
+              "object_id": "00000000-0000-0000-0000-00000000000b",
+              "expected_version": 3
+            }
+          ],
+          "idempotency_key": "a1-independent-golden-002",
+          "reason": "Independent legacy serialization golden",
+          "params": {
+            "object_type": "ExecutionCommitment",
+            "domain_id": "00000000-0000-0000-0000-000000000003",
+            "payload": {
+              "title": "Synthetic commitment",
+              "terms": {
+                "target": 3,
+                "label": "中文"
+              },
+              "required_assignment_ids": [
+                "00000000-0000-0000-0000-000000000001",
+                "00000000-0000-0000-0000-000000000002"
+              ],
+              "upstream_refs": [
+                {
+                  "object_id": "00000000-0000-0000-0000-00000000000b",
+                  "revision_id": "00000000-0000-0000-0000-00000000000c"
+                }
+              ]
+            }
+          }
+        },
+        "canonical_utf8_hex": "7b22616374696f6e5f74797065223a226372656174655f6f626a656374222c2265787065637465645f76657273696f6e73223a5b7b2265787065637465645f76657273696f6e223a332c226f626a6563745f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303062227d5d2c226964656d706f74656e63795f6b6579223a2261312d696e646570656e64656e742d676f6c64656e2d303032222c22706172616d73223a7b22646f6d61696e5f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303033222c226f626a6563745f74797065223a22457865637574696f6e436f6d6d69746d656e74222c227061796c6f6164223a7b2272657175697265645f61737369676e6d656e745f696473223a5b2230303030303030302d303030302d303030302d303030302d303030303030303030303031222c2230303030303030302d303030302d303030302d303030302d303030303030303030303032225d2c227465726d73223a7b226c6162656c223a22e4b8ade69687222c22746172676574223a337d2c227469746c65223a2253796e74686574696320636f6d6d69746d656e74222c22757073747265616d5f72656673223a5b7b226f626a6563745f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303062222c227265766973696f6e5f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303063227d5d7d7d2c22726561736f6e223a22496e646570656e64656e74206c65676163792073657269616c697a6174696f6e20676f6c64656e227d",
+        "request_hash": "c3d4f74b4bf4679a47c2e44a1c4f0199281a124034215e5b621b625e171b3a9f"
+      }
+    },
+    {
+      "id": "create_FeedbackThread_defaults",
+      "request": {
+        "action_type": "create_object",
+        "target": null,
+        "expected_versions": [
+          {
+            "object_id": "00000000-0000-0000-0000-00000000000b",
+            "expected_version": 3
+          }
+        ],
+        "idempotency_key": "a1-independent-golden-003",
+        "reason": "Independent legacy serialization golden",
+        "params": {
+          "object_type": "FeedbackThread",
+          "domain_id": "00000000-0000-0000-0000-000000000003",
+          "payload": {
+            "title": "Synthetic feedback",
+            "description": "Need a decision"
+          }
+        }
+      },
+      "expected": {
+        "canonical_payload": {
+          "action_type": "create_object",
+          "expected_versions": [
+            {
+              "object_id": "00000000-0000-0000-0000-00000000000b",
+              "expected_version": 3
+            }
+          ],
+          "idempotency_key": "a1-independent-golden-003",
+          "reason": "Independent legacy serialization golden",
+          "params": {
+            "object_type": "FeedbackThread",
+            "domain_id": "00000000-0000-0000-0000-000000000003",
+            "payload": {
+              "title": "Synthetic feedback",
+              "description": "Need a decision"
+            }
+          }
+        },
+        "canonical_utf8_hex": "7b22616374696f6e5f74797065223a226372656174655f6f626a656374222c2265787065637465645f76657273696f6e73223a5b7b2265787065637465645f76657273696f6e223a332c226f626a6563745f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303062227d5d2c226964656d706f74656e63795f6b6579223a2261312d696e646570656e64656e742d676f6c64656e2d303033222c22706172616d73223a7b22646f6d61696e5f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303033222c226f626a6563745f74797065223a22466565646261636b546872656164222c227061796c6f6164223a7b226465736372697074696f6e223a224e6565642061206465636973696f6e222c227469746c65223a2253796e74686574696320666565646261636b227d7d2c22726561736f6e223a22496e646570656e64656e74206c65676163792073657269616c697a6174696f6e20676f6c64656e227d",
+        "request_hash": "98858d9e091c4b6fb68c170cb262d51496e3d6454e6db46158b5a1e575ef03f1"
+      }
+    },
+    {
+      "id": "create_ManagementAdjustment_defaults",
+      "request": {
+        "action_type": "create_object",
+        "target": null,
+        "expected_versions": [
+          {
+            "object_id": "00000000-0000-0000-0000-00000000000b",
+            "expected_version": 3
+          }
+        ],
+        "idempotency_key": "a1-independent-golden-004",
+        "reason": "Independent legacy serialization golden",
+        "params": {
+          "object_type": "ManagementAdjustment",
+          "domain_id": "00000000-0000-0000-0000-000000000003",
+          "payload": {
+            "title": "Synthetic adjustment",
+            "feedback_revision_id": "00000000-0000-0000-0000-00000000000f",
+            "decision_revision_id": "00000000-0000-0000-0000-000000000010",
+            "changes": [
+              {
+                "object_id": "00000000-0000-0000-0000-00000000000b",
+                "from_revision_id": "00000000-0000-0000-0000-00000000000c",
+                "to_revision_id": "00000000-0000-0000-0000-00000000000d"
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "canonical_payload": {
+          "action_type": "create_object",
+          "expected_versions": [
+            {
+              "object_id": "00000000-0000-0000-0000-00000000000b",
+              "expected_version": 3
+            }
+          ],
+          "idempotency_key": "a1-independent-golden-004",
+          "reason": "Independent legacy serialization golden",
+          "params": {
+            "object_type": "ManagementAdjustment",
+            "domain_id": "00000000-0000-0000-0000-000000000003",
+            "payload": {
+              "title": "Synthetic adjustment",
+              "feedback_revision_id": "00000000-0000-0000-0000-00000000000f",
+              "decision_revision_id": "00000000-0000-0000-0000-000000000010",
+              "changes": [
+                {
+                  "object_id": "00000000-0000-0000-0000-00000000000b",
+                  "from_revision_id": "00000000-0000-0000-0000-00000000000c",
+                  "to_revision_id": "00000000-0000-0000-0000-00000000000d"
+                }
+              ]
+            }
+          }
+        },
+        "canonical_utf8_hex": "7b22616374696f6e5f74797065223a226372656174655f6f626a656374222c2265787065637465645f76657273696f6e73223a5b7b2265787065637465645f76657273696f6e223a332c226f626a6563745f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303062227d5d2c226964656d706f74656e63795f6b6579223a2261312d696e646570656e64656e742d676f6c64656e2d303034222c22706172616d73223a7b22646f6d61696e5f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303033222c226f626a6563745f74797065223a224d616e6167656d656e7441646a7573746d656e74222c227061796c6f6164223a7b226368616e676573223a5b7b2266726f6d5f7265766973696f6e5f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303063222c226f626a6563745f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303062222c22746f5f7265766973696f6e5f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303064227d5d2c226465636973696f6e5f7265766973696f6e5f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303130222c22666565646261636b5f7265766973696f6e5f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303066222c227469746c65223a2253796e7468657469632061646a7573746d656e74227d7d2c22726561736f6e223a22496e646570656e64656e74206c65676163792073657269616c697a6174696f6e20676f6c64656e227d",
+        "request_hash": "327339c4860c409ba9e6d7fb3222623093155e61d95e7e0ccf8f75be357422db"
+      }
+    },
+    {
+      "id": "create_Decision_defaults",
+      "request": {
+        "action_type": "create_object",
+        "target": null,
+        "expected_versions": [
+          {
+            "object_id": "00000000-0000-0000-0000-00000000000b",
+            "expected_version": 3
+          }
+        ],
+        "idempotency_key": "a1-independent-golden-005",
+        "reason": "Independent legacy serialization golden",
+        "params": {
+          "object_type": "Decision",
+          "domain_id": "00000000-0000-0000-0000-000000000003",
+          "payload": {
+            "title": "Synthetic decision",
+            "statement": "Proceed with the proposal"
+          }
+        }
+      },
+      "expected": {
+        "canonical_payload": {
+          "action_type": "create_object",
+          "expected_versions": [
+            {
+              "object_id": "00000000-0000-0000-0000-00000000000b",
+              "expected_version": 3
+            }
+          ],
+          "idempotency_key": "a1-independent-golden-005",
+          "reason": "Independent legacy serialization golden",
+          "params": {
+            "object_type": "Decision",
+            "domain_id": "00000000-0000-0000-0000-000000000003",
+            "payload": {
+              "title": "Synthetic decision",
+              "statement": "Proceed with the proposal"
+            }
+          }
+        },
+        "canonical_utf8_hex": "7b22616374696f6e5f74797065223a226372656174655f6f626a656374222c2265787065637465645f76657273696f6e73223a5b7b2265787065637465645f76657273696f6e223a332c226f626a6563745f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303062227d5d2c226964656d706f74656e63795f6b6579223a2261312d696e646570656e64656e742d676f6c64656e2d303035222c22706172616d73223a7b22646f6d61696e5f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303033222c226f626a6563745f74797065223a224465636973696f6e222c227061796c6f6164223a7b2273746174656d656e74223a2250726f636565642077697468207468652070726f706f73616c222c227469746c65223a2253796e746865746963206465636973696f6e227d7d2c22726561736f6e223a22496e646570656e64656e74206c65676163792073657269616c697a6174696f6e20676f6c64656e227d",
+        "request_hash": "058e997caaeb4a168a3a6a7e2e6b3e21aa1e9ad4d4e6a660a63c347e3acbbe05"
+      }
+    },
+    {
+      "id": "create_MetricObservation_defaults",
+      "request": {
+        "action_type": "create_object",
+        "target": null,
+        "expected_versions": [
+          {
+            "object_id": "00000000-0000-0000-0000-00000000000b",
+            "expected_version": 3
+          }
+        ],
+        "idempotency_key": "a1-independent-golden-006",
+        "reason": "Independent legacy serialization golden",
+        "params": {
+          "object_type": "MetricObservation",
+          "domain_id": "00000000-0000-0000-0000-000000000003",
+          "payload": {
+            "title": "Synthetic observation",
+            "metric_id": "clients",
+            "value": 3,
+            "unit": "client",
+            "valid_from": "2026-09-10T08:00:00+08:00"
+          }
+        }
+      },
+      "expected": {
+        "canonical_payload": {
+          "action_type": "create_object",
+          "expected_versions": [
+            {
+              "object_id": "00000000-0000-0000-0000-00000000000b",
+              "expected_version": 3
+            }
+          ],
+          "idempotency_key": "a1-independent-golden-006",
+          "reason": "Independent legacy serialization golden",
+          "params": {
+            "object_type": "MetricObservation",
+            "domain_id": "00000000-0000-0000-0000-000000000003",
+            "payload": {
+              "title": "Synthetic observation",
+              "metric_id": "clients",
+              "value": 3,
+              "unit": "client",
+              "valid_from": "2026-09-10T00:00:00+00:00",
+              "upstream_refs": []
+            }
+          }
+        },
+        "canonical_utf8_hex": "7b22616374696f6e5f74797065223a226372656174655f6f626a656374222c2265787065637465645f76657273696f6e73223a5b7b2265787065637465645f76657273696f6e223a332c226f626a6563745f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303062227d5d2c226964656d706f74656e63795f6b6579223a2261312d696e646570656e64656e742d676f6c64656e2d303036222c22706172616d73223a7b22646f6d61696e5f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303033222c226f626a6563745f74797065223a224d65747269634f62736572766174696f6e222c227061796c6f6164223a7b226d65747269635f6964223a22636c69656e7473222c227469746c65223a2253796e746865746963206f62736572766174696f6e222c22756e6974223a22636c69656e74222c22757073747265616d5f72656673223a5b5d2c2276616c69645f66726f6d223a22323032362d30392d31305430303a30303a30302b30303a3030222c2276616c7565223a337d7d2c22726561736f6e223a22496e646570656e64656e74206c65676163792073657269616c697a6174696f6e20676f6c64656e227d",
+        "request_hash": "a18b3a357f6f5cc2b17271b59534c4f45a7e25722a9861ab2f58398a46f4e8bc"
+      }
+    },
+    {
+      "id": "create_WorkItem_defaults",
+      "request": {
+        "action_type": "create_object",
+        "target": null,
+        "expected_versions": [
+          {
+            "object_id": "00000000-0000-0000-0000-00000000000b",
+            "expected_version": 3
+          }
+        ],
+        "idempotency_key": "a1-independent-golden-007",
+        "reason": "Independent legacy serialization golden",
+        "params": {
+          "object_type": "WorkItem",
+          "domain_id": "00000000-0000-0000-0000-000000000003",
+          "payload": {
+            "title": "Synthetic work",
+            "execution_commitment_ref": {
+              "object_id": "00000000-0000-0000-0000-00000000000b",
+              "revision_id": "00000000-0000-0000-0000-00000000000c"
+            },
+            "dri_assignment_id": "00000000-0000-0000-0000-000000000001",
+            "acceptor_assignment_id": "00000000-0000-0000-0000-000000000002",
+            "acceptance_criteria": [
+              {
+                "criterion_id": "c1",
+                "description": "Exact synthetic criterion"
+              }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "canonical_payload": {
+          "action_type": "create_object",
+          "expected_versions": [
+            {
+              "object_id": "00000000-0000-0000-0000-00000000000b",
+              "expected_version": 3
+            }
+          ],
+          "idempotency_key": "a1-independent-golden-007",
+          "reason": "Independent legacy serialization golden",
+          "params": {
+            "object_type": "WorkItem",
+            "domain_id": "00000000-0000-0000-0000-000000000003",
+            "payload": {
+              "title": "Synthetic work",
+              "execution_commitment_ref": {
+                "object_id": "00000000-0000-0000-0000-00000000000b",
+                "revision_id": "00000000-0000-0000-0000-00000000000c"
+              },
+              "dri_assignment_id": "00000000-0000-0000-0000-000000000001",
+              "acceptor_assignment_id": "00000000-0000-0000-0000-000000000002",
+              "acceptance_criteria": [
+                {
+                  "criterion_id": "c1",
+                  "description": "Exact synthetic criterion"
+                }
+              ]
+            }
+          }
+        },
+        "canonical_utf8_hex": "7b22616374696f6e5f74797065223a226372656174655f6f626a656374222c2265787065637465645f76657273696f6e73223a5b7b2265787065637465645f76657273696f6e223a332c226f626a6563745f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303062227d5d2c226964656d706f74656e63795f6b6579223a2261312d696e646570656e64656e742d676f6c64656e2d303037222c22706172616d73223a7b22646f6d61696e5f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303033222c226f626a6563745f74797065223a22576f726b4974656d222c227061796c6f6164223a7b22616363657074616e63655f6372697465726961223a5b7b22637269746572696f6e5f6964223a226331222c226465736372697074696f6e223a2245786163742073796e74686574696320637269746572696f6e227d5d2c226163636570746f725f61737369676e6d656e745f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303032222c226472695f61737369676e6d656e745f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303031222c22657865637574696f6e5f636f6d6d69746d656e745f726566223a7b226f626a6563745f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303062222c227265766973696f6e5f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303063227d2c227469746c65223a2253796e74686574696320776f726b227d7d2c22726561736f6e223a22496e646570656e64656e74206c65676163792073657269616c697a6174696f6e20676f6c64656e227d",
+        "request_hash": "c2201a21d4a9f01c3397bb9d819651c56eac322bf49d3bfbcedcda9295cd4211"
+      }
+    },
+    {
+      "id": "propose_outcome_defaults",
+      "request": {
+        "action_type": "propose_revision",
+        "target": {
+          "object_id": "00000000-0000-0000-0000-000000000064",
+          "revision_id": "00000000-0000-0000-0000-000000000065",
+          "expected_version": 2
+        },
+        "expected_versions": [
+          {
+            "object_id": "00000000-0000-0000-0000-00000000000b",
+            "expected_version": 3
+          }
+        ],
+        "idempotency_key": "a1-independent-golden-008",
+        "reason": "Independent legacy serialization golden",
+        "params": {
+          "payload": {
+            "title": "New terms"
+          }
+        }
+      },
+      "expected": {
+        "canonical_payload": {
+          "action_type": "propose_revision",
+          "target": {
+            "object_id": "00000000-0000-0000-0000-000000000064",
+            "revision_id": "00000000-0000-0000-0000-000000000065",
+            "expected_version": 2
+          },
+          "expected_versions": [
+            {
+              "object_id": "00000000-0000-0000-0000-00000000000b",
+              "expected_version": 3
+            }
+          ],
+          "idempotency_key": "a1-independent-golden-008",
+          "reason": "Independent legacy serialization golden",
+          "params": {
+            "payload": {
+              "title": "New terms",
+              "terms": {},
+              "upstream_refs": []
+            }
+          }
+        },
+        "canonical_utf8_hex": "7b22616374696f6e5f74797065223a2270726f706f73655f7265766973696f6e222c2265787065637465645f76657273696f6e73223a5b7b2265787065637465645f76657273696f6e223a332c226f626a6563745f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303062227d5d2c226964656d706f74656e63795f6b6579223a2261312d696e646570656e64656e742d676f6c64656e2d303038222c22706172616d73223a7b227061796c6f6164223a7b227465726d73223a7b7d2c227469746c65223a224e6577207465726d73222c22757073747265616d5f72656673223a5b5d7d7d2c22726561736f6e223a22496e646570656e64656e74206c65676163792073657269616c697a6174696f6e20676f6c64656e222c22746172676574223a7b2265787065637465645f76657273696f6e223a322c226f626a6563745f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303634222c227265766973696f6e5f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303635227d7d",
+        "request_hash": "f853b4db0cb601b0bc6e08c0efe678b9ccbb562babfd11531665ea1563b631de"
+      }
+    },
+    {
+      "id": "accept_commitment",
+      "request": {
+        "action_type": "accept_commitment",
+        "target": {
+          "object_id": "00000000-0000-0000-0000-000000000064",
+          "revision_id": "00000000-0000-0000-0000-000000000065",
+          "expected_version": 2
+        },
+        "expected_versions": [
+          {
+            "object_id": "00000000-0000-0000-0000-00000000000b",
+            "expected_version": 3
+          }
+        ],
+        "idempotency_key": "a1-independent-golden-009",
+        "reason": "Independent legacy serialization golden",
+        "params": {
+          "party_assignment_id": "00000000-0000-0000-0000-000000000001",
+          "understanding": "I accept these exact synthetic terms.",
+          "accepted_terms_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        }
+      },
+      "expected": {
+        "canonical_payload": {
+          "action_type": "accept_commitment",
+          "target": {
+            "object_id": "00000000-0000-0000-0000-000000000064",
+            "revision_id": "00000000-0000-0000-0000-000000000065",
+            "expected_version": 2
+          },
+          "expected_versions": [
+            {
+              "object_id": "00000000-0000-0000-0000-00000000000b",
+              "expected_version": 3
+            }
+          ],
+          "idempotency_key": "a1-independent-golden-009",
+          "reason": "Independent legacy serialization golden",
+          "params": {
+            "party_assignment_id": "00000000-0000-0000-0000-000000000001",
+            "understanding": "I accept these exact synthetic terms.",
+            "accepted_terms_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        },
+        "canonical_utf8_hex": "7b22616374696f6e5f74797065223a226163636570745f636f6d6d69746d656e74222c2265787065637465645f76657273696f6e73223a5b7b2265787065637465645f76657273696f6e223a332c226f626a6563745f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303062227d5d2c226964656d706f74656e63795f6b6579223a2261312d696e646570656e64656e742d676f6c64656e2d303039222c22706172616d73223a7b2261636365707465645f7465726d735f68617368223a2261616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161222c2270617274795f61737369676e6d656e745f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303031222c22756e6465727374616e64696e67223a2249206163636570742074686573652065786163742073796e746865746963207465726d732e227d2c22726561736f6e223a22496e646570656e64656e74206c65676163792073657269616c697a6174696f6e20676f6c64656e222c22746172676574223a7b2265787065637465645f76657273696f6e223a322c226f626a6563745f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303634222c227265766973696f6e5f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303635227d7d",
+        "request_hash": "733c3d42b12228fee9094f37978d6354a45d51e3268cdedd49bd2e62463f90c9"
+      }
+    },
+    {
+      "id": "activate_commitment",
+      "request": {
+        "action_type": "activate_commitment",
+        "target": {
+          "object_id": "00000000-0000-0000-0000-000000000064",
+          "revision_id": "00000000-0000-0000-0000-000000000065",
+          "expected_version": 2
+        },
+        "expected_versions": [
+          {
+            "object_id": "00000000-0000-0000-0000-00000000000b",
+            "expected_version": 3
+          }
+        ],
+        "idempotency_key": "a1-independent-golden-010",
+        "reason": "Independent legacy serialization golden",
+        "params": {
+          "handshake_record_ids": [
+            "00000000-0000-0000-0000-000000000004",
+            "00000000-0000-0000-0000-000000000005"
+          ],
+          "activation_policy_revision_id": "00000000-0000-0000-0000-000000000006"
+        }
+      },
+      "expected": {
+        "canonical_payload": {
+          "action_type": "activate_commitment",
+          "target": {
+            "object_id": "00000000-0000-0000-0000-000000000064",
+            "revision_id": "00000000-0000-0000-0000-000000000065",
+            "expected_version": 2
+          },
+          "expected_versions": [
+            {
+              "object_id": "00000000-0000-0000-0000-00000000000b",
+              "expected_version": 3
+            }
+          ],
+          "idempotency_key": "a1-independent-golden-010",
+          "reason": "Independent legacy serialization golden",
+          "params": {
+            "handshake_record_ids": [
+              "00000000-0000-0000-0000-000000000004",
+              "00000000-0000-0000-0000-000000000005"
+            ],
+            "activation_policy_revision_id": "00000000-0000-0000-0000-000000000006"
+          }
+        },
+        "canonical_utf8_hex": "7b22616374696f6e5f74797065223a2261637469766174655f636f6d6d69746d656e74222c2265787065637465645f76657273696f6e73223a5b7b2265787065637465645f76657273696f6e223a332c226f626a6563745f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303062227d5d2c226964656d706f74656e63795f6b6579223a2261312d696e646570656e64656e742d676f6c64656e2d303130222c22706172616d73223a7b2261637469766174696f6e5f706f6c6963795f7265766973696f6e5f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303036222c2268616e647368616b655f7265636f72645f696473223a5b2230303030303030302d303030302d303030302d303030302d303030303030303030303034222c2230303030303030302d303030302d303030302d303030302d303030303030303030303035225d7d2c22726561736f6e223a22496e646570656e64656e74206c65676163792073657269616c697a6174696f6e20676f6c64656e222c22746172676574223a7b2265787065637465645f76657273696f6e223a322c226f626a6563745f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303634222c227265766973696f6e5f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303635227d7d",
+        "request_hash": "be4da2be8f9c428ebea3248dcc782cad902979529c1bc7702bcd2e14a883b9d1"
+      }
+    },
+    {
+      "id": "confirm_adjustment",
+      "request": {
+        "action_type": "confirm_adjustment",
+        "target": {
+          "object_id": "00000000-0000-0000-0000-000000000064",
+          "revision_id": "00000000-0000-0000-0000-000000000065",
+          "expected_version": 2
+        },
+        "expected_versions": [
+          {
+            "object_id": "00000000-0000-0000-0000-00000000000b",
+            "expected_version": 3
+          }
+        ],
+        "idempotency_key": "a1-independent-golden-011",
+        "reason": "Independent legacy serialization golden",
+        "params": {
+          "decision_revision_id": "00000000-0000-0000-0000-000000000010",
+          "feedback_revision_id": "00000000-0000-0000-0000-00000000000f",
+          "changes": [
+            {
+              "object_id": "00000000-0000-0000-0000-00000000000b",
+              "from_revision_id": "00000000-0000-0000-0000-00000000000c",
+              "to_revision_id": "00000000-0000-0000-0000-00000000000d"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "canonical_payload": {
+          "action_type": "confirm_adjustment",
+          "target": {
+            "object_id": "00000000-0000-0000-0000-000000000064",
+            "revision_id": "00000000-0000-0000-0000-000000000065",
+            "expected_version": 2
+          },
+          "expected_versions": [
+            {
+              "object_id": "00000000-0000-0000-0000-00000000000b",
+              "expected_version": 3
+            }
+          ],
+          "idempotency_key": "a1-independent-golden-011",
+          "reason": "Independent legacy serialization golden",
+          "params": {
+            "decision_revision_id": "00000000-0000-0000-0000-000000000010",
+            "changes": [
+              {
+                "object_id": "00000000-0000-0000-0000-00000000000b",
+                "from_revision_id": "00000000-0000-0000-0000-00000000000c",
+                "to_revision_id": "00000000-0000-0000-0000-00000000000d"
+              }
+            ],
+            "feedback_revision_id": "00000000-0000-0000-0000-00000000000f"
+          }
+        },
+        "canonical_utf8_hex": "7b22616374696f6e5f74797065223a22636f6e6669726d5f61646a7573746d656e74222c2265787065637465645f76657273696f6e73223a5b7b2265787065637465645f76657273696f6e223a332c226f626a6563745f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303062227d5d2c226964656d706f74656e63795f6b6579223a2261312d696e646570656e64656e742d676f6c64656e2d303131222c22706172616d73223a7b226368616e676573223a5b7b2266726f6d5f7265766973696f6e5f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303063222c226f626a6563745f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303062222c22746f5f7265766973696f6e5f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303064227d5d2c226465636973696f6e5f7265766973696f6e5f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303130222c22666565646261636b5f7265766973696f6e5f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303066227d2c22726561736f6e223a22496e646570656e64656e74206c65676163792073657269616c697a6174696f6e20676f6c64656e222c22746172676574223a7b2265787065637465645f76657273696f6e223a322c226f626a6563745f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303634222c227265766973696f6e5f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303635227d7d",
+        "request_hash": "8d7eccd811c3d99e4266d272a455439afe2e90021b6567c0b2fcd882ef77928b"
+      }
+    },
+    {
+      "id": "confirm_closure",
+      "request": {
+        "action_type": "confirm_closure",
+        "target": {
+          "object_id": "00000000-0000-0000-0000-000000000064",
+          "revision_id": "00000000-0000-0000-0000-000000000065",
+          "expected_version": 2
+        },
+        "expected_versions": [
+          {
+            "object_id": "00000000-0000-0000-0000-00000000000b",
+            "expected_version": 3
+          }
+        ],
+        "idempotency_key": "a1-independent-golden-012",
+        "reason": "Independent legacy serialization golden",
+        "params": {
+          "acceptance_record_id": "00000000-0000-0000-0000-000000000014",
+          "resolution_decision_revision_id": "00000000-0000-0000-0000-000000000010",
+          "closure_evidence_revision_ids": [
+            "00000000-0000-0000-0000-000000000015"
+          ],
+          "disposition": "resolved",
+          "closure_note": "Independent evidence confirms resolution."
+        }
+      },
+      "expected": {
+        "canonical_payload": {
+          "action_type": "confirm_closure",
+          "target": {
+            "object_id": "00000000-0000-0000-0000-000000000064",
+            "revision_id": "00000000-0000-0000-0000-000000000065",
+            "expected_version": 2
+          },
+          "expected_versions": [
+            {
+              "object_id": "00000000-0000-0000-0000-00000000000b",
+              "expected_version": 3
+            }
+          ],
+          "idempotency_key": "a1-independent-golden-012",
+          "reason": "Independent legacy serialization golden",
+          "params": {
+            "acceptance_record_id": "00000000-0000-0000-0000-000000000014",
+            "resolution_decision_revision_id": "00000000-0000-0000-0000-000000000010",
+            "closure_evidence_revision_ids": [
+              "00000000-0000-0000-0000-000000000015"
+            ],
+            "disposition": "resolved",
+            "closure_note": "Independent evidence confirms resolution."
+          }
+        },
+        "canonical_utf8_hex": "7b22616374696f6e5f74797065223a22636f6e6669726d5f636c6f73757265222c2265787065637465645f76657273696f6e73223a5b7b2265787065637465645f76657273696f6e223a332c226f626a6563745f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303062227d5d2c226964656d706f74656e63795f6b6579223a2261312d696e646570656e64656e742d676f6c64656e2d303132222c22706172616d73223a7b22616363657074616e63655f7265636f72645f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303134222c22636c6f737572655f65766964656e63655f7265766973696f6e5f696473223a5b2230303030303030302d303030302d303030302d303030302d303030303030303030303135225d2c22636c6f737572655f6e6f7465223a22496e646570656e64656e742065766964656e636520636f6e6669726d73207265736f6c7574696f6e2e222c22646973706f736974696f6e223a227265736f6c766564222c227265736f6c7574696f6e5f6465636973696f6e5f7265766973696f6e5f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303130227d2c22726561736f6e223a22496e646570656e64656e74206c65676163792073657269616c697a6174696f6e20676f6c64656e222c22746172676574223a7b2265787065637465645f76657273696f6e223a322c226f626a6563745f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303634222c227265766973696f6e5f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303635227d7d",
+        "request_hash": "79c519c4e6da1ca12675c8066f8d90153deeeea71d68b7f26681336ac0cc73b8"
+      }
+    },
+    {
+      "id": "route_feedback",
+      "request": {
+        "action_type": "route_feedback",
+        "target": {
+          "object_id": "00000000-0000-0000-0000-000000000064",
+          "revision_id": "00000000-0000-0000-0000-000000000065",
+          "expected_version": 2
+        },
+        "expected_versions": [
+          {
+            "object_id": "00000000-0000-0000-0000-00000000000b",
+            "expected_version": 3
+          }
+        ],
+        "idempotency_key": "a1-independent-golden-013",
+        "reason": "Independent legacy serialization golden",
+        "params": {
+          "responsible_assignment_id": "00000000-0000-0000-0000-000000000001"
+        }
+      },
+      "expected": {
+        "canonical_payload": {
+          "action_type": "route_feedback",
+          "target": {
+            "object_id": "00000000-0000-0000-0000-000000000064",
+            "revision_id": "00000000-0000-0000-0000-000000000065",
+            "expected_version": 2
+          },
+          "expected_versions": [
+            {
+              "object_id": "00000000-0000-0000-0000-00000000000b",
+              "expected_version": 3
+            }
+          ],
+          "idempotency_key": "a1-independent-golden-013",
+          "reason": "Independent legacy serialization golden",
+          "params": {
+            "responsible_assignment_id": "00000000-0000-0000-0000-000000000001"
+          }
+        },
+        "canonical_utf8_hex": "7b22616374696f6e5f74797065223a22726f7574655f666565646261636b222c2265787065637465645f76657273696f6e73223a5b7b2265787065637465645f76657273696f6e223a332c226f626a6563745f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303062227d5d2c226964656d706f74656e63795f6b6579223a2261312d696e646570656e64656e742d676f6c64656e2d303133222c22706172616d73223a7b22726573706f6e7369626c655f61737369676e6d656e745f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303031227d2c22726561736f6e223a22496e646570656e64656e74206c65676163792073657269616c697a6174696f6e20676f6c64656e222c22746172676574223a7b2265787065637465645f76657273696f6e223a322c226f626a6563745f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303634222c227265766973696f6e5f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303635227d7d",
+        "request_hash": "be386266c56d355301dc56e9ba1511efcd4edc60fdcb1357d5dc1df86d461b72"
+      }
+    },
+    {
+      "id": "record_acceptance",
+      "request": {
+        "action_type": "record_acceptance",
+        "target": {
+          "object_id": "00000000-0000-0000-0000-000000000064",
+          "revision_id": "00000000-0000-0000-0000-000000000065",
+          "expected_version": 2
+        },
+        "expected_versions": [
+          {
+            "object_id": "00000000-0000-0000-0000-00000000000b",
+            "expected_version": 3
+          }
+        ],
+        "idempotency_key": "a1-independent-golden-014",
+        "reason": "Independent legacy serialization golden",
+        "params": {
+          "decision_revision_id": "00000000-0000-0000-0000-000000000010",
+          "evidence_revision_ids": [
+            "00000000-0000-0000-0000-000000000015"
+          ],
+          "verification_result": "changes_requested"
+        }
+      },
+      "expected": {
+        "canonical_payload": {
+          "action_type": "record_acceptance",
+          "target": {
+            "object_id": "00000000-0000-0000-0000-000000000064",
+            "revision_id": "00000000-0000-0000-0000-000000000065",
+            "expected_version": 2
+          },
+          "expected_versions": [
+            {
+              "object_id": "00000000-0000-0000-0000-00000000000b",
+              "expected_version": 3
+            }
+          ],
+          "idempotency_key": "a1-independent-golden-014",
+          "reason": "Independent legacy serialization golden",
+          "params": {
+            "decision_revision_id": "00000000-0000-0000-0000-000000000010",
+            "evidence_revision_ids": [
+              "00000000-0000-0000-0000-000000000015"
+            ],
+            "verification_result": "changes_requested"
+          }
+        },
+        "canonical_utf8_hex": "7b22616374696f6e5f74797065223a227265636f72645f616363657074616e6365222c2265787065637465645f76657273696f6e73223a5b7b2265787065637465645f76657273696f6e223a332c226f626a6563745f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303062227d5d2c226964656d706f74656e63795f6b6579223a2261312d696e646570656e64656e742d676f6c64656e2d303134222c22706172616d73223a7b226465636973696f6e5f7265766973696f6e5f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303130222c2265766964656e63655f7265766973696f6e5f696473223a5b2230303030303030302d303030302d303030302d303030302d303030303030303030303135225d2c22766572696669636174696f6e5f726573756c74223a226368616e6765735f726571756573746564227d2c22726561736f6e223a22496e646570656e64656e74206c65676163792073657269616c697a6174696f6e20676f6c64656e222c22746172676574223a7b2265787065637465645f76657273696f6e223a322c226f626a6563745f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303634222c227265766973696f6e5f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303635227d7d",
+        "request_hash": "058347c7ed64dfd297616ddbf1d588fb0940f74e39e5edab56a4392869db2fca"
+      }
+    },
+    {
+      "id": "request_feedback_acceptance",
+      "request": {
+        "action_type": "request_feedback_acceptance",
+        "target": {
+          "object_id": "00000000-0000-0000-0000-000000000064",
+          "revision_id": "00000000-0000-0000-0000-000000000065",
+          "expected_version": 2
+        },
+        "expected_versions": [
+          {
+            "object_id": "00000000-0000-0000-0000-00000000000b",
+            "expected_version": 3
+          }
+        ],
+        "idempotency_key": "a1-independent-golden-015",
+        "reason": "Independent legacy serialization golden",
+        "params": {
+          "decision_revision_id": "00000000-0000-0000-0000-000000000010"
+        }
+      },
+      "expected": {
+        "canonical_payload": {
+          "action_type": "request_feedback_acceptance",
+          "target": {
+            "object_id": "00000000-0000-0000-0000-000000000064",
+            "revision_id": "00000000-0000-0000-0000-000000000065",
+            "expected_version": 2
+          },
+          "expected_versions": [
+            {
+              "object_id": "00000000-0000-0000-0000-00000000000b",
+              "expected_version": 3
+            }
+          ],
+          "idempotency_key": "a1-independent-golden-015",
+          "reason": "Independent legacy serialization golden",
+          "params": {
+            "decision_revision_id": "00000000-0000-0000-0000-000000000010"
+          }
+        },
+        "canonical_utf8_hex": "7b22616374696f6e5f74797065223a22726571756573745f666565646261636b5f616363657074616e6365222c2265787065637465645f76657273696f6e73223a5b7b2265787065637465645f76657273696f6e223a332c226f626a6563745f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303062227d5d2c226964656d706f74656e63795f6b6579223a2261312d696e646570656e64656e742d676f6c64656e2d303135222c22706172616d73223a7b226465636973696f6e5f7265766973696f6e5f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303130227d2c22726561736f6e223a22496e646570656e64656e74206c65676163792073657269616c697a6174696f6e20676f6c64656e222c22746172676574223a7b2265787065637465645f76657273696f6e223a322c226f626a6563745f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303634222c227265766973696f6e5f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303635227d7d",
+        "request_hash": "1f5744b84e6e821a7e89ae611e4e8df321fe88e3caaa6128c857d77dba53994b"
+      }
+    },
+    {
+      "id": "revoke_assignment",
+      "request": {
+        "action_type": "revoke_assignment",
+        "target": null,
+        "expected_versions": [
+          {
+            "object_id": "00000000-0000-0000-0000-00000000000b",
+            "expected_version": 3
+          }
+        ],
+        "idempotency_key": "a1-independent-golden-016",
+        "reason": "Independent legacy serialization golden",
+        "params": {
+          "assignment_id": "00000000-0000-0000-0000-000000000001"
+        }
+      },
+      "expected": {
+        "canonical_payload": {
+          "action_type": "revoke_assignment",
+          "expected_versions": [
+            {
+              "object_id": "00000000-0000-0000-0000-00000000000b",
+              "expected_version": 3
+            }
+          ],
+          "idempotency_key": "a1-independent-golden-016",
+          "reason": "Independent legacy serialization golden",
+          "params": {
+            "assignment_id": "00000000-0000-0000-0000-000000000001"
+          }
+        },
+        "canonical_utf8_hex": "7b22616374696f6e5f74797065223a227265766f6b655f61737369676e6d656e74222c2265787065637465645f76657273696f6e73223a5b7b2265787065637465645f76657273696f6e223a332c226f626a6563745f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303062227d5d2c226964656d706f74656e63795f6b6579223a2261312d696e646570656e64656e742d676f6c64656e2d303136222c22706172616d73223a7b2261737369676e6d656e745f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303031227d2c22726561736f6e223a22496e646570656e64656e74206c65676163792073657269616c697a6174696f6e20676f6c64656e227d",
+        "request_hash": "75376da880513ea84b142f6dfb03d9f895d9be86cb911fc62c0f16da4dcecfa7"
+      }
+    },
+    {
+      "id": "submit_v1_defaults",
+      "request": {
+        "action_type": "submit_deliverable",
+        "target": {
+          "object_id": "00000000-0000-0000-0000-000000000064",
+          "revision_id": "00000000-0000-0000-0000-000000000065",
+          "expected_version": 2
+        },
+        "expected_versions": [
+          {
+            "object_id": "00000000-0000-0000-0000-00000000000b",
+            "expected_version": 3
+          }
+        ],
+        "idempotency_key": "a1-independent-golden-017",
+        "reason": "Independent legacy serialization golden",
+        "params": {
+          "title": "Delivery v1",
+          "summary": "First version",
+          "evidence_revision_ids": [
+            "00000000-0000-0000-0000-000000000015"
+          ]
+        }
+      },
+      "expected": {
+        "canonical_payload": {
+          "action_type": "submit_deliverable",
+          "target": {
+            "object_id": "00000000-0000-0000-0000-000000000064",
+            "revision_id": "00000000-0000-0000-0000-000000000065",
+            "expected_version": 2
+          },
+          "expected_versions": [
+            {
+              "object_id": "00000000-0000-0000-0000-00000000000b",
+              "expected_version": 3
+            }
+          ],
+          "idempotency_key": "a1-independent-golden-017",
+          "reason": "Independent legacy serialization golden",
+          "params": {
+            "title": "Delivery v1",
+            "summary": "First version",
+            "evidence_revision_ids": [
+              "00000000-0000-0000-0000-000000000015"
+            ]
+          }
+        },
+        "canonical_utf8_hex": "7b22616374696f6e5f74797065223a227375626d69745f64656c6976657261626c65222c2265787065637465645f76657273696f6e73223a5b7b2265787065637465645f76657273696f6e223a332c226f626a6563745f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303062227d5d2c226964656d706f74656e63795f6b6579223a2261312d696e646570656e64656e742d676f6c64656e2d303137222c22706172616d73223a7b2265766964656e63655f7265766973696f6e5f696473223a5b2230303030303030302d303030302d303030302d303030302d303030303030303030303135225d2c2273756d6d617279223a2246697273742076657273696f6e222c227469746c65223a2244656c6976657279207631227d2c22726561736f6e223a22496e646570656e64656e74206c65676163792073657269616c697a6174696f6e20676f6c64656e222c22746172676574223a7b2265787065637465645f76657273696f6e223a322c226f626a6563745f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303634222c227265766973696f6e5f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303635227d7d",
+        "request_hash": "5e1e56df16aac47bbc9bdafb6e1f7d7ad01a9c26adb119d017f54831d6eec2e0"
+      }
+    },
+    {
+      "id": "submit_v2_explicit",
+      "request": {
+        "action_type": "submit_deliverable",
+        "target": {
+          "object_id": "00000000-0000-0000-0000-000000000064",
+          "revision_id": "00000000-0000-0000-0000-000000000065",
+          "expected_version": 2
+        },
+        "expected_versions": [
+          {
+            "object_id": "00000000-0000-0000-0000-00000000000b",
+            "expected_version": 3
+          }
+        ],
+        "idempotency_key": "a1-independent-golden-018",
+        "reason": "Independent legacy serialization golden",
+        "params": {
+          "title": "Delivery v2",
+          "summary": "Revised version",
+          "evidence_revision_ids": [
+            "00000000-0000-0000-0000-000000000015"
+          ],
+          "responds_to_acceptance_id": "00000000-0000-0000-0000-000000000016"
+        }
+      },
+      "expected": {
+        "canonical_payload": {
+          "action_type": "submit_deliverable",
+          "target": {
+            "object_id": "00000000-0000-0000-0000-000000000064",
+            "revision_id": "00000000-0000-0000-0000-000000000065",
+            "expected_version": 2
+          },
+          "expected_versions": [
+            {
+              "object_id": "00000000-0000-0000-0000-00000000000b",
+              "expected_version": 3
+            }
+          ],
+          "idempotency_key": "a1-independent-golden-018",
+          "reason": "Independent legacy serialization golden",
+          "params": {
+            "title": "Delivery v2",
+            "summary": "Revised version",
+            "evidence_revision_ids": [
+              "00000000-0000-0000-0000-000000000015"
+            ],
+            "responds_to_acceptance_id": "00000000-0000-0000-0000-000000000016"
+          }
+        },
+        "canonical_utf8_hex": "7b22616374696f6e5f74797065223a227375626d69745f64656c6976657261626c65222c2265787065637465645f76657273696f6e73223a5b7b2265787065637465645f76657273696f6e223a332c226f626a6563745f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303062227d5d2c226964656d706f74656e63795f6b6579223a2261312d696e646570656e64656e742d676f6c64656e2d303138222c22706172616d73223a7b2265766964656e63655f7265766973696f6e5f696473223a5b2230303030303030302d303030302d303030302d303030302d303030303030303030303135225d2c22726573706f6e64735f746f5f616363657074616e63655f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303136222c2273756d6d617279223a22526576697365642076657273696f6e222c227469746c65223a2244656c6976657279207632227d2c22726561736f6e223a22496e646570656e64656e74206c65676163792073657269616c697a6174696f6e20676f6c64656e222c22746172676574223a7b2265787065637465645f76657273696f6e223a322c226f626a6563745f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303634222c227265766973696f6e5f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303635227d7d",
+        "request_hash": "345d826d2cd2e89fd50b1714c70f5db005f54369024e878613e4cd5463162da4"
+      }
+    },
+    {
+      "id": "review_deliverable",
+      "request": {
+        "action_type": "review_deliverable",
+        "target": {
+          "object_id": "00000000-0000-0000-0000-000000000064",
+          "revision_id": "00000000-0000-0000-0000-000000000065",
+          "expected_version": 2
+        },
+        "expected_versions": [
+          {
+            "object_id": "00000000-0000-0000-0000-00000000000b",
+            "expected_version": 3
+          }
+        ],
+        "idempotency_key": "a1-independent-golden-019",
+        "reason": "Independent legacy serialization golden",
+        "params": {
+          "deliverable_revision_id": "00000000-0000-0000-0000-000000000017",
+          "delivery_payload_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "verification_result": "accepted",
+          "criterion_results": [
+            {
+              "criterion_id": "c1",
+              "result": "passed",
+              "note": "Source verified"
+            }
+          ],
+          "review_note": "Independent exact version review"
+        }
+      },
+      "expected": {
+        "canonical_payload": {
+          "action_type": "review_deliverable",
+          "target": {
+            "object_id": "00000000-0000-0000-0000-000000000064",
+            "revision_id": "00000000-0000-0000-0000-000000000065",
+            "expected_version": 2
+          },
+          "expected_versions": [
+            {
+              "object_id": "00000000-0000-0000-0000-00000000000b",
+              "expected_version": 3
+            }
+          ],
+          "idempotency_key": "a1-independent-golden-019",
+          "reason": "Independent legacy serialization golden",
+          "params": {
+            "deliverable_revision_id": "00000000-0000-0000-0000-000000000017",
+            "delivery_payload_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "verification_result": "accepted",
+            "criterion_results": [
+              {
+                "criterion_id": "c1",
+                "result": "passed",
+                "note": "Source verified"
+              }
+            ],
+            "review_note": "Independent exact version review"
+          }
+        },
+        "canonical_utf8_hex": "7b22616374696f6e5f74797065223a227265766965775f64656c6976657261626c65222c2265787065637465645f76657273696f6e73223a5b7b2265787065637465645f76657273696f6e223a332c226f626a6563745f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303062227d5d2c226964656d706f74656e63795f6b6579223a2261312d696e646570656e64656e742d676f6c64656e2d303139222c22706172616d73223a7b22637269746572696f6e5f726573756c7473223a5b7b22637269746572696f6e5f6964223a226331222c226e6f7465223a22536f75726365207665726966696564222c22726573756c74223a22706173736564227d5d2c2264656c6976657261626c655f7265766973696f6e5f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303137222c2264656c69766572795f7061796c6f61645f68617368223a2262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262626262222c227265766965775f6e6f7465223a22496e646570656e64656e742065786163742076657273696f6e20726576696577222c22766572696669636174696f6e5f726573756c74223a226163636570746564227d2c22726561736f6e223a22496e646570656e64656e74206c65676163792073657269616c697a6174696f6e20676f6c64656e222c22746172676574223a7b2265787065637465645f76657273696f6e223a322c226f626a6563745f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303634222c227265766973696f6e5f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303635227d7d",
+        "request_hash": "d4ff63c76ff0440f4f7926e42c849a98a7bf08c08226fdae160ed80d9a03be56"
+      }
+    },
+    {
+      "id": "record_outcome_defaults",
+      "request": {
+        "action_type": "record_outcome_assessment",
+        "target": {
+          "object_id": "00000000-0000-0000-0000-000000000064",
+          "revision_id": "00000000-0000-0000-0000-000000000065",
+          "expected_version": 2
+        },
+        "expected_versions": [
+          {
+            "object_id": "00000000-0000-0000-0000-00000000000b",
+            "expected_version": 3
+          }
+        ],
+        "idempotency_key": "a1-independent-golden-020",
+        "reason": "Independent legacy serialization golden",
+        "params": {
+          "assessment_result": "not_achieved",
+          "observation_revision_ids": [
+            "00000000-0000-0000-0000-000000000018"
+          ],
+          "evidence_revision_ids": [
+            "00000000-0000-0000-0000-000000000015"
+          ],
+          "assessment_note": "Delivery accepted but only two customers activated"
+        }
+      },
+      "expected": {
+        "canonical_payload": {
+          "action_type": "record_outcome_assessment",
+          "target": {
+            "object_id": "00000000-0000-0000-0000-000000000064",
+            "revision_id": "00000000-0000-0000-0000-000000000065",
+            "expected_version": 2
+          },
+          "expected_versions": [
+            {
+              "object_id": "00000000-0000-0000-0000-00000000000b",
+              "expected_version": 3
+            }
+          ],
+          "idempotency_key": "a1-independent-golden-020",
+          "reason": "Independent legacy serialization golden",
+          "params": {
+            "assessment_result": "not_achieved",
+            "observation_revision_ids": [
+              "00000000-0000-0000-0000-000000000018"
+            ],
+            "evidence_revision_ids": [
+              "00000000-0000-0000-0000-000000000015"
+            ],
+            "assessment_note": "Delivery accepted but only two customers activated",
+            "delivery_acceptance_ids": []
+          }
+        },
+        "canonical_utf8_hex": "7b22616374696f6e5f74797065223a227265636f72645f6f7574636f6d655f6173736573736d656e74222c2265787065637465645f76657273696f6e73223a5b7b2265787065637465645f76657273696f6e223a332c226f626a6563745f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303062227d5d2c226964656d706f74656e63795f6b6579223a2261312d696e646570656e64656e742d676f6c64656e2d303230222c22706172616d73223a7b226173736573736d656e745f6e6f7465223a2244656c697665727920616363657074656420627574206f6e6c792074776f20637573746f6d65727320616374697661746564222c226173736573736d656e745f726573756c74223a226e6f745f6163686965766564222c2264656c69766572795f616363657074616e63655f696473223a5b5d2c2265766964656e63655f7265766973696f6e5f696473223a5b2230303030303030302d303030302d303030302d303030302d303030303030303030303135225d2c226f62736572766174696f6e5f7265766973696f6e5f696473223a5b2230303030303030302d303030302d303030302d303030302d303030303030303030303138225d7d2c22726561736f6e223a22496e646570656e64656e74206c65676163792073657269616c697a6174696f6e20676f6c64656e222c22746172676574223a7b2265787065637465645f76657273696f6e223a322c226f626a6563745f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303634222c227265766973696f6e5f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303635227d7d",
+        "request_hash": "bf6e4e11e180bfda31d9cd34fbe1a6d16f48214ad999aee9177ef0356f716530"
+      }
+    },
+    {
+      "id": "accept_feedback",
+      "request": {
+        "action_type": "accept_feedback",
+        "target": {
+          "object_id": "00000000-0000-0000-0000-000000000064",
+          "revision_id": "00000000-0000-0000-0000-000000000065",
+          "expected_version": 2
+        },
+        "expected_versions": [
+          {
+            "object_id": "00000000-0000-0000-0000-00000000000b",
+            "expected_version": 3
+          }
+        ],
+        "idempotency_key": "a1-independent-golden-021",
+        "reason": "Independent legacy serialization golden",
+        "params": {}
+      },
+      "expected": {
+        "canonical_payload": {
+          "action_type": "accept_feedback",
+          "target": {
+            "object_id": "00000000-0000-0000-0000-000000000064",
+            "revision_id": "00000000-0000-0000-0000-000000000065",
+            "expected_version": 2
+          },
+          "expected_versions": [
+            {
+              "object_id": "00000000-0000-0000-0000-00000000000b",
+              "expected_version": 3
+            }
+          ],
+          "idempotency_key": "a1-independent-golden-021",
+          "reason": "Independent legacy serialization golden",
+          "params": {}
+        },
+        "canonical_utf8_hex": "7b22616374696f6e5f74797065223a226163636570745f666565646261636b222c2265787065637465645f76657273696f6e73223a5b7b2265787065637465645f76657273696f6e223a332c226f626a6563745f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303062227d5d2c226964656d706f74656e63795f6b6579223a2261312d696e646570656e64656e742d676f6c64656e2d303231222c22706172616d73223a7b7d2c22726561736f6e223a22496e646570656e64656e74206c65676163792073657269616c697a6174696f6e20676f6c64656e222c22746172676574223a7b2265787065637465645f76657273696f6e223a322c226f626a6563745f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303634222c227265766973696f6e5f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303635227d7d",
+        "request_hash": "8ce1bbbe7f6f6f73d4fbe24d4870e0d1c23d9af3f880506ace6ece963ec2dde3"
+      }
+    },
+    {
+      "id": "investigate_feedback",
+      "request": {
+        "action_type": "investigate_feedback",
+        "target": {
+          "object_id": "00000000-0000-0000-0000-000000000064",
+          "revision_id": "00000000-0000-0000-0000-000000000065",
+          "expected_version": 2
+        },
+        "expected_versions": [
+          {
+            "object_id": "00000000-0000-0000-0000-00000000000b",
+            "expected_version": 3
+          }
+        ],
+        "idempotency_key": "a1-independent-golden-022",
+        "reason": "Independent legacy serialization golden",
+        "params": {}
+      },
+      "expected": {
+        "canonical_payload": {
+          "action_type": "investigate_feedback",
+          "target": {
+            "object_id": "00000000-0000-0000-0000-000000000064",
+            "revision_id": "00000000-0000-0000-0000-000000000065",
+            "expected_version": 2
+          },
+          "expected_versions": [
+            {
+              "object_id": "00000000-0000-0000-0000-00000000000b",
+              "expected_version": 3
+            }
+          ],
+          "idempotency_key": "a1-independent-golden-022",
+          "reason": "Independent legacy serialization golden",
+          "params": {}
+        },
+        "canonical_utf8_hex": "7b22616374696f6e5f74797065223a22696e7665737469676174655f666565646261636b222c2265787065637465645f76657273696f6e73223a5b7b2265787065637465645f76657273696f6e223a332c226f626a6563745f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303062227d5d2c226964656d706f74656e63795f6b6579223a2261312d696e646570656e64656e742d676f6c64656e2d303232222c22706172616d73223a7b7d2c22726561736f6e223a22496e646570656e64656e74206c65676163792073657269616c697a6174696f6e20676f6c64656e222c22746172676574223a7b2265787065637465645f76657273696f6e223a322c226f626a6563745f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303634222c227265766973696f6e5f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303635227d7d",
+        "request_hash": "c33c81f36c807aa9bdcba9d19f221d98a8667d98f31dc198d35ac2f31b3c4250"
+      }
+    },
+    {
+      "id": "confirm_decision",
+      "request": {
+        "action_type": "confirm_decision",
+        "target": {
+          "object_id": "00000000-0000-0000-0000-000000000064",
+          "revision_id": "00000000-0000-0000-0000-000000000065",
+          "expected_version": 2
+        },
+        "expected_versions": [
+          {
+            "object_id": "00000000-0000-0000-0000-00000000000b",
+            "expected_version": 3
+          }
+        ],
+        "idempotency_key": "a1-independent-golden-023",
+        "reason": "Independent legacy serialization golden",
+        "params": {}
+      },
+      "expected": {
+        "canonical_payload": {
+          "action_type": "confirm_decision",
+          "target": {
+            "object_id": "00000000-0000-0000-0000-000000000064",
+            "revision_id": "00000000-0000-0000-0000-000000000065",
+            "expected_version": 2
+          },
+          "expected_versions": [
+            {
+              "object_id": "00000000-0000-0000-0000-00000000000b",
+              "expected_version": 3
+            }
+          ],
+          "idempotency_key": "a1-independent-golden-023",
+          "reason": "Independent legacy serialization golden",
+          "params": {}
+        },
+        "canonical_utf8_hex": "7b22616374696f6e5f74797065223a22636f6e6669726d5f6465636973696f6e222c2265787065637465645f76657273696f6e73223a5b7b2265787065637465645f76657273696f6e223a332c226f626a6563745f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303062227d5d2c226964656d706f74656e63795f6b6579223a2261312d696e646570656e64656e742d676f6c64656e2d303233222c22706172616d73223a7b7d2c22726561736f6e223a22496e646570656e64656e74206c65676163792073657269616c697a6174696f6e20676f6c64656e222c22746172676574223a7b2265787065637465645f76657273696f6e223a322c226f626a6563745f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303634222c227265766973696f6e5f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303635227d7d",
+        "request_hash": "4cc14651888d8d63cf1db7d92c7a609fece1a107781c9f32b9551231cb3272e4"
+      }
+    },
+    {
+      "id": "confirm_outcome",
+      "request": {
+        "action_type": "confirm_outcome",
+        "target": {
+          "object_id": "00000000-0000-0000-0000-000000000064",
+          "revision_id": "00000000-0000-0000-0000-000000000065",
+          "expected_version": 2
+        },
+        "expected_versions": [
+          {
+            "object_id": "00000000-0000-0000-0000-00000000000b",
+            "expected_version": 3
+          }
+        ],
+        "idempotency_key": "a1-independent-golden-024",
+        "reason": "Independent legacy serialization golden",
+        "params": {}
+      },
+      "expected": {
+        "canonical_payload": {
+          "action_type": "confirm_outcome",
+          "target": {
+            "object_id": "00000000-0000-0000-0000-000000000064",
+            "revision_id": "00000000-0000-0000-0000-000000000065",
+            "expected_version": 2
+          },
+          "expected_versions": [
+            {
+              "object_id": "00000000-0000-0000-0000-00000000000b",
+              "expected_version": 3
+            }
+          ],
+          "idempotency_key": "a1-independent-golden-024",
+          "reason": "Independent legacy serialization golden",
+          "params": {}
+        },
+        "canonical_utf8_hex": "7b22616374696f6e5f74797065223a22636f6e6669726d5f6f7574636f6d65222c2265787065637465645f76657273696f6e73223a5b7b2265787065637465645f76657273696f6e223a332c226f626a6563745f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303062227d5d2c226964656d706f74656e63795f6b6579223a2261312d696e646570656e64656e742d676f6c64656e2d303234222c22706172616d73223a7b7d2c22726561736f6e223a22496e646570656e64656e74206c65676163792073657269616c697a6174696f6e20676f6c64656e222c22746172676574223a7b2265787065637465645f76657273696f6e223a322c226f626a6563745f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303634222c227265766973696f6e5f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303635227d7d",
+        "request_hash": "150dbe7d769202be44fa98d7816e9bb4ddf0a3cea3ddf9060df4e39e1180db83"
+      }
+    },
+    {
+      "id": "reopen_feedback",
+      "request": {
+        "action_type": "reopen_feedback",
+        "target": {
+          "object_id": "00000000-0000-0000-0000-000000000064",
+          "revision_id": "00000000-0000-0000-0000-000000000065",
+          "expected_version": 2
+        },
+        "expected_versions": [
+          {
+            "object_id": "00000000-0000-0000-0000-00000000000b",
+            "expected_version": 3
+          }
+        ],
+        "idempotency_key": "a1-independent-golden-025",
+        "reason": "Independent legacy serialization golden",
+        "params": {}
+      },
+      "expected": {
+        "canonical_payload": {
+          "action_type": "reopen_feedback",
+          "target": {
+            "object_id": "00000000-0000-0000-0000-000000000064",
+            "revision_id": "00000000-0000-0000-0000-000000000065",
+            "expected_version": 2
+          },
+          "expected_versions": [
+            {
+              "object_id": "00000000-0000-0000-0000-00000000000b",
+              "expected_version": 3
+            }
+          ],
+          "idempotency_key": "a1-independent-golden-025",
+          "reason": "Independent legacy serialization golden",
+          "params": {}
+        },
+        "canonical_utf8_hex": "7b22616374696f6e5f74797065223a2272656f70656e5f666565646261636b222c2265787065637465645f76657273696f6e73223a5b7b2265787065637465645f76657273696f6e223a332c226f626a6563745f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303062227d5d2c226964656d706f74656e63795f6b6579223a2261312d696e646570656e64656e742d676f6c64656e2d303235222c22706172616d73223a7b7d2c22726561736f6e223a22496e646570656e64656e74206c65676163792073657269616c697a6174696f6e20676f6c64656e222c22746172676574223a7b2265787065637465645f76657273696f6e223a322c226f626a6563745f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303634222c227265766973696f6e5f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303635227d7d",
+        "request_hash": "8b4a39559d72179c09293a128bb5b1a31a84366fdaa30d70eba346c913660568"
+      }
+    },
+    {
+      "id": "accept_work_item",
+      "request": {
+        "action_type": "accept_work_item",
+        "target": {
+          "object_id": "00000000-0000-0000-0000-000000000064",
+          "revision_id": "00000000-0000-0000-0000-000000000065",
+          "expected_version": 2
+        },
+        "expected_versions": [
+          {
+            "object_id": "00000000-0000-0000-0000-00000000000b",
+            "expected_version": 3
+          }
+        ],
+        "idempotency_key": "a1-independent-golden-026",
+        "reason": "Independent legacy serialization golden",
+        "params": {}
+      },
+      "expected": {
+        "canonical_payload": {
+          "action_type": "accept_work_item",
+          "target": {
+            "object_id": "00000000-0000-0000-0000-000000000064",
+            "revision_id": "00000000-0000-0000-0000-000000000065",
+            "expected_version": 2
+          },
+          "expected_versions": [
+            {
+              "object_id": "00000000-0000-0000-0000-00000000000b",
+              "expected_version": 3
+            }
+          ],
+          "idempotency_key": "a1-independent-golden-026",
+          "reason": "Independent legacy serialization golden",
+          "params": {}
+        },
+        "canonical_utf8_hex": "7b22616374696f6e5f74797065223a226163636570745f776f726b5f6974656d222c2265787065637465645f76657273696f6e73223a5b7b2265787065637465645f76657273696f6e223a332c226f626a6563745f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303062227d5d2c226964656d706f74656e63795f6b6579223a2261312d696e646570656e64656e742d676f6c64656e2d303236222c22706172616d73223a7b7d2c22726561736f6e223a22496e646570656e64656e74206c65676163792073657269616c697a6174696f6e20676f6c64656e222c22746172676574223a7b2265787065637465645f76657273696f6e223a322c226f626a6563745f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303634222c227265766973696f6e5f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303635227d7d",
+        "request_hash": "878f41b750100d1a2033edd4a502b6704ea032c7ec2599bf96be9d826b300170"
+      }
+    },
+    {
+      "id": "explicit_nullable_create",
+      "request": {
+        "action_type": "create_object",
+        "target": null,
+        "expected_versions": [
+          {
+            "object_id": "00000000-0000-0000-0000-00000000000b",
+            "expected_version": 3
+          }
+        ],
+        "idempotency_key": "a1-independent-golden-000",
+        "reason": "Independent legacy serialization golden",
+        "params": {
+          "object_type": "CompanyOutcome",
+          "domain_id": "00000000-0000-0000-0000-000000000003",
+          "payload": {
+            "title": "最小结果"
+          },
+          "valid_from": null
+        }
+      },
+      "expected": {
+        "canonical_payload": {
+          "action_type": "create_object",
+          "expected_versions": [
+            {
+              "object_id": "00000000-0000-0000-0000-00000000000b",
+              "expected_version": 3
+            }
+          ],
+          "idempotency_key": "a1-independent-golden-000",
+          "reason": "Independent legacy serialization golden",
+          "params": {
+            "object_type": "CompanyOutcome",
+            "domain_id": "00000000-0000-0000-0000-000000000003",
+            "payload": {
+              "title": "最小结果",
+              "terms": {},
+              "upstream_refs": []
+            }
+          }
+        },
+        "canonical_utf8_hex": "7b22616374696f6e5f74797065223a226372656174655f6f626a656374222c2265787065637465645f76657273696f6e73223a5b7b2265787065637465645f76657273696f6e223a332c226f626a6563745f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303062227d5d2c226964656d706f74656e63795f6b6579223a2261312d696e646570656e64656e742d676f6c64656e2d303030222c22706172616d73223a7b22646f6d61696e5f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303033222c226f626a6563745f74797065223a22436f6d70616e794f7574636f6d65222c227061796c6f6164223a7b227465726d73223a7b7d2c227469746c65223a22e69c80e5b08fe7bb93e69e9c222c22757073747265616d5f72656673223a5b5d7d7d2c22726561736f6e223a22496e646570656e64656e74206c65676163792073657269616c697a6174696f6e20676f6c64656e227d",
+        "request_hash": "435a208c23ceac86f499f3ac1883fe79b28f8662b8d65de0747c958506479361"
+      }
+    },
+    {
+      "id": "explicit_nullable_bundle",
+      "request": {
+        "action_type": "propose_revision",
+        "target": {
+          "object_id": "00000000-0000-0000-0000-000000000064",
+          "revision_id": "00000000-0000-0000-0000-000000000065",
+          "expected_version": 2
+        },
+        "expected_versions": [
+          {
+            "object_id": "00000000-0000-0000-0000-00000000000b",
+            "expected_version": 3
+          }
+        ],
+        "idempotency_key": "a1-independent-golden-008",
+        "reason": "Independent legacy serialization golden",
+        "params": {
+          "payload": {
+            "title": "New terms"
+          },
+          "bundle_id": null
+        }
+      },
+      "expected": {
+        "canonical_payload": {
+          "action_type": "propose_revision",
+          "target": {
+            "object_id": "00000000-0000-0000-0000-000000000064",
+            "revision_id": "00000000-0000-0000-0000-000000000065",
+            "expected_version": 2
+          },
+          "expected_versions": [
+            {
+              "object_id": "00000000-0000-0000-0000-00000000000b",
+              "expected_version": 3
+            }
+          ],
+          "idempotency_key": "a1-independent-golden-008",
+          "reason": "Independent legacy serialization golden",
+          "params": {
+            "payload": {
+              "title": "New terms",
+              "terms": {},
+              "upstream_refs": []
+            }
+          }
+        },
+        "canonical_utf8_hex": "7b22616374696f6e5f74797065223a2270726f706f73655f7265766973696f6e222c2265787065637465645f76657273696f6e73223a5b7b2265787065637465645f76657273696f6e223a332c226f626a6563745f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303062227d5d2c226964656d706f74656e63795f6b6579223a2261312d696e646570656e64656e742d676f6c64656e2d303038222c22706172616d73223a7b227061796c6f6164223a7b227465726d73223a7b7d2c227469746c65223a224e6577207465726d73222c22757073747265616d5f72656673223a5b5d7d7d2c22726561736f6e223a22496e646570656e64656e74206c65676163792073657269616c697a6174696f6e20676f6c64656e222c22746172676574223a7b2265787065637465645f76657273696f6e223a322c226f626a6563745f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303634222c227265766973696f6e5f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303635227d7d",
+        "request_hash": "f853b4db0cb601b0bc6e08c0efe678b9ccbb562babfd11531665ea1563b631de"
+      }
+    },
+    {
+      "id": "explicit_nullable_response",
+      "request": {
+        "action_type": "submit_deliverable",
+        "target": {
+          "object_id": "00000000-0000-0000-0000-000000000064",
+          "revision_id": "00000000-0000-0000-0000-000000000065",
+          "expected_version": 2
+        },
+        "expected_versions": [
+          {
+            "object_id": "00000000-0000-0000-0000-00000000000b",
+            "expected_version": 3
+          }
+        ],
+        "idempotency_key": "a1-independent-golden-017",
+        "reason": "Independent legacy serialization golden",
+        "params": {
+          "title": "Delivery v1",
+          "summary": "First version",
+          "evidence_revision_ids": [
+            "00000000-0000-0000-0000-000000000015"
+          ],
+          "responds_to_acceptance_id": null
+        }
+      },
+      "expected": {
+        "canonical_payload": {
+          "action_type": "submit_deliverable",
+          "target": {
+            "object_id": "00000000-0000-0000-0000-000000000064",
+            "revision_id": "00000000-0000-0000-0000-000000000065",
+            "expected_version": 2
+          },
+          "expected_versions": [
+            {
+              "object_id": "00000000-0000-0000-0000-00000000000b",
+              "expected_version": 3
+            }
+          ],
+          "idempotency_key": "a1-independent-golden-017",
+          "reason": "Independent legacy serialization golden",
+          "params": {
+            "title": "Delivery v1",
+            "summary": "First version",
+            "evidence_revision_ids": [
+              "00000000-0000-0000-0000-000000000015"
+            ]
+          }
+        },
+        "canonical_utf8_hex": "7b22616374696f6e5f74797065223a227375626d69745f64656c6976657261626c65222c2265787065637465645f76657273696f6e73223a5b7b2265787065637465645f76657273696f6e223a332c226f626a6563745f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303062227d5d2c226964656d706f74656e63795f6b6579223a2261312d696e646570656e64656e742d676f6c64656e2d303137222c22706172616d73223a7b2265766964656e63655f7265766973696f6e5f696473223a5b2230303030303030302d303030302d303030302d303030302d303030303030303030303135225d2c2273756d6d617279223a2246697273742076657273696f6e222c227469746c65223a2244656c6976657279207631227d2c22726561736f6e223a22496e646570656e64656e74206c65676163792073657269616c697a6174696f6e20676f6c64656e222c22746172676574223a7b2265787065637465645f76657273696f6e223a322c226f626a6563745f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303634222c227265766973696f6e5f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303635227d7d",
+        "request_hash": "5e1e56df16aac47bbc9bdafb6e1f7d7ad01a9c26adb119d017f54831d6eec2e0"
+      }
+    },
+    {
+      "id": "explicit_empty_delivery_acceptances",
+      "request": {
+        "action_type": "record_outcome_assessment",
+        "target": {
+          "object_id": "00000000-0000-0000-0000-000000000064",
+          "revision_id": "00000000-0000-0000-0000-000000000065",
+          "expected_version": 2
+        },
+        "expected_versions": [
+          {
+            "object_id": "00000000-0000-0000-0000-00000000000b",
+            "expected_version": 3
+          }
+        ],
+        "idempotency_key": "a1-independent-golden-020",
+        "reason": "Independent legacy serialization golden",
+        "params": {
+          "assessment_result": "not_achieved",
+          "observation_revision_ids": [
+            "00000000-0000-0000-0000-000000000018"
+          ],
+          "evidence_revision_ids": [
+            "00000000-0000-0000-0000-000000000015"
+          ],
+          "assessment_note": "Delivery accepted but only two customers activated",
+          "delivery_acceptance_ids": []
+        }
+      },
+      "expected": {
+        "canonical_payload": {
+          "action_type": "record_outcome_assessment",
+          "target": {
+            "object_id": "00000000-0000-0000-0000-000000000064",
+            "revision_id": "00000000-0000-0000-0000-000000000065",
+            "expected_version": 2
+          },
+          "expected_versions": [
+            {
+              "object_id": "00000000-0000-0000-0000-00000000000b",
+              "expected_version": 3
+            }
+          ],
+          "idempotency_key": "a1-independent-golden-020",
+          "reason": "Independent legacy serialization golden",
+          "params": {
+            "assessment_result": "not_achieved",
+            "observation_revision_ids": [
+              "00000000-0000-0000-0000-000000000018"
+            ],
+            "evidence_revision_ids": [
+              "00000000-0000-0000-0000-000000000015"
+            ],
+            "assessment_note": "Delivery accepted but only two customers activated",
+            "delivery_acceptance_ids": []
+          }
+        },
+        "canonical_utf8_hex": "7b22616374696f6e5f74797065223a227265636f72645f6f7574636f6d655f6173736573736d656e74222c2265787065637465645f76657273696f6e73223a5b7b2265787065637465645f76657273696f6e223a332c226f626a6563745f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303062227d5d2c226964656d706f74656e63795f6b6579223a2261312d696e646570656e64656e742d676f6c64656e2d303230222c22706172616d73223a7b226173736573736d656e745f6e6f7465223a2244656c697665727920616363657074656420627574206f6e6c792074776f20637573746f6d65727320616374697661746564222c226173736573736d656e745f726573756c74223a226e6f745f6163686965766564222c2264656c69766572795f616363657074616e63655f696473223a5b5d2c2265766964656e63655f7265766973696f6e5f696473223a5b2230303030303030302d303030302d303030302d303030302d303030303030303030303135225d2c226f62736572766174696f6e5f7265766973696f6e5f696473223a5b2230303030303030302d303030302d303030302d303030302d303030303030303030303138225d7d2c22726561736f6e223a22496e646570656e64656e74206c65676163792073657269616c697a6174696f6e20676f6c64656e222c22746172676574223a7b2265787065637465645f76657273696f6e223a322c226f626a6563745f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303634222c227265766973696f6e5f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303635227d7d",
+        "request_hash": "bf6e4e11e180bfda31d9cd34fbe1a6d16f48214ad999aee9177ef0356f716530"
+      }
+    },
+    {
+      "id": "work_due_timezone",
+      "request": {
+        "action_type": "create_object",
+        "target": null,
+        "expected_versions": [
+          {
+            "object_id": "00000000-0000-0000-0000-00000000000b",
+            "expected_version": 3
+          }
+        ],
+        "idempotency_key": "a1-independent-golden-007",
+        "reason": "Independent legacy serialization golden",
+        "params": {
+          "object_type": "WorkItem",
+          "domain_id": "00000000-0000-0000-0000-000000000003",
+          "payload": {
+            "title": "Synthetic work",
+            "execution_commitment_ref": {
+              "object_id": "00000000-0000-0000-0000-00000000000b",
+              "revision_id": "00000000-0000-0000-0000-00000000000c"
+            },
+            "dri_assignment_id": "00000000-0000-0000-0000-000000000001",
+            "acceptor_assignment_id": "00000000-0000-0000-0000-000000000002",
+            "acceptance_criteria": [
+              {
+                "criterion_id": "c1",
+                "description": "Exact synthetic criterion"
+              }
+            ],
+            "due_at": "2026-09-10T18:00:00+08:00"
+          }
+        }
+      },
+      "expected": {
+        "canonical_payload": {
+          "action_type": "create_object",
+          "expected_versions": [
+            {
+              "object_id": "00000000-0000-0000-0000-00000000000b",
+              "expected_version": 3
+            }
+          ],
+          "idempotency_key": "a1-independent-golden-007",
+          "reason": "Independent legacy serialization golden",
+          "params": {
+            "object_type": "WorkItem",
+            "domain_id": "00000000-0000-0000-0000-000000000003",
+            "payload": {
+              "title": "Synthetic work",
+              "execution_commitment_ref": {
+                "object_id": "00000000-0000-0000-0000-00000000000b",
+                "revision_id": "00000000-0000-0000-0000-00000000000c"
+              },
+              "dri_assignment_id": "00000000-0000-0000-0000-000000000001",
+              "acceptor_assignment_id": "00000000-0000-0000-0000-000000000002",
+              "acceptance_criteria": [
+                {
+                  "criterion_id": "c1",
+                  "description": "Exact synthetic criterion"
+                }
+              ],
+              "due_at": "2026-09-10T10:00:00+00:00"
+            }
+          }
+        },
+        "canonical_utf8_hex": "7b22616374696f6e5f74797065223a226372656174655f6f626a656374222c2265787065637465645f76657273696f6e73223a5b7b2265787065637465645f76657273696f6e223a332c226f626a6563745f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303062227d5d2c226964656d706f74656e63795f6b6579223a2261312d696e646570656e64656e742d676f6c64656e2d303037222c22706172616d73223a7b22646f6d61696e5f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303033222c226f626a6563745f74797065223a22576f726b4974656d222c227061796c6f6164223a7b22616363657074616e63655f6372697465726961223a5b7b22637269746572696f6e5f6964223a226331222c226465736372697074696f6e223a2245786163742073796e74686574696320637269746572696f6e227d5d2c226163636570746f725f61737369676e6d656e745f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303032222c226472695f61737369676e6d656e745f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303031222c226475655f6174223a22323032362d30392d31305431303a30303a30302b30303a3030222c22657865637574696f6e5f636f6d6d69746d656e745f726566223a7b226f626a6563745f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303062222c227265766973696f6e5f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303063227d2c227469746c65223a2253796e74686574696320776f726b227d7d2c22726561736f6e223a22496e646570656e64656e74206c65676163792073657269616c697a6174696f6e20676f6c64656e227d",
+        "request_hash": "28d7de33967514ba9e181bb19084dd8422b1a95eec742010065ce77e6aa1dd1d"
+      }
+    },
+    {
+      "id": "outcome_explicit_empty_terms",
+      "request": {
+        "action_type": "create_object",
+        "target": null,
+        "expected_versions": [
+          {
+            "object_id": "00000000-0000-0000-0000-00000000000b",
+            "expected_version": 3
+          }
+        ],
+        "idempotency_key": "a1-independent-golden-000",
+        "reason": "Independent legacy serialization golden",
+        "params": {
+          "object_type": "CompanyOutcome",
+          "domain_id": "00000000-0000-0000-0000-000000000003",
+          "payload": {
+            "title": "最小结果",
+            "terms": {}
+          }
+        }
+      },
+      "expected": {
+        "canonical_payload": {
+          "action_type": "create_object",
+          "expected_versions": [
+            {
+              "object_id": "00000000-0000-0000-0000-00000000000b",
+              "expected_version": 3
+            }
+          ],
+          "idempotency_key": "a1-independent-golden-000",
+          "reason": "Independent legacy serialization golden",
+          "params": {
+            "object_type": "CompanyOutcome",
+            "domain_id": "00000000-0000-0000-0000-000000000003",
+            "payload": {
+              "title": "最小结果",
+              "terms": {},
+              "upstream_refs": []
+            }
+          }
+        },
+        "canonical_utf8_hex": "7b22616374696f6e5f74797065223a226372656174655f6f626a656374222c2265787065637465645f76657273696f6e73223a5b7b2265787065637465645f76657273696f6e223a332c226f626a6563745f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303062227d5d2c226964656d706f74656e63795f6b6579223a2261312d696e646570656e64656e742d676f6c64656e2d303030222c22706172616d73223a7b22646f6d61696e5f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303033222c226f626a6563745f74797065223a22436f6d70616e794f7574636f6d65222c227061796c6f6164223a7b227465726d73223a7b7d2c227469746c65223a22e69c80e5b08fe7bb93e69e9c222c22757073747265616d5f72656673223a5b5d7d7d2c22726561736f6e223a22496e646570656e64656e74206c65676163792073657269616c697a6174696f6e20676f6c64656e227d",
+        "request_hash": "435a208c23ceac86f499f3ac1883fe79b28f8662b8d65de0747c958506479361"
+      }
+    },
+    {
+      "id": "observation_float",
+      "request": {
+        "action_type": "create_object",
+        "target": null,
+        "expected_versions": [
+          {
+            "object_id": "00000000-0000-0000-0000-00000000000b",
+            "expected_version": 3
+          }
+        ],
+        "idempotency_key": "a1-independent-golden-006",
+        "reason": "Independent legacy serialization golden",
+        "params": {
+          "object_type": "MetricObservation",
+          "domain_id": "00000000-0000-0000-0000-000000000003",
+          "payload": {
+            "title": "Synthetic observation",
+            "metric_id": "clients",
+            "value": 3.0,
+            "unit": "client",
+            "valid_from": "2026-09-10T08:00:00+08:00"
+          }
+        }
+      },
+      "expected": {
+        "canonical_payload": {
+          "action_type": "create_object",
+          "expected_versions": [
+            {
+              "object_id": "00000000-0000-0000-0000-00000000000b",
+              "expected_version": 3
+            }
+          ],
+          "idempotency_key": "a1-independent-golden-006",
+          "reason": "Independent legacy serialization golden",
+          "params": {
+            "object_type": "MetricObservation",
+            "domain_id": "00000000-0000-0000-0000-000000000003",
+            "payload": {
+              "title": "Synthetic observation",
+              "metric_id": "clients",
+              "value": 3.0,
+              "unit": "client",
+              "valid_from": "2026-09-10T00:00:00+00:00",
+              "upstream_refs": []
+            }
+          }
+        },
+        "canonical_utf8_hex": "7b22616374696f6e5f74797065223a226372656174655f6f626a656374222c2265787065637465645f76657273696f6e73223a5b7b2265787065637465645f76657273696f6e223a332c226f626a6563745f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303062227d5d2c226964656d706f74656e63795f6b6579223a2261312d696e646570656e64656e742d676f6c64656e2d303036222c22706172616d73223a7b22646f6d61696e5f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303033222c226f626a6563745f74797065223a224d65747269634f62736572766174696f6e222c227061796c6f6164223a7b226d65747269635f6964223a22636c69656e7473222c227469746c65223a2253796e746865746963206f62736572766174696f6e222c22756e6974223a22636c69656e74222c22757073747265616d5f72656673223a5b5d2c2276616c69645f66726f6d223a22323032362d30392d31305430303a30303a30302b30303a3030222c2276616c7565223a332e307d7d2c22726561736f6e223a22496e646570656e64656e74206c65676163792073657269616c697a6174696f6e20676f6c64656e227d",
+        "request_hash": "97bb65e02bc1f4ff82974aa9d7037867c607e46d1524b1fe5995575584370b70"
+      }
+    },
+    {
+      "id": "meaningful_whitespace",
+      "request": {
+        "action_type": "create_object",
+        "target": null,
+        "expected_versions": [
+          {
+            "object_id": "00000000-0000-0000-0000-00000000000b",
+            "expected_version": 3
+          }
+        ],
+        "idempotency_key": "a1-independent-golden-000",
+        "reason": "Independent legacy serialization golden",
+        "params": {
+          "object_type": "CompanyOutcome",
+          "domain_id": "00000000-0000-0000-0000-000000000003",
+          "payload": {
+            "title": "  合成结果  "
+          }
+        }
+      },
+      "expected": {
+        "canonical_payload": {
+          "action_type": "create_object",
+          "expected_versions": [
+            {
+              "object_id": "00000000-0000-0000-0000-00000000000b",
+              "expected_version": 3
+            }
+          ],
+          "idempotency_key": "a1-independent-golden-000",
+          "reason": "Independent legacy serialization golden",
+          "params": {
+            "object_type": "CompanyOutcome",
+            "domain_id": "00000000-0000-0000-0000-000000000003",
+            "payload": {
+              "title": "  合成结果  ",
+              "terms": {},
+              "upstream_refs": []
+            }
+          }
+        },
+        "canonical_utf8_hex": "7b22616374696f6e5f74797065223a226372656174655f6f626a656374222c2265787065637465645f76657273696f6e73223a5b7b2265787065637465645f76657273696f6e223a332c226f626a6563745f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303062227d5d2c226964656d706f74656e63795f6b6579223a2261312d696e646570656e64656e742d676f6c64656e2d303030222c22706172616d73223a7b22646f6d61696e5f6964223a2230303030303030302d303030302d303030302d303030302d303030303030303030303033222c226f626a6563745f74797065223a22436f6d70616e794f7574636f6d65222c227061796c6f6164223a7b227465726d73223a7b7d2c227469746c65223a222020e59088e68890e7bb93e69e9c2020222c22757073747265616d5f72656673223a5b5d7d7d2c22726561736f6e223a22496e646570656e64656e74206c65676163792073657269616c697a6174696f6e20676f6c64656e227d",
+        "request_hash": "f9e340818285a83e417daaf6532f20cbea0a1e76f9de4e3b33eac592b0f89d48"
+      }
+    }
+  ]
+}

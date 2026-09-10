@@ -352,6 +352,10 @@ class ActionRequest(StrictModel):
     idempotency_key: Annotated[StrictStr, Field(min_length=16, max_length=128)]
     reason: Annotated[StrictStr, Field(min_length=5)]
     params: ActionParams
+    # Declares which action format the client understands; the server alone
+    # decides the object's actual protocol.  Absent/null must never change the
+    # legacy request_hash (model_dump(exclude_none=True)).
+    contract_version: Annotated[StrictStr, Field(min_length=1, max_length=200)] | None = None
 
     @model_validator(mode="before")
     @classmethod

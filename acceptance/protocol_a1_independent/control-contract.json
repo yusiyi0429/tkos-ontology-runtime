@@ -1,0 +1,209 @@
+{
+  "status": "reviewed_interface_source_not_frozen",
+  "cli_module": "memory_service_runtime.governed.control",
+  "operations": {
+    "install_profile": {
+      "args": [
+        "install-profile",
+        "--scope-id",
+        "{scope_id}",
+        "--profile-json",
+        "{profile_file}",
+        "--contract-file",
+        "{contract_file}",
+        "--reason",
+        "{reason}",
+        "--actor",
+        "{operator}"
+      ],
+      "success": {
+        "exit": 0
+      }
+    },
+    "set_scope_policy": {
+      "args": [
+        "install-policy",
+        "--scope-id",
+        "{scope_id}",
+        "--content-json",
+        "{document_file}",
+        "--reason",
+        "{reason}",
+        "--actor",
+        "{operator}"
+      ],
+      "success": {
+        "exit": 0
+      }
+    },
+    "set_domain_policy": {
+      "args": [
+        "install-policy",
+        "--scope-id",
+        "{scope_id}",
+        "--domain-id",
+        "{domain_id}",
+        "--content-json",
+        "{document_file}",
+        "--reason",
+        "{reason}",
+        "--actor",
+        "{operator}"
+      ],
+      "success": {
+        "exit": 0
+      }
+    },
+    "set_registry": {
+      "args": [
+        "set-registry",
+        "--scope-id",
+        "{scope_id}",
+        "--protocol-id",
+        "{protocol_id}",
+        "--contract-version",
+        "{contract_version}",
+        "--content-json",
+        "{document_file}",
+        "--reason",
+        "{reason}",
+        "--actor",
+        "{operator}"
+      ],
+      "success": {
+        "exit": 0
+      }
+    },
+    "freeze_writes": {
+      "args": [
+        "freeze-writes",
+        "--scope-id",
+        "{scope_id}",
+        "--protocol-id",
+        "{protocol_id}",
+        "--reason",
+        "{reason}",
+        "--actor",
+        "{operator}"
+      ],
+      "success": {
+        "exit": 0
+      }
+    },
+    "backfill_legacy": {
+      "args": [
+        "backfill-legacy",
+        "--scope-id",
+        "{scope_id}",
+        "--reason",
+        "{reason}",
+        "--actor",
+        "{operator}"
+      ],
+      "success": {
+        "exit": 0
+      }
+    }
+  },
+  "rejections": {
+    "same_identity_different_content": {
+      "exit": 2,
+      "code": "PROFILE_CONTENT_CONFLICT"
+    },
+    "duplicate_source_id": {
+      "exit": 2,
+      "code": "PROFILE_CONTENT_CONFLICT"
+    },
+    "duplicate_concept_id": {
+      "exit": 2,
+      "code": "PROFILE_CONTENT_CONFLICT"
+    },
+    "duplicate_alias_id": {
+      "exit": 2,
+      "code": "PROFILE_CONTENT_CONFLICT"
+    },
+    "duplicate_decision_id": {
+      "exit": 2,
+      "code": "PROFILE_CONTENT_CONFLICT"
+    },
+    "dangling_alias_source": {
+      "exit": 2,
+      "code": "PROFILE_CONTENT_CONFLICT"
+    },
+    "dangling_alias_concept": {
+      "exit": 2,
+      "code": "PROFILE_CONTENT_CONFLICT"
+    },
+    "experimental_integer": {
+      "exit": 2,
+      "code": "PROFILE_CONTENT_CONFLICT"
+    },
+    "experimental_string": {
+      "exit": 2,
+      "code": "PROFILE_CONTENT_CONFLICT"
+    },
+    "corporate_approved_integer": {
+      "exit": 2,
+      "code": "PROFILE_CONTENT_CONFLICT"
+    },
+    "corporate_approved_string": {
+      "exit": 2,
+      "code": "PROFILE_CONTENT_CONFLICT"
+    },
+    "omitted_required_nullable": {
+      "exit": 2,
+      "code": "PROFILE_CONTENT_CONFLICT"
+    },
+    "arbitrary_actor_field": {
+      "exit": 2,
+      "code": "PROFILE_CONTENT_CONFLICT"
+    },
+    "wrong_action_contract_with_valid_core_hash": {
+      "exit": 2,
+      "code": "PROFILE_CONTENT_CONFLICT"
+    },
+    "unknown_profile_schema": {
+      "exit": 2,
+      "code": "PROFILE_CONTENT_CONFLICT"
+    },
+    "wrong_declared_hash": {
+      "exit": 2,
+      "code": "PROFILE_CONTENT_CONFLICT"
+    },
+    "duplicate_json_key": {
+      "exit": 2,
+      "code": "INVALID_REQUEST"
+    },
+    "coordinated_contract_substitution": {
+      "exit": 2,
+      "code": "PROFILE_CONTENT_CONFLICT"
+    }
+  },
+  "read_contract": {
+    "metadata_key": "protocol",
+    "unsupported_interpretation_status": "contract_a_metadata_read_only",
+    "unsupported_context_mode": "excluded",
+    "unsupported_context_reason": "protocol_interpretation_not_supported"
+  },
+  "narrative_contract": {
+    "metadata_key": "protocol",
+    "unsupported_interpretation_status": "contract_a_metadata_read_only",
+    "unsupported_mode": "excluded",
+    "unsupported_reason": "protocol_interpretation_not_supported",
+    "races": {
+      "legacy_read_disabled": {
+        "mode": "reject",
+        "status": 409,
+        "code": "PROTOCOL_NOT_SUPPORTED"
+      },
+      "legacy_registry_version_unknown": {
+        "mode": "reject",
+        "status": 409,
+        "code": "PROTOCOL_NOT_SUPPORTED"
+      }
+    }
+  },
+  "worker_contract": {
+    "unsupported_error_code": "governance_effect_permission_revoked"
+  }
+}

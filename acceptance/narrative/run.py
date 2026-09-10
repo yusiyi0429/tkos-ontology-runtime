@@ -65,6 +65,7 @@ def readonly_sql(s, statement, params=()):
         with conn.transaction():
             conn.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY")
             conn.execute("SELECT set_config('app.governed_scope_id',%s,true)", (s.f["scope_id"],))
+            conn.execute("SELECT set_config('app.runtime_write_capability','tkos-runtime-a1',true)")
             return conn.execute(statement, params).fetchall()
 
 
@@ -90,6 +91,7 @@ def grant_test_legacy_read(s):
     assert s.f["tenant_id"].startswith("runtime-acceptance-narrative-")
     with psycopg.connect(s.h.env["MIGRATION_DATABASE_URL"], row_factory=dict_row) as conn:
         conn.execute("SELECT set_config('app.governed_scope_id',%s,true)", (s.f["scope_id"],))
+        conn.execute("SELECT set_config('app.runtime_write_capability','tkos-runtime-a1',true)")
         policy = conn.execute("SELECT policy_id,policy_seq,content FROM gov_activation_policies WHERE scope_id=%s AND domain_id=%s ORDER BY policy_seq DESC LIMIT 1", (s.f["scope_id"], s.domain)).fetchone()
         content = {**policy["content"], "action_roles": {**policy["content"]["action_roles"], "read_legacy_context": ["CEO"]}}
         conn.execute("INSERT INTO gov_activation_policies(policy_revision_id,scope_id,domain_id,policy_id,policy_seq,content,recorded_by) VALUES(%s,%s,%s,%s,%s,%s,%s)",

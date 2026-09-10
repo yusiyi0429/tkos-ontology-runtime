@@ -9,7 +9,7 @@ import psycopg
 from psycopg.rows import dict_row
 
 from memory_service_runtime.config import env_value
-from memory_service_runtime.governed import db
+from memory_service_runtime.governed import db, protocol
 from memory_service_runtime.governed.errors import GovernedError
 from memory_service_runtime.handlers import TaskExecutionError
 
@@ -25,6 +25,10 @@ def governance_dispatch(task) -> dict:
     try:
         scope_id, receipt_id = str(payload["scope_id"]), str(payload["receipt_id"])
         with psycopg.connect(env_value("DATABASE_URL", required=True), row_factory=dict_row, connect_timeout=5) as conn:
+            # Independent dispatch connection: declare the runtime capability
+            # before the first gov_scopes read (0018 restrictive policies hide
+            # identity/scope rows from pre-A1 binaries, stopping them here).
+            db.set_write_capability(conn)
             conn.execute("SELECT set_config('app.governed_scope_id', %s, true)", (scope_id,))
             scope = conn.execute(
                 "SELECT * FROM gov_scopes WHERE scope_id=%s AND tenant_id=%s AND company_id=%s FOR UPDATE",
@@ -63,6 +67,9 @@ def governance_dispatch(task) -> dict:
             for item in receipt["object_versions"]:
                 obj = db.object_row(conn, ctx, item["object_id"])
                 domains.add(obj["domain_id"])
+                # Re-resolve every receipt object against its current binding
+                # before any external call; the queue payload is not trusted.
+                protocol.gate_effect_dispatch(conn, scope_id, item["object_id"], receipt["action_type"])
             if not domains:
                 raise TaskExecutionError("governance_effect_scope_invalid", retryable=False)
             for domain in domains:

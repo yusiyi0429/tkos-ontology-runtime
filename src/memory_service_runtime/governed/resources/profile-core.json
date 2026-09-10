@@ -1,0 +1,538 @@
+{
+  "profile_core_schema_version": "tkos.profile-core/0.1",
+  "profile_id": "urn:tkos:experimental:method-profile:contract-a",
+  "revision": "0.1.0",
+  "display_name": "契约包A实验方法策略 v0.1",
+  "experimental": true,
+  "record_origin": "synthetic",
+  "corporate_approved": false,
+  "source_policy": {
+    "sources_are_reading_snapshots_not_live_sync": true,
+    "source_revision_is_not_profile_revision": true,
+    "new_source_revision_automatically_reinterprets_instances": false,
+    "business_semantics_bound_to_instance_profile": true,
+    "new_actions_check_current_authority_and_continuity": true,
+    "unsupported_profile_write_behavior": "reject_explicitly_not_guess",
+    "migration_requires_explicit_record": true
+  },
+  "sources": [
+    {
+      "source_id": "SRC-M0-OVERVIEW",
+      "title": "M0 方法概览 1-pager v1.0 2026-09-07",
+      "url": "https://tokenking.feishu.cn/docx/F7kBdro6poRWJJxCb2OcxoYanyg",
+      "native_revision": 11,
+      "revision_kind": "feishu_docx_revision_id",
+      "document_version_label": "v1.0",
+      "usage": "五套 Method 责任边界；OSA 与 Attention；最低必要返回",
+      "observed_on": "2026-09-10",
+      "artifact_sha256": "36b750619cd7acd2072f4482b7f933503fc642fb260fa927a69abe6c88408342",
+      "visual_artifact_sha256": null,
+      "table_id": null,
+      "record_count": null,
+      "corporate_approval_inferred": false
+    },
+    {
+      "source_id": "SRC-M1B-L3",
+      "title": "M1B L3 公司经营管理方法 v4 2026-09-07",
+      "url": "https://tokenking.feishu.cn/docx/XFL0dfSpYo45KBxpGUgcI8yxnPb",
+      "native_revision": 2,
+      "revision_kind": "feishu_docx_revision_id",
+      "document_version_label": "v4 Working Version",
+      "usage": "共同承诺、latest-set composition、反馈分流与基线连续性",
+      "observed_on": "2026-09-10",
+      "artifact_sha256": "85c0ae8310023830d634237962ef01f07608e4a964b97fb288362f245a6954f4",
+      "visual_artifact_sha256": null,
+      "table_id": null,
+      "record_count": null,
+      "corporate_approval_inferred": false
+    },
+    {
+      "source_id": "SRC-M1B-L4",
+      "title": "M1B L4 运行设计 v4 2026-09-07",
+      "url": "https://tokenking.feishu.cn/slides/ThVQsFWhzlTLAwdWPyKcyT5Vnme",
+      "native_revision": 9,
+      "revision_kind": "feishu_slides_revision_id",
+      "document_version_label": "v4",
+      "usage": "第5页工作锚点；10-12及21-22页共享/提交/组合；13-14及23-24页反馈",
+      "observed_on": "2026-09-10",
+      "artifact_sha256": "2c2341063df24f37cfd1b139b6103bc1ea58559eeebdd111524c6f3445629808",
+      "visual_artifact_sha256": null,
+      "table_id": null,
+      "record_count": null,
+      "corporate_approval_inferred": false
+    },
+    {
+      "source_id": "SRC-M0-L123",
+      "title": "M0 L1-L3 概览 v1，第2页更新版图片",
+      "url": "https://tokenking.feishu.cn/slides/PCSksRqsRlsrgNd3TXRc6SGAnNh",
+      "native_revision": 10,
+      "revision_kind": "feishu_slides_revision_id",
+      "document_version_label": "v1 / L1-L3概览-更新版",
+      "usage": "B/C责任术语、Mission owner、M3接收确认与M3.2执行；不自动覆盖旧L4",
+      "observed_on": "2026-09-10",
+      "artifact_sha256": "855760a50339143c6f37b3288f771626e87c3a3c2c9aea9a6aa4de6750e6f465",
+      "visual_artifact_sha256": "5cd843aa7e9be4b28e738cb028f79787c174d738ba0fdf3fcaba4c2ceb8d96c5",
+      "table_id": null,
+      "record_count": null,
+      "corporate_approval_inferred": false
+    },
+    {
+      "source_id": "SRC-GLOSSARY",
+      "title": "TKOS Glossary",
+      "url": "https://tokenking.feishu.cn/base/KC7VbhS0eatEbFsh8Ewc6gQWnRg",
+      "native_revision": 36,
+      "revision_kind": "feishu_base_table_rev",
+      "document_version_label": null,
+      "usage": "DRI、IC、Mission、Execution Commitment、Execution Plan；旧PDO等术语",
+      "observed_on": "2026-09-10",
+      "artifact_sha256": "e98dd4266866dd0a19352ec5ffbdaa6edeff3a6bd3e2da89c220f51bf390c061",
+      "visual_artifact_sha256": null,
+      "table_id": "tblN0WufOb5nHVqn",
+      "record_count": 19,
+      "corporate_approval_inferred": false
+    },
+    {
+      "source_id": "SRC-M0-STANDARD",
+      "title": "M0 L1-L5 设计标准 v1.0 2026-08-26",
+      "url": "https://tokenking.feishu.cn/file/D0pPboBjAolnsRx4UL9cAcVmn8e",
+      "native_revision": null,
+      "revision_kind": "not_observed",
+      "document_version_label": "v1.0 Working Standard",
+      "usage": "L1-L5与L5-M/P/S边界；以本地提取内容哈希补充未观测的原生修订号",
+      "observed_on": "2026-09-10",
+      "artifact_sha256": "caaa12be287ad48f4fc10ae9fd5ce74ac004d3c0d90c34de0dca31f748aa18ea",
+      "visual_artifact_sha256": null,
+      "table_id": null,
+      "record_count": null,
+      "corporate_approval_inferred": false
+    }
+  ],
+  "concepts": [
+    {
+      "concept_id": "urn:tkos:concept:responsibility_area",
+      "technical_label": "ResponsibilityArea",
+      "meaning_in_this_experiment": "有明确责任边界的当前参与范围；参与名单由FormationRound决定；不是Method层级",
+      "designation_status": "EXPERIMENTAL_TECHNICAL_CONCEPT_NOT_CORPORATE_ONTOLOGY_APPROVAL"
+    },
+    {
+      "concept_id": "urn:tkos:concept:period_company_result",
+      "technical_label": "PeriodCompanyResult",
+      "meaning_in_this_experiment": "本实验周期内由证据判断是否成立的公司结果",
+      "designation_status": "EXPERIMENTAL_TECHNICAL_CONCEPT_NOT_CORPORATE_ONTOLOGY_APPROVAL"
+    },
+    {
+      "concept_id": "urn:tkos:concept:period_area_result",
+      "technical_label": "PeriodAreaResult",
+      "meaning_in_this_experiment": "本实验责任范围在该周期承诺达到的结果",
+      "designation_status": "EXPERIMENTAL_TECHNICAL_CONCEPT_NOT_CORPORATE_ONTOLOGY_APPROVAL"
+    },
+    {
+      "concept_id": "urn:tkos:concept:area_commitment",
+      "technical_label": "AreaCommitment",
+      "meaning_in_this_experiment": "责任范围DRI提出并确认、参与公司组合的结果与Mission包",
+      "designation_status": "EXPERIMENTAL_TECHNICAL_CONCEPT_NOT_CORPORATE_ONTOLOGY_APPROVAL"
+    },
+    {
+      "concept_id": "urn:tkos:concept:mission_unit",
+      "technical_label": "MissionUnit",
+      "meaning_in_this_experiment": "结果责任与验收可单独说明的经营结果单元",
+      "designation_status": "EXPERIMENTAL_TECHNICAL_CONCEPT_NOT_CORPORATE_ONTOLOGY_APPROVAL"
+    },
+    {
+      "concept_id": "urn:tkos:concept:execution_commitment",
+      "technical_label": "ExecutionCommitment",
+      "meaning_in_this_experiment": "DRI与不同自然人IC同版确认的What与边界",
+      "designation_status": "EXPERIMENTAL_TECHNICAL_CONCEPT_NOT_CORPORATE_ONTOLOGY_APPROVAL"
+    },
+    {
+      "concept_id": "urn:tkos:concept:execution_plan",
+      "technical_label": "ExecutionPlan",
+      "meaning_in_this_experiment": "IC在已确认What与授权范围内形成的How",
+      "designation_status": "EXPERIMENTAL_TECHNICAL_CONCEPT_NOT_CORPORATE_ONTOLOGY_APPROVAL"
+    },
+    {
+      "concept_id": "urn:tkos:concept:shared_reference",
+      "technical_label": "SharedReference",
+      "meaning_in_this_experiment": "已共享的公司侧建议；不是DRI已承担的经营承诺",
+      "designation_status": "EXPERIMENTAL_TECHNICAL_CONCEPT_NOT_CORPORATE_ONTOLOGY_APPROVAL"
+    },
+    {
+      "concept_id": "urn:tkos:concept:submission",
+      "technical_label": "Submission",
+      "meaning_in_this_experiment": "DRI确认并正式提交参与组合的版本",
+      "designation_status": "EXPERIMENTAL_TECHNICAL_CONCEPT_NOT_CORPORATE_ONTOLOGY_APPROVAL"
+    },
+    {
+      "concept_id": "urn:tkos:concept:composition",
+      "technical_label": "Composition",
+      "meaning_in_this_experiment": "完整成员、提交、约束、判断与签认要求的公司组合",
+      "designation_status": "EXPERIMENTAL_TECHNICAL_CONCEPT_NOT_CORPORATE_ONTOLOGY_APPROVAL"
+    },
+    {
+      "concept_id": "urn:tkos:concept:operating_status_analysis",
+      "technical_label": "OperatingStatusAnalysis",
+      "meaning_in_this_experiment": "不论是否有问题都持续形成的观察分析",
+      "designation_status": "EXPERIMENTAL_TECHNICAL_CONCEPT_NOT_CORPORATE_ONTOLOGY_APPROVAL"
+    },
+    {
+      "concept_id": "urn:tkos:concept:attention_item",
+      "technical_label": "AttentionItem",
+      "meaning_in_this_experiment": "需责任人介入的线索；不是已确认的公司问题",
+      "designation_status": "EXPERIMENTAL_TECHNICAL_CONCEPT_NOT_CORPORATE_ONTOLOGY_APPROVAL"
+    },
+    {
+      "concept_id": "urn:tkos:concept:operating_issue",
+      "technical_label": "OperatingIssue",
+      "meaning_in_this_experiment": "对应有权人已确认的问题定义",
+      "designation_status": "EXPERIMENTAL_TECHNICAL_CONCEPT_NOT_CORPORATE_ONTOLOGY_APPROVAL"
+    },
+    {
+      "concept_id": "urn:tkos:concept:agreement",
+      "technical_label": "Agreement",
+      "meaning_in_this_experiment": "针对问题的正式处置；与外部效果成功分开",
+      "designation_status": "EXPERIMENTAL_TECHNICAL_CONCEPT_NOT_CORPORATE_ONTOLOGY_APPROVAL"
+    },
+    {
+      "concept_id": "urn:tkos:concept:lesson",
+      "technical_label": "Lesson",
+      "meaning_in_this_experiment": "有来源、前提、范围和准入条件的候选可复用经验",
+      "designation_status": "EXPERIMENTAL_TECHNICAL_CONCEPT_NOT_CORPORATE_ONTOLOGY_APPROVAL"
+    }
+  ],
+  "source_aliases": [
+    {
+      "alias_id": "ALIAS-DOMAIN",
+      "label": "Domain",
+      "source_id": "SRC-M1B-L4",
+      "locations": [
+        "11",
+        "22"
+      ],
+      "candidate_concept_ids": [
+        "urn:tkos:concept:responsibility_area"
+      ],
+      "unresolved_note": null,
+      "mapping_status": "SOURCE_ALIAS_ONLY_PENDING_METHOD_CONFIRMATION",
+      "automatic_equivalence_or_migration": false
+    },
+    {
+      "alias_id": "ALIAS-BC",
+      "label": "Battlefield / Capability",
+      "source_id": "SRC-M0-L123",
+      "locations": [
+        "page2"
+      ],
+      "candidate_concept_ids": [
+        "urn:tkos:concept:responsibility_area"
+      ],
+      "unresolved_note": null,
+      "mapping_status": "SOURCE_ALIAS_ONLY_PENDING_METHOD_CONFIRMATION",
+      "automatic_equivalence_or_migration": false
+    },
+    {
+      "alias_id": "ALIAS-PCO",
+      "label": "PCO",
+      "source_id": "SRC-GLOSSARY",
+      "locations": [
+        "recvtXaZSDsyHK"
+      ],
+      "candidate_concept_ids": [
+        "urn:tkos:concept:period_company_result"
+      ],
+      "unresolved_note": null,
+      "mapping_status": "SOURCE_ALIAS_ONLY_PENDING_METHOD_CONFIRMATION",
+      "automatic_equivalence_or_migration": false
+    },
+    {
+      "alias_id": "ALIAS-PDO",
+      "label": "PDO",
+      "source_id": "SRC-GLOSSARY",
+      "locations": [
+        "recvtXaZSD1f0U"
+      ],
+      "candidate_concept_ids": [
+        "urn:tkos:concept:period_area_result"
+      ],
+      "unresolved_note": null,
+      "mapping_status": "SOURCE_ALIAS_ONLY_PENDING_METHOD_CONFIRMATION",
+      "automatic_equivalence_or_migration": false
+    },
+    {
+      "alias_id": "ALIAS-PBCO",
+      "label": "PB/CO / Period B/C Outcome",
+      "source_id": "SRC-M0-L123",
+      "locations": [
+        "page2"
+      ],
+      "candidate_concept_ids": [
+        "urn:tkos:concept:period_area_result"
+      ],
+      "unresolved_note": "责任范围、层级及与PDO/PCO的关系待Method确认；不自动迁移或声明等义",
+      "mapping_status": "SOURCE_ALIAS_ONLY_PENDING_METHOD_CONFIRMATION",
+      "automatic_equivalence_or_migration": false
+    },
+    {
+      "alias_id": "ALIAS-LTBCO",
+      "label": "LTB/CO",
+      "source_id": "SRC-M0-L123",
+      "locations": [
+        "page2"
+      ],
+      "candidate_concept_ids": [],
+      "unresolved_note": "不进入本实验必需对象，不自行映射LTCO",
+      "mapping_status": "SOURCE_ALIAS_ONLY_PENDING_METHOD_CONFIRMATION",
+      "automatic_equivalence_or_migration": false
+    },
+    {
+      "alias_id": "ALIAS-BC-DRI",
+      "label": "B-DRI / C-DRI",
+      "source_id": "SRC-M0-L123",
+      "locations": [
+        "page2"
+      ],
+      "candidate_concept_ids": [],
+      "unresolved_note": "本实验仅用area_accountable责任槽；B/C组织语义未锁定",
+      "mapping_status": "SOURCE_ALIAS_ONLY_PENDING_METHOD_CONFIRMATION",
+      "automatic_equivalence_or_migration": false
+    },
+    {
+      "alias_id": "ALIAS-M3-CONFIRM",
+      "label": "M3.1 Mission接收和确认",
+      "source_id": "SRC-M0-L123",
+      "locations": [
+        "page2"
+      ],
+      "candidate_concept_ids": [
+        "urn:tkos:concept:execution_commitment"
+      ],
+      "unresolved_note": "与Glossary第二次握手采用实验性对齐；不是已批准的一一等价",
+      "mapping_status": "SOURCE_ALIAS_ONLY_PENDING_METHOD_CONFIRMATION",
+      "automatic_equivalence_or_migration": false
+    },
+    {
+      "alias_id": "ALIAS-EC",
+      "label": "Execution Commitment",
+      "source_id": "SRC-GLOSSARY",
+      "locations": [
+        "recvtXaZSDm2sx"
+      ],
+      "candidate_concept_ids": [
+        "urn:tkos:concept:execution_commitment"
+      ],
+      "unresolved_note": null,
+      "mapping_status": "SOURCE_ALIAS_ONLY_PENDING_METHOD_CONFIRMATION",
+      "automatic_equivalence_or_migration": false
+    },
+    {
+      "alias_id": "ALIAS-FEEDBACK",
+      "label": "Management Feedback / Resolution",
+      "source_id": "SRC-GLOSSARY",
+      "locations": [
+        "recvtXcf25KHX3",
+        "recvu405k4oz0n"
+      ],
+      "candidate_concept_ids": [
+        "urn:tkos:concept:operating_status_analysis",
+        "urn:tkos:concept:attention_item",
+        "urn:tkos:concept:agreement"
+      ],
+      "unresolved_note": "仅列候选关联，不自动把一个旧FeedbackThread拆成三个新对象",
+      "mapping_status": "SOURCE_ALIAS_ONLY_PENDING_METHOD_CONFIRMATION",
+      "automatic_equivalence_or_migration": false
+    },
+    {
+      "alias_id": "ALIAS-DOMAIN-DRI",
+      "label": "Domain DRI",
+      "source_id": "SRC-M1B-L4",
+      "locations": [
+        "11",
+        "22"
+      ],
+      "candidate_concept_ids": [],
+      "unresolved_note": "本实验使用area_accountable责任槽；不宣布与B/C-DRI完全等义",
+      "mapping_status": "SOURCE_ALIAS_ONLY_PENDING_METHOD_CONFIRMATION",
+      "automatic_equivalence_or_migration": false
+    }
+  ],
+  "rules": {
+    "composition": {
+      "scope": "one_company_current_required_member_set",
+      "quorum": "all_current_required_signers_same_manifest",
+      "activation": "atomic_whole_set",
+      "partial_activation_permitted": false,
+      "signature_inheritance_across_manifests": false,
+      "single_active_formation_per_period": true,
+      "cross_round_capacity_reservations_checked": true,
+      "same_business_content_different_revision_is_new_input": true,
+      "formal_submission_or_binding_change": "new_composition_review_and_all_resign",
+      "local_unshared_draft_change": "does_not_change_formal_input_set",
+      "unrelated_auth_epoch_change": "recheck_relevant_authority_not_auto_resign",
+      "required_binding_changed_or_expired": "reject_new_activation",
+      "required_judgments": [
+        "coverage",
+        "coherence",
+        "feasibility",
+        "tradeoff"
+      ],
+      "unresolved_hard_conflict": "reject_even_if_all_signed",
+      "llm_judgment_can_override_hard_constraint": false,
+      "complete_member_set_derived_by_server": true,
+      "manifest_excludes": [
+        "confirmation_progress",
+        "mutable_object_cas_versions",
+        "receipt_ids"
+      ],
+      "manifest_hash_scheme": "server_generated_versioned_scheme_defined_by_main_contract_not_JCS_claim",
+      "required_signer_rule": "current_CEO_plus_current_accountable_DRI_for_each_current_required_area",
+      "distinct_natural_persons_required": true,
+      "member_add_remove_supported_by_same_profile": true,
+      "member_change_effect": "amend_round_member_set_new_composition_review_all_current_required_resign",
+      "judgment_display_aliases": {
+        "company_feasibility": "feasibility"
+      }
+    },
+    "version_and_draft": {
+      "stable_object_id_separate_from_revision_and_cas": true,
+      "unshared_working_draft_overwrite_permitted": true,
+      "freeze_on": [
+        "shared_reference",
+        "dri_submission",
+        "composition_review",
+        "formal_confirmation",
+        "delivery_submission"
+      ],
+      "historical_confirmations_append_only": true,
+      "shared_reference_implies_commitment": false,
+      "old_receipt_implies_current_execute_permission": false
+    },
+    "responsibility_and_acceptance": {
+      "area_dri_may_hold_mission_accountability_in_fixture": true,
+      "dri_and_ic_same_natural_person_permitted": false,
+      "what_handshake_parties": [
+        "named_current_accountable_dri",
+        "named_current_executing_ic"
+      ],
+      "both_sign_same_content_revision": true,
+      "execution_authority_release_by": "named_current_accountable_dri",
+      "last_signature_implicitly_releases_execution": false,
+      "work_receipt_is": "acknowledgement_of_exact_dispatched_work_baseline_not_new_parallel_what_commitment",
+      "acceptor_mode": "independent_third_person",
+      "acceptor_cannot_be": [
+        "executing_ic",
+        "submission_actual_author",
+        "submission_declared_coauthor",
+        "fixture_dri"
+      ],
+      "agent_may_sign_or_accept": false,
+      "handover_rewrites_historical_authors_or_signers": false,
+      "future_actions_require_current_responsibility_binding": true,
+      "three_results_independent": [
+        "delivery_acceptance",
+        "company_result_assessment",
+        "feedback_disposition"
+      ]
+    },
+    "what_how": {
+      "what_fields": [
+        "result_statement",
+        "success_criteria",
+        "responsibility_bindings",
+        "hard_deadline",
+        "hard_budget_units",
+        "external_dependency_refs",
+        "external_promises",
+        "scope_exclusions"
+      ],
+      "how_fields_allowed_within_what": [
+        "internal_step_order",
+        "internal_work_method",
+        "nonbinding_internal_milestones",
+        "local_tool_choice"
+      ],
+      "material_change_threshold": "any_change_to_structured_what_field_requires_formal_revision",
+      "unknown_classification": "review_required_not_assume_how",
+      "plan_revision_can_change_acceptance_standard": false,
+      "changed_what_can_reuse_old_handshake": false
+    },
+    "authority_and_visibility": {
+      "historical_fact_deleted_on_revocation": false,
+      "read_and_replay_use_current_rights": true,
+      "cross_area_read_grants_are_union_by_default": false,
+      "all_composition_signers_read_full_published_manifest": true,
+      "private_evidence_shared_by_merge_or_summary_automatically": false,
+      "explicit_source_publication_grant_required": true,
+      "legacy_endpoint_can_bypass_profile": false
+    }
+  },
+  "pending_decisions": [
+    {
+      "decision_id": "D01",
+      "topic": "Method来源优先级与正式基线",
+      "owner": "Method总负责人",
+      "experiment_choice": "固定本实验Profile，不按文档修改时间自动覆盖",
+      "production_block": "正式方法迁移与术语规则"
+    },
+    {
+      "decision_id": "D02",
+      "topic": "B/C与Domain及PB/CO、PDO的关系",
+      "owner": "Method及B/C经营负责人",
+      "experiment_choice": "稳定技术concept ID加source_aliases，禁止自动等义映射",
+      "production_block": "正式本体分类与数据迁移"
+    },
+    {
+      "decision_id": "D03",
+      "topic": "公司组合必要签认人与部分重签",
+      "owner": "CEO角色代表及Method负责人",
+      "experiment_choice": "当前CEO与每个当前必需域的指定DRI全体同版重签，整体生效",
+      "production_block": "正式签认规则"
+    },
+    {
+      "decision_id": "D04",
+      "topic": "Mission owner、IC、验收人责任",
+      "owner": "M2/M3负责人及授权人",
+      "experiment_choice": "每域DRI兼Mission责任，IC不同人，第三方独立验收",
+      "production_block": "员工权限与职责绑定"
+    },
+    {
+      "decision_id": "D05",
+      "topic": "What/How重大变化门槛",
+      "owner": "Method及任务责任人",
+      "experiment_choice": "结构化硬字段变化全部进入正式变更；不明归类需要人工复核",
+      "production_block": "自然语言计划自动判定"
+    },
+    {
+      "decision_id": "D06",
+      "topic": "跨域材料披露和共同确认",
+      "owner": "资料责任人及授权人",
+      "experiment_choice": "共同签认者均可读完整已发布组合摘要；原始域内证据不自动共享",
+      "production_block": "正式跨域披露制度"
+    },
+    {
+      "decision_id": "D07",
+      "topic": "暂停、临时授权及截止时点",
+      "owner": "经营授权人与外部系统负责人",
+      "experiment_choice": "授权300秒、无续期默认；暂停不自动解除；按准入时点而非物理效果完成保证",
+      "production_block": "生产期限、例外与外部效果保证"
+    },
+    {
+      "decision_id": "D08",
+      "topic": "Feedback旧语义与新分层、归并责任",
+      "owner": "MF/M1B负责人",
+      "experiment_choice": "旧实例不自动迁移；merge非解决；跨域关系确认需覆盖两域权限",
+      "production_block": "正式处置权限与迁移"
+    },
+    {
+      "decision_id": "D09",
+      "topic": "经验准入、有效期与真实数据门槛",
+      "owner": "Method及知识责任人",
+      "experiment_choice": "可见性/来源/前提缺一即不推荐；容量未知不复用旧值；阈值全部synthetic",
+      "production_block": "企业级记忆推广与成效评价"
+    }
+  ],
+  "action_contract_ref": {
+    "contract_id": "tkos.contract-a",
+    "revision": "0.1",
+    "content_sha256": "fff438ca5eb3b2c709d9911929bc0d8d393a27b42f0af62d48767a2f65388fd4"
+  },
+  "canonical_hash": "5050d542cc521991f17932562c4397331c0482b673f9bcd8fe694749bd43fc76"
+}

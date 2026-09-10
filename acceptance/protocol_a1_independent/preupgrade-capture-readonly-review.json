@@ -1,0 +1,32 @@
+{
+  "gate": "captured_pre_a1_history_readonly_review",
+  "checks": {
+    "real_old_api_source": true,
+    "no_new_checkpoint_wrapper": true,
+    "migrations_end_at_0017": true,
+    "legacy_http_commands_20": true,
+    "objects_9": true,
+    "delivery_accepted": true,
+    "outcome_not_assessed": true,
+    "mf_investigating": true,
+    "v1_v2_distinct": true,
+    "all_commands_receipts_captured": true,
+    "all_object_heads_captured": true,
+    "evidence_original_bytes": true,
+    "s3_versions_2": true,
+    "pack_captured": true,
+    "old_git_source_models": true,
+    "old_git_source_service": true
+  },
+  "passed": 16,
+  "failed": 0,
+  "commands": 20,
+  "objects": 9,
+  "revisions": 10,
+  "receipts": 22,
+  "sql_tables": 17,
+  "source_files": 92,
+  "history_sha256": "99b7c11271772e963e1e0b6482737246ea48841f5954cf3741503913c61372bf",
+  "database_access": false,
+  "contract_a1_accepted": false
+}

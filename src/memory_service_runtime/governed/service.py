@@ -17,7 +17,7 @@ from psycopg.types.json import Jsonb
 from pydantic import ValidationError
 
 from memory_service_runtime.repository import enqueue_task
-from . import checkpoints, db, delivery
+from . import checkpoints, db, delivery, protocol
 from .errors import GovernedError
 from .models import ActionRequest, validated_payload
 
@@ -68,6 +68,8 @@ class ActionExecution:
         self.payload: dict[str, Any] | None = None
         self.required_assignments: set[str] = set()
         self.effect_task_ids: list[str] = []
+        self.protocol_context: str | None = None
+        self.creation_fields: dict[str, Any] | None = None
 
     def head(self, object_id: str) -> dict[str, Any]:
         object_id = str(object_id)
@@ -98,6 +100,9 @@ class ActionExecution:
     def add_dependency(self, object_id: str) -> dict[str, Any]:
         obj = self.head(object_id)
         if not self.request.target or object_id != self.request.target.object_id:
+            if self.protocol_context is not None:
+                protocol.gate_dependency(self.conn, self.ctx.scope_id, object_id,
+                                         self.protocol_context)
             self.dependencies.add(object_id)
         return obj
 
@@ -164,6 +169,19 @@ class ActionExecution:
             _fail("FORBIDDEN")
         if self.kind in HUMAN_ACTIONS and self.ctx.principal_type != "human":
             _fail("FORBIDDEN")
+        # Protocol fence runs only after identity and domain authorization, so
+        # protocol errors never leak the existence of an invisible object.
+        if self.request.target:
+            self.protocol_context = protocol.gate_target_action(
+                self.conn, self.ctx.scope_id, self.target["object_id"], self.kind,
+                self.request.contract_version)
+        elif self.kind == "create_object":
+            self.creation_fields = protocol.resolve_creation(
+                self.conn, self.ctx.scope_id, self.params["domain_id"],
+                self.params["object_type"], self.request.contract_version)
+            self.protocol_context = self.creation_fields["contract_version"]
+        # revoke_assignment is authority control over a role assignment, not a
+        # business object write; it carries no protocol binding and is exempt.
         if self.kind == "create_object":
             self.payload = self.checked_payload(self.params["object_type"], self.params["payload"])
             object_type = self.params["object_type"]
@@ -473,6 +491,14 @@ class ActionExecution:
             "UPDATE gov_objects SET latest_revision_id=%s,effective_revision_id=%s WHERE scope_id=%s AND object_id=%s RETURNING *",
             (revision["revision_id"], effective, self.ctx.scope_id, object_id),
         ).fetchone())
+        # The protocol registration is part of the same transaction: an object
+        # without a binding can never commit (deferred constraint trigger).
+        protocol.insert_binding(self.conn, self.ctx.scope_id, object_id,
+                                self.creation_fields or protocol.resolve_creation(
+                                    self.conn, self.ctx.scope_id, self.domain_id,
+                                    object_type, self.request.contract_version),
+                                registered_by=self.ctx.principal_id,
+                                receipt_id=self.action_id)
         if object_type == "FeedbackThread":
             self.conn.execute(
                 "INSERT INTO gov_feedback_state(object_id,scope_id,cycle_id) VALUES (%s,%s,%s)",

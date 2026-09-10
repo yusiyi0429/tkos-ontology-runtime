@@ -11,6 +11,7 @@ import time
 import psycopg
 
 from memory_service_runtime.config import RuntimeConfig, RuntimeConfigError
+from memory_service_runtime.governed import db
 from memory_service_runtime.handlers import default_handlers
 from memory_service_runtime.repository import (
     IdempotencyConflict,
@@ -89,6 +90,11 @@ def enqueue_main() -> None:
             raise ValueError("--payload-json 必须是 JSON 对象")
         max_attempts = args.max_attempts or config.default_max_attempts
         with _connect(config) as conn:
+            # The 0018 dispatch fence requires the runtime capability on any
+            # governance.dispatch insert; the CLI declares it like the worker,
+            # but this is not governance authority — dispatch still re-checks
+            # the immutable receipt, membership and current bindings.
+            db.set_write_capability(conn)
             enqueued = enqueue_task(
                 conn,
                 tenant_id=config.tenant_id,

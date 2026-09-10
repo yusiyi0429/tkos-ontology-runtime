@@ -37,6 +37,7 @@ def _inventory(env: dict, fixture: dict) -> dict:
     with psycopg.connect(env["APP_DATABASE_URL"], row_factory=dict_row) as conn:
         conn.execute("SET TRANSACTION READ ONLY")
         conn.execute("SELECT set_config('app.governed_scope_id',%s,true)", (fixture["scope_id"],))
+        conn.execute("SELECT set_config('app.runtime_write_capability','tkos-runtime-a1',true)")
         scope, domain = fixture["scope_id"], fixture["domain_id"]
         objects = conn.execute(
             "SELECT object_id,object_type,lifecycle_status FROM gov_objects WHERE scope_id=%s AND domain_id=%s ORDER BY object_id",

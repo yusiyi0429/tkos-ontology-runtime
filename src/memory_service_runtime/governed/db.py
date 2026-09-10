@@ -80,6 +80,19 @@ def _assignments(conn: psycopg.Connection, ctx: AuthContext) -> list[dict[str, A
     return jsonable(rows)
 
 
+def set_write_capability(conn: psycopg.Connection, *, local: bool = True) -> None:
+    """Declare the A1 write capability for this transaction/session.
+
+    Migration 0018 rejects governed business writes from connections that do
+    not carry this declaration, which stops pre-A1 writer/worker binaries.  It
+    is a stale-implementation fence, not a security boundary against SQL.
+    """
+    from .profile import WRITE_CAPABILITY
+
+    conn.execute("SELECT set_config('app.runtime_write_capability', %s, %s)",
+                 (WRITE_CAPABILITY, local))
+
+
 def authenticate(conn: psycopg.Connection, token: str) -> AuthContext:
     """Resolve digest, acquire the auth fence, then recheck all current authority."""
     conn.row_factory = dict_row
@@ -87,6 +100,11 @@ def authenticate(conn: psycopg.Connection, token: str) -> AuthContext:
         raise GovernedError("UNAUTHENTICATED")
     digest = hashlib.sha256(token.encode("utf-8")).hexdigest()
     _set_scope(conn, "")
+    # Declare the A1 runtime capability before the first protected read: the
+    # 0018 restrictive policies hide gov_credentials/gov_scopes/... rows from
+    # connections without it, which is exactly what stops pre-A1 binaries here.
+    # This declares code currency only; identity is still fully verified below.
+    set_write_capability(conn)
     conn.execute("SELECT set_config('app.governed_credential_digest', %s, true)", (digest,))
     credential = conn.execute(
         """SELECT credential_id, scope_id, principal_id FROM gov_credentials

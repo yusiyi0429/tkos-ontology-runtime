@@ -32,6 +32,25 @@ CHAT_KEY = "synthetic-legacy-chat-key"
 VISION = "让每个业务域的交付都有清晰且可核验的业务依据。"
 BACKGROUND = "经营原则要求依据确认后的证据评估业务进展。"
 
+DEFAULT_ACCEPTANCE_DATABASE = "tkos_runtime_acceptance"
+
+
+def _expected_database() -> str:
+    """The exact isolated database this suite may seed.
+
+    Defaults to the historical acceptance database; root may name a
+    purpose-built one-off database via TKOS_LEGACY_ACCEPTANCE_DATABASE.  The
+    value must match current_database() exactly — never a prefix — and the
+    DSN must target a loopback/local host.
+    """
+    return os.environ.get("TKOS_LEGACY_ACCEPTANCE_DATABASE", "").strip() or DEFAULT_ACCEPTANCE_DATABASE
+
+
+def _is_loopback_dsn() -> bool:
+    from psycopg.conninfo import conninfo_to_dict
+    host = conninfo_to_dict(DATABASE_URL).get("host", "")
+    return host in {"", "127.0.0.1", "::1", "localhost"}
+
 
 @pytest.fixture(scope="module")
 def legacy_identity():
@@ -41,7 +60,8 @@ def legacy_identity():
     except psycopg.Error:
         pytest.skip("Legacy integration requires the isolated acceptance PostgreSQL database")
     with conn:
-        if conn.execute("SELECT current_database() AS name").fetchone()["name"] != "tkos_runtime_acceptance":
+        actual = conn.execute("SELECT current_database() AS name").fetchone()["name"]
+        if actual != _expected_database() or not _is_loopback_dsn():
             pytest.skip("Legacy integration never seeds outside the isolated acceptance database")
         conn.commit()
         label = uuid4().hex
@@ -49,6 +69,7 @@ def legacy_identity():
                                       f"runtime-acceptance-narrative-org-{label}")
         with conn.transaction():
             conn.execute("SELECT set_config('app.governed_scope_id', %s, true)", (seeded["scope_id"],))
+            conn.execute("SELECT set_config('app.runtime_write_capability','tkos-runtime-a1',true)")
             previous = conn.execute(
                 "SELECT * FROM gov_activation_policies WHERE scope_id=%s AND domain_id=%s",
                 (seeded["scope_id"], seeded["domain_id"]),
@@ -174,6 +195,7 @@ def ledger_counts(rig):
     with psycopg.connect(DATABASE_URL) as conn:
         conn.execute("SET TRANSACTION READ ONLY")
         conn.execute("SELECT set_config('app.governed_scope_id', %s, true)", (identity["scope_id"],))
+        conn.execute("SELECT set_config('app.runtime_write_capability','tkos-runtime-a1',true)")
         counts = {}
         for table in ("gov_objects", "gov_object_revisions", "gov_lifecycle_events",
                       "gov_action_receipts", "gov_context_snapshots"):

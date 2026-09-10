@@ -9,6 +9,7 @@ from typing import Callable
 import psycopg
 
 from memory_service_runtime.config import RuntimeConfig
+from memory_service_runtime.governed import db
 from memory_service_runtime.handlers import TaskExecutionError, TaskHandler, default_handlers
 from memory_service_runtime.repository import (
     RuntimeTask,
@@ -59,6 +60,10 @@ class RuntimeWorker:
     def run_once(self) -> bool:
         """Claim and finish at most one task; all external work runs outside a DB transaction."""
         with self._connect() as conn:
+            # First statement of the claim transaction: recover_expired_tasks
+            # may UPDATE expired governance.dispatch rows, which 0018 fences
+            # behind the runtime capability.
+            db.set_write_capability(conn)
             recovery = recover_expired_tasks(
                 conn,
                 tenant_id=self.config.tenant_id,
@@ -110,6 +115,8 @@ class RuntimeWorker:
                 retryable = True
 
         with self._connect() as conn:
+            # Independent finalize transaction: re-declare the capability.
+            db.set_write_capability(conn)
             if error_code is None and result is not None:
                 finalized = succeed_task(conn, task, result=result)
                 target = "succeeded" if finalized else None

@@ -24,7 +24,7 @@ import json
 from typing import Any, Callable
 from uuid import UUID
 
-from memory_service_runtime.governed import db, delivery, readers
+from memory_service_runtime.governed import db, delivery, protocol, readers
 from memory_service_runtime.governed.errors import GovernedError
 from memory_service_runtime.governed.models import PAYLOAD_MODELS
 
@@ -35,7 +35,8 @@ MAX_CURSOR_LENGTH = 4096
 
 GENERIC_TYPES = tuple(PAYLOAD_MODELS)
 DEDICATED_TYPES = ("EvidenceAsset", "Deliverable")
-KNOWN_TYPES = frozenset([*GENERIC_TYPES, *DEDICATED_TYPES])
+REGISTRATION_TYPES = ("ProtocolSentinel",)
+KNOWN_TYPES = frozenset([*GENERIC_TYPES, *DEDICATED_TYPES, *REGISTRATION_TYPES])
 
 _VERSIONING_NOTE = (
     "内容按不可变 revision 保存；latest_revision_id 是最新候选版本，"
@@ -107,6 +108,12 @@ TYPE_CATALOG: list[dict[str, Any]] = [
             "execution_commitment_ref: 继承的 ExecutionCommitment 精确 revision",
             "evidence_revision_ids: 原始证据 revision，已持久化进 upstream_refs，证据关系不丢失",
         ],
+    },
+    {
+        "object_type": "ProtocolSentinel", "label": "协议登记哨兵", "creation_mode": "control_plane_only",
+        "description": "A1 协议登记的合成哨兵，仅由控制面受控创建；无业务语义，不可经任何业务动作创建或推进，"
+                       "仅用于验证协议绑定与读支持登记。不提供任何可执行业务动作。",
+        "reference_fields": [],
     },
 ]
 
@@ -303,7 +310,11 @@ def objects(conn: Any, ctx: Any, domain_id: str, object_type: str | None,
                        lambda row: [row["created_at"], str(row["object_id"])], limit, key)
     keys = ("object_id", "domain_id", "object_type", "lifecycle_status", "object_version",
             "latest_revision_id", "effective_revision_id", "created_at", "title")
-    items = [{field: row[field] for field in keys} for row in rows]
+    # Every listed object carries its server-side protocol metadata; missing or
+    # unsupported registrations are marked explicitly, never silently legacy.
+    metadata = protocol.list_metadata(conn, ctx.scope_id, [str(row["object_id"]) for row in rows])
+    items = [{**{field: row[field] for field in keys},
+              "protocol": metadata[str(row["object_id"])]} for row in rows]
     last = rows[-1] if rows else None
     next_cursor = (encode_cursor("objects", ctx, filters,
                                  [db.jsonable(last["created_at"]), str(last["object_id"])])
@@ -349,7 +360,8 @@ def revisions(conn: Any, ctx: Any, object_id: str, limit: int, cursor: str | Non
     next_cursor = (encode_cursor("revisions", ctx, filters,
                                  [db.jsonable(last["recorded_at"]), str(last["revision_id"])])
                    if more and last else None)
-    return db.jsonable({"items": items, "next_cursor": next_cursor})
+    return db.jsonable({"items": items, "next_cursor": next_cursor,
+                        "protocol": protocol.read_metadata(conn, ctx.scope_id, head["object_id"])})
 
 
 def _resolve_revision_owner(conn: Any, ctx: Any, revision_id: Any) -> str | None:
@@ -400,6 +412,10 @@ def relation_refs(conn: Any, ctx: Any, payload: dict[str, Any]) -> list[tuple[st
 def relations(conn: Any, ctx: Any, object_id: str, revision_id: str | None,
               limit: int, cursor: str | None) -> dict[str, Any]:
     head = db.object_row(conn, ctx, object_id)
+    head_protocol = protocol.read_metadata(conn, ctx.scope_id, head["object_id"])
+    if head_protocol["interpretation_status"] not in ("legacy_v0_2", "contract_a_metadata_read_only"):
+        raise GovernedError("PROTOCOL_NOT_SUPPORTED",
+                            "The object's protocol registration does not support relation reads.", status=409)
     if revision_id is None:
         revision_id = head["latest_revision_id"]
     source = db.revision_row(conn, ctx, head["object_id"], str(revision_id))
@@ -421,8 +437,9 @@ def relations(conn: Any, ctx: Any, object_id: str, revision_id: str | None,
         try:
             target = db.object_row(conn, ctx, target_object)
             db.revision_row(conn, ctx, target_object, target_revision)
+            protocol.require_read_support(conn, ctx.scope_id, target_object)
         except GovernedError:
-            continue  # an unreadable target hides the whole edge, including its count
+            continue  # an unreadable or read-unsupported target hides the whole edge, including its count
         visible.append({
             "relation_type": "source_reference",
             "source_ref": source_ref,
@@ -435,7 +452,8 @@ def relations(conn: Any, ctx: Any, object_id: str, revision_id: str | None,
     if more and items:
         last = items[-1]["target_ref"]
         next_cursor = encode_cursor("relations", ctx, filters, [last["object_id"], last["revision_id"]])
-    return db.jsonable({"source_ref": source_ref, "items": items, "next_cursor": next_cursor})
+    return db.jsonable({"source_ref": source_ref, "items": items, "next_cursor": next_cursor,
+                        "protocol": head_protocol})
 
 
 def action_receipts(conn: Any, ctx: Any, object_id: str, limit: int, cursor: str | None) -> dict[str, Any]:
@@ -481,7 +499,8 @@ def action_receipts(conn: Any, ctx: Any, object_id: str, limit: int, cursor: str
     next_cursor = (encode_cursor("action-receipts", ctx, filters,
                                  [db.jsonable(last["recorded_at"]), str(last["receipt_id"])])
                    if more and last else None)
-    return db.jsonable({"items": items, "next_cursor": next_cursor})
+    return db.jsonable({"items": items, "next_cursor": next_cursor,
+                        "protocol": protocol.read_metadata(conn, ctx.scope_id, head["object_id"])})
 
 
 def responsibility(conn: Any, ctx: Any, object_id: str) -> dict[str, Any]:
@@ -489,6 +508,14 @@ def responsibility(conn: Any, ctx: Any, object_id: str) -> dict[str, Any]:
     head = db.object_row(conn, ctx, object_id)
     if head["object_type"] != "WorkItem":
         raise GovernedError("INVALID_REQUEST", "The request does not satisfy the command schema.", status=422)
+    # The DRI/acceptor projection is legacy v0.2 semantics: an object bound to
+    # another protocol (or lacking read support) never gets the old MISSION_DRI
+    # reading of these fields.
+    metadata = protocol.read_metadata(conn, ctx.scope_id, head["object_id"])
+    if metadata["interpretation_status"] != "legacy_v0_2":
+        raise GovernedError("PROTOCOL_NOT_SUPPORTED",
+                            "The legacy responsibility projection is not supported for this object's "
+                            "protocol registration.", status=409)
     state = conn.execute(
         "SELECT /*workbench:responsibility*/ work_item_revision_id, dri_assignment_id,"
         " acceptor_assignment_id FROM gov_work_item_state WHERE scope_id=%s AND object_id=%s",
@@ -519,6 +546,7 @@ def responsibility(conn: Any, ctx: Any, object_id: str) -> dict[str, Any]:
         "baseline_revision_id": state["work_item_revision_id"],
         "dri": project(state["dri_assignment_id"]),
         "acceptor": project(state["acceptor_assignment_id"]),
+        "protocol": metadata,
     })
 
 

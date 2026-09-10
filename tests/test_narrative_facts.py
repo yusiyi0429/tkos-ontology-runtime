@@ -11,6 +11,7 @@ import pytest
 
 from memory_service_runtime.governed import narrative_facts as facts
 from memory_service_runtime.governed.errors import GovernedError
+from tests import legacy_protocol_fixture
 
 
 def uid(number):
@@ -164,6 +165,10 @@ class ReadOnlyStore:
             _, acceptance_id, known_at, valid_at = params
             return Rows([row for row in self.reviews if row["acceptance_id"] == acceptance_id
                          and row["recorded_at"] <= min(known_at, valid_at)])
+        protocol_rows = legacy_protocol_fixture.answer_query(
+            sql, params, self.ctx.scope_id, set(self.objects))
+        if protocol_rows is not None:
+            return Rows(protocol_rows)
         raise AssertionError(f"Unexpected read: {sql}")
 
     def collect(self, ids=None, **kwargs):
@@ -241,7 +246,17 @@ def test_unconfirmed_candidates_are_not_authoritative_facts(store, kind):
     obj, _ = store.add(20, kind, status="proposed", effective=False)
     result = store.collect([obj])
     assert result["selected"] == []
-    assert result["excluded"] == [{"object_id": obj, "reason": "no_effective_revision_at_requested_times"}]
+    assert len(result["excluded"]) == 1
+    excluded = result["excluded"][0]
+    assert excluded["object_id"] == obj
+    assert excluded["reason"] == "no_effective_revision_at_requested_times"
+    # A1-12: excluded entries carry the object's explicit interpretation identity.
+    protocol_meta = excluded["protocol"]
+    assert protocol_meta["registration_status"] == "registered"
+    assert protocol_meta["interpretation_status"] == "legacy_v0_2"
+    assert protocol_meta["protocol_id"] == "tkos.legacy-governed"
+    assert protocol_meta["contract_version"] == "tkos.governed/v0.2"
+    assert protocol_meta["method_profile_ref"]["profile_id"] == "urn:tkos:legacy:governed-v0.2"
 
 
 def test_new_unconfirmed_draft_keeps_exact_old_effective_revision(store):

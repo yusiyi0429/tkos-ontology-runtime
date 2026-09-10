@@ -18,11 +18,11 @@ def encode_raw(body) -> str:
         json.dumps(body, sort_keys=True, separators=(",", ":")).encode()).decode()
 
 
-def test_catalog_lists_eight_generic_and_two_dedicated_types():
+def test_catalog_lists_eight_generic_two_dedicated_and_one_control_only_type():
     result = workbench.object_types(None, CTX)
     assert result["schema_version"] == workbench.SCHEMA_VERSION
     items = {item["object_type"]: item for item in result["items"]}
-    assert set(items) == {*PAYLOAD_MODELS, "EvidenceAsset", "Deliverable"}
+    assert set(items) == {*PAYLOAD_MODELS, "EvidenceAsset", "Deliverable", "ProtocolSentinel"}
     assert not {"Mission", "Risk", "Lesson"} & set(items)
     for name, model in PAYLOAD_MODELS.items():
         assert items[name]["creation_mode"] == "generic_action"
@@ -30,6 +30,11 @@ def test_catalog_lists_eight_generic_and_two_dedicated_types():
     for name in ("EvidenceAsset", "Deliverable"):
         assert items[name]["creation_mode"] == "dedicated_action"
         assert items[name]["payload_schema"] is None
+    # A1 registration sentinel: control-plane only, no payload schema, never a
+    # generic or dedicated business creation path.
+    assert items["ProtocolSentinel"]["creation_mode"] == "control_plane_only"
+    assert items["ProtocolSentinel"]["payload_schema"] is None
+    assert "ProtocolSentinel" not in PAYLOAD_MODELS
     for item in result["items"]:
         assert item["label"] and item["description"] and item["versioning"]
 

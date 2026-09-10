@@ -58,7 +58,11 @@ def test_objects_title_comes_from_latest_revision_and_paginates(readable_domains
     assert [item["title"] for item in page1["items"]] == ["反馈甲"]
     assert set(page1["items"][0]) == {"object_id", "domain_id", "object_type", "lifecycle_status",
                                       "object_version", "latest_revision_id", "effective_revision_id",
-                                      "created_at", "title"}
+                                      "created_at", "title", "protocol"}
+    item_protocol = page1["items"][0]["protocol"]
+    assert item_protocol["registration_status"] == "registered"
+    assert item_protocol["interpretation_status"] == "legacy_v0_2"
+    assert item_protocol["protocol_id"] == "tkos.legacy-governed"
     page2 = workbench.objects(conn, CTX, uid(1), None, 1, page1["next_cursor"])
     assert [item["title"] for item in page2["items"]] == ["决策乙"]
     assert page2["items"][0]["effective_revision_id"] is None  # latest 与 effective 分开
@@ -82,7 +86,8 @@ def test_objects_reject_unknown_type_and_unreadable_domain(readable_domains):
 def test_revisions_mark_latest_and_effective_separately(monkeypatch):
     head = {"object_id": uid(1), "latest_revision_id": uid(12), "effective_revision_id": uid(11)}
     monkeypatch.setattr(workbench.db, "object_row", lambda conn, ctx, oid: head)
-    conn = FakeConn(revisions=[revision_row(11, 1, second=1), revision_row(12, 1, second=2)])
+    conn = FakeConn(revisions=[revision_row(11, 1, second=1), revision_row(12, 1, second=2)],
+                    protocol_objects={uid(1)})
     result = workbench.revisions(conn, CTX, uid(1), 50, None)
     flags = {item["revision_id"]: (item["is_latest"], item["is_effective"]) for item in result["items"]}
     assert flags == {uid(11): (False, True), uid(12): (True, False)}
@@ -114,7 +119,7 @@ def test_relations_use_exact_source_revision_and_hide_unreadable_targets(monkeyp
     PAYLOADS[uid(30)] = ({}, uid(3))
     _relations_mocks(monkeypatch, {source_oid: ("WorkItem", uid(10)),
                                    uid(2): ("ExecutionCommitment", uid(20))})  # uid(3) 无权
-    conn = FakeConn()
+    conn = FakeConn(protocol_objects={source_oid, uid(2)})  # 仅已知可读对象登记为 legacy
     result = workbench.relations(conn, CTX, source_oid, None, 50, None)
     assert result["source_ref"] == {"object_id": source_oid, "revision_id": source_rid}
     assert [item["target_ref"] for item in result["items"]] == [
@@ -137,7 +142,8 @@ def test_relations_resolve_adjustment_revision_only_fields(monkeypatch):
                                    uid(5): ("FeedbackThread", uid(50)),
                                    uid(6): ("Decision", uid(60)),
                                    uid(7): ("BusinessCommitment", uid(71))})
-    conn = FakeConn(revision_owners={uid(50): uid(5), uid(60): uid(6), uid(70): uid(7), uid(71): uid(7)})
+    conn = FakeConn(revision_owners={uid(50): uid(5), uid(60): uid(6), uid(70): uid(7), uid(71): uid(7)},
+                    protocol_objects={source_oid, uid(5), uid(6), uid(7)})
     result = workbench.relations(conn, CTX, source_oid, source_rid, 50, None)
     targets = {(item["target_ref"]["object_id"], item["target_ref"]["revision_id"]) for item in result["items"]}
     assert targets == {(uid(5), uid(50)), (uid(6), uid(60)), (uid(7), uid(70)), (uid(7), uid(71))}
@@ -162,7 +168,7 @@ def test_action_receipts_hide_whole_entry_when_any_reference_unreadable(monkeypa
             raise GovernedError("NOT_FOUND")
 
     monkeypatch.setattr(workbench.readers, "authorize_receipt", fake_authorize)
-    conn = FakeConn(receipts=[good, tainted, unrelated])
+    conn = FakeConn(receipts=[good, tainted, unrelated], protocol_objects={uid(1)})
     result = workbench.action_receipts(conn, CTX, uid(1), 50, None)
     assert [item["receipt_id"] for item in result["items"]] == [uid(21)]
     item = result["items"][0]
@@ -182,7 +188,7 @@ def test_responsibility_requires_work_item_and_projects_frozen_assignments(monke
         {"assignment_id": uid(32), "principal_id": uid(42), "role": "VERIFIER",
          "domain_id": uid(1), "display_name": "合成验收", "current_assignment_active": False},
     ]
-    conn = FakeConn(work_item_state=state, assignment_rows=assignments)
+    conn = FakeConn(work_item_state=state, assignment_rows=assignments, protocol_objects={uid(1)})
     result = workbench.responsibility(conn, CTX, uid(1))
     assert result["baseline_revision_id"] == uid(11)
     assert result["dri"]["display_name"] == "合成任务负责"
@@ -238,7 +244,7 @@ def test_relations_hide_edge_when_target_revision_denied(monkeypatch):
                uid(3): ("FeedbackThread", uid(30)), uid(4): ("EvidenceAsset", uid(40))}
     denied = {(uid(2), uid(20))}  # 对象可读，但目标 revision 精确版本不可读
     _relations_mocks_mutable(monkeypatch, visible, denied)
-    result = workbench.relations(FakeConn(), CTX, source_oid, None, 50, None)
+    result = workbench.relations(FakeConn(protocol_objects=set(visible)), CTX, source_oid, None, 50, None)
     targets = [item["target_ref"]["object_id"] for item in result["items"]]
     assert targets == [uid(3), uid(4)]
     assert uid(2) not in str(result)  # 不泄露被拒绝 revision 的所属对象
@@ -250,7 +256,7 @@ def test_relations_paginate_over_visible_edges_only(monkeypatch):
     visible = {uid(1): ("WorkItem", uid(10)), uid(2): ("ExecutionCommitment", uid(20)),
                uid(4): ("EvidenceAsset", uid(40))}  # uid(3) 对象不可读
     _relations_mocks_mutable(monkeypatch, visible, set())
-    conn = FakeConn()
+    conn = FakeConn(protocol_objects=set(visible))
     page1 = workbench.relations(conn, CTX, source_oid, None, 1, None)
     assert [item["target_ref"]["object_id"] for item in page1["items"]] == [uid(2)]
     assert page1["next_cursor"]
@@ -266,7 +272,7 @@ def test_relations_recheck_current_rights_after_cursor_issued(monkeypatch):
     visible = {uid(1): ("WorkItem", uid(10)), uid(2): ("ExecutionCommitment", uid(20)),
                uid(4): ("EvidenceAsset", uid(40))}
     _relations_mocks_mutable(monkeypatch, visible, set())
-    conn = FakeConn()
+    conn = FakeConn(protocol_objects=set(visible))
     page1 = workbench.relations(conn, CTX, source_oid, None, 1, None)
     assert [item["target_ref"]["object_id"] for item in page1["items"]] == [uid(2)]
     del visible[uid(4)]  # 翻页之间撤权
@@ -333,5 +339,6 @@ def test_relations_cursor_key_validation(monkeypatch):
     _relations_mocks_mutable(monkeypatch, {source_oid: ("WorkItem", uid(10))}, set())
     filters = {"object_id": source_oid, "revision_id": source_rid}
     _reader_key_cases("relations", filters,
-                      lambda c: workbench.relations(FakeConn(), CTX, source_oid, None, 50, c),
+                      lambda c: workbench.relations(FakeConn(protocol_objects={source_oid}),
+                                                    CTX, source_oid, None, 50, c),
                       monkeypatch)

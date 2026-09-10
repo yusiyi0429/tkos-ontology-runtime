@@ -10,7 +10,7 @@ from uuid import uuid4
 
 from psycopg.types.json import Jsonb
 
-from . import db
+from . import db, protocol
 from .errors import GovernedError
 
 
@@ -197,6 +197,12 @@ def submit_deliverable(ex):
                VALUES (%s,%s,%s,'Deliverable','submitted') RETURNING *""",
             (str(uuid4()), ex.ctx.scope_id, ex.domain_id),
         ).fetchone())
+        # Second object-creation path: the Deliverable inherits its WorkItem's
+        # protocol binding in the same transaction (0018 requires one by commit).
+        protocol.inherit_binding(
+            ex.conn, ex.ctx.scope_id, obj["object_id"], ex.target["object_id"],
+            registered_by=ex.ctx.principal_id, receipt_id=ex.action_id,
+        )
         rev = ex.insert_revision(obj, payload, version=1)
         obj = db.jsonable(ex.conn.execute(
             "UPDATE gov_objects SET latest_revision_id=%s WHERE scope_id=%s AND object_id=%s RETURNING *",
@@ -339,9 +345,11 @@ def read_work_item(conn, ctx, obj):
     baseline = db.revision_row(conn, ctx, obj["object_id"], state["work_item_revision_id"])
     for ref in payload_references(baseline["payload"]):
         db.revision_row(conn, ctx, ref["object_id"], ref["revision_id"])
+        protocol.require_read_support(conn, ctx.scope_id, str(ref["object_id"]))
     submissions = []
     if state["deliverable_object_id"]:
         db.object_row(conn, ctx, state["deliverable_object_id"])
+        protocol.require_read_support(conn, ctx.scope_id, str(state["deliverable_object_id"]))
         submissions = conn.execute(
             "SELECT * FROM gov_object_revisions WHERE scope_id=%s AND object_id=%s ORDER BY object_version",
             (ctx.scope_id, state["deliverable_object_id"]),
@@ -349,6 +357,7 @@ def read_work_item(conn, ctx, obj):
         for revision in submissions:
             for ref in payload_references(revision["payload"]):
                 db.revision_row(conn, ctx, ref["object_id"], ref["revision_id"])
+                protocol.require_read_support(conn, ctx.scope_id, str(ref["object_id"]))
     reviews = conn.execute(
         "SELECT * FROM gov_delivery_acceptances WHERE scope_id=%s AND work_item_object_id=%s ORDER BY submission_seq",
         (ctx.scope_id, obj["object_id"]),
@@ -372,6 +381,10 @@ def read_outcome_assessment(conn, ctx, object_id, revision_id, *, known_at=None,
         if linked is None:
             fail("NOT_FOUND", "Assessment evidence is unavailable.")
         db.revision_row(conn, ctx, str(linked["object_id"]), rid)
+        # Derived sources of a legacy assessment must still be legacy
+        # interpretable (B10): readable Contract-A metadata is not enough when
+        # the object is consumed as a legacy business basis.
+        protocol.require_legacy_read_support(conn, ctx.scope_id, str(linked["object_id"]))
     for aid in row["delivery_acceptance_ids"]:
         linked = conn.execute("SELECT work_item_object_id,deliverable_object_id FROM gov_delivery_acceptances WHERE scope_id=%s AND acceptance_id=%s",
                               (ctx.scope_id, aid)).fetchone()
@@ -379,6 +392,7 @@ def read_outcome_assessment(conn, ctx, object_id, revision_id, *, known_at=None,
             fail("NOT_FOUND", "Assessment delivery review is unavailable.")
         for key in ("work_item_object_id", "deliverable_object_id"):
             db.object_row(conn, ctx, str(linked[key]))
+            protocol.require_legacy_read_support(conn, ctx.scope_id, str(linked[key]))
     return db.jsonable(row)
 
 
@@ -391,4 +405,7 @@ def read_delivery_review(conn, ctx, object_id, revision_id, *, known_at=None, va
     ).fetchone()
     if row is not None:
         db.revision_row(conn, ctx, str(row["work_item_object_id"]), str(row["work_item_revision_id"]))
+        # The reviewed WorkItem is consumed under legacy delivery semantics
+        # (B10); a rebind to readable Contract-A metadata rejects the read.
+        protocol.require_legacy_read_support(conn, ctx.scope_id, str(row["work_item_object_id"]))
     return db.jsonable(row)

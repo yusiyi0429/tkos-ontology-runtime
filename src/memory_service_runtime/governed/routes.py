@@ -14,7 +14,7 @@ from fastapi.responses import JSONResponse, Response
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, field_validator
 from psycopg.types.json import Jsonb
 
-from memory_service_runtime.governed import db, evidence, readers, service, workbench
+from memory_service_runtime.governed import db, evidence, protocol, readers, service, workbench
 from memory_service_runtime.governed.errors import GovernedError
 from memory_service_runtime.governed.models import ActionRequest
 
@@ -86,6 +86,36 @@ def revision_get(object_id: uuid.UUID, revision_id: uuid.UUID, token: Annotated[
 def receipt_get(receipt_id: uuid.UUID, token: Annotated[str, Depends(bearer)]):
     with db.transaction(token) as (conn, ctx):
         return readers.action_receipt(conn, ctx, str(receipt_id))
+
+
+@router.get("/method-profiles")
+def method_profiles_get(request: Request, response: Response, token: Annotated[str, Depends(bearer)]):
+    """Read-only registration view: profiles, creation policies and the support
+    registry installed for the caller's current scope (A1)."""
+    workbench.strict_query(request.query_params, set())
+    with db.transaction(token) as (conn, ctx):
+        if not ctx.assignments:
+            raise GovernedError("FORBIDDEN", "No current read assignment", status=403)
+        profiles = conn.execute(
+            """SELECT profile_id, revision, schema_version, canonical_hash, record_origin,
+                      experimental, installed_by, install_reason, recorded_at
+               FROM gov_method_profile_revisions WHERE scope_id=%s
+               ORDER BY profile_id, revision""", (ctx.scope_id,),
+        ).fetchall()
+        policies = conn.execute(
+            """SELECT domain_id, policy_seq, content, recorded_by, reason, recorded_at
+               FROM gov_protocol_policies WHERE scope_id=%s
+               ORDER BY domain_id NULLS FIRST, policy_seq""", (ctx.scope_id,),
+        ).fetchall()
+        registries = conn.execute(
+            """SELECT protocol_id, contract_version, registry_seq, content, recorded_by, recorded_at
+               FROM gov_protocol_support_registry WHERE scope_id=%s
+               ORDER BY protocol_id, registry_seq""", (ctx.scope_id,),
+        ).fetchall()
+        result = db.jsonable({"scope_id": ctx.scope_id, "profiles": profiles,
+                              "policies": policies, "support_registry": registries})
+    response.headers["Cache-Control"] = "no-store"
+    return result
 
 
 @router.post("/context-packs")
@@ -186,12 +216,17 @@ def evidence_create(body: EvidenceRequest, token: Annotated[str, Depends(bearer)
         raise GovernedError("INVALID_REQUEST", "Evidence content is not valid base64", status=422) from exc
     with db.transaction(token) as (conn, ctx):
         db.authorize_domain(conn, ctx, str(body.domain_id), "upload_evidence")
+        # Protocol/namespace registration resolves BEFORE any object-store
+        # write: a rejected upload must leave S3 untouched and no DB rows.
+        creation = protocol.evidence_protocol_fields(conn, ctx.scope_id, str(body.domain_id))
         payload = evidence.store_bytes(ctx, str(body.domain_id), body.title, content, body.media_type)
         db.authorize_domain(conn, ctx, str(body.domain_id), "upload_evidence")
         oid, rid, receipt_id = (str(uuid.uuid4()) for _ in range(3))
         digest = hashlib.sha256(json.dumps(payload, sort_keys=True, ensure_ascii=False, separators=(",", ":"), allow_nan=False).encode()).hexdigest()
         conn.execute("INSERT INTO gov_objects(object_id,scope_id,domain_id,object_type,lifecycle_status) VALUES(%s,%s,%s,'EvidenceAsset','stored')",
                      (oid, ctx.scope_id, str(body.domain_id)))
+        protocol.insert_binding(conn, ctx.scope_id, oid, creation,
+                                registered_by=ctx.principal_id, receipt_id=receipt_id)
         revision = conn.execute(
             "INSERT INTO gov_object_revisions(revision_id,scope_id,object_id,object_version,payload,payload_hash,recorded_by,action_id) VALUES(%s,%s,%s,1,%s,%s,%s,%s) RETURNING recorded_at",
             (rid, ctx.scope_id, oid, Jsonb(payload), digest, ctx.principal_id, receipt_id),
@@ -220,6 +255,9 @@ def evidence_download(object_id: uuid.UUID, revision_id: uuid.UUID, token: Annot
         if obj["object_type"] != "EvidenceAsset":
             raise GovernedError("NOT_FOUND", "Evidence was not found", status=404)
         revision = db.revision_row(conn, ctx, str(object_id), str(revision_id))
+        # Read-support re-check before touching the object store: unregistered
+        # or read-unsupported bindings never reach S3.
+        protocol.require_read_support(conn, ctx.scope_id, str(object_id))
         payload = revision["payload"]
         content = evidence.fetch_payload(payload, scope_id=ctx.scope_id, domain_id=obj["domain_id"])
         db.authorize_domain(conn, ctx, obj["domain_id"], "read")
@@ -237,7 +275,7 @@ def install_errors(app):
     # Keep compatibility routes' existing validation format unchanged.
     @app.exception_handler(RequestValidationError)
     async def validation_error(request: Request, exc: RequestValidationError):
-        if request.url.path.startswith(("/v1/actions", "/v1/objects", "/v1/action-receipts", "/v1/evidence-assets", "/v1/context-packs", "/v1/object-types", "/v1/domains", "/v1/context-graph/narrative")):
+        if request.url.path.startswith(("/v1/actions", "/v1/objects", "/v1/action-receipts", "/v1/evidence-assets", "/v1/context-packs", "/v1/object-types", "/v1/domains", "/v1/method-profiles", "/v1/context-graph/narrative")):
             return JSONResponse(status_code=422, content={"error": {"code": "INVALID_REQUEST", "message": "Request does not match the governed API schema"}})
         from fastapi.exception_handlers import request_validation_exception_handler
         return await request_validation_exception_handler(request, exc)

@@ -199,6 +199,7 @@ def snapshot_scope(connection, scope_id, tenant_id, company_id) -> dict[str, Any
         cursor.execute("SET LOCAL TIME ZONE 'UTC'")
         cursor.execute("SET LOCAL DateStyle='ISO, YMD'")
         cursor.execute("SELECT set_config('app.governed_scope_id',%s,true)", (scope_id,))
+        cursor.execute("SELECT set_config('app.runtime_write_capability','tkos-runtime-a1',true)")
         tables = _tables(cursor)
         by_name = {table["table_name"]: table for table in tables}
         if not {"gov_objects", "gov_scopes", "runtime_tasks"}.issubset(by_name):
@@ -388,6 +389,7 @@ def assert_scope_integrity(connection, scope_id, tenant_id, company_id) -> dict[
     with connection.transaction(), connection.cursor(row_factory=dict_row) as cursor:
         cursor.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY")
         cursor.execute("SELECT set_config('app.governed_scope_id',%s,true)", (scope_id,))
+        cursor.execute("SELECT set_config('app.runtime_write_capability','tkos-runtime-a1',true)")
         cursor.execute(
             """SELECT count(*) AS objects FROM gov_objects o JOIN gov_scopes s USING(scope_id)
                 WHERE s.scope_id=%s AND s.tenant_id=%s AND s.company_id=%s""",

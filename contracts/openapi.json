@@ -78,6 +78,19 @@
             "title": "Action Type",
             "type": "string"
           },
+          "contract_version": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contract Version"
+          },
           "expected_versions": {
             "items": {
               "$ref": "#/components/schemas/ExpectedVersion"
@@ -2443,6 +2456,54 @@
         "summary": "Health",
         "tags": [
           "memory-service"
+        ]
+      }
+    },
+    "/v1/method-profiles": {
+      "get": {
+        "description": "Read-only registration view: profiles, creation policies and the support\nregistry installed for the caller's current scope (A1).",
+        "operationId": "method_profiles_get_v1_method_profiles_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Method Profiles Get",
+        "tags": [
+          "governed-runtime"
         ]
       }
     },

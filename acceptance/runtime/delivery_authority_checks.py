@@ -41,6 +41,7 @@ def run_delivery_authority_checks(scenario) -> dict:
                 actors = fixture["actors"]
                 with conn.transaction():
                     conn.execute("SELECT set_config('app.governed_scope_id',%s,true)", (scope,))
+                    conn.execute("SELECT set_config('app.runtime_write_capability','tkos-runtime-a1',true)")
                     domain_b = str(conn.execute(
                         "SELECT domain_id FROM gov_role_assignments WHERE scope_id=%s AND assignment_id=%s",
                         (scope, actors["outsider"]["assignment_id"]),
@@ -75,6 +76,7 @@ def run_delivery_authority_checks(scenario) -> dict:
                 with psycopg.connect(h.env["APP_DATABASE_URL"], row_factory=dict_row) as conn:
                     conn.execute("SET TRANSACTION READ ONLY")
                     conn.execute("SELECT set_config('app.governed_scope_id',%s,true)", (scope,))
+                    conn.execute("SELECT set_config('app.runtime_write_capability','tkos-runtime-a1',true)")
                     return conn.execute(statement, params).fetchall()
 
             def snapshot():
@@ -152,6 +154,7 @@ def run_delivery_authority_checks(scenario) -> dict:
                 try:
                     with psycopg.connect(h.env["MIGRATION_DATABASE_URL"]) as conn:
                         conn.execute("SELECT set_config('app.governed_scope_id',%s,true)", (scope,))
+                        conn.execute("SELECT set_config('app.runtime_write_capability','tkos-runtime-a1',true)")
                         conn.execute(
                             """INSERT INTO gov_activation_policies
                                (policy_revision_id,scope_id,domain_id,policy_id,policy_seq,content,recorded_by)

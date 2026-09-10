@@ -6,7 +6,7 @@ import uuid
 
 from psycopg.types.json import Jsonb
 
-from memory_service_runtime.governed import db, delivery
+from memory_service_runtime.governed import db, delivery, protocol
 from memory_service_runtime.governed.errors import GovernedError
 
 
@@ -22,9 +22,17 @@ def timestamp(value):
 def object_state(conn, ctx, object_id: str) -> dict:
     obj = db.object_row(conn, ctx, object_id)
     result = dict(obj)
+    # Protocol metadata attaches to every authorized read; legacy type
+    # interpretation (delivery/feedback/outcome projections) runs only when
+    # the current registration actually supports legacy v0.2 interpretation.
+    metadata = protocol.read_metadata(conn, ctx.scope_id, object_id)
+    result["protocol"] = metadata
+    legacy = metadata["interpretation_status"] == "legacy_v0_2"
     for label in ("latest", "effective"):
         rid = obj.get(f"{label}_revision_id")
         result[f"{label}_revision"] = db.revision_row(conn, ctx, object_id, str(rid)) if rid else None
+    if not legacy:
+        return db.jsonable(result)
     if obj["object_type"] == "WorkItem":
         result["delivery"] = delivery.read_work_item(conn, ctx, obj)
     elif obj["object_type"] == "FeedbackThread":
@@ -82,7 +90,11 @@ def feedback_state(conn, ctx, obj: dict) -> dict:
 
 
 def revision(conn, ctx, object_id: str, revision_id: str) -> dict:
-    return db.jsonable(db.revision_row(conn, ctx, object_id, revision_id))
+    result = db.jsonable(db.revision_row(conn, ctx, object_id, revision_id))
+    # A1-12: revision reads carry the object's current protocol identity, just
+    # like object GET; stored revision bytes and payload_hash stay untouched.
+    result["protocol"] = protocol.read_metadata(conn, ctx.scope_id, object_id)
+    return result
 
 
 def authorize_receipt(conn, ctx, receipt: dict):
@@ -149,6 +161,9 @@ def _sources(conn, ctx, row: dict, known_at: datetime) -> list[dict] | None:
     sources = []
     for reference in delivery.payload_references(row["payload"]):
         parent = db.object_row(conn, ctx, reference["object_id"])
+        # Every source must also be read-supported under its current binding;
+        # a cross-protocol parent never flows into a legacy interpretation.
+        protocol.require_read_support(conn, ctx.scope_id, parent["object_id"])
         source = db.revision_row(conn, ctx, parent["object_id"], reference["revision_id"])
         if timestamp(source["recorded_at"]) > known_at:
             return None
@@ -164,19 +179,31 @@ def context_pack(conn, ctx, object_ids: list[str], valid_at: datetime, known_at:
     selected, excluded = [], []
     for object_id in object_ids:
         obj = db.object_row(conn, ctx, object_id)
+        # Protocol support is resolved before the legacy FORMAL_TYPES
+        # selection: an unsupported or non-legacy object is excluded with an
+        # explicit reason, never silently read under legacy meaning.
+        metadata = protocol.read_metadata(conn, ctx.scope_id, object_id)
+        if metadata["interpretation_status"] != "legacy_v0_2":
+            excluded.append({"object_id": object_id,
+                             "reason": "protocol_interpretation_not_supported",
+                             "protocol": metadata})
+            continue
         row = _selected_revision(conn, ctx, obj, valid_at, known_at)
         if row is None:
-            excluded.append({"object_id": object_id, "reason": "no_effective_revision_at_requested_times"})
+            excluded.append({"object_id": object_id, "reason": "no_effective_revision_at_requested_times",
+                             "protocol": metadata})
             continue
         sources = _sources(conn, ctx, row, known_at)
         if sources is None:
-            excluded.append({"object_id": object_id, "reason": "source_not_known_at_requested_time"})
+            excluded.append({"object_id": object_id, "reason": "source_not_known_at_requested_time",
+                             "protocol": metadata})
             continue
         selection = {"object_id": object_id, "object_type": obj["object_type"],
                                      "revision_id": row["revision_id"], "payload": row["payload"],
                                      "payload_hash": row["payload_hash"], "recorded_at": row["recorded_at"],
                                      "valid_from": row["valid_from"], "valid_to": row["valid_to"],
-                                     "source_refs": sources}
+                                     "source_refs": sources,
+                                     "protocol": metadata}
         if obj["object_type"] == "CompanyOutcome":
             assessment = delivery.read_outcome_assessment(conn, ctx, object_id, str(row["revision_id"]), known_at=known_at, valid_at=valid_at)
             selection["outcome_assessment"] = assessment
@@ -200,7 +227,24 @@ def context_snapshot(conn, ctx, snapshot_id: str) -> dict:
                        (ctx.scope_id, snapshot_id)).fetchone()
     if row is None:
         raise GovernedError("NOT_FOUND", "Context snapshot was not found", status=404)
-    for item in [*row["selected"], *row["excluded"]]:
+    for item in row["selected"]:
+        db.object_row(conn, ctx, item["object_id"])
+        # Frozen content is never recomputed, but a selected object whose read
+        # support was withdrawn since the snapshot must not be served again.
+        # The stored item was selected under legacy interpretation, so the
+        # current registration must still be exactly legacy (B10).
+        protocol.require_legacy_read_support(conn, ctx.scope_id, item["object_id"])
+        for source in item.get("source_refs", []):
+            db.revision_row(conn, ctx, source["object_id"], source["revision_id"])
+            protocol.require_read_support(conn, ctx.scope_id, source["object_id"])
+        review = item.get("delivery_review")
+        if review:
+            db.revision_row(conn, ctx, review["work_item_object_id"], review["work_item_revision_id"])
+            protocol.require_legacy_read_support(conn, ctx.scope_id, review["work_item_object_id"])
+        assessment = item.get("outcome_assessment")
+        if assessment:
+            delivery.read_outcome_assessment(conn, ctx, item["object_id"], item["revision_id"], known_at=row["known_at"], valid_at=row["valid_at"])
+    for item in row["excluded"]:
         db.object_row(conn, ctx, item["object_id"])
         for source in item.get("source_refs", []):
             db.revision_row(conn, ctx, source["object_id"], source["revision_id"])

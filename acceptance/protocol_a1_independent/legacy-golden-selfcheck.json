@@ -1,0 +1,326 @@
+{
+  "gate": "legacy_serialization_only",
+  "model_source": "/private/tmp/tkos-a1-legacy-3cd9109d/src/memory_service_runtime/governed/models.py",
+  "total": 35,
+  "passed": 35,
+  "failed": 0,
+  "checks": [
+    {
+      "id": "create_CompanyOutcome_defaults",
+      "passed": true,
+      "checks": {
+        "canonical_payload": true,
+        "canonical_utf8_hex": true,
+        "request_hash": true
+      }
+    },
+    {
+      "id": "create_BusinessCommitment_defaults",
+      "passed": true,
+      "checks": {
+        "canonical_payload": true,
+        "canonical_utf8_hex": true,
+        "request_hash": true
+      }
+    },
+    {
+      "id": "create_ExecutionCommitment_defaults",
+      "passed": true,
+      "checks": {
+        "canonical_payload": true,
+        "canonical_utf8_hex": true,
+        "request_hash": true
+      }
+    },
+    {
+      "id": "create_FeedbackThread_defaults",
+      "passed": true,
+      "checks": {
+        "canonical_payload": true,
+        "canonical_utf8_hex": true,
+        "request_hash": true
+      }
+    },
+    {
+      "id": "create_ManagementAdjustment_defaults",
+      "passed": true,
+      "checks": {
+        "canonical_payload": true,
+        "canonical_utf8_hex": true,
+        "request_hash": true
+      }
+    },
+    {
+      "id": "create_Decision_defaults",
+      "passed": true,
+      "checks": {
+        "canonical_payload": true,
+        "canonical_utf8_hex": true,
+        "request_hash": true
+      }
+    },
+    {
+      "id": "create_MetricObservation_defaults",
+      "passed": true,
+      "checks": {
+        "canonical_payload": true,
+        "canonical_utf8_hex": true,
+        "request_hash": true
+      }
+    },
+    {
+      "id": "create_WorkItem_defaults",
+      "passed": true,
+      "checks": {
+        "canonical_payload": true,
+        "canonical_utf8_hex": true,
+        "request_hash": true
+      }
+    },
+    {
+      "id": "propose_outcome_defaults",
+      "passed": true,
+      "checks": {
+        "canonical_payload": true,
+        "canonical_utf8_hex": true,
+        "request_hash": true
+      }
+    },
+    {
+      "id": "accept_commitment",
+      "passed": true,
+      "checks": {
+        "canonical_payload": true,
+        "canonical_utf8_hex": true,
+        "request_hash": true
+      }
+    },
+    {
+      "id": "activate_commitment",
+      "passed": true,
+      "checks": {
+        "canonical_payload": true,
+        "canonical_utf8_hex": true,
+        "request_hash": true
+      }
+    },
+    {
+      "id": "confirm_adjustment",
+      "passed": true,
+      "checks": {
+        "canonical_payload": true,
+        "canonical_utf8_hex": true,
+        "request_hash": true
+      }
+    },
+    {
+      "id": "confirm_closure",
+      "passed": true,
+      "checks": {
+        "canonical_payload": true,
+        "canonical_utf8_hex": true,
+        "request_hash": true
+      }
+    },
+    {
+      "id": "route_feedback",
+      "passed": true,
+      "checks": {
+        "canonical_payload": true,
+        "canonical_utf8_hex": true,
+        "request_hash": true
+      }
+    },
+    {
+      "id": "record_acceptance",
+      "passed": true,
+      "checks": {
+        "canonical_payload": true,
+        "canonical_utf8_hex": true,
+        "request_hash": true
+      }
+    },
+    {
+      "id": "request_feedback_acceptance",
+      "passed": true,
+      "checks": {
+        "canonical_payload": true,
+        "canonical_utf8_hex": true,
+        "request_hash": true
+      }
+    },
+    {
+      "id": "revoke_assignment",
+      "passed": true,
+      "checks": {
+        "canonical_payload": true,
+        "canonical_utf8_hex": true,
+        "request_hash": true
+      }
+    },
+    {
+      "id": "submit_v1_defaults",
+      "passed": true,
+      "checks": {
+        "canonical_payload": true,
+        "canonical_utf8_hex": true,
+        "request_hash": true
+      }
+    },
+    {
+      "id": "submit_v2_explicit",
+      "passed": true,
+      "checks": {
+        "canonical_payload": true,
+        "canonical_utf8_hex": true,
+        "request_hash": true
+      }
+    },
+    {
+      "id": "review_deliverable",
+      "passed": true,
+      "checks": {
+        "canonical_payload": true,
+        "canonical_utf8_hex": true,
+        "request_hash": true
+      }
+    },
+    {
+      "id": "record_outcome_defaults",
+      "passed": true,
+      "checks": {
+        "canonical_payload": true,
+        "canonical_utf8_hex": true,
+        "request_hash": true
+      }
+    },
+    {
+      "id": "accept_feedback",
+      "passed": true,
+      "checks": {
+        "canonical_payload": true,
+        "canonical_utf8_hex": true,
+        "request_hash": true
+      }
+    },
+    {
+      "id": "investigate_feedback",
+      "passed": true,
+      "checks": {
+        "canonical_payload": true,
+        "canonical_utf8_hex": true,
+        "request_hash": true
+      }
+    },
+    {
+      "id": "confirm_decision",
+      "passed": true,
+      "checks": {
+        "canonical_payload": true,
+        "canonical_utf8_hex": true,
+        "request_hash": true
+      }
+    },
+    {
+      "id": "confirm_outcome",
+      "passed": true,
+      "checks": {
+        "canonical_payload": true,
+        "canonical_utf8_hex": true,
+        "request_hash": true
+      }
+    },
+    {
+      "id": "reopen_feedback",
+      "passed": true,
+      "checks": {
+        "canonical_payload": true,
+        "canonical_utf8_hex": true,
+        "request_hash": true
+      }
+    },
+    {
+      "id": "accept_work_item",
+      "passed": true,
+      "checks": {
+        "canonical_payload": true,
+        "canonical_utf8_hex": true,
+        "request_hash": true
+      }
+    },
+    {
+      "id": "explicit_nullable_create",
+      "passed": true,
+      "checks": {
+        "canonical_payload": true,
+        "canonical_utf8_hex": true,
+        "request_hash": true
+      }
+    },
+    {
+      "id": "explicit_nullable_bundle",
+      "passed": true,
+      "checks": {
+        "canonical_payload": true,
+        "canonical_utf8_hex": true,
+        "request_hash": true
+      }
+    },
+    {
+      "id": "explicit_nullable_response",
+      "passed": true,
+      "checks": {
+        "canonical_payload": true,
+        "canonical_utf8_hex": true,
+        "request_hash": true
+      }
+    },
+    {
+      "id": "explicit_empty_delivery_acceptances",
+      "passed": true,
+      "checks": {
+        "canonical_payload": true,
+        "canonical_utf8_hex": true,
+        "request_hash": true
+      }
+    },
+    {
+      "id": "work_due_timezone",
+      "passed": true,
+      "checks": {
+        "canonical_payload": true,
+        "canonical_utf8_hex": true,
+        "request_hash": true
+      }
+    },
+    {
+      "id": "outcome_explicit_empty_terms",
+      "passed": true,
+      "checks": {
+        "canonical_payload": true,
+        "canonical_utf8_hex": true,
+        "request_hash": true
+      }
+    },
+    {
+      "id": "observation_float",
+      "passed": true,
+      "checks": {
+        "canonical_payload": true,
+        "canonical_utf8_hex": true,
+        "request_hash": true
+      }
+    },
+    {
+      "id": "meaningful_whitespace",
+      "passed": true,
+      "checks": {
+        "canonical_payload": true,
+        "canonical_utf8_hex": true,
+        "request_hash": true
+      }
+    }
+  ],
+  "database_access": false,
+  "contract_a1_accepted": false
+}

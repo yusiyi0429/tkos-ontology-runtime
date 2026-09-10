@@ -15,6 +15,7 @@ from datetime import datetime, timezone
 from uuid import UUID
 
 from memory_service_runtime.governed.db import AuthContext
+from tests import legacy_protocol_fixture
 
 
 def uid(value: int) -> str:
@@ -47,7 +48,8 @@ class FakeConn:
     row_factory = None
 
     def __init__(self, *, domains=(), objects=(), revisions=(), receipts=(),
-                 work_item_state=None, assignment_rows=(), revision_owners=None):
+                 work_item_state=None, assignment_rows=(), revision_owners=None,
+                 protocol_objects=None):
         self._domains = [dict(row) for row in domains]
         self._objects = [dict(row) for row in objects]
         self._revisions = [dict(row) for row in revisions]
@@ -55,9 +57,15 @@ class FakeConn:
         self._work_item_state = work_item_state
         self._assignment_rows = {str(row["assignment_id"]): dict(row) for row in assignment_rows}
         self._revision_owners = dict(revision_owners or {})
+        # Objects explicitly registered under the frozen legacy protocol rows.
+        # Defaults to the listed objects; tests with mocked heads/targets must
+        # name their known fixture objects here.  Unknown objects stay
+        # unregistered and are never read as legacy by default.
+        self._protocol_objects = (
+            {str(oid) for oid in protocol_objects} if protocol_objects is not None
+            else {str(row["object_id"]) for row in self._objects})
 
     def execute(self, sql, params=()):
-        scope = params[0]
         if "/*workbench:domain-check*/" in sql:
             return Result([row for row in self._domains if str(row["domain_id"]) == str(params[1])])
         if "/*workbench:domains*/" in sql:
@@ -115,6 +123,15 @@ class FakeConn:
         if "/*workbench:assignment*/" in sql:
             row = self._assignment_rows.get(str(params[1]))
             return Result([row] if row else [])
+        # A1 protocol registration reads (single + batched binding, installed
+        # profile, support registry): only objects explicitly present in this
+        # fake are registered; unknown objects stay unregistered, never legacy.
+        # The expected scope is the fixture-fixed CTX scope, never params[0]
+        # itself (that would be self-proving).
+        protocol_rows = legacy_protocol_fixture.answer_query(
+            " ".join(sql.split()), params, CTX.scope_id, self._protocol_objects)
+        if protocol_rows is not None:
+            return Result(protocol_rows)
         raise AssertionError(f"unhandled SQL: {sql[:120]}")
 
 

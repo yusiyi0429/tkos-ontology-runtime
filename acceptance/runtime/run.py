@@ -91,6 +91,7 @@ class Scenario:
         url = self.h.env["APP_DATABASE_URL" if app else "MIGRATION_DATABASE_URL"]
         with psycopg.connect(url, row_factory=dict_row) as conn:
             conn.execute("SELECT set_config('app.governed_scope_id', %s, true)", (self.f["scope_id"],))
+            conn.execute("SELECT set_config('app.runtime_write_capability','tkos-runtime-a1', true)")
             return conn.execute(statement, params).fetchall()
 
     def object(self, object_id):

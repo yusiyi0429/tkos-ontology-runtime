@@ -22,6 +22,7 @@ tkos-memory-migrate = "memory_service_app.migrate:main"
 tkos-memory-worker = "memory_service_runtime.cli:worker_main"
 tkos-memory-worker-health = "memory_service_runtime.cli:health_main"
 tkos-memory-task-enqueue = "memory_service_runtime.cli:enqueue_main"
+tkos-governed-control = "memory_service_runtime.governed.control:main"
 
 [dependency-groups]
 dev = [

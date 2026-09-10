@@ -1,0 +1,22 @@
+{
+  "gate": "independent_harness_safety_only",
+  "passed": 13,
+  "failed": 0,
+  "checks": [
+    "extra_metadata_cannot_override_acceptance",
+    "one_subcheck_does_not_pass_group",
+    "duplicate_subcheck_cannot_overwrite",
+    "failure_stays_failed_after_all_other_successes",
+    "empty_error_failure_is_sticky",
+    "synthetic_isolated_environment_valid",
+    "reject_different_db",
+    "reject_different_port",
+    "reject_remote_db",
+    "reject_database_prefix_confusion",
+    "reject_same_role",
+    "reject_remote_s3",
+    "reject_userinfo_s3"
+  ],
+  "database_access": false,
+  "contract_a1_accepted": false
+}

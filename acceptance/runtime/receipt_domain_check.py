@@ -45,6 +45,7 @@ def run_receipt_domain_check(harness, base_url: str) -> dict:
             first_ceo = fixture["actors"]["ceo"]
             with conn.transaction():
                 conn.execute("SELECT set_config('app.governed_scope_id',%s,true)", (scope_id,))
+                conn.execute("SELECT set_config('app.runtime_write_capability','tkos-runtime-a1',true)")
                 row = conn.execute(
                     "SELECT domain_id FROM gov_role_assignments WHERE scope_id=%s AND assignment_id=%s",
                     (scope_id, fixture["actors"]["outsider"]["assignment_id"]),
@@ -128,6 +129,7 @@ def run_receipt_domain_check(harness, base_url: str) -> dict:
         with psycopg.connect(harness.env["APP_DATABASE_URL"], row_factory=dict_row) as conn:
             conn.execute("SET TRANSACTION READ ONLY")
             conn.execute("SELECT set_config('app.governed_scope_id',%s,true)", (scope_id,))
+            conn.execute("SELECT set_config('app.runtime_write_capability','tkos-runtime-a1',true)")
             rows = conn.execute(
                 """SELECT assignment_id::text, domain_id::text, role, active
                    FROM gov_role_assignments WHERE scope_id=%s AND principal_id=%s

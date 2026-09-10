@@ -16,6 +16,8 @@ import psycopg
 from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
 
+from . import profile, protocol
+from .db import set_write_capability
 from .errors import GovernedError
 
 
@@ -61,6 +63,11 @@ def seed_scope(conn: psycopg.Connection, tenant_id: str, company_id: str) -> dic
     policy_revision_id = _id()
     actors: dict[str, dict[str, str]] = {}
     with conn.transaction():
+        # Controlled provisioning runs as the database owner: declare the A1
+        # runtime capability (0018 write fences) and the control plane (owner-
+        # checked by gov_control_plane_on()) before any protected statement.
+        set_write_capability(conn)
+        conn.execute("SELECT set_config('app.gov_control_plane', 'on', true)")
         conn.execute("SELECT set_config('app.governed_scope_id', %s, true)", (scope_id,))
         conn.execute("INSERT INTO gov_scopes(scope_id,tenant_id,company_id) VALUES (%s,%s,%s)",
                      (scope_id, tenant_id, company_id))
@@ -131,6 +138,56 @@ def seed_scope(conn: psycopg.Connection, tenant_id: str, company_id: str) -> dic
             })),
         )
         conn.execute("SELECT set_config('app.governed_credential_digest', '', true)")
+        # A1 registration: a fresh acceptance scope is explicitly registered as
+        # legacy — the interpretation record, the scope default policy, both
+        # support-registry entries, and the seeded Outcome's binding.  New
+        # scopes never default to legacy implicitly; this block is the record.
+        conn.execute(
+            """INSERT INTO gov_method_profile_revisions
+               (scope_id, profile_id, revision, schema_version, canonical_hash,
+                action_contract_ref, record_origin, experimental, content,
+                installed_by, install_reason)
+               VALUES (%s,%s,%s,%s,%s,NULL,'legacy',false,%s,%s,%s)""",
+            (scope_id, profile.LEGACY_PROFILE_ID, profile.LEGACY_PROFILE_REVISION,
+             "tkos.legacy-interpretation-record/0.2", profile.LEGACY_PROFILE_CANONICAL_HASH,
+             Jsonb(profile.LEGACY_PROFILE_CONTENT), "bootstrap",
+             "controlled acceptance scope legacy registration"),
+        )
+        conn.execute(
+            """INSERT INTO gov_protocol_policies
+               (scope_id, domain_id, policy_seq, content, recorded_by, reason)
+               VALUES (%s,NULL,1,%s,%s,%s)""",
+            (scope_id, Jsonb(profile.LEGACY_SCOPE_POLICY_CONTENT), "bootstrap",
+             "controlled acceptance scope legacy registration"),
+        )
+        for protocol_id, contract_version, content in (
+                (profile.LEGACY_PROTOCOL_ID, profile.LEGACY_CONTRACT_VERSION,
+                 profile.LEGACY_REGISTRY_CONTENT),
+                (profile.CONTRACT_A_PROTOCOL_ID, profile.CONTRACT_A_CONTRACT_VERSION,
+                 profile.CONTRACT_A_REGISTRY_CONTENT)):
+            conn.execute(
+                """INSERT INTO gov_protocol_support_registry
+                   (scope_id, protocol_id, contract_version, registry_seq, content, recorded_by)
+                   VALUES (%s,%s,%s,1,%s,%s)""",
+                (scope_id, protocol_id, contract_version, Jsonb(content), "bootstrap"),
+            )
+        protocol.insert_binding(
+            conn, scope_id, object_id,
+            {"protocol_id": profile.LEGACY_PROTOCOL_ID,
+             "contract_version": profile.LEGACY_CONTRACT_VERSION,
+             "profile_id": profile.LEGACY_PROFILE_ID,
+             "profile_revision": profile.LEGACY_PROFILE_REVISION,
+             "profile_canonical_hash": profile.LEGACY_PROFILE_CANONICAL_HASH,
+             "record_origin": "legacy"},
+            registered_by="bootstrap",
+            detail={"registration": "legacy_bootstrap"},
+        )
+        conn.execute(
+            """INSERT INTO gov_protocol_control_events (scope_id, event_type, detail, actor)
+               VALUES (%s,'bootstrap_legacy_registration',%s,'bootstrap')""",
+            (scope_id, Jsonb({"kind": "legacy_registration", "source": "bootstrap.seed_scope",
+                              "seeded_object_ids": [object_id]})),
+        )
     return {"scope_id": scope_id, "tenant_id": tenant_id, "company_id": company_id,
             "domain_id": domain_id, "policy_revision_id": policy_revision_id,
             "actors": actors, "outcome": {"object_id": object_id, "revision_id": revision_id}}

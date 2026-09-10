@@ -11,7 +11,7 @@ import json
 import re
 from uuid import UUID
 
-from . import db, delivery, readers
+from . import db, delivery, protocol, readers
 from .errors import GovernedError
 
 
@@ -63,6 +63,7 @@ class _Projection:
         self.valid_at, self.known_at = valid_at, known_at
         self.state_at = min(valid_at, known_at)
         self.objects, self.revisions, self.sources = {}, {}, {}
+        self.protocol_meta = {}
 
     def object(self, object_id):
         object_id = str(object_id)
@@ -72,6 +73,9 @@ class _Projection:
                 # Do not reveal even the title of a currently readable other domain.
                 raise GovernedError("NOT_FOUND")
             self.objects[object_id] = obj
+            # Protocol interpretation support is resolved with the same current
+            # rights; nothing non-legacy may flow into legacy fact projection.
+            self.protocol_meta[object_id] = protocol.read_metadata(self.conn, self.ctx.scope_id, object_id)
         return self.objects[object_id]
 
     def revision(self, object_id, revision_id):
@@ -109,6 +113,9 @@ class _Projection:
     def source(self, object_id, revision_id):
         """Authorize every edge, including recursively frozen upstream evidence."""
         obj, row = self.revision(object_id, revision_id)
+        if self.protocol_meta[str(obj["object_id"])]["interpretation_status"] != "legacy_v0_2":
+            # A cross-protocol source must never be read under legacy meaning.
+            raise _HistoricalSourceUnavailable()
         rid = str(row["revision_id"])
         if rid in self.sources:
             return
@@ -229,6 +236,9 @@ class _Projection:
         self.sources = {}
         self.source(obj["object_id"], row["revision_id"])
         result = _reference(row, obj["object_type"])
+        # A1-12: the selected fact carries the interpretation identity that was
+        # actually read and verified for this projection (B07).
+        result["protocol"] = self.protocol_meta[str(obj["object_id"])]
         result["payload"] = _safe({key: value for key, value in row["payload"].items() if key in _PAYLOAD_FIELDS})
         result["lifecycle_status"] = event["to_status"]
         result["state_source"] = {key: event[key] for key in (
@@ -311,13 +321,19 @@ def collect_facts(conn, ctx, *, domain_id: str, query: str, object_ids: list[str
     eligible, excluded = [], []
     for object_id in ids:
         obj = projection.object(object_id)
+        if projection.protocol_meta[object_id]["interpretation_status"] != "legacy_v0_2":
+            excluded.append({"object_id": object_id,
+                             "reason": "protocol_interpretation_not_supported",
+                             "protocol": projection.protocol_meta[object_id]})
+            continue
         event = projection.event(object_id)
         row = readers._selected_revision(conn, ctx, obj, valid_at, projection.state_at)
         effective = event["detail"].get("effective_revision_id") if event else None
         needs_effective = obj["object_type"] in readers.FORMAL_TYPES | {"ManagementAdjustment"}
         if (event is None or row is None or (needs_effective and not effective)
                 or (needs_effective and str(row["revision_id"]) != str(effective))):
-            excluded.append({"object_id": object_id, "reason": "no_effective_revision_at_requested_times"})
+            excluded.append({"object_id": object_id, "reason": "no_effective_revision_at_requested_times",
+                             "protocol": projection.protocol_meta[object_id]})
             continue
         # The historical selector uses raw rows; explicitly recheck the exact
         # selected revision with current rights before exposing any content.
@@ -329,7 +345,8 @@ def collect_facts(conn, ctx, *, domain_id: str, query: str, object_ids: list[str
         try:
             selected.append(projection.fact(obj, row, event))
         except _HistoricalSourceUnavailable:
-            excluded.append({"object_id": str(obj["object_id"]), "reason": "source_not_effective_at_requested_times"})
+            excluded.append({"object_id": str(obj["object_id"]), "reason": "source_not_effective_at_requested_times",
+                             "protocol": projection.protocol_meta[str(obj["object_id"])]})
     return db.jsonable({
         "schema_version": "governed-facts.v1", "domain_id": domain_id,
         "valid_at": valid_at, "known_at": known_at,

@@ -91,6 +91,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--clark-root", type=Path, default=Path("/Users/yusiyi/ysy/clark"))
     parser.add_argument("--run-id")
+    parser.add_argument("--next-dist-dir", help="Separate Next build directory when another local validation server is running")
     parser.add_argument("--keep", action="store_true", help="Keep only owned processes alive for browser acceptance")
     parser.add_argument("--stop", type=Path, help="Request graceful stop using this run's private state.json")
     parser.add_argument("--resume-state", type=Path, help="Resume a stopped run with the same persisted business objects, identities and Clark port")
@@ -105,6 +106,11 @@ def main() -> None:
         return
 
     resumed = json.loads(args.resume_state.read_text()) if args.resume_state else None
+    next_dist_dir = args.next_dist_dir or (resumed or {}).get("next_dist_dir", ".next-clark-v02")
+    if (not next_dist_dir.startswith(".next-") or len(next_dist_dir) > 100
+            or not all(character.isascii() and (character.isalnum() or character in ".-_")
+                       for character in next_dist_dir)):
+        raise ValueError("Next build directory must be a local .next-* directory name")
     if resumed:
         try:
             os.kill(resumed["owner_pid"], 0)
@@ -158,7 +164,7 @@ def main() -> None:
             "TKOS_GRAPHKNOWLEDGE_AUTH", "TKOS_GRAPHKNOWLEDGE_BASE_URL", "OPERATOR_TOKEN")})
         clark_env.update({
             "NODE_ENV": "development", "NEXT_TELEMETRY_DISABLED": "1", "TKOS_DEV_PIN": "0",
-            "NEXT_DIST_DIR": ".next-clark-v02",
+            "NEXT_DIST_DIR": next_dist_dir,
             "TKOS_MODE": "demo", "TKOS_MODEL_MOCK": "1", "TKOS_SEARCH_PROVIDER": "none",
             "TKOS_GRAPHKNOWLEDGE_MOCK": "1", "TKOS_PERSIST": "0", "TKOS_DATA_DIR": str(h.private / "clark-data"),
             "TKOS_RUNTIME_ENABLED": "1", "TKOS_RUNTIME_BASE_URL": s.api_url,

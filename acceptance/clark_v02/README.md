@@ -6,6 +6,8 @@ This harness creates an isolated `runtime-acceptance-clark-*` scope using the ex
 .venv/bin/python acceptance/clark_v02/start.py --keep
 ```
 
+If another validation server already uses `.next-clark-v02`, select a separate build directory with `--next-dist-dir .next-clark-main-check`. The directory must be a local `.next-*` name. A resumed run reuses the directory saved in its state unless explicitly overridden; the existing server is not stopped.
+
 The command owns one API, receiver, Worker and loopback-only Next dev server. It prints only public URLs and a private `state.json` path. Keep the command running while browser and HTTP acceptance use these services. `state.json` points to per-identity login codes and the server-side identity mapping; those files have mode 0600 and must never be printed, committed or placed in browser bundles.
 
 Next uses `.next-clark-v02` as its separate build directory and sets `TKOS_RUNTIME_CLARK_ORIGIN` to the actual loopback URL. This keeps strict Origin/Host checks independent of Next's internal request URL normalization.
@@ -66,3 +68,13 @@ It uses the application database role in a `REPEATABLE READ READ ONLY` transacti
 Next uses a private data directory, demo mode, model/search mocks and explicit empty API credentials. Runtime integration is real HTTP; demo model outputs are never used as acceptance evidence. The independent Runtime credentials are available only to the Clark BFF, and a separate random shared Clark password cannot confer Runtime authority.
 
 This is local joint acceptance with synthetic named identities. It is not SSO provisioning, a remote deployment or production acceptance.
+
+The authority group also checks the Clark v0.142.0 command-brief boundary: a shared Clark CEO cookie cannot dispatch a Runtime WorkItem, a Runtime personal cookie cannot invoke Clark's CEO-only command RPCs, and raw Clark issued-order fields cannot bypass the BFF action allowlist. See [the command-brief integration review](../../docs/clark-command-brief-runtime-review.md) for the source/identity/version mapping still required before automatic handoff.
+
+The 2026-09-10 A1 recheck passed all four HTTP groups against a dedicated existing
+`tkos_a1_*` database with a fresh synthetic scope. Codex selected that environment
+through a local QA adapter; the application, startup, BFF and assertions were
+unchanged. The existing 0017 demo database was not upgraded. The default launcher
+still consumes `.runtime-acceptance/env.json`; do not mistake its current schema
+for proof of A1 readiness. See [the A1 result](../../docs/acceptance/clark-runtime-a1-20260910.json)
+for exact source, browser-smoke, recovery and deployment boundaries.

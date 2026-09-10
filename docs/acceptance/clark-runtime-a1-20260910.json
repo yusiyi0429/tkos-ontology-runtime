@@ -1,0 +1,76 @@
+{
+  "date": "2026-09-10",
+  "runtime_base_commit": "e9b904a77a17959d44444862b1a9be5e1e7db74a",
+  "clark_head": "82a94e0a60d6fc946029710288eec77f84bcd3e3",
+  "clark_checkout_includes_preexisting_uncommitted_integration": true,
+  "clark_worktree_unchanged_by_this_task": true,
+  "clark_checked_file_count": 812,
+  "clark_worktree_manifest_sha256": "4706329bf952691f3558a37566b2bfe6e2317708b74a61cac6d2d5e71350b8c9",
+  "run_id": "clark-a1-20260910-r1",
+  "database": "existing dedicated tkos_a1_* database, fresh synthetic scope, ordinary application role for Runtime/Worker",
+  "http_joint_accepted": true,
+  "http_groups": [
+    {
+      "name": "clark_01_cookie_identity_and_authority",
+      "status": "passed"
+    },
+    {
+      "name": "clark_02_versioned_real_dri_delivery",
+      "status": "passed"
+    },
+    {
+      "name": "clark_03_independent_outcome_and_mf",
+      "status": "passed"
+    },
+    {
+      "name": "clark_04_read_only_physical_oracle",
+      "status": "passed"
+    }
+  ],
+  "command_brief_boundaries": [
+    "shared Clark CEO cookie cannot execute Runtime commands",
+    "Runtime personal cookie cannot call Clark CEO-only command RPCs",
+    "issuedAt, driId and DecisionOrder fields cannot bypass the BFF allowlist"
+  ],
+  "delivery_versions": 2,
+  "delivery_reviews": 2,
+  "states_after_delivery": {
+    "delivery": "delivery_accepted",
+    "outcome": "not_assessed",
+    "mf": "investigating"
+  },
+  "states_after_independent_judgments": {
+    "delivery": "delivery_accepted",
+    "outcome": "not_achieved",
+    "mf": "closed"
+  },
+  "physical_oracle": {
+    "role": "application",
+    "read_only": true,
+    "actual_personal_receipts": 4
+  },
+  "clark_browser_smoke": {
+    "personal_DRI_login": true,
+    "real_offered_work_item_visible": true,
+    "delivery_outcome_mf_separate": true,
+    "full_browser_mutation_suite_rerun": false
+  },
+  "unavailability": {
+    "run_id": "clark-a1-20260910-r1",
+    "checked_at": "2026-09-10T10:15:55.356007+00:00",
+    "status": "passed",
+    "http_status": 503,
+    "code": "RUNTIME_UNAVAILABLE",
+    "mock_fallback": false,
+    "recovery_read_passed": true
+  },
+  "recovery_note": "First unavailable check was interrupted when Codex stopped the QA server too early; not counted as passed. Resumed the same persisted scope without reseeding and reran to completion.",
+  "prior_container_count": 14,
+  "existing_containers_unchanged": true,
+  "deferred_deployment_files_unchanged": 19,
+  "owned_test_processes_stopped": true,
+  "automatic_command_to_work_item_handoff_implemented": false,
+  "formal_DRI_product_ui_implemented": false,
+  "production_deployed": false,
+  "evidence_directory": "artifacts/runtime-acceptance/clark-a1-20260910-r1"
+}

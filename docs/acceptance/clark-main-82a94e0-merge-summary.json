@@ -1,0 +1,44 @@
+{
+  "checked_at": "2026-09-09T15:09:47.274404+08:00",
+  "clark_head": "82a94e0a60d6fc946029710288eec77f84bcd3e3",
+  "clark_upstream": "82a94e0a60d6fc946029710288eec77f84bcd3e3",
+  "runtime_head": "c977da9588f48f08b7f76b6828e75e0b02576076",
+  "clark_version": "0.142.0",
+  "merge": "fast_forward_with_local_changes_preserved",
+  "remaining_conflicts": [],
+  "upstream_product_files_unchanged": true,
+  "verification": {
+    "vitest": {
+      "passed": 2484,
+      "skipped": 12,
+      "test_files_passed": 211,
+      "test_files_skipped": 7
+    },
+    "typescript": "passed",
+    "eslint_touched_files": "passed",
+    "next_build": "passed",
+    "http_groups": 4,
+    "http_joint_accepted": true,
+    "runtime_unavailable_http_status": 503,
+    "no_mock_fallback": true,
+    "recovery_read_passed": true
+  },
+  "automatic_command_to_runtime_handoff_implemented": false,
+  "formal_dri_ui_implemented": false,
+  "browser_acceptance_this_run": false,
+  "committed_local_adaptation": false,
+  "pushed": false,
+  "production_deployed": false,
+  "source_sha256": {
+    "src/app/api/data/route.test.ts": "012a591e054b427f136f2c3988102c88f8f09b8fb2967584573d87ed7c773252",
+    "src/app/api/chat/route.test.ts": "f3035aff06ba7268d7701343363622ad7f60fd49ed056dfd536954bfba97c2eb",
+    "src/lib/runtime/handlers.ts": "788048cff5fd90d6b80732b633c0d37bc7499069c31d0ecccc14003a3b9b0154",
+    "src/lib/runtime/handlers.test.ts": "5a3ec835bfc44e76d96bb691dadba9f66a7f252bbac9b219d7aed8aecedb8c5f",
+    "src/lib/data/store.ts": "4ac9d8ebaaabddaef9b201f9d163b612a450fc7f8c31c1ffa8f47386fc673e0b",
+    "src/lib/data/types.ts": "28d58aa9cf846e968aac710029dd35d8377cd7a017f5a3706aa22d3fb6b4fe9e",
+    "src/lib/data/scope.ts": "a64f900cf3fbdd161ba7a3bb5eb126b91f908de62aff8077c7ec07cc1bab4c86",
+    "src/app/_views/advisor-view.tsx": "15a2d3fe8ba572594f12469c0166832962578d46eabca495dc3af15444f3af50"
+  },
+  "evidence_directory": "/Users/yusiyi/ysy/tkos-ontology-runtime/artifacts/runtime-acceptance/clark-main-82a94e0-20260909-r2",
+  "test_logs": "/Users/yusiyi/Downloads/clark-runtime-merge-20260909"
+}

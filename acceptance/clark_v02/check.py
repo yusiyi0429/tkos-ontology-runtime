@@ -138,12 +138,30 @@ class Checks:
             shared = json.loads(Path(self.state["shared_access_file"]).read_text())["password"]
             assert public.post("/api/access", json={"password": shared, "seat": "ceo"}).status_code == 200
             assert public.get(path).status_code == 401
+            # Clark's CEO seat and local issued-order fields are not Runtime authority.
+            assert public.post("/api/runtime/actions", json={
+                "action_type": "create_object", "params": {"object_type": "WorkItem"},
+                "issuedAt": utc_now(), "driId": "PSN-06",
+            }).status_code == 401
             assert public.post("/api/runtime/session", json={"accessCode": self.codes["ceo"]}, headers={"Origin": "https://attacker.invalid"}).status_code == 403
             assert public.post("/api/runtime/session", json={"accessCode": self.codes["mission_dri"], "role": "CEO"}).status_code == 400
         self.clients = {name: BffClient(self.url, name, code, self.log) for name, code in self.codes.items()}
         for name, client in self.clients.items():
             session = client.json("GET", "/api/runtime/session")
             assert session["actor"]["id"] == name
+        # Even an explicitly forwarded Runtime cookie cannot approve a Clark brief.
+        personal_cookie = self.clients["ceo"].http.cookies.get("tkos_runtime_session")
+        assert personal_cookie
+        with httpx.Client(base_url=self.url, headers={"Origin": self.url}, trust_env=False) as rpc:
+            for method in ("enterActionStaging", "approveCommandBrief", "listDecisionOrders"):
+                response = rpc.post("/api/data", headers={"Cookie": f"tkos_runtime_session={personal_cookie}"},
+                                    json={"method": method, "args": ["ISS-TEST"]})
+                assert response.status_code == 401
+        denied = self.clients["ceo"].json("POST", "/v1/actions", {
+            "action_type": "create_object", "params": {"object_type": "WorkItem",
+                "payload": {"id": "DO-D-TEST-1", "driId": "PSN-06", "issuedAt": utc_now()}},
+        }, expected=403)
+        assert denied["error"]["code"] == "ACTION_NOT_ALLOWED"
         self.clients["outsider"].object(self.work, expected=(403, 404))
         command = self.prepare("mission_dri", "accept_work_item", {}, self.work)
         for name in ("ceo", "domain_dri", "verifier", "agent"):

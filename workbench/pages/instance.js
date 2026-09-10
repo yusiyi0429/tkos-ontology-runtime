@@ -1,5 +1,6 @@
-// 页 02 实例详情：三状态带（演练闭环）→ 交付轨迹 → 提交与验收 + 责任/版本 → 对象内容与来源关系。
-// 历史 revision 内容与当前交付投影明确分开；证据字节经 textContent 展示或 Blob 下载。
+// 页 02 实例详情：页首为对象标题/类型/生命周期 + 回执入口；「概览 / 版本与内容 / 来源关系」
+// 本页页签。三状态带只在所选对象==演练 WI 锚点时显示（Outcome 只读 outcome_achievement）。
+// 完整 ID/hash/assignment/baseline 与版本指针收进默认收起的 details；异步重绘保持展开状态。
 import { esc, panel, head, foot, tag, loading, empty, errorBox, idLine } from '../lib/html.js';
 import { PagedLoader, ValueLoader } from '../lib/loaders.js';
 import { buildQuery, casePathToRoute } from '../lib/url.js';
@@ -14,9 +15,16 @@ import {
 
 const TEXT_PREVIEW_LIMIT = 64 * 1024;
 const ANCHOR_TITLES = { 交付: '交付验收', Outcome: 'Outcome 达成', MF: 'MF 关闭' };
+const TABS = [['overview', '概览'], ['version', '版本与内容'], ['relations', '来源关系']];
 
 function anchorId(config, key) {
   return casePathToRoute(config?.state_paths?.[key]).objectId || null;
+}
+
+// 初始页签：显式 ?rev 深链接直接落在版本页；WorkItem 默认概览，其它类型默认对象内容。
+export function initialInstanceTab({ objectType, explicitRevision }) {
+  if (explicitRevision) return 'version';
+  return objectType === 'WorkItem' ? 'overview' : 'version';
 }
 
 // 三项独立状态：分别读各自对象当前属性；Outcome 读 outcome_achievement，缺失即未提供。
@@ -97,6 +105,8 @@ function acceptanceBlock(acceptance, submission) {
 
 export async function renderInstance(main, ctx, route) {
   const objectId = route.objectId || anchorId(ctx.config, '交付');
+  // 三状态带仅在所选对象==演练 WI 锚点时显示；其它对象不出现无关演练状态。
+  const isAnchorWi = objectId && objectId === anchorId(ctx.config, '交付');
   const local = {
     object: null,
     selectedRevisionId: route.revisionId || null,
@@ -105,6 +115,8 @@ export async function renderInstance(main, ctx, route) {
     responsibilityError: null,
     submissionSeq: null,
     anchors: {},
+    tab: 'overview',
+    openDetails: new Set(),
   };
   const revisionLoader = new PagedLoader({
     pageSize: 20,
@@ -120,7 +132,7 @@ export async function renderInstance(main, ctx, route) {
   });
 
   if (!objectId) {
-    main.innerHTML = head('OBJECT INSTANCE', '实例详情', '演练配置缺少默认锚点。') + errorBox('没有可展示的默认对象', 'case.json 的 state_paths 未提供交付锚点。');
+    main.innerHTML = head('实例详情', '演练配置缺少默认锚点。') + errorBox('没有可展示的默认对象', 'case.json 的 state_paths 未提供交付锚点。');
     return;
   }
 
@@ -144,12 +156,23 @@ export async function renderInstance(main, ctx, route) {
     local.selectedRevision = await ctx.client.getJson(`/v1/objects/${objectId}/revisions/${rid}`, { signal: ctx.signal });
   }
 
+  function detailsAttr(key) {
+    return local.openDetails.has(key) ? ' open' : '';
+  }
+
   function statusBand() {
     const entries = Object.entries(ctx.config?.state_paths || {});
     if (!entries.length) return '';
     const cells = entries.map(([key]) => statusCell(key, local.anchors[key])).join('');
     return `<div class="tk-statusgrid">${cells}</div>` +
-      `<p class="tk-tiny tk-muted" style="margin:-8px 0 16px">本演练闭环当前状态：三项分别读取锚点对象的当前属性，互不推断联动，与下方所选实例无关。</p>`;
+      `<p class="tk-tiny tk-muted" style="margin:-8px 0 16px">本演练闭环当前状态：三项分别读取锚点对象的当前属性（Outcome 读 outcome_achievement），互不推断联动。</p>`;
+  }
+
+  function tabBar() {
+    const buttons = TABS.map(([key, label]) =>
+      `<button type="button" class="tk-tabbutton" data-action="tab" data-value="${key}" aria-pressed="${local.tab === key}">${label}</button>`,
+    ).join('');
+    return `<div class="tk-tabbar tk-pagetabs" aria-label="实例信息页签">${buttons}</div>`;
   }
 
   function timelinePanel() {
@@ -179,61 +202,81 @@ export async function renderInstance(main, ctx, route) {
     return `<div class="tk-flex"><label class="tk-field" for="tk-revision">revision<select class="tk-select" id="tk-revision" data-control="revision">${options}</select></label>${more}</div>`;
   }
 
-  function contentPanel() {
-    const rev = local.selectedRevision;
-    if (!rev) return panel('对象内容与版本', empty('未选择 revision。'));
-    const isLatest = rev.revision_id === local.object.latest_revision_id;
-    const isEffective = rev.revision_id === local.object.effective_revision_id;
-    const historyNote = !isLatest
-      ? '<div class="tk-note tk-warning" style="margin-top:12px">正在查看历史 revision 内容；上方交付轨迹与提交验收仍是当前业务投影，不代表该历史时点的状态。</div>'
-      : '';
-    return panel('对象内容与版本', `<div class="tk-pad">
-      ${revisionSelector()}
-      <div class="tk-divider"></div>
-      <div class="tk-flex">${isLatest ? tag('最新候选 latest', 'info') : ''}${isEffective ? tag('当前生效 effective', 'good') : ''}${!isLatest && !isEffective ? tag('历史 revision') : ''}</div>
-      <dl class="tk-kv" style="margin-top:12px">
+  // 版本指针：latest/effective/object_version 折叠进 details。
+  function pointersDetails() {
+    const o = local.object;
+    return `<details class="tk-details" data-detail-key="pointers"${detailsAttr('pointers')}>
+      <summary>版本指针</summary>
+      <div class="tk-detailsbody"><dl class="tk-kv">
+        <dt>对象版本</dt><dd>${esc(o.object_version)}</dd>
+        <dt>最新候选</dt><dd>${idLine(o.latest_revision_id)}</dd>
+        <dt>当前生效</dt><dd>${idLine(o.effective_revision_id)}</dd>
+        <dt>创建时间</dt><dd>${esc(fmtTime(o.created_at))}</dd>
+        <dt>更新时间</dt><dd>${esc(fmtTime(o.updated_at))}</dd>
+      </dl>
+      <p class="tk-tiny tk-muted" style="margin-top:10px">latest 与 effective 可能指向不同 revision；候选出现不代表生效。</p></div>
+    </details>`;
+  }
+
+  // 当前 revision 的完整 ID/hash/时间区间，折叠进 details。
+  function revisionProvenanceDetails(rev) {
+    return `<details class="tk-details" data-detail-key="prov-revision"${detailsAttr('prov-revision')}>
+      <summary>溯源信息 · 当前 revision</summary>
+      <div class="tk-detailsbody"><dl class="tk-kv">
+        <dt>对象 ID</dt><dd>${idLine(objectId)}</dd>
         <dt>revision</dt><dd>${idLine(rev.revision_id)}</dd>
         <dt>payload hash</dt><dd>${idLine(rev.payload_hash)}</dd>
         <dt>记录时间</dt><dd>${esc(fmtTime(rev.recorded_at))}</dd>
         <dt>有效区间</dt><dd>${esc(fmtTime(rev.valid_from))} → ${rev.valid_to ? esc(fmtTime(rev.valid_to)) : '至今'}</dd>
-      </dl>
+      </dl></div>
+    </details>`;
+  }
+
+  function contentPanel() {
+    const rev = local.selectedRevision;
+    if (!rev) return panel('版本与内容', empty('未选择 revision。'));
+    const isLatest = rev.revision_id === local.object.latest_revision_id;
+    const isEffective = rev.revision_id === local.object.effective_revision_id;
+    const historyNote = !isLatest
+      ? '<div class="tk-note tk-warning" style="margin-top:12px">正在查看历史 revision 内容；概览页的交付轨迹与提交验收仍是当前业务投影，不代表该历史时点的状态。</div>'
+      : '';
+    return panel('版本与内容', `<div class="tk-pad">
+      ${revisionSelector()}
+      <div class="tk-flex" style="margin-top:12px">${isLatest ? tag('最新候选 latest', 'info') : ''}${isEffective ? tag('当前生效 effective', 'good') : ''}${!isLatest && !isEffective ? tag('历史 revision') : ''}${tag(`精确 revision ${shortId(rev.revision_id)}…`, 'info')}</div>
       <div class="tk-divider"></div>
       ${payloadBlock(rev.payload)}
       ${local.object.object_type === 'EvidenceAsset' ? `<div class="tk-divider"></div><button type="button" class="tk-button tk-primary" data-action="evidence" data-object="${esc(objectId)}" data-revision="${esc(rev.revision_id)}">读取原始证据</button>${evidenceInspect()}` : ''}
       ${historyNote}
-    </div>`, tag(`精确 revision ${shortId(rev.revision_id)}…`, 'info'));
+      <div class="tk-section">${revisionProvenanceDetails(rev)}</div>
+      <div class="tk-section">${pointersDetails()}</div>
+    </div>`);
   }
 
-  function pointersPanel() {
-    const o = local.object;
-    return panel('版本与指针', `<div class="tk-pad"><dl class="tk-kv">
-      <dt>对象版本</dt><dd>${esc(o.object_version)}</dd>
-      <dt>lifecycle</dt><dd>${tag(lifecycleLabel(o.lifecycle_status).label, lifecycleKind(o.lifecycle_status))} <span class="tk-mono tk-muted">${esc(o.lifecycle_status)}</span></dd>
-      <dt>最新候选</dt><dd>${idLine(o.latest_revision_id)}</dd>
-      <dt>当前生效</dt><dd>${idLine(o.effective_revision_id)}</dd>
-      <dt>创建时间</dt><dd>${esc(fmtTime(o.created_at))}</dd>
-      <dt>更新时间</dt><dd>${esc(fmtTime(o.updated_at))}</dd>
-    </dl><div class="tk-divider"></div>
-    <p class="tk-tiny tk-muted">latest 与 effective 可能指向不同 revision；候选出现不代表生效。</p>
-    <div style="margin-top:12px"><button type="button" class="tk-button" data-action="goto-receipts">查看该对象动作回执 →</button></div></div>`);
-  }
-
+  // 责任人摘要：姓名/角色/assignment 是否当前有效；完整 assignment/baseline ID 收进溯源 details。
   function responsibilityPanel() {
-    if (local.object.object_type !== 'WorkItem') return '';
     if (local.responsibilityError) {
       const info = describeError(local.responsibilityError);
-      return panel('责任与验收', `<div class="tk-pad">${errorBox(info.title, info.detail)}</div>`);
+      return panel('责任人摘要', `<div class="tk-pad">${errorBox(info.title, info.detail)}</div>`);
     }
     const r = local.responsibility;
-    if (!r) return panel('责任与验收', loading());
+    if (!r) return panel('责任人摘要', loading());
     const person = (title, p) => p ? `<dt>${esc(title)}</dt><dd>${esc(p.display_name || '—')} <span class="tk-muted">· ${esc(p.role)}</span><br>` +
-      `<span class="tk-tiny tk-muted">assignment ${esc(shortId(p.assignment_id))}… · ${p.current_assignment_active ? 'assignment 当前有效' : 'assignment 当前无效'}</span></dd>` : '';
-    return panel('责任与验收', `<div class="tk-pad"><dl class="tk-kv">
+      `<span class="tk-tiny tk-muted">${p.current_assignment_active ? 'assignment 当前有效' : 'assignment 当前无效'}</span></dd>` : '';
+    const provenance = `<details class="tk-details" data-detail-key="prov-object"${detailsAttr('prov-object')}>
+      <summary>溯源信息 · 责任与基线</summary>
+      <div class="tk-detailsbody"><dl class="tk-kv">
+        <dt>对象 ID</dt><dd>${idLine(objectId)}</dd>
+        ${r.dri ? `<dt>DRI assignment</dt><dd>${idLine(r.dri.assignment_id)}</dd>` : ''}
+        ${r.acceptor ? `<dt>验收人 assignment</dt><dd>${idLine(r.acceptor.assignment_id)}</dd>` : ''}
+        <dt>冻结基线</dt><dd>${idLine(r.baseline_revision_id)}<br><span class="tk-tiny tk-muted">baseline 不可改写，与当前对象版本分开</span></dd>
+      </dl></div>
+    </details>`;
+    return panel('责任人摘要', `<div class="tk-pad"><dl class="tk-kv">
       ${person('交付 DRI', r.dri)}
       ${person('指定验收人', r.acceptor)}
-      <dt>冻结基线</dt><dd>${idLine(r.baseline_revision_id)}<br><span class="tk-tiny tk-muted">baseline 不可改写，与当前对象版本分开</span></dd>
     </dl><div class="tk-divider"></div>
-    <div class="tk-note">指定/assignment active 不代表拥有 Action 执行权限；能读取、负责交付、能验收分别判断。</div></div>`);
+    <div class="tk-note">指定/assignment active 不代表拥有 Action 执行权限；能读取、负责交付、能验收分别判断。</div>
+    <div class="tk-section">${provenance}</div></div>`);
   }
 
   function evidenceInspect() {
@@ -306,16 +349,39 @@ export async function renderInstance(main, ctx, route) {
       <h2 style="margin-top:6px">${esc(current.payload?.title || '（无标题）')}</h2></div>
       ${lastResult ? tag(verificationLabel(lastResult).label, verificationKind(lastResult)) : tag('待评审', 'wait')}</div>
       ${current.payload?.summary ? `<p class="tk-small tk-muted" style="margin-top:9px">${esc(current.payload.summary)}</p>` : ''}
-      <dl class="tk-kv" style="margin-top:12px">
-        <dt>提交 revision</dt><dd>${idLine(current.revision_id)}</dd>
-        <dt>payload hash</dt><dd>${idLine(current.payload_hash)}</dd>
-        <dt>记录时间</dt><dd>${esc(fmtTime(current.recorded_at))}</dd>
-      </dl>
-      <p class="tk-tiny tk-muted" style="margin-top:8px">选择 v1 / v2 切换到该次提交的精确 Deliverable revision，不与最新内容混用。</p>
+      <p class="tk-tiny tk-muted" style="margin-top:8px">v1 / v2 为提交序号，各自对应精确的 Deliverable revision，不与最新内容混用。</p>
       <div class="tk-divider"></div>
       ${acceptanceHtml}
+      <details class="tk-details" data-detail-key="prov-submission"${detailsAttr('prov-submission')} style="margin-top:12px">
+        <summary>溯源信息 · 提交 v${esc(local.submissionSeq)}</summary>
+        <div class="tk-detailsbody"><dl class="tk-kv">
+          <dt>提交 revision</dt><dd>${idLine(current.revision_id)}</dd>
+          <dt>payload hash</dt><dd>${idLine(current.payload_hash)}</dd>
+          <dt>记录时间</dt><dd>${esc(fmtTime(current.recorded_at))}</dd>
+        </dl></div>
+      </details>
     </div>`, `<div class="tk-tabbar" aria-label="选择交付提交版本">${tabs}</div>`) +
     `<div class="tk-section">${panel('本次提交引用的证据', `<div class="tk-pad" style="padding-top:2px;padding-bottom:2px">${evidenceBlock(current)}</div>`)}</div>`;
+  }
+
+  // 非 WorkItem 的概览：对象基本信息 + 前往「版本与内容」的入口。
+  function genericOverview() {
+    const o = local.object;
+    return panel('对象概览', `<div class="tk-pad"><dl class="tk-kv">
+      <dt>类型</dt><dd>${esc(o.object_type)}</dd>
+      <dt>lifecycle</dt><dd>${tag(lifecycleLabel(o.lifecycle_status).label, lifecycleKind(o.lifecycle_status))} <span class="tk-mono tk-muted">${esc(o.lifecycle_status)}</span></dd>
+      <dt>创建时间</dt><dd>${esc(fmtTime(o.created_at))}</dd>
+      <dt>更新时间</dt><dd>${esc(fmtTime(o.updated_at))}</dd>
+    </dl>
+    <p class="tk-small tk-muted" style="margin-top:12px">对象实际内容在「版本与内容」页签；证据对象可读取原始字节。</p>
+    <div style="margin-top:10px"><button type="button" class="tk-button" data-action="tab" data-value="version">查看对象内容 →</button></div></div>`);
+  }
+
+  function overviewTab() {
+    if (local.object.object_type !== 'WorkItem') return genericOverview();
+    const timeline = timelinePanel();
+    return `${timeline ? `<div>${timeline}</div>` : ''}
+      <div class="tk-split tk-section"><div>${deliveryPanels()}</div><div>${responsibilityPanel()}</div></div>`;
   }
 
   function relationsPanel() {
@@ -343,19 +409,15 @@ export async function renderInstance(main, ctx, route) {
 
   function draw() {
     const o = local.object;
-    const isWorkItem = o.object_type === 'WorkItem';
     const revTitle = local.selectedRevision?.payload?.title;
     const title = revTitle || o.latest_revision?.payload?.title || o.object_id;
-    const header = head(`OBJECT INSTANCE / ${o.object_type}`, title,
-      `${o.object_type} · 精确 revision 内容 · 真实接口读取`);
-    const middle = isWorkItem
-      ? `<div class="tk-section">${timelinePanel()}</div>
-         <div class="tk-split tk-section"><div>${deliveryPanels()}</div><div>${responsibilityPanel()}<div class="tk-section">${pointersPanel()}</div></div></div>
-         <div class="tk-section">${contentPanel()}</div>`
-      : `<div class="tk-split"><div>${contentPanel()}</div><div>${pointersPanel()}</div></div>`;
-    main.innerHTML = header + statusBand() + middle +
-      `<div class="tk-section">${relationsPanel()}</div>` +
-      foot(ctx.config?.commit);
+    const lc = lifecycleLabel(o.lifecycle_status);
+    const header = head(title, `${o.object_type} · ${lc.label} · 真实接口读取`,
+      `<button type="button" class="tk-button" data-action="goto-receipts">动作与回执 →</button>`);
+    const tabContent = local.tab === 'overview' ? overviewTab()
+      : local.tab === 'relations' ? relationsPanel()
+      : contentPanel();
+    main.innerHTML = header + tabBar() + (isAnchorWi && local.tab === 'overview' ? statusBand() : '') + tabContent + foot(ctx.config?.commit);
     fillEvidenceText();
   }
 
@@ -369,7 +431,7 @@ export async function renderInstance(main, ctx, route) {
 
   function openEvidence(evObjectId, evRevisionId) {
     const pending = evidenceLoader.load(`${evObjectId}:${evRevisionId}`, ctx.signal);
-    draw(); // load 已同步置 loading，立即显示读取中
+    draw(); // load 已同步置 loading，立即显示读取中；details 展开状态由 openDetails 保持
     pending.then((result) => {
       if (result.status === 'stale' || !ctx.isCurrent()) return;
       draw();
@@ -378,14 +440,15 @@ export async function renderInstance(main, ctx, route) {
   }
 
   // 初始加载
-  main.innerHTML = head('OBJECT INSTANCE', '实例详情', '正在读取对象 …') + loading();
+  main.innerHTML = head('实例详情', '正在读取对象 …') + loading();
   try {
     const [object] = await Promise.all([
       ctx.client.getJson(`/v1/objects/${objectId}`, { signal: ctx.signal }),
-      fetchAnchors(),
+      isAnchorWi ? fetchAnchors() : Promise.resolve(),
     ]);
     if (!ctx.isCurrent()) return;
     local.object = object;
+    local.tab = initialInstanceTab({ objectType: object.object_type, explicitRevision: Boolean(route.revisionId) });
     if (!local.selectedRevisionId) local.selectedRevisionId = object.latest_revision_id;
     await revisionLoader.loadMore({}, ctx.signal);
     if (!ctx.isCurrent()) return;
@@ -406,10 +469,14 @@ export async function renderInstance(main, ctx, route) {
     ));
     await Promise.all(extra);
     if (!ctx.isCurrent()) return;
+    ctx.reportObject?.(objectId, {
+      title: local.selectedRevision?.payload?.title || object.latest_revision?.payload?.title || null,
+      objectType: object.object_type,
+    });
   } catch (error) {
     if (!ctx.isCurrent()) return;
     const info = describeError(error);
-    main.innerHTML = head('OBJECT INSTANCE', '实例详情', '对象读取失败。') + errorBox(info.title, info.detail, info.retryable ? 'reload-page' : '');
+    main.innerHTML = head('实例详情', '对象读取失败。') + errorBox(info.title, info.detail, info.retryable ? 'reload-page' : '');
     return;
   }
   draw();
@@ -419,7 +486,11 @@ export async function renderInstance(main, ctx, route) {
     const button = event.target.closest('button');
     if (!button || !main.contains(button)) return;
     const action = button.dataset.action;
-    if (action === 'open-ref') {
+    if (action === 'tab') {
+      // 本页页签：只切换展示层，不重新请求业务数据。
+      local.tab = button.dataset.value;
+      draw();
+    } else if (action === 'open-ref') {
       ctx.navigate({ page: 'instance', objectId: button.dataset.object, revisionId: button.dataset.revision });
     } else if (action === 'goto-object') {
       ctx.navigate({ page: 'instance', objectId: button.dataset.value });
@@ -468,4 +539,11 @@ export async function renderInstance(main, ctx, route) {
       ctx.navigate({ page: 'instance', objectId, revisionId: event.target.value });
     }
   }, { signal: ctx.signal });
+  // details 展开状态在异步重绘间保持（capture：toggle 不冒泡）；证据加载不收起已展开区块。
+  main.addEventListener('toggle', (event) => {
+    const detail = event.target.closest?.('details[data-detail-key]');
+    if (!detail || !main.contains(detail)) return;
+    if (detail.open) local.openDetails.add(detail.dataset.detailKey);
+    else local.openDetails.delete(detail.dataset.detailKey);
+  }, { capture: true, signal: ctx.signal });
 }

@@ -40,6 +40,7 @@ export const CRITERION_LABELS = {
 export const CREATION_MODE_LABELS = {
   generic_action: '通用动作创建',
   dedicated_action: '专用动作进入',
+  control_plane_only: '仅治理登记',
 };
 
 export const RECEIPT_STATUS_LABELS = {

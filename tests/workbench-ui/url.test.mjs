@@ -46,6 +46,20 @@ test('parseHash 拒绝非法 ID 与未知类型', () => {
   assert.equal(parseHash('#/unknown').page, 'catalog');
 });
 
+test('catalog 深链接：ProtocolSentinel 保留、未知类型丢弃', () => {
+  // 明确的 hash 深链接必须解析出 ProtocolSentinel。
+  const direct = parseHash('#/catalog?type=ProtocolSentinel');
+  assert.equal(direct.page, 'catalog');
+  assert.equal(direct.type, 'ProtocolSentinel');
+  // buildHash 编码后往返一致。
+  const hash = buildHash({ page: 'catalog', type: 'ProtocolSentinel' });
+  assert.equal(hash, '#/catalog?type=ProtocolSentinel');
+  assert.equal(parseHash(hash).type, 'ProtocolSentinel');
+  // 未知类型在解析与构造两侧都被丢弃。
+  assert.equal(parseHash('#/catalog?type=NoSuchType').type, null);
+  assert.equal(buildHash({ page: 'catalog', type: 'NoSuchType' }), '#/catalog');
+});
+
 test('casePathToRoute 映射演练路径', () => {
   assert.deepEqual(casePathToRoute(`/v1/objects/${OID}`), { page: 'instance', objectId: OID });
   assert.deepEqual(casePathToRoute(`/v1/objects/${OID}/action-receipts`), { page: 'receipts', objectId: OID });

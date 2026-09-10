@@ -30,6 +30,22 @@ def run_gates(s):
     reports = {}
     suffix = uuid.uuid4().hex[:8]
 
+    def legacy_protocol(metadata):
+        # Frozen v0.2 registration, independently specified rather than inferred
+        # from the service's resolver. Additive A1 fields do not change DRI meaning.
+        assert set(metadata) == {"registration_status", "interpretation_status", "protocol_id",
+                                 "contract_version", "method_profile_ref", "binding_version", "record_origin", "note"}
+        assert metadata["registration_status"] == "registered"
+        assert metadata["interpretation_status"] == "legacy_v0_2"
+        assert metadata["protocol_id"] == "tkos.legacy-governed"
+        assert metadata["contract_version"] == "tkos.governed/v0.2"
+        assert metadata["binding_version"] == 1 and metadata["record_origin"] == "legacy"
+        assert metadata["method_profile_ref"] == {
+            "profile_id": "urn:tkos:legacy:governed-v0.2", "revision": "0.2.0",
+            "canonical_hash": "93c5278a70c70af453e2f86c6d2b298caefe15b1e14b736c006c817c8a182598",
+        }
+        assert isinstance(metadata["note"], str) and metadata["note"]
+
     def get(client, path, params=None, *, expected=200):
         query = "?" + urlencode(params) if params else ""
         response = client.request("GET", path + query, expected=expected)
@@ -45,6 +61,8 @@ def run_gates(s):
                 values["cursor"] = cursors[-1]
             page = get(client, path, values)
             assert set(page) >= {"items", "next_cursor"} and isinstance(page["items"], list)
+            if path.startswith("/v1/objects/"):
+                legacy_protocol(page["protocol"])
             assert len(page["items"]) <= limit
             result.extend(page["items"])
             cursor = page["next_cursor"]
@@ -108,12 +126,17 @@ def run_gates(s):
     with h.group("workbench_independent_01_authenticated_type_and_domain_catalog") as report:
         catalog = get(ceo, "/v1/object-types")
         expected_types = {"CompanyOutcome", "BusinessCommitment", "ExecutionCommitment", "FeedbackThread",
-                          "ManagementAdjustment", "Decision", "MetricObservation", "WorkItem", "EvidenceAsset", "Deliverable"}
+                          "ManagementAdjustment", "Decision", "MetricObservation", "WorkItem", "EvidenceAsset", "Deliverable",
+                          "ProtocolSentinel"}
         assert catalog["schema_version"] and {item["object_type"] for item in catalog["items"]} == expected_types
         assert len(catalog["items"]) == len(expected_types)
         for item in catalog["items"]:
             assert all(key in item for key in ("label", "creation_mode", "description", "payload_schema"))
-            assert item["creation_mode"] == ("dedicated_action" if item["object_type"] in {"EvidenceAsset", "Deliverable"} else "generic_action")
+            if item["object_type"] == "ProtocolSentinel":
+                assert item["creation_mode"] == "control_plane_only"
+                assert item["payload_schema"] is None
+            else:
+                assert item["creation_mode"] == ("dedicated_action" if item["object_type"] in {"EvidenceAsset", "Deliverable"} else "generic_action")
         for path in ("/v1/object-types", "/v1/domains"):
             response = ceo.request("GET", path, headers={"Authorization": ""}, expected=401)
             assert_error(response.json(), "UNAUTHENTICATED")
@@ -192,8 +215,10 @@ def run_gates(s):
         assert objects == pages(ceo, "/v1/objects", {"domain_id": domain}, limit=100)[0]
         summaries = {row["object_id"]: row for row in objects}
         required = {"object_id", "domain_id", "object_type", "title", "lifecycle_status", "object_version",
-                    "latest_revision_id", "effective_revision_id", "created_at"}
+                    "latest_revision_id", "effective_revision_id", "created_at", "protocol"}
         assert all(set(row) == required for row in objects), "Object discovery must remain a minimal summary"
+        for row in objects:
+            legacy_protocol(row["protocol"])
         types, _ = pages(ceo, "/v1/objects", {"domain_id": domain, "object_type": "WorkItem"})
         assert [row["object_id"] for row in types] == [work]
         empty = get(ceo, "/v1/objects", {"domain_id": domain, "object_type": "ManagementAdjustment", "limit": 1})
@@ -330,7 +355,8 @@ def run_gates(s):
 
     with h.group("workbench_independent_07_minimal_responsibility_and_no_action_inference") as report:
         responsible = get(ceo, f"/v1/objects/{work}/responsibility")
-        assert set(responsible) == {"object_id", "baseline_revision_id", "dri", "acceptor"}
+        assert set(responsible) == {"object_id", "baseline_revision_id", "dri", "acceptor", "protocol"}
+        legacy_protocol(responsible["protocol"])
         assert responsible["object_id"] == work and responsible["baseline_revision_id"] == baseline
         allowed = {"assignment_id", "principal_id", "display_name", "role", "domain_id", "current_assignment_active"}
         for field, actor in (("dri", "mission_dri"), ("acceptor", "verifier")):

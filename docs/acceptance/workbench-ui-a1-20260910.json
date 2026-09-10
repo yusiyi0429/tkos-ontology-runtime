@@ -1,0 +1,243 @@
+{
+  "date": "2026-09-10",
+  "base_commit": "e9b904a77a17959d44444862b1a9be5e1e7db74a",
+  "scope": "workbench v0.2 layout and A1 compatibility; local synthetic data",
+  "workbench_a1_local_accepted": true,
+  "production_deployed": false,
+  "real_employee_pilot_accepted": false,
+  "implementation": "Kimi Code; independent acceptance by Codex",
+  "node_tests": {
+    "passed": 61,
+    "failed": 0
+  },
+  "python_workbench_tests": {
+    "passed": 70,
+    "failed": 0
+  },
+  "node_real_get_checks": {
+    "passed": 34,
+    "failed": 0,
+    "authorized_actor_403_404_is_failure": true,
+    "evidence_bytes_sha256_verified": true
+  },
+  "http_gates": {
+    "run_id": "workbench-a1-20260910-r3",
+    "passed": 11,
+    "source_unchanged": true,
+    "groups": [
+      {
+        "name": "workbench_independent_00_source_and_application_role",
+        "status": "passed"
+      },
+      {
+        "name": "workbench_independent_01_authenticated_type_and_domain_catalog",
+        "status": "passed"
+      },
+      {
+        "name": "workbench_independent_02_live_delivery_v1_return_v2",
+        "status": "passed"
+      },
+      {
+        "name": "workbench_independent_03_object_and_revision_pagination",
+        "status": "passed"
+      },
+      {
+        "name": "workbench_independent_04_exact_single_hop_relation_provenance",
+        "status": "passed"
+      },
+      {
+        "name": "workbench_independent_05_strict_parameters_and_cursor_binding",
+        "status": "passed"
+      },
+      {
+        "name": "workbench_independent_06_receipt_summaries_and_current_policy",
+        "status": "passed"
+      },
+      {
+        "name": "workbench_independent_07_minimal_responsibility_and_no_action_inference",
+        "status": "passed"
+      },
+      {
+        "name": "workbench_independent_08_historical_context_and_read_only_fingerprints",
+        "status": "passed"
+      },
+      {
+        "name": "workbench_independent_09_cross_domain_receipt_all_or_nothing",
+        "status": "passed"
+      },
+      {
+        "name": "workbench_independent_10_revoked_history_cursor_and_original_evidence",
+        "status": "passed"
+      }
+    ]
+  },
+  "browser_checks": [
+    {
+      "name": "v1 exact submission",
+      "passed": true
+    },
+    {
+      "name": "v2 exact submission and separate states",
+      "passed": true
+    },
+    {
+      "name": "focus retained across receipts navigation",
+      "passed": true
+    },
+    {
+      "name": "receipt detail loaded with audit section",
+      "passed": true
+    },
+    {
+      "name": "Context mode preserves both time drafts",
+      "passed": true
+    },
+    {
+      "name": "explicit Context snapshot generation displays three selected objects",
+      "passed": true
+    },
+    {
+      "name": "actor switch removes previous identity content",
+      "passed": true
+    },
+    {
+      "name": "A1 ProtocolSentinel deep link remains selected",
+      "passed": true
+    },
+    {
+      "name": "historical Context snapshot read displays five saved objects",
+      "passed": true
+    }
+  ],
+  "responsive_checks": [
+    {
+      "page": "catalog",
+      "width": 1200,
+      "scrollWidth": 1185,
+      "title": "对象与关系",
+      "overflow": false
+    },
+    {
+      "page": "instance",
+      "width": 1200,
+      "scrollWidth": 1185,
+      "title": "Workbench drill delivery 68a0e788",
+      "overflow": false
+    },
+    {
+      "page": "receipts",
+      "width": 1200,
+      "scrollWidth": 1185,
+      "title": "动作与回执",
+      "overflow": false
+    },
+    {
+      "page": "context",
+      "width": 1200,
+      "scrollWidth": 1185,
+      "title": "记忆快照（Context Pack）",
+      "overflow": false
+    },
+    {
+      "page": "catalog",
+      "width": 850,
+      "scrollWidth": 835,
+      "title": "对象与关系",
+      "overflow": false
+    },
+    {
+      "page": "instance",
+      "width": 850,
+      "scrollWidth": 835,
+      "title": "Workbench drill delivery 68a0e788",
+      "overflow": false
+    },
+    {
+      "page": "receipts",
+      "width": 850,
+      "scrollWidth": 835,
+      "title": "动作与回执",
+      "overflow": false
+    },
+    {
+      "page": "context",
+      "width": 850,
+      "scrollWidth": 835,
+      "title": "记忆快照（Context Pack）",
+      "overflow": false
+    },
+    {
+      "page": "catalog",
+      "width": 390,
+      "scrollWidth": 375,
+      "title": "对象与关系",
+      "overflow": false
+    },
+    {
+      "page": "instance",
+      "width": 390,
+      "scrollWidth": 375,
+      "title": "Workbench drill delivery 68a0e788",
+      "overflow": false
+    },
+    {
+      "page": "receipts",
+      "width": 390,
+      "scrollWidth": 375,
+      "title": "动作与回执",
+      "overflow": false
+    },
+    {
+      "page": "context",
+      "width": 390,
+      "scrollWidth": 375,
+      "title": "记忆快照（Context Pack）",
+      "overflow": false
+    }
+  ],
+  "write_audit": {
+    "changed_tables": [
+      "gov_context_snapshots"
+    ],
+    "only_snapshot_changed": true,
+    "post_count": 1,
+    "table_count": 22
+  },
+  "public_source_sha256": {
+    "workbench/app.js": "1ede228fa3e806f31363dc2e4035b264c3ca2ce6d5e387ad8d33fe87ca69562c",
+    "workbench/index.html": "96736b150c0655206a2d375992a1db73850792140d06c2042c8c566de5c7f0aa",
+    "workbench/lib/api.js": "cfe0bdcdfb8ed873963ae37f78a674fd9bd069a58b9a6db5b935337de59665ea",
+    "workbench/lib/contextbody.js": "478e03e912e3227ca17ec61c83da0ee202e3b3aa64c8a5a2118d8fb1c2452df3",
+    "workbench/lib/focus.js": "f0594dc4ee3b9c0dd66d20628e706faa5bbcba99df42a4ac7895927e52380134",
+    "workbench/lib/format.js": "4c55d6b8932c576b4b6548416428cfdac1f8ff0af90df3d71c3ed44aed4cdb15",
+    "workbench/lib/guard.js": "111c2ef2635bdafaeee18965d7ab522509cec84558bac1bc31cef88df3a01655",
+    "workbench/lib/html.js": "0b5490a42a51c04672c9118691f1b7fa8810fea4e182791e584e4fea261b0933",
+    "workbench/lib/loaders.js": "dcf43fb970ec313ed7099d61e787eccca82ef03dbfe88f7635d6ba7a20b8a133",
+    "workbench/lib/payloadview.js": "0728567e475c00acd5af1de91ebe608437f6f58108563dd2e595e65b109a5b5f",
+    "workbench/lib/snapshot.js": "4412dc7d034e6eb4a1bbd7d73384f4cc7c9c36917df217f15c76585f5c61c42b",
+    "workbench/lib/timeline.js": "d6a6a20ea2a2004c6eb1b76aad02e97b68f09beaa4c25fa5a617013447886c62",
+    "workbench/lib/url.js": "ee1e9f3b5435952231bb859eda1121b9d5663528f9a8ebabd453110835cff845",
+    "workbench/package.json": "474803b811802daa2e4a43ab2ba5bb2fc768ec120404a10d4605defe09c75216",
+    "workbench/pages/catalog.js": "368d06efe1c792c495f3774d735899211c4733c7c964fbe3d5f3898d109d80dc",
+    "workbench/pages/context.js": "5945505686ce191a6649be912971bb1e44b4b5dbd718d626d9b11d4fc69a011a",
+    "workbench/pages/instance.js": "3e729ef100f72f2d6bfd88e242e52305b0a56a8c2431c8c695ad20653deb6369",
+    "workbench/pages/receipts.js": "a9539b882367a966518f252e145884ffd5543263ce802135ff34960c2e716b11",
+    "workbench/styles.css": "5b7431b8f3f348a505c3f46c70268579ea05040cfe023766b585343752c92a76"
+  },
+  "acceptance_harness_adjustments": [
+    "A1 adds ProtocolSentinel with control_plane_only; exact 11-entry catalog asserted",
+    "Object and responsibility summaries and pagination envelopes carry strictly checked immutable legacy protocol metadata",
+    "Dedicated existing tkos_a1_* database selected by root-only local adapter; no migration of existing demo database"
+  ],
+  "failed_attempts": [
+    {
+      "run_id": "workbench-a1-20260910-r1",
+      "cause": "old independent checker expected ten catalog entries"
+    },
+    {
+      "run_id": "workbench-a1-20260910-r2",
+      "cause": "old independent checker rejected additive protocol metadata"
+    }
+  ],
+  "evidence_directory": "artifacts/runtime-acceptance/workbench-browser-a1-20260910-r1"
+}

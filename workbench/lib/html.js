@@ -21,11 +21,11 @@ export function panel(title, body, extra = '') {
   return `<section class="tk-panel"><div class="tk-panelhead tk-between"><h3>${esc(title)}</h3>${extra}</div>${body}</section>`;
 }
 
-export function head(eyebrow, title, subtitle, action = '') {
+export function head(title, subtitle, action = '') {
   return `<div class="tk-breadcrumb">工作台 / ${esc(title)}</div>` +
-    `<div class="tk-pagehead"><div class="tk-eyebrow">${esc(eyebrow)}</div>` +
+    `<div class="tk-pagehead">` +
     `<div class="tk-between"><h1>${esc(title)}</h1>${action}</div>` +
-    `<p class="tk-subtitle">${esc(subtitle)}</p></div>`;
+    (subtitle ? `<p class="tk-subtitle">${esc(subtitle)}</p>` : '') + `</div>`;
 }
 
 export function foot(commit) {

@@ -1,5 +1,6 @@
-// 页 04 Context Pack：显式 POST 生成审计快照 + 快照回读。
-// 页面载入/角色切换/时间编辑绝不自动 POST；保存快照不改变业务状态。
+// 页 04 记忆快照（Context Pack）：左侧输入栏（新建快照 / 回读快照 两模式，不同时混排），
+// 右侧常驻结果栏（来源/时间/纳入排除在前，完整 ID/hash 收进「技术溯源」details）。
+// 页面载入/角色切换/模式切换/时间编辑绝不自动 POST；保存快照不改变业务状态。
 import { esc, panel, head, foot, tag, loading, empty, errorBox, idLine } from '../lib/html.js';
 import { buildQuery, casePathToRoute, isUuid } from '../lib/url.js';
 import { describeError } from '../lib/api.js';
@@ -15,7 +16,9 @@ function anchorEntries(config) {
     .filter((entry) => entry.objectId);
 }
 
-function selectedItemHtml(item) {
+function selectedItemHtml(item, detailsAttr) {
+  const techKey = `item-tech-${item.object_id}-${item.revision_id}`;
+  const payloadKey = `item-payload-${item.object_id}-${item.revision_id}`;
   const refs = (item.source_refs || []).map((ref) =>
     `<div class="tk-checkline"><span class="tk-checkmark">→</span><span class="tk-mono">${esc(shortId(ref.object_id))}… @ ${esc(shortId(ref.revision_id))}… · hash ${esc(shortId(ref.payload_hash))}… <button type="button" class="tk-copy" data-copy="${esc(ref.payload_hash)}">复制 hash</button></span></div>`,
   ).join('');
@@ -31,14 +34,20 @@ function selectedItemHtml(item) {
   return `<div class="tk-packitem">
     <strong>${esc(item.payload?.title || item.object_id)} <span class="tk-mono tk-muted">${esc(item.object_type)}</span></strong>
     <div class="tk-packmeta">${item.delivery_status ? tag(`delivery: ${item.delivery_status}`, 'info') : ''}</div>
-    <dl class="tk-kv" style="margin-top:8px">
-      <dt>对象</dt><dd>${idLine(item.object_id)}</dd>
-      <dt>revision</dt><dd>${idLine(item.revision_id)}</dd>
-      <dt>payload hash</dt><dd>${idLine(item.payload_hash)}</dd>
-    </dl>
-    ${refs ? `<div style="margin-top:8px"><h3>source refs（冻结 revision 的内容来源）</h3>${refs}</div>` : ''}
     ${review}
-    <details style="margin-top:10px"><summary class="tk-small tk-muted">payload 原文</summary><pre class="tk-pre" style="margin-top:8px">${esc(JSON.stringify(item.payload, null, 2))}</pre></details>
+    <details class="tk-details" data-detail-key="${esc(techKey)}"${detailsAttr(techKey)} style="margin-top:8px">
+      <summary>技术溯源</summary>
+      <div class="tk-detailsbody"><dl class="tk-kv">
+        <dt>对象</dt><dd>${idLine(item.object_id)}</dd>
+        <dt>revision</dt><dd>${idLine(item.revision_id)}</dd>
+        <dt>payload hash</dt><dd>${idLine(item.payload_hash)}</dd>
+      </dl>
+      ${refs ? `<div style="margin-top:8px"><h3>source refs（冻结 revision 的内容来源）</h3>${refs}</div>` : ''}</div>
+    </details>
+    <details class="tk-details" data-detail-key="${esc(payloadKey)}"${detailsAttr(payloadKey)} style="margin-top:8px">
+      <summary>payload 原文</summary>
+      <div class="tk-detailsbody"><pre class="tk-pre">${esc(JSON.stringify(item.payload, null, 2))}</pre></div>
+    </details>
   </div>`;
 }
 
@@ -51,37 +60,10 @@ function conditionNoteHtml(match) {
   return `<div class="tk-note tk-warning" style="margin-bottom:12px">当前输入与该快照${esc(parts.join('、'))}。以下快照按其自身标注的条件生成，不是当前条件的结果；需要新结果请重新点击「生成审计快照」。</div>`;
 }
 
-function snapshotCard(snap, index) {
-  const data = snap.data;
-  const selected = (data.selected || []).map(selectedItemHtml).join('');
-  const excluded = (data.excluded || []).map((item) =>
-    `<div class="tk-disabledrow"><span class="tk-mono">${esc(item.object_id || '')}</span>${tag(item.reason || '未选入', 'wait')}</div>`,
-  ).join('');
-  return `<div class="tk-section">${panel(
-    snap.source === 'generated' ? '本次生成的审计快照' : '快照回读',
-    `<div class="tk-pad">
-      <div class="tk-condnote" data-snap-index="${index}"></div>
-      <dl class="tk-snapmeta">
-        <dt>快照 ID</dt><dd>${idLine(data.context_snapshot_id)}</dd>
-        <dt>记录时间（原始）</dt><dd class="tk-mono">${esc(data.recorded_at || '—')}</dd>
-        <dt>valid_at（原始）</dt><dd class="tk-mono">${esc(data.valid_at || '—')}</dd>
-        <dt>known_at（原始）</dt><dd class="tk-mono">${esc(data.known_at || '—')}</dd>
-      </dl>
-      <div class="tk-divider"></div>
-      <h3>选中对象（${(data.selected || []).length}）</h3>
-      <div class="tk-packlist" style="margin-top:8px">${selected || '<p class="tk-small tk-muted" style="padding:12px 0">无选中对象。</p>'}</div>
-      <div class="tk-divider"></div>
-      <h3>未选入（${(data.excluded || []).length}）</h3>
-      ${excluded || '<p class="tk-small tk-muted" style="margin-top:8px">无排除对象。</p>'}
-      <p class="tk-tiny tk-muted" style="margin-top:10px">响应不含聚合 snapshot hash；逐 revision 的 payload_hash 如上。时间显示为服务端原始 ISO 值。快照内容为历史选择结果，回读时按当前权限重新授权。</p>
-    </div>`,
-    tag(snap.source === 'generated' ? 'POST 已持久化' : 'GET 回读', 'info'),
-  )}</div>`;
-}
-
 export async function renderContext(main, ctx, route) {
   const anchors = anchorEntries(ctx.config);
   const local = {
+    mode: route.snapshotId ? 'read' : 'create',
     selected: new Map(anchors.map((a) => [a.objectId, a.label])),
     candidates: [],
     candidatesError: null,
@@ -89,12 +71,19 @@ export async function renderContext(main, ctx, route) {
     busy: false,
     postError: null,
     snapshots: [],
+    activeSnapshot: 0,
     readbackId: route.snapshotId || '',
     readbackError: null,
     addError: '',
+    addId: '',
     validAt: toLocalInputValue(),
     knownAt: toLocalInputValue(),
+    openDetails: new Set(),
   };
+
+  function detailsAttr(key) {
+    return local.openDetails.has(key) ? ' open' : '';
+  }
 
   function currentMatch() {
     let normalized;
@@ -112,6 +101,10 @@ export async function renderContext(main, ctx, route) {
     local.snapshots.forEach((snap, index) => {
       const el = main.querySelector(`[data-snap-index="${index}"]`);
       if (!el) return;
+      if (local.mode === 'read') {
+        el.innerHTML = '<p class="tk-tiny tk-muted" style="margin-bottom:12px">以下内容按这份已保存快照的时间与对象范围呈现。</p>';
+        return;
+      }
       const match = current ? conditionsMatch(current, snapshotConditions(snap.data, snap.requestIds)) : null;
       el.innerHTML = conditionNoteHtml(match);
     });
@@ -144,7 +137,8 @@ export async function renderContext(main, ctx, route) {
     }
   }
 
-  function selectionPanel() {
+  // 新建模式：选对象 → 双时间 → 生成按钮；手动 UUID 默认折叠。
+  function createForm() {
     const chips = [...local.selected.entries()].map(([id, label]) =>
       `<span class="tk-chip">${esc(label || '对象')} <span class="tk-mono">${esc(shortId(id))}…</span><button type="button" data-action="remove-object" data-value="${esc(id)}" aria-label="移除 ${esc(id)}">×</button></span>`,
     ).join('');
@@ -162,48 +156,102 @@ export async function renderContext(main, ctx, route) {
       candidateBody = (rows || '<p class="tk-small tk-muted">当前身份暂无可读对象。</p>') +
         (local.candidatesTruncated ? '<p class="tk-tiny tk-muted" style="margin-top:6px">可读对象超过加载上限，仅载入前若干页；可手动输入 UUID。</p>' : '');
     }
-    return panel('选择对象', `<div class="tk-pad">
-      <div class="tk-chiplist">${chips || '<span class="tk-small tk-muted">尚未选择对象。</span>'}</div>
+    return `
+      <h3>1 · 选择对象</h3>
+      <div class="tk-chiplist" style="margin-top:8px">${chips || '<span class="tk-small tk-muted">尚未选择对象。</span>'}</div>
+      <div style="margin-top:10px;max-height:240px;overflow:auto">${candidateBody}</div>
+      <details class="tk-details" data-detail-key="manual-add"${detailsAttr('manual-add')} style="margin-top:10px">
+        <summary>手动输入对象 UUID</summary>
+        <div class="tk-detailsbody">
+          <label class="tk-field" for="tk-add-id" style="width:100%">对象 UUID
+            <span class="tk-flex" style="flex:1"><input type="text" class="tk-input" id="tk-add-id" value="${esc(local.addId)}" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" spellcheck="false">
+            <button type="button" class="tk-button" data-action="add-object">添加</button></span>
+          </label>
+          ${local.addError ? `<p class="tk-tiny" style="color:var(--tk-red);margin-top:6px">${esc(local.addError)}</p>` : ''}
+          <p class="tk-tiny tk-muted" style="margin-top:8px">默认锚点来自演练配置的三项独立状态对象；添加的对象按当前身份逐个授权。</p>
+        </div>
+      </details>
       <div class="tk-divider"></div>
-      <h3>从当前身份可读对象中选择</h3>
-      <div style="margin-top:6px;max-height:260px;overflow:auto">${candidateBody}</div>
-      <div class="tk-divider"></div>
-      <label class="tk-field" for="tk-add-id" style="width:100%">手动添加对象 UUID
-        <span class="tk-flex" style="flex:1"><input type="text" class="tk-input" id="tk-add-id" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" spellcheck="false">
-        <button type="button" class="tk-button" data-action="add-object">添加</button></span>
-      </label>
-      ${local.addError ? `<p class="tk-tiny" style="color:var(--tk-red);margin-top:6px">${esc(local.addError)}</p>` : ''}
-      <p class="tk-tiny tk-muted" style="margin-top:8px">默认锚点来自演练配置的三项独立状态对象；添加的对象按当前身份逐个授权。</p>
-    </div>`, tag(`已选 ${local.selected.size} 个`, 'info'));
-  }
-
-  function conditionsPanel() {
-    return panel('组装条件', `<div class="tk-pad">
-      <div class="tk-formrow"><label for="tk-valid-at">valid_at 业务有效时间</label><input type="datetime-local" step="0.001" class="tk-input" id="tk-valid-at" value="${esc(local.validAt)}"></div>
-      <div class="tk-formrow"><label for="tk-known-at">known_at 系统知悉时间</label><input type="datetime-local" step="0.001" class="tk-input" id="tk-known-at" value="${esc(local.knownAt)}"></div>
-      <div class="tk-note" style="margin-top:12px">点击「生成审计快照」会向 Runtime 显式 POST，并持久化一条 append-only 审计快照；保存快照不改变任何业务对象状态。页面载入、角色切换与时间编辑都不会自动 POST。</div>
+      <h3>2 · 双时间截面</h3>
+      <div class="tk-formrow" style="margin-top:6px"><label for="tk-valid-at">业务有效时间 <span class="tk-tiny tk-mono">valid_at</span></label><input type="datetime-local" step="0.001" class="tk-input" id="tk-valid-at" value="${esc(local.validAt)}"></div>
+      <div class="tk-formrow"><label for="tk-known-at">系统知悉时间 <span class="tk-tiny tk-mono">known_at</span></label><input type="datetime-local" step="0.001" class="tk-input" id="tk-known-at" value="${esc(local.knownAt)}"></div>
+      <div class="tk-note" style="margin-top:12px">保存一份可追溯的审计快照，不改变交付、Outcome 或 MF 的状态。</div>
       <div class="tk-flex" style="margin-top:12px">
         <button type="button" class="tk-button tk-primary" data-action="generate" ${local.busy ? 'disabled' : ''}>${local.busy ? '正在生成 …' : '生成审计快照'}</button>
         ${local.busy ? '<span class="tk-spin" aria-hidden="true"></span>' : ''}
       </div>
-      ${local.postError ? `<div style="margin-top:12px">${errorBox(describeError(local.postError).title, describeError(local.postError).detail)}</div>` : ''}
-      <div class="tk-divider"></div>
+      ${local.postError ? `<div style="margin-top:12px">${errorBox(describeError(local.postError).title, describeError(local.postError).detail)}</div>` : ''}`;
+  }
+
+  // 回读模式：快照 ID + 回读按钮（GET 只读，按当前身份重新授权）。
+  function readForm() {
+    return `
       <h3>回读已保存快照</h3>
-      <label class="tk-field" for="tk-snap-id" style="width:100%;margin-top:8px">快照 ID
+      <label class="tk-field" for="tk-snap-id" style="width:100%;margin-top:10px">快照 ID
         <span class="tk-flex" style="flex:1"><input type="text" class="tk-input" id="tk-snap-id" value="${esc(local.readbackId)}" placeholder="context_snapshot_id" spellcheck="false">
         <button type="button" class="tk-button" data-action="readback" ${local.busy ? 'disabled' : ''}>回读</button></span>
       </label>
-      ${local.readbackError ? `<div style="margin-top:12px">${errorBox(describeError(local.readbackError).title, describeError(local.readbackError).detail)}</div>` : ''}
-    </div>`);
+      <p class="tk-tiny tk-muted" style="margin-top:8px">回读为 GET 只读；快照内容按当前身份重新授权，不触发任何写入。</p>
+      ${local.readbackError ? `<div style="margin-top:12px">${errorBox(describeError(local.readbackError).title, describeError(local.readbackError).detail)}</div>` : ''}`;
+  }
+
+  function inputPanel() {
+    const tabs = [['create', '新建快照'], ['read', '回读快照']].map(([key, label]) =>
+      `<button type="button" class="tk-tabbutton" data-action="mode" data-value="${key}" aria-pressed="${local.mode === key}">${label}</button>`,
+    ).join('');
+    return panel('快照操作', `<div class="tk-pad">
+      <div class="tk-tabbar" aria-label="快照操作模式" style="margin-bottom:14px">${tabs}</div>
+      ${local.mode === 'create' ? createForm() : readForm()}
+    </div>`, local.mode === 'create' ? tag(`已选 ${local.selected.size} 个`, 'info') : '');
+  }
+
+  function snapshotCard(snap, index) {
+    const data = snap.data;
+    const selected = (data.selected || []).map((item) => selectedItemHtml(item, detailsAttr)).join('');
+    const excluded = (data.excluded || []).map((item) =>
+      `<div class="tk-disabledrow"><span class="tk-mono">${esc(item.object_id || '')}</span>${tag(item.reason || '未选入', 'wait')}</div>`,
+    ).join('');
+    const techKey = `snap-tech-${data.context_snapshot_id || index}`;
+    return `<div class="tk-section">${panel(
+      `快照 · 纳入 ${(data.selected || []).length} · 排除 ${(data.excluded || []).length}`,
+      `<div class="tk-pad">
+        <div class="tk-condnote" data-snap-index="${index}"></div>
+        <dl class="tk-snapmeta">
+          <dt>来源</dt><dd>${snap.source === 'generated' ? '本次生成 · POST 已持久化' : 'GET 回读 · 按当前权限重新授权'}</dd>
+          <dt>生成/记录时间</dt><dd class="tk-mono">${esc(data.recorded_at || '—')}</dd>
+          <dt>业务有效时间</dt><dd class="tk-mono">${esc(data.valid_at || '—')}</dd>
+          <dt>系统知悉时间</dt><dd class="tk-mono">${esc(data.known_at || '—')}</dd>
+        </dl>
+        <details class="tk-details" data-detail-key="${esc(techKey)}"${detailsAttr(techKey)} style="margin-top:12px">
+          <summary>技术溯源</summary>
+          <div class="tk-detailsbody"><dl class="tk-kv">
+            <dt>快照 ID</dt><dd>${idLine(data.context_snapshot_id)}</dd>
+          </dl></div>
+        </details>
+        <div class="tk-divider"></div>
+        <h3>选中对象（${(data.selected || []).length}）</h3>
+        <div class="tk-packlist" style="margin-top:8px">${selected || '<p class="tk-small tk-muted" style="padding:12px 0">无选中对象。</p>'}</div>
+        <div class="tk-divider"></div>
+        <h3>未选入（${(data.excluded || []).length}）<span class="tk-tiny tk-muted"> · 排除依据见右侧标注</span></h3>
+        ${excluded || '<p class="tk-small tk-muted" style="margin-top:8px">无排除对象。</p>'}
+        <p class="tk-tiny tk-muted" style="margin-top:10px">响应不含聚合 snapshot hash；逐 revision 的 payload_hash 见各对象「技术溯源」。时间显示为服务端原始 ISO 值。快照内容为历史选择结果，回读时按当前权限重新授权。</p>
+      </div>`,
+    )}</div>`;
+  }
+
+  function resultsColumn() {
+    if (!local.snapshots.length) {
+      return panel('快照结果', empty('尚未生成或回读快照。「生成审计快照」是唯一写入口。'));
+    }
+    const selector = local.snapshots.length > 1
+      ? `<label class="tk-field tk-snapshot-picker" for="tk-snapshot-choice">本次浏览的快照<select class="tk-select" id="tk-snapshot-choice" data-control="snapshot">${local.snapshots.map((snap, i) => `<option value="${i}" ${i === local.activeSnapshot ? 'selected' : ''}>${snap.source === 'generated' ? '新建' : '回读'} · ${esc(snap.data.recorded_at || shortId(snap.data.context_snapshot_id))}</option>`).join('')}</select></label>` : '';
+    return selector + snapshotCard(local.snapshots[local.activeSnapshot], local.activeSnapshot);
   }
 
   function draw() {
-    main.innerHTML = head('CONTEXT INSPECTOR', 'Context Pack',
-      '选择对象与双时间截面，显式生成审计快照；或回读已保存快照。') +
-      `<div class="tk-split"><div>${selectionPanel()}</div><div>${conditionsPanel()}</div></div>` +
-      (local.snapshots.length
-        ? local.snapshots.map((snap, i) => snapshotCard(snap, i)).join('')
-        : `<div class="tk-section">${panel('快照结果', empty('尚未生成或回读快照。生成按钮是唯一写入口。'))}</div>`) +
+    main.innerHTML = head('记忆快照（Context Pack）',
+      '保存指定对象在两个时间条件下的可追溯快照，也可回看已保存结果。') +
+      `<div class="tk-contextgrid"><div>${inputPanel()}</div><div>${resultsColumn()}</div></div>` +
       foot(ctx.config?.commit);
     updateConditionHints();
   }
@@ -228,6 +276,7 @@ export async function renderContext(main, ctx, route) {
       const data = await ctx.client.postJson('/v1/context-packs', body, { signal: ctx.signal });
       if (!ctx.isCurrent()) return;
       local.snapshots.unshift({ source: 'generated', data, requestIds: body.object_ids });
+      local.activeSnapshot = 0;
       ctx.announce('审计快照已生成并持久化');
     } catch (error) {
       if (!ctx.isCurrent()) return;
@@ -252,6 +301,7 @@ export async function renderContext(main, ctx, route) {
       const data = await ctx.client.getJson(`/v1/context-packs/${id}`, { signal: ctx.signal });
       if (!ctx.isCurrent()) return;
       local.snapshots.unshift({ source: 'readback', data, requestIds: null });
+      local.activeSnapshot = 0;
       ctx.announce('快照回读完成，引用已按当前权限重新授权');
     } catch (error) {
       if (!ctx.isCurrent()) return;
@@ -261,7 +311,7 @@ export async function renderContext(main, ctx, route) {
     if (ctx.isCurrent()) draw();
   }
 
-  main.innerHTML = head('CONTEXT INSPECTOR', 'Context Pack', '正在读取当前身份的可读对象 …') + loading();
+  main.innerHTML = head('记忆快照（Context Pack）', '正在读取当前身份的可读对象 …') + loading();
   try {
     await loadCandidates();
   } catch (error) {
@@ -281,7 +331,11 @@ export async function renderContext(main, ctx, route) {
     const button = event.target.closest('button');
     if (!button || !main.contains(button)) return;
     const action = button.dataset.action;
-    if (action === 'generate' && !local.busy) {
+    if (action === 'mode') {
+      // 模式切换只是展示层变化，绝不触发 POST/GET。
+      local.mode = button.dataset.value;
+      draw();
+    } else if (action === 'generate' && !local.busy) {
       generate();
     } else if (action === 'readback' && !local.busy) {
       readback();
@@ -309,8 +363,9 @@ export async function renderContext(main, ctx, route) {
       } else if (local.selected.size >= 100) {
         local.addError = '一次最多选择 100 个对象。';
       } else {
-        local.selected.set(value, null);
+        local.selected.set(value, local.candidates.find((o) => o.object_id === value)?.title || null);
         local.addError = '';
+        local.addId = '';
       }
       draw();
     }
@@ -318,16 +373,30 @@ export async function renderContext(main, ctx, route) {
   main.addEventListener('change', (event) => {
     if (event.target.dataset.control === 'pick') {
       const id = event.target.value;
-      if (event.target.checked) local.selected.set(id, null);
+      if (event.target.checked) local.selected.set(id, local.candidates.find((o) => o.object_id === id)?.title || null);
       else local.selected.delete(id);
       draw();
+    } else if (event.target.dataset.control === 'snapshot') {
+      const index = Number(event.target.value);
+      if (Number.isInteger(index) && local.snapshots[index]) {
+        local.activeSnapshot = index;
+        draw();
+      }
     }
   }, { signal: ctx.signal });
+  // details 展开状态在异步重绘间保持（capture：toggle 不冒泡）。
+  main.addEventListener('toggle', (event) => {
+    const detail = event.target.closest?.('details[data-detail-key]');
+    if (!detail || !main.contains(detail)) return;
+    if (detail.open) local.openDetails.add(detail.dataset.detailKey);
+    else local.openDetails.delete(detail.dataset.detailKey);
+  }, { capture: true, signal: ctx.signal });
   // 时间编辑只更新本地值与条件提示：不重绘（保留焦点），绝不触发 POST。
   main.addEventListener('input', (event) => {
     if (event.target.id === 'tk-valid-at') local.validAt = event.target.value;
     else if (event.target.id === 'tk-known-at') local.knownAt = event.target.value;
     else if (event.target.id === 'tk-snap-id') local.readbackId = event.target.value;
+    else if (event.target.id === 'tk-add-id') local.addId = event.target.value;
     else return;
     updateConditionHints();
   }, { signal: ctx.signal });

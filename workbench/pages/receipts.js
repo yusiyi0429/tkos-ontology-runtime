@@ -1,5 +1,6 @@
-// 页 03 动作与回执：对象关联 committed receipt 分页列表 + 单条回执详情。
-// 只展示真实回执：授权拒绝不产生持久化 receipt，页面不虚构任何拒绝示例。
+// 页 03 动作与回执：页首当前对象标题 + 返回实例入口；左侧动作历史、右侧详情。
+// 详情先突出动作/时间/业务评审结果/提交序号；完整 receiptID/actorID/auth_epoch/result
+// 原文与对象版本收进「审计字段」details。只展示真实回执：授权拒绝不产生持久化 receipt。
 import { esc, panel, head, foot, tag, loading, empty, errorBox, idLine } from '../lib/html.js';
 import { PagedLoader, ValueLoader } from '../lib/loaders.js';
 import { buildQuery, casePathToRoute, isUuid } from '../lib/url.js';
@@ -49,11 +50,22 @@ function resultRows(result) {
   return `<dl class="tk-kv">${rows.join('')}</dl>`;
 }
 
+// 详情区状态：列表已确定无回执时给清晰空态，绝不无限 loading。
+export function receiptDetailState({ detailError, detailLoading, hasDetail, listEmpty, listSettled }) {
+  if (detailError) return 'error';
+  if (hasDetail) return 'detail';
+  if (detailLoading) return 'loading';
+  if (listEmpty) return 'empty';
+  if (listSettled) return 'pick';
+  return 'loading';
+}
+
 export async function renderReceipts(main, ctx, route) {
   const objectId = route.objectId || casePathToRoute(ctx.config?.state_paths?.['交付']).objectId;
   const local = {
     object: null,
     objectError: null,
+    openDetails: new Set(),
   };
   const listLoader = new PagedLoader({
     pageSize: PAGE_SIZE,
@@ -64,13 +76,18 @@ export async function renderReceipts(main, ctx, route) {
     ctx.client.getJson(`/v1/action-receipts/${receiptId}`, { signal }));
 
   if (!objectId) {
-    main.innerHTML = head('ACTION LEDGER', '动作与回执', '缺少目标对象。') + errorBox('没有可展示的对象', 'case.json 的 state_paths 未提供交付锚点。');
+    main.innerHTML = head('动作与回执', '缺少目标对象。') + errorBox('没有可展示的对象', 'case.json 的 state_paths 未提供交付锚点。');
     return;
   }
 
   async function loadObject() {
     try {
       local.object = await ctx.client.getJson(`/v1/objects/${objectId}`, { signal: ctx.signal });
+      // 授权读取成功后回填上下文条标题/类型。
+      ctx.reportObject?.(objectId, {
+        title: local.object.latest_revision?.payload?.title || null,
+        objectType: local.object.object_type,
+      });
     } catch (error) {
       if (ctx.isCurrent()) local.objectError = error;
     }
@@ -120,39 +137,59 @@ export async function renderReceipts(main, ctx, route) {
       ? `<div class="tk-pad" style="padding-top:10px"><button type="button" class="tk-button" data-action="load-more" ${listLoader.loading ? 'disabled' : ''}>${listLoader.loading ? '加载中 …' : '加载更多'}</button></div>`
       : '';
     const count = listLoader.started && !listLoader.error ? tag(`已读 ${listLoader.items.length} 条`, 'info') : '';
-    return panel('committed 回执', body + more, count);
+    return panel('动作历史', body + more, count);
   }
 
   function detailPanel() {
-    if (detailLoader.error) {
+    if (listLoader.error && !detailLoader.key) {
+      return panel('回执详情', empty('动作历史未能载入，请先处理左侧提示或重试。'));
+    }
+    const state = receiptDetailState({
+      detailError: Boolean(detailLoader.error),
+      detailLoading: detailLoader.loading,
+      hasDetail: Boolean(detailLoader.value),
+      listEmpty: listLoader.isEmpty,
+      listSettled: listLoader.started && !listLoader.loading && !listLoader.error,
+    });
+    if (state === 'error') {
       const info = describeError(detailLoader.error);
       return panel('回执详情', `<div class="tk-pad">${errorBox(info.title, info.detail, info.retryable ? 'retry-detail' : '')}</div>`);
     }
-    if (detailLoader.loading || !detailLoader.value) return panel('回执详情', loading());
+    if (state === 'loading') return panel('回执详情', loading());
+    if (state === 'empty') return panel('回执详情', empty('该对象没有可读回执。授权拒绝不产生持久化回执，页面不虚构拒绝示例。'));
+    if (state === 'pick') return panel('回执详情', empty('从左侧动作历史选择一条回执查看详情。'));
     const r = detailLoader.value.receipt;
     const al = actionLabel(r.action_type);
+    const vr = r.result?.verification_result;
     const versions = (r.object_versions || []).map((v) =>
       `<tr><td><button type="button" class="tk-link" data-action="goto-object" data-value="${esc(v.object_id)}">${esc(shortId(v.object_id))}… ↗</button></td><td class="tk-mono">${esc(v.object_version)}</td></tr>`,
     ).join('');
-    const changesNote = r.result?.verification_result === 'changes_requested'
-      ? '<div class="tk-note" style="margin-top:12px">changes_requested 是成功提交的业务评审结果（退回补充），不是授权拒绝；授权拒绝不会产生持久化回执。</div>'
+    // 退回补充是业务评审结果，不是权限拒绝；短提示即可。
+    const changesNote = vr === 'changes_requested'
+      ? '<p class="tk-tiny tk-muted" style="margin-top:8px">退回补充（changes_requested）是成功提交的业务评审结果，不是授权拒绝；授权拒绝不会产生持久化回执。</p>'
       : '';
     return panel('回执详情', `<div class="tk-pad">
-      <div class="tk-mono tk-muted">${esc(fmtTime(r.recorded_at))}</div>
-      <h2 style="margin-top:8px">${esc(al.label)}</h2>
-      <p class="tk-small tk-muted" style="margin-top:4px">原始动作类型：<span class="tk-mono">${esc(r.action_type)}</span></p>
-      <div class="tk-divider"></div>
-      <dl class="tk-kv">
-        <dt>回执 ID</dt><dd>${idLine(r.receipt_id)}</dd>
-        <dt>执行 actor</dt><dd>${idLine(r.actor_id)}</dd>
+      <div class="tk-between"><h2>${esc(al.label)}</h2>${vr ? tag(verificationLabel(vr).label, verificationKind(vr)) : ''}</div>
+      <p class="tk-tiny tk-muted" style="margin-top:4px">${esc(fmtTime(r.recorded_at))} · <span class="tk-mono">${esc(r.action_type)}</span></p>
+      <dl class="tk-kv" style="margin-top:12px">
+        ${r.result?.submission_seq !== null && r.result?.submission_seq !== undefined ? `<dt>提交序号</dt><dd>v${esc(r.result.submission_seq)}</dd>` : ''}
+        ${vr ? `<dt>业务评审结果</dt><dd>${tag(verificationLabel(vr).label, verificationKind(vr))} <span class="tk-mono tk-muted">${esc(vr)}</span></dd>` : ''}
         <dt>状态</dt><dd>${tag(r.status === 'committed' ? '已提交 committed' : r.status, 'good')}</dd>
-        <dt>auth epoch</dt><dd>${esc(r.auth_epoch ?? '—')}</dd>
       </dl>
-      <div class="tk-divider"></div>
-      <h3>服务端结果</h3>
-      <div style="margin-top:10px">${resultRows(r.result)}</div>
-      ${versions ? `<div class="tk-divider"></div><h3>涉及对象版本</h3><table class="tk-table" style="margin-top:8px"><thead><tr><th>对象</th><th style="width:30%">写入后对象版本</th></tr></thead><tbody>${versions}</tbody></table>` : ''}
       ${changesNote}
+      <details class="tk-details" data-detail-key="audit"${local.openDetails.has('audit') ? ' open' : ''} style="margin-top:12px">
+        <summary>审计字段</summary>
+        <div class="tk-detailsbody"><dl class="tk-kv">
+          <dt>回执 ID</dt><dd>${idLine(r.receipt_id)}</dd>
+          <dt>执行 actor</dt><dd>${idLine(r.actor_id)}</dd>
+          <dt>auth epoch</dt><dd>${esc(r.auth_epoch ?? '—')}</dd>
+        </dl>
+        <div class="tk-divider"></div>
+        <h3>result 原文</h3>
+        <div style="margin-top:10px">${resultRows(r.result)}</div>
+        ${versions ? `<div class="tk-divider"></div><h3>涉及对象版本</h3><table class="tk-table" style="margin-top:8px"><thead><tr><th>对象</th><th style="width:30%">写入后对象版本</th></tr></thead><tbody>${versions}</tbody></table>` : ''}
+        </div>
+      </details>
     </div>`);
   }
 
@@ -161,15 +198,16 @@ export async function renderReceipts(main, ctx, route) {
     const objectNote = local.objectError
       ? `<p class="tk-small tk-muted">对象详情读取失败（${esc(describeError(local.objectError).title)}），回执列表不受影响。</p>`
       : '';
-    main.innerHTML = head('ACTION LEDGER', '动作与回执',
-      `对象「${title}」的 committed 回执。谁在什么时间，对哪一次提交作了什么判断。`) +
+    main.innerHTML = head('动作与回执',
+      `当前对象：${title} · 谁在什么时间，对哪一次提交作了什么判断。`,
+      `<button type="button" class="tk-button" data-action="back-instance">← 返回实例</button>`) +
       objectNote +
-      `<div class="tk-split"><section class="tk-panel">${listPanel()}</section><div>${detailPanel()}</div></div>` +
-      `<div class="tk-section">${panel('审计展示约定', '<div class="tk-pad"><div class="tk-small tk-muted">仅展示服务端持久化的 committed 回执；被授权拒绝的请求不会留下回执，本页不虚构拒绝示例。每条回执按当前身份重新授权，含不可读引用的回执整条隐藏。</div></div>')}</div>` +
+      `<div class="tk-receiptgrid"><div>${listPanel()}</div><div>${detailPanel()}</div></div>` +
+      `<p class="tk-tiny tk-muted" style="margin-top:14px">仅展示服务端持久化的 committed 回执；每条回执按当前身份重新授权，含不可读引用的回执整条隐藏。</p>` +
       foot(ctx.config?.commit);
   }
 
-  main.innerHTML = head('ACTION LEDGER', '动作与回执', '正在读取回执 …') + loading();
+  main.innerHTML = head('动作与回执', '正在读取回执 …') + loading();
   await loadObject();
   if (!ctx.isCurrent()) return;
   draw();
@@ -189,8 +227,17 @@ export async function renderReceipts(main, ctx, route) {
       selectReceipt(detailLoader.key);
     } else if (action === 'goto-object') {
       ctx.navigate({ page: 'instance', objectId: button.dataset.value });
+    } else if (action === 'back-instance') {
+      ctx.navigate({ page: 'instance', objectId, revisionId: ctx.focus?.objectId === objectId ? ctx.focus.revisionId : null });
     }
   }, { signal: ctx.signal });
+  // details 展开状态在异步重绘间保持（capture：toggle 不冒泡）。
+  main.addEventListener('toggle', (event) => {
+    const detail = event.target.closest?.('details[data-detail-key]');
+    if (!detail || !main.contains(detail)) return;
+    if (detail.open) local.openDetails.add(detail.dataset.detailKey);
+    else local.openDetails.delete(detail.dataset.detailKey);
+  }, { capture: true, signal: ctx.signal });
 
   if (route.receiptId) {
     selectReceipt(route.receiptId);

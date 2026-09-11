@@ -1,0 +1,10 @@
+{
+  "wheel": "tkos_memory_service-0.2.0-py3-none-any.whl",
+  "wheel_sha256": "2a15bb29b36c37f7620674cd81a63b63fa35df07860feaf228a2c6fae0d82f71",
+  "sdist": "tkos_memory_service-0.2.0.tar.gz",
+  "sdist_sha256": "61191e75d6135b8f1bc2056aa3a6dfc460cbb84ac419817c51e663bda5f6f60c",
+  "source_files_verified": 127,
+  "source_manifest_sha256": "f6fe58d54815ebdb34dfe97d94fcba8f0b01ad9d17c0c4dea6ef730a59ada2f4",
+  "migration_0021_packaged": true,
+  "offline_build_passed": true
+}

@@ -39,6 +39,9 @@ def _delegate_a2_reader(name: str, conn, ctx, *args, **kwargs):
 
 
 def object_state(conn, ctx, object_id: str) -> dict:
+    from . import method_access, method_readers
+    if method_access.is_method_object(conn, ctx, object_id):
+        return method_readers.object_state(conn, ctx, object_id)
     from . import a3_readers
     if a3_readers.is_a3_object(conn, ctx, object_id):
         return a3_readers.object_state(conn, ctx, object_id)
@@ -119,6 +122,9 @@ def feedback_state(conn, ctx, obj: dict) -> dict:
 
 
 def revision(conn, ctx, object_id: str, revision_id: str) -> dict:
+    from . import method_access, method_readers
+    if method_access.is_method_object(conn, ctx, object_id):
+        return method_readers.revision(conn, ctx, object_id, revision_id)
     from . import a3_readers
     if a3_readers.is_a3_object(conn, ctx, object_id):
         return a3_readers.revision(conn, ctx, object_id, revision_id)
@@ -132,6 +138,9 @@ def revision(conn, ctx, object_id: str, revision_id: str) -> dict:
 
 
 def authorize_receipt(conn, ctx, receipt: dict):
+    from . import method_readers
+    if method_readers.is_receipt(receipt):
+        return method_readers.authorize_receipt(conn, ctx, receipt)
     from . import a3_readers
     if a3_readers.is_a3_receipt(conn, ctx, receipt):
         return a3_readers.authorize_receipt(conn, ctx, db.jsonable(receipt))
@@ -272,6 +281,9 @@ def context_snapshot(conn, ctx, snapshot_id: str) -> dict:
                        (ctx.scope_id, snapshot_id)).fetchone()
     if row is None:
         raise GovernedError("NOT_FOUND", "Context snapshot was not found", status=404)
+    from . import method_readers
+    if any(item.get("context_request", {}).get("contract_version") == "tkos.method/0.1" for item in row["selected"] + row["excluded"]):
+        return method_readers.snapshot(conn, ctx, row)
     for item in row["selected"]:
         db.object_row(conn, ctx, item["object_id"])
         # Frozen content is never recomputed, but a selected object whose read

@@ -1,0 +1,40 @@
+{
+  "scope": "Local compatibility evidence for tkos.method/0.1; source unchanged across each run",
+  "source_manifest_sha256": "f6fe58d54815ebdb34dfe97d94fcba8f0b01ad9d17c0c4dea6ef730a59ada2f4",
+  "regression": {
+    "source_unchanged": true,
+    "pytest_exit": 0,
+    "narrative_exit": 0,
+    "pytest_passed": 669,
+    "pytest_skipped": 1,
+    "legacy_serialization_passed": true,
+    "a1_regression_scope": "Existing tests/protocol_a1 model, HTTP boundary, immutable protocol and serialization regression; not a rerun of every original A1 maintenance scenario.",
+    "a1_test_cases_passed": 71,
+    "a2_local_matrix_accepted": true,
+    "a2_checks_passed": 66,
+    "a2_exit": 0,
+    "a3_local_matrix_accepted": true,
+    "a3_checks_passed": 55,
+    "a3_exit": 0,
+    "legacy_catalog_adapter": "Only expected post-0021 control/mutable table sets are extended; original A2/A3 business cases and SQL/privilege assertions are unchanged.",
+    "migration_test_scope": "Schema migration independently executed from accepted empty base through 0021; runner replay verified. tests/test_migrations.py requires separate admin-CREATEDB fixture and is excluded.",
+    "passed": true
+  },
+  "history": {
+    "A2_A3_history_preserved": true,
+    "objects": 14,
+    "revisions": 14,
+    "receipts_replayed": 21,
+    "historic_tables": 34,
+    "replay_business_state_unchanged": true,
+    "raw_evidence_history_unchanged": true,
+    "source_unchanged": true
+  },
+  "history_base_commit": "1b8cec9cc30e561e3570bc5dd010a09126f283c2",
+  "report_hashes": {
+    "artifacts/runtime-acceptance/method-final-regression-04/summary.json": "8888ad6c0735b132347852bb53bac55f845b7c0b1f72532c562dde5c835bc6b7",
+    "artifacts/runtime-acceptance/method-final-history-03/history-preservation.json": "a5840a2fe23664b2df3ebbfa5622f31d36bfd4034fa1a4722362656635830f75"
+  },
+  "released": false,
+  "deployed": false
+}

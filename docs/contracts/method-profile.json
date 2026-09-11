@@ -1,0 +1,17 @@
+{
+  "profile_core_schema_version": "tkos.method-profile/0.1",
+  "profile_id": "urn:tkos:method:m1a-m1b",
+  "revision": "0.1.0",
+  "display_name": "M1A L4 r21 + M1B L5 r837",
+  "record_origin": "synthetic",
+  "experimental": true,
+  "corporate_approved": false,
+  "m1a_source_revision": 21,
+  "m1b_source_revision": 837,
+  "action_contract_ref": {
+    "contract_id": "tkos.method",
+    "revision": "0.1",
+    "content_sha256": "d108d228e903384182b6945181aa5bcafde4a3f64b4c564d897372805588d1c3"
+  },
+  "canonical_hash": "60d2ea98b607834889feb013cc08a4fa9c51cec8a2285fb60600b19e7444cdb7"
+}

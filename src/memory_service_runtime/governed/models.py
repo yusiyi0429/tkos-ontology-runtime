@@ -458,6 +458,12 @@ ActionParams = Union[CreateObjectParams, ProposeRevisionParams, AcceptCommitment
                      ConfirmCompanyCompositionParams, ActivateCompanyCompositionParams]
 
 
+from .a2_models import ObjectRef as MethodRunRef
+from .method_models import METHOD_ACTION_PARAMS, METHOD_ACTION_TARGETS, MethodActionType, MethodActionParams
+ACTION_PARAMS.update(METHOD_ACTION_PARAMS)
+ActionType = Union[ActionType, MethodActionType]
+ActionParams = Union[ActionParams, MethodActionParams]
+
 _PARAM_ADAPTERS: dict[str, "TypeAdapter[Any]"] = {}
 
 
@@ -488,6 +494,10 @@ class ActionRequest(StrictModel):
     # decides the object's actual protocol.  Absent/null must never change the
     # legacy request_hash (model_dump(exclude_none=True)).
     contract_version: Annotated[StrictStr, Field(min_length=1, max_length=200)] | None = None
+    # Method run association is explicit for new roots; absent fields remain
+    # excluded from old command hashes and do not reinterpret old envelopes.
+    run_ref: "MethodRunRef | None" = None
+    step_key: Annotated[StrictStr, Field(min_length=1, max_length=200)] | None = None
 
     @model_validator(mode="before")
     @classmethod
@@ -504,7 +514,13 @@ class ActionRequest(StrictModel):
         # A2 actions: open_formation_round has target=None; the other five
         # A2 action names target an A2-bound object. None of them support
         # the legacy create_object / revoke_assignment null-target exception.
-        if self.action_type == "open_formation_round":
+        if self.action_type in METHOD_ACTION_TARGETS:
+            needs_target = bool(METHOD_ACTION_TARGETS[self.action_type])
+            if needs_target != (self.target is not None):
+                raise ValueError("Method action target does not match its typed contract")
+            if self.contract_version != "tkos.method/0.1":
+                raise ValueError("Method actions require explicit tkos.method/0.1")
+        elif self.action_type == "open_formation_round":
             if self.target is not None:
                 raise ValueError("open_formation_round must carry target=None")
         elif self.action_type in {"amend_formation_round", "publish_domain_submission",
@@ -516,6 +532,10 @@ class ActionRequest(StrictModel):
                 raise ValueError("confirm/activate actions must target a CompanyComposition")
         elif (self.action_type in {"create_object", "revoke_assignment"}) != (self.target is None):
             raise ValueError("target must be null only for create_object/revoke_assignment")
+        if self.action_type == "method_open_run" and (self.run_ref is not None or self.step_key is not None):
+            raise ValueError("A Method run is an independent root")
+        if self.action_type not in METHOD_ACTION_TARGETS and (self.run_ref is not None or self.step_key is not None):
+            raise ValueError("Run association belongs only to tkos.method/0.1")
         if self.idempotency_key != self.idempotency_key.strip():
             raise ValueError("idempotency_key cannot have surrounding whitespace")
         ids = [item.object_id for item in self.expected_versions]

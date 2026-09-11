@@ -1,0 +1,60 @@
+{
+  "scope": "tkos.method/0.1 APIs",
+  "sources": {
+    "protocol": "tkos.method/0.1",
+    "m1a": {
+      "level": "L4",
+      "revision": 21
+    },
+    "m1b": {
+      "level": "L5",
+      "revision": 837
+    },
+    "legacy_base_commit": "1b8cec9cc30e561e3570bc5dd010a09126f283c2"
+  },
+  "status": "independently_accepted_locally",
+  "method_api_accepted": true,
+  "completed_at": "2026-09-11T05:25:43.190452+00:00",
+  "mandatory_cases": 18,
+  "passed_cases": 18,
+  "mandatory_checks": 98,
+  "passed_checks": 98,
+  "gates": {
+    "existing_environment_preserved": true,
+    "fresh_database_from_accepted_base": true,
+    "immutable_history": true,
+    "migration_replay": true,
+    "no_external_effects": true,
+    "ordinary_application_privileges": true,
+    "raw_evidence_storage": true,
+    "source_unchanged": true
+  },
+  "scenarios": {
+    "m1a_full": "completed",
+    "m1b_full": "completed",
+    "m1a_boundaries": "completed",
+    "permissions": "completed",
+    "compatibility": "completed",
+    "recovery": "completed",
+    "revocation": "completed",
+    "gates": "completed",
+    "final_regressions": "completed"
+  },
+  "http_requests": 967,
+  "expected_4xx_responses": 60,
+  "injected_500_responses": 2,
+  "source_files": 127,
+  "source_manifest_sha256": "f6fe58d54815ebdb34dfe97d94fcba8f0b01ad9d17c0c4dea6ef730a59ada2f4",
+  "report_sha256": "66c94d069304d29828269d7f86e5b713b9cc4b768c16d33a05d98ece9b828935",
+  "http_transcript_sha256": "214adb5a4dbecfa9fd07022211d01b5d7ec8d3ee38746b1d53c371fcbca1f539",
+  "excluded_capabilities": [
+    "clark_pages",
+    "production_identity_integration",
+    "historical_production_migration",
+    "deployment",
+    "real_agent_research_quality",
+    "real_business_outcomes"
+  ],
+  "released": false,
+  "deployed": false
+}

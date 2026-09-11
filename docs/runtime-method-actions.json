@@ -1,0 +1,4942 @@
+{
+  "contract_version": "tkos.method/0.1",
+  "action_count": 49,
+  "actions": [
+    {
+      "action_type": "method_open_run",
+      "target_types": [],
+      "params_schema": {
+        "$defs": {
+          "RunPayload": {
+            "additionalProperties": false,
+            "properties": {
+              "title": {
+                "maxLength": 10000,
+                "minLength": 1,
+                "title": "Title",
+                "type": "string"
+              },
+              "method": {
+                "enum": [
+                  "M1A",
+                  "M1B",
+                  "M1A+M1B"
+                ],
+                "title": "Method",
+                "type": "string"
+              }
+            },
+            "required": [
+              "title",
+              "method"
+            ],
+            "title": "RunPayload",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "domain_id": {
+            "title": "Domain Id",
+            "type": "string"
+          },
+          "payload": {
+            "$ref": "#/$defs/RunPayload"
+          }
+        },
+        "required": [
+          "domain_id",
+          "payload"
+        ],
+        "title": "OpenRun",
+        "type": "object"
+      }
+    },
+    {
+      "action_type": "method_attach_run",
+      "target_types": [
+        "MethodRun"
+      ],
+      "params_schema": {
+        "$defs": {
+          "ObjectRef": {
+            "additionalProperties": false,
+            "description": "正式引用的精确三元组：object_id + revision_id + payload_hash。",
+            "properties": {
+              "object_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Object Id",
+                "type": "string"
+              },
+              "revision_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Revision Id",
+                "type": "string"
+              },
+              "payload_hash": {
+                "pattern": "^[0-9a-f]{64}$",
+                "title": "Payload Hash",
+                "type": "string"
+              }
+            },
+            "required": [
+              "object_id",
+              "revision_id",
+              "payload_hash"
+            ],
+            "title": "ObjectRef",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "object_ref": {
+            "$ref": "#/$defs/ObjectRef"
+          }
+        },
+        "required": [
+          "object_ref"
+        ],
+        "title": "AttachRun",
+        "type": "object"
+      }
+    },
+    {
+      "action_type": "method_pause_run",
+      "target_types": [
+        "MethodRun"
+      ],
+      "params_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "note": {
+            "maxLength": 10000,
+            "minLength": 1,
+            "title": "Note",
+            "type": "string"
+          }
+        },
+        "required": [
+          "note"
+        ],
+        "title": "RunReason",
+        "type": "object"
+      }
+    },
+    {
+      "action_type": "method_resume_run",
+      "target_types": [
+        "MethodRun"
+      ],
+      "params_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "note": {
+            "maxLength": 10000,
+            "minLength": 1,
+            "title": "Note",
+            "type": "string"
+          }
+        },
+        "required": [
+          "note"
+        ],
+        "title": "RunReason",
+        "type": "object"
+      }
+    },
+    {
+      "action_type": "method_record_attempt",
+      "target_types": [
+        "MethodRun"
+      ],
+      "params_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "step_key": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Step Key",
+            "type": "string"
+          },
+          "outcome": {
+            "enum": [
+              "started",
+              "failed",
+              "abandoned"
+            ],
+            "title": "Outcome",
+            "type": "string"
+          },
+          "note": {
+            "maxLength": 10000,
+            "minLength": 1,
+            "title": "Note",
+            "type": "string"
+          }
+        },
+        "required": [
+          "step_key",
+          "outcome",
+          "note"
+        ],
+        "title": "Attempt",
+        "type": "object"
+      }
+    },
+    {
+      "action_type": "m1a_record_signal",
+      "target_types": [],
+      "params_schema": {
+        "$defs": {
+          "ObjectRef": {
+            "additionalProperties": false,
+            "description": "正式引用的精确三元组：object_id + revision_id + payload_hash。",
+            "properties": {
+              "object_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Object Id",
+                "type": "string"
+              },
+              "revision_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Revision Id",
+                "type": "string"
+              },
+              "payload_hash": {
+                "pattern": "^[0-9a-f]{64}$",
+                "title": "Payload Hash",
+                "type": "string"
+              }
+            },
+            "required": [
+              "object_id",
+              "revision_id",
+              "payload_hash"
+            ],
+            "title": "ObjectRef",
+            "type": "object"
+          },
+          "SignalPayload": {
+            "additionalProperties": false,
+            "properties": {
+              "title": {
+                "minLength": 1,
+                "pattern": "\\S",
+                "title": "Title",
+                "type": "string"
+              },
+              "kind": {
+                "enum": [
+                  "external",
+                  "ceo_insight",
+                  "dri_escalation",
+                  "internal"
+                ],
+                "title": "Kind",
+                "type": "string"
+              },
+              "description": {
+                "minLength": 1,
+                "pattern": "\\S",
+                "title": "Description",
+                "type": "string"
+              },
+              "source_refs": {
+                "items": {
+                  "$ref": "#/$defs/ObjectRef"
+                },
+                "minItems": 1,
+                "title": "Source Refs",
+                "type": "array"
+              }
+            },
+            "required": [
+              "title",
+              "kind",
+              "description",
+              "source_refs"
+            ],
+            "title": "SignalPayload",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "domain_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Domain Id",
+            "type": "string"
+          },
+          "payload": {
+            "$ref": "#/$defs/SignalPayload"
+          }
+        },
+        "required": [
+          "domain_id",
+          "payload"
+        ],
+        "title": "RecordSignalParams",
+        "type": "object"
+      }
+    },
+    {
+      "action_type": "m1a_open_potential_issue",
+      "target_types": [],
+      "params_schema": {
+        "$defs": {
+          "ObjectRef": {
+            "additionalProperties": false,
+            "description": "正式引用的精确三元组：object_id + revision_id + payload_hash。",
+            "properties": {
+              "object_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Object Id",
+                "type": "string"
+              },
+              "revision_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Revision Id",
+                "type": "string"
+              },
+              "payload_hash": {
+                "pattern": "^[0-9a-f]{64}$",
+                "title": "Payload Hash",
+                "type": "string"
+              }
+            },
+            "required": [
+              "object_id",
+              "revision_id",
+              "payload_hash"
+            ],
+            "title": "ObjectRef",
+            "type": "object"
+          },
+          "PotentialIssuePayload": {
+            "additionalProperties": false,
+            "properties": {
+              "title": {
+                "minLength": 1,
+                "pattern": "\\S",
+                "title": "Title",
+                "type": "string"
+              },
+              "summary": {
+                "minLength": 1,
+                "pattern": "\\S",
+                "title": "Summary",
+                "type": "string"
+              },
+              "signal_refs": {
+                "items": {
+                  "$ref": "#/$defs/ObjectRef"
+                },
+                "minItems": 1,
+                "title": "Signal Refs",
+                "type": "array"
+              }
+            },
+            "required": [
+              "title",
+              "summary",
+              "signal_refs"
+            ],
+            "title": "PotentialIssuePayload",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "domain_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Domain Id",
+            "type": "string"
+          },
+          "payload": {
+            "$ref": "#/$defs/PotentialIssuePayload"
+          }
+        },
+        "required": [
+          "domain_id",
+          "payload"
+        ],
+        "title": "OpenPotentialIssueParams",
+        "type": "object"
+      }
+    },
+    {
+      "action_type": "m1a_revise_potential_issue",
+      "target_types": [
+        "PotentialIssue"
+      ],
+      "params_schema": {
+        "$defs": {
+          "ObjectRef": {
+            "additionalProperties": false,
+            "description": "正式引用的精确三元组：object_id + revision_id + payload_hash。",
+            "properties": {
+              "object_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Object Id",
+                "type": "string"
+              },
+              "revision_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Revision Id",
+                "type": "string"
+              },
+              "payload_hash": {
+                "pattern": "^[0-9a-f]{64}$",
+                "title": "Payload Hash",
+                "type": "string"
+              }
+            },
+            "required": [
+              "object_id",
+              "revision_id",
+              "payload_hash"
+            ],
+            "title": "ObjectRef",
+            "type": "object"
+          },
+          "PotentialIssuePayload": {
+            "additionalProperties": false,
+            "properties": {
+              "title": {
+                "minLength": 1,
+                "pattern": "\\S",
+                "title": "Title",
+                "type": "string"
+              },
+              "summary": {
+                "minLength": 1,
+                "pattern": "\\S",
+                "title": "Summary",
+                "type": "string"
+              },
+              "signal_refs": {
+                "items": {
+                  "$ref": "#/$defs/ObjectRef"
+                },
+                "minItems": 1,
+                "title": "Signal Refs",
+                "type": "array"
+              }
+            },
+            "required": [
+              "title",
+              "summary",
+              "signal_refs"
+            ],
+            "title": "PotentialIssuePayload",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "payload": {
+            "$ref": "#/$defs/PotentialIssuePayload"
+          }
+        },
+        "required": [
+          "payload"
+        ],
+        "title": "RevisePotentialIssueParams",
+        "type": "object"
+      }
+    },
+    {
+      "action_type": "m1a_confirm_strategic_issue",
+      "target_types": [
+        "PotentialIssue"
+      ],
+      "params_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "reason": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "title": "ConfirmStrategicIssueParams",
+        "type": "object"
+      }
+    },
+    {
+      "action_type": "m1a_assign_research",
+      "target_types": [
+        "StrategicIssue"
+      ],
+      "params_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "dri_principal_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Dri Principal Id",
+            "type": "string"
+          },
+          "ceo_agent_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Ceo Agent Id",
+            "type": "string"
+          },
+          "dri_agent_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Dri Agent Id",
+            "type": "string"
+          },
+          "co_agent_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Co Agent Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "dri_principal_id",
+          "ceo_agent_id",
+          "dri_agent_id",
+          "co_agent_id"
+        ],
+        "title": "AssignResearchParams",
+        "type": "object"
+      }
+    },
+    {
+      "action_type": "m1a_publish_memo",
+      "target_types": [
+        "StrategicIssue"
+      ],
+      "params_schema": {
+        "$defs": {
+          "ObjectRef": {
+            "additionalProperties": false,
+            "description": "正式引用的精确三元组：object_id + revision_id + payload_hash。",
+            "properties": {
+              "object_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Object Id",
+                "type": "string"
+              },
+              "revision_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Revision Id",
+                "type": "string"
+              },
+              "payload_hash": {
+                "pattern": "^[0-9a-f]{64}$",
+                "title": "Payload Hash",
+                "type": "string"
+              }
+            },
+            "required": [
+              "object_id",
+              "revision_id",
+              "payload_hash"
+            ],
+            "title": "ObjectRef",
+            "type": "object"
+          },
+          "ResearchMemoPayload": {
+            "additionalProperties": false,
+            "properties": {
+              "title": {
+                "minLength": 1,
+                "pattern": "\\S",
+                "title": "Title",
+                "type": "string"
+              },
+              "issue_ref": {
+                "$ref": "#/$defs/ObjectRef"
+              },
+              "question": {
+                "minLength": 1,
+                "pattern": "\\S",
+                "title": "Question",
+                "type": "string"
+              },
+              "scope": {
+                "minLength": 1,
+                "pattern": "\\S",
+                "title": "Scope",
+                "type": "string"
+              },
+              "expected_output": {
+                "minLength": 1,
+                "pattern": "\\S",
+                "title": "Expected Output",
+                "type": "string"
+              },
+              "source_refs": {
+                "items": {
+                  "$ref": "#/$defs/ObjectRef"
+                },
+                "title": "Source Refs",
+                "type": "array"
+              }
+            },
+            "required": [
+              "title",
+              "issue_ref",
+              "question",
+              "scope",
+              "expected_output"
+            ],
+            "title": "ResearchMemoPayload",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "payload": {
+            "$ref": "#/$defs/ResearchMemoPayload"
+          }
+        },
+        "required": [
+          "payload"
+        ],
+        "title": "PublishMemoParams",
+        "type": "object"
+      }
+    },
+    {
+      "action_type": "m1a_record_clarification",
+      "target_types": [
+        "StrategicIssue"
+      ],
+      "params_schema": {
+        "$defs": {
+          "ObjectRef": {
+            "additionalProperties": false,
+            "description": "正式引用的精确三元组：object_id + revision_id + payload_hash。",
+            "properties": {
+              "object_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Object Id",
+                "type": "string"
+              },
+              "revision_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Revision Id",
+                "type": "string"
+              },
+              "payload_hash": {
+                "pattern": "^[0-9a-f]{64}$",
+                "title": "Payload Hash",
+                "type": "string"
+              }
+            },
+            "required": [
+              "object_id",
+              "revision_id",
+              "payload_hash"
+            ],
+            "title": "ObjectRef",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "memo_ref": {
+            "$ref": "#/$defs/ObjectRef"
+          },
+          "content": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Content",
+            "type": "string"
+          }
+        },
+        "required": [
+          "memo_ref",
+          "content"
+        ],
+        "title": "ClarificationParams",
+        "type": "object"
+      }
+    },
+    {
+      "action_type": "m1a_check_memo",
+      "target_types": [
+        "StrategicIssue"
+      ],
+      "params_schema": {
+        "$defs": {
+          "ObjectRef": {
+            "additionalProperties": false,
+            "description": "正式引用的精确三元组：object_id + revision_id + payload_hash。",
+            "properties": {
+              "object_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Object Id",
+                "type": "string"
+              },
+              "revision_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Revision Id",
+                "type": "string"
+              },
+              "payload_hash": {
+                "pattern": "^[0-9a-f]{64}$",
+                "title": "Payload Hash",
+                "type": "string"
+              }
+            },
+            "required": [
+              "object_id",
+              "revision_id",
+              "payload_hash"
+            ],
+            "title": "ObjectRef",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "memo_ref": {
+            "$ref": "#/$defs/ObjectRef"
+          },
+          "result": {
+            "enum": [
+              "clear",
+              "needs_clarification"
+            ],
+            "title": "Result",
+            "type": "string"
+          },
+          "explanation": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Explanation",
+            "type": "string"
+          }
+        },
+        "required": [
+          "memo_ref",
+          "result",
+          "explanation"
+        ],
+        "title": "CheckMemoParams",
+        "type": "object"
+      }
+    },
+    {
+      "action_type": "m1a_direct_clarification",
+      "target_types": [
+        "StrategicIssue"
+      ],
+      "params_schema": {
+        "$defs": {
+          "ObjectRef": {
+            "additionalProperties": false,
+            "description": "正式引用的精确三元组：object_id + revision_id + payload_hash。",
+            "properties": {
+              "object_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Object Id",
+                "type": "string"
+              },
+              "revision_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Revision Id",
+                "type": "string"
+              },
+              "payload_hash": {
+                "pattern": "^[0-9a-f]{64}$",
+                "title": "Payload Hash",
+                "type": "string"
+              }
+            },
+            "required": [
+              "object_id",
+              "revision_id",
+              "payload_hash"
+            ],
+            "title": "ObjectRef",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "memo_ref": {
+            "$ref": "#/$defs/ObjectRef"
+          },
+          "content": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Content",
+            "type": "string"
+          }
+        },
+        "required": [
+          "memo_ref",
+          "content"
+        ],
+        "title": "ClarificationParams",
+        "type": "object"
+      }
+    },
+    {
+      "action_type": "m1a_publish_research_plan",
+      "target_types": [
+        "StrategicIssue"
+      ],
+      "params_schema": {
+        "$defs": {
+          "ObjectRef": {
+            "additionalProperties": false,
+            "description": "正式引用的精确三元组：object_id + revision_id + payload_hash。",
+            "properties": {
+              "object_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Object Id",
+                "type": "string"
+              },
+              "revision_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Revision Id",
+                "type": "string"
+              },
+              "payload_hash": {
+                "pattern": "^[0-9a-f]{64}$",
+                "title": "Payload Hash",
+                "type": "string"
+              }
+            },
+            "required": [
+              "object_id",
+              "revision_id",
+              "payload_hash"
+            ],
+            "title": "ObjectRef",
+            "type": "object"
+          },
+          "ResearchPlanPayload": {
+            "additionalProperties": false,
+            "properties": {
+              "title": {
+                "minLength": 1,
+                "pattern": "\\S",
+                "title": "Title",
+                "type": "string"
+              },
+              "issue_ref": {
+                "$ref": "#/$defs/ObjectRef"
+              },
+              "memo_ref": {
+                "$ref": "#/$defs/ObjectRef"
+              },
+              "human_work": {
+                "items": {
+                  "minLength": 1,
+                  "pattern": "\\S",
+                  "type": "string"
+                },
+                "minItems": 1,
+                "title": "Human Work",
+                "type": "array"
+              },
+              "agent_work": {
+                "items": {
+                  "minLength": 1,
+                  "pattern": "\\S",
+                  "type": "string"
+                },
+                "minItems": 1,
+                "title": "Agent Work",
+                "type": "array"
+              },
+              "method": {
+                "minLength": 1,
+                "pattern": "\\S",
+                "title": "Method",
+                "type": "string"
+              },
+              "due_at": {
+                "format": "date-time",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?(Z|[+-]\\d{2}:\\d{2})$",
+                "title": "Due At",
+                "type": "string"
+              }
+            },
+            "required": [
+              "title",
+              "issue_ref",
+              "memo_ref",
+              "human_work",
+              "agent_work",
+              "method",
+              "due_at"
+            ],
+            "title": "ResearchPlanPayload",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "payload": {
+            "$ref": "#/$defs/ResearchPlanPayload"
+          }
+        },
+        "required": [
+          "payload"
+        ],
+        "title": "PublishResearchPlanParams",
+        "type": "object"
+      }
+    },
+    {
+      "action_type": "m1a_publish_report",
+      "target_types": [
+        "StrategicIssue"
+      ],
+      "params_schema": {
+        "$defs": {
+          "ObjectRef": {
+            "additionalProperties": false,
+            "description": "正式引用的精确三元组：object_id + revision_id + payload_hash。",
+            "properties": {
+              "object_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Object Id",
+                "type": "string"
+              },
+              "revision_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Revision Id",
+                "type": "string"
+              },
+              "payload_hash": {
+                "pattern": "^[0-9a-f]{64}$",
+                "title": "Payload Hash",
+                "type": "string"
+              }
+            },
+            "required": [
+              "object_id",
+              "revision_id",
+              "payload_hash"
+            ],
+            "title": "ObjectRef",
+            "type": "object"
+          },
+          "ResearchReportPayload": {
+            "additionalProperties": false,
+            "properties": {
+              "title": {
+                "minLength": 1,
+                "pattern": "\\S",
+                "title": "Title",
+                "type": "string"
+              },
+              "issue_ref": {
+                "$ref": "#/$defs/ObjectRef"
+              },
+              "plan_ref": {
+                "$ref": "#/$defs/ObjectRef"
+              },
+              "findings": {
+                "items": {
+                  "minLength": 1,
+                  "pattern": "\\S",
+                  "type": "string"
+                },
+                "minItems": 1,
+                "title": "Findings",
+                "type": "array"
+              },
+              "conclusions": {
+                "items": {
+                  "minLength": 1,
+                  "pattern": "\\S",
+                  "type": "string"
+                },
+                "minItems": 1,
+                "title": "Conclusions",
+                "type": "array"
+              },
+              "limitations": {
+                "items": {
+                  "minLength": 1,
+                  "pattern": "\\S",
+                  "type": "string"
+                },
+                "minItems": 1,
+                "title": "Limitations",
+                "type": "array"
+              },
+              "evidence_refs": {
+                "items": {
+                  "$ref": "#/$defs/ObjectRef"
+                },
+                "minItems": 1,
+                "title": "Evidence Refs",
+                "type": "array"
+              }
+            },
+            "required": [
+              "title",
+              "issue_ref",
+              "plan_ref",
+              "findings",
+              "conclusions",
+              "limitations",
+              "evidence_refs"
+            ],
+            "title": "ResearchReportPayload",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "payload": {
+            "$ref": "#/$defs/ResearchReportPayload"
+          }
+        },
+        "required": [
+          "payload"
+        ],
+        "title": "PublishReportParams",
+        "type": "object"
+      }
+    },
+    {
+      "action_type": "m1a_submit_report",
+      "target_types": [
+        "StrategicIssue"
+      ],
+      "params_schema": {
+        "$defs": {
+          "ObjectRef": {
+            "additionalProperties": false,
+            "description": "正式引用的精确三元组：object_id + revision_id + payload_hash。",
+            "properties": {
+              "object_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Object Id",
+                "type": "string"
+              },
+              "revision_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Revision Id",
+                "type": "string"
+              },
+              "payload_hash": {
+                "pattern": "^[0-9a-f]{64}$",
+                "title": "Payload Hash",
+                "type": "string"
+              }
+            },
+            "required": [
+              "object_id",
+              "revision_id",
+              "payload_hash"
+            ],
+            "title": "ObjectRef",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "report_ref": {
+            "$ref": "#/$defs/ObjectRef"
+          },
+          "statement": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Statement",
+            "type": "string"
+          }
+        },
+        "required": [
+          "report_ref",
+          "statement"
+        ],
+        "title": "SubmitReportParams",
+        "type": "object"
+      }
+    },
+    {
+      "action_type": "m1a_precheck_report",
+      "target_types": [
+        "StrategicIssue"
+      ],
+      "params_schema": {
+        "$defs": {
+          "ObjectRef": {
+            "additionalProperties": false,
+            "description": "正式引用的精确三元组：object_id + revision_id + payload_hash。",
+            "properties": {
+              "object_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Object Id",
+                "type": "string"
+              },
+              "revision_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Revision Id",
+                "type": "string"
+              },
+              "payload_hash": {
+                "pattern": "^[0-9a-f]{64}$",
+                "title": "Payload Hash",
+                "type": "string"
+              }
+            },
+            "required": [
+              "object_id",
+              "revision_id",
+              "payload_hash"
+            ],
+            "title": "ObjectRef",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "report_ref": {
+            "$ref": "#/$defs/ObjectRef"
+          },
+          "result": {
+            "enum": [
+              "pass",
+              "return"
+            ],
+            "title": "Result",
+            "type": "string"
+          },
+          "findings": {
+            "items": {
+              "minLength": 1,
+              "pattern": "\\S",
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Findings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "report_ref",
+          "result",
+          "findings"
+        ],
+        "title": "PrecheckReportParams",
+        "type": "object"
+      }
+    },
+    {
+      "action_type": "m1a_open_meeting",
+      "target_types": [
+        "StrategicIssue"
+      ],
+      "params_schema": {
+        "$defs": {
+          "ObjectRef": {
+            "additionalProperties": false,
+            "description": "正式引用的精确三元组：object_id + revision_id + payload_hash。",
+            "properties": {
+              "object_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Object Id",
+                "type": "string"
+              },
+              "revision_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Revision Id",
+                "type": "string"
+              },
+              "payload_hash": {
+                "pattern": "^[0-9a-f]{64}$",
+                "title": "Payload Hash",
+                "type": "string"
+              }
+            },
+            "required": [
+              "object_id",
+              "revision_id",
+              "payload_hash"
+            ],
+            "title": "ObjectRef",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "report_ref": {
+            "$ref": "#/$defs/ObjectRef"
+          },
+          "title": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Title",
+            "type": "string"
+          },
+          "objective": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Objective",
+            "type": "string"
+          },
+          "material_refs": {
+            "items": {
+              "$ref": "#/$defs/ObjectRef"
+            },
+            "minItems": 1,
+            "title": "Material Refs",
+            "type": "array"
+          }
+        },
+        "required": [
+          "report_ref",
+          "title",
+          "objective",
+          "material_refs"
+        ],
+        "title": "OpenMeetingParams",
+        "type": "object"
+      }
+    },
+    {
+      "action_type": "m1a_publish_minutes",
+      "target_types": [
+        "StrategicIssue"
+      ],
+      "params_schema": {
+        "$defs": {
+          "ObjectRef": {
+            "additionalProperties": false,
+            "description": "正式引用的精确三元组：object_id + revision_id + payload_hash。",
+            "properties": {
+              "object_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Object Id",
+                "type": "string"
+              },
+              "revision_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Revision Id",
+                "type": "string"
+              },
+              "payload_hash": {
+                "pattern": "^[0-9a-f]{64}$",
+                "title": "Payload Hash",
+                "type": "string"
+              }
+            },
+            "required": [
+              "object_id",
+              "revision_id",
+              "payload_hash"
+            ],
+            "title": "ObjectRef",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "meeting_ref": {
+            "$ref": "#/$defs/ObjectRef"
+          },
+          "title": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Title",
+            "type": "string"
+          },
+          "account": {
+            "enum": [
+              "ceo",
+              "dri"
+            ],
+            "title": "Account",
+            "type": "string"
+          },
+          "body": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Body",
+            "type": "string"
+          },
+          "source_refs": {
+            "items": {
+              "$ref": "#/$defs/ObjectRef"
+            },
+            "minItems": 1,
+            "title": "Source Refs",
+            "type": "array"
+          }
+        },
+        "required": [
+          "meeting_ref",
+          "title",
+          "account",
+          "body",
+          "source_refs"
+        ],
+        "title": "PublishMinutesParams",
+        "type": "object"
+      }
+    },
+    {
+      "action_type": "m1a_reconcile_minutes",
+      "target_types": [
+        "StrategicIssue"
+      ],
+      "params_schema": {
+        "$defs": {
+          "MinuteDifference": {
+            "additionalProperties": false,
+            "properties": {
+              "topic": {
+                "minLength": 1,
+                "pattern": "\\S",
+                "title": "Topic",
+                "type": "string"
+              },
+              "ceo_account": {
+                "minLength": 1,
+                "pattern": "\\S",
+                "title": "Ceo Account",
+                "type": "string"
+              },
+              "dri_account": {
+                "minLength": 1,
+                "pattern": "\\S",
+                "title": "Dri Account",
+                "type": "string"
+              },
+              "resolution": {
+                "minLength": 1,
+                "pattern": "\\S",
+                "title": "Resolution",
+                "type": "string"
+              }
+            },
+            "required": [
+              "topic",
+              "ceo_account",
+              "dri_account",
+              "resolution"
+            ],
+            "title": "MinuteDifference",
+            "type": "object"
+          },
+          "ObjectRef": {
+            "additionalProperties": false,
+            "description": "正式引用的精确三元组：object_id + revision_id + payload_hash。",
+            "properties": {
+              "object_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Object Id",
+                "type": "string"
+              },
+              "revision_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Revision Id",
+                "type": "string"
+              },
+              "payload_hash": {
+                "pattern": "^[0-9a-f]{64}$",
+                "title": "Payload Hash",
+                "type": "string"
+              }
+            },
+            "required": [
+              "object_id",
+              "revision_id",
+              "payload_hash"
+            ],
+            "title": "ObjectRef",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "meeting_ref": {
+            "$ref": "#/$defs/ObjectRef"
+          },
+          "ceo_minutes_ref": {
+            "$ref": "#/$defs/ObjectRef"
+          },
+          "dri_minutes_ref": {
+            "$ref": "#/$defs/ObjectRef"
+          },
+          "title": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Title",
+            "type": "string"
+          },
+          "body": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Body",
+            "type": "string"
+          },
+          "differences": {
+            "items": {
+              "$ref": "#/$defs/MinuteDifference"
+            },
+            "title": "Differences",
+            "type": "array"
+          }
+        },
+        "required": [
+          "meeting_ref",
+          "ceo_minutes_ref",
+          "dri_minutes_ref",
+          "title",
+          "body",
+          "differences"
+        ],
+        "title": "ReconcileMinutesParams",
+        "type": "object"
+      }
+    },
+    {
+      "action_type": "m1a_confirm_minutes",
+      "target_types": [
+        "StrategicIssue"
+      ],
+      "params_schema": {
+        "$defs": {
+          "ObjectRef": {
+            "additionalProperties": false,
+            "description": "正式引用的精确三元组：object_id + revision_id + payload_hash。",
+            "properties": {
+              "object_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Object Id",
+                "type": "string"
+              },
+              "revision_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Revision Id",
+                "type": "string"
+              },
+              "payload_hash": {
+                "pattern": "^[0-9a-f]{64}$",
+                "title": "Payload Hash",
+                "type": "string"
+              }
+            },
+            "required": [
+              "object_id",
+              "revision_id",
+              "payload_hash"
+            ],
+            "title": "ObjectRef",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "minutes_ref": {
+            "$ref": "#/$defs/ObjectRef"
+          },
+          "statement": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Statement",
+            "type": "string"
+          }
+        },
+        "required": [
+          "minutes_ref",
+          "statement"
+        ],
+        "title": "ConfirmMinutesParams",
+        "type": "object"
+      }
+    },
+    {
+      "action_type": "m1a_confirm_agreement",
+      "target_types": [
+        "StrategicIssue"
+      ],
+      "params_schema": {
+        "$defs": {
+          "ObjectRef": {
+            "additionalProperties": false,
+            "description": "正式引用的精确三元组：object_id + revision_id + payload_hash。",
+            "properties": {
+              "object_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Object Id",
+                "type": "string"
+              },
+              "revision_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Revision Id",
+                "type": "string"
+              },
+              "payload_hash": {
+                "pattern": "^[0-9a-f]{64}$",
+                "title": "Payload Hash",
+                "type": "string"
+              }
+            },
+            "required": [
+              "object_id",
+              "revision_id",
+              "payload_hash"
+            ],
+            "title": "ObjectRef",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "minutes_ref": {
+            "$ref": "#/$defs/ObjectRef"
+          },
+          "title": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Title",
+            "type": "string"
+          },
+          "statement": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Statement",
+            "type": "string"
+          },
+          "meeting_goal_achieved": {
+            "title": "Meeting Goal Achieved",
+            "type": "boolean"
+          },
+          "reason": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "minutes_ref",
+          "title",
+          "statement",
+          "meeting_goal_achieved",
+          "reason"
+        ],
+        "title": "ConfirmAgreementParams",
+        "type": "object"
+      }
+    },
+    {
+      "action_type": "m1a_decide_update",
+      "target_types": [
+        "StrategicIssue"
+      ],
+      "params_schema": {
+        "$defs": {
+          "ObjectRef": {
+            "additionalProperties": false,
+            "description": "正式引用的精确三元组：object_id + revision_id + payload_hash。",
+            "properties": {
+              "object_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Object Id",
+                "type": "string"
+              },
+              "revision_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Revision Id",
+                "type": "string"
+              },
+              "payload_hash": {
+                "pattern": "^[0-9a-f]{64}$",
+                "title": "Payload Hash",
+                "type": "string"
+              }
+            },
+            "required": [
+              "object_id",
+              "revision_id",
+              "payload_hash"
+            ],
+            "title": "ObjectRef",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "agreement_ref": {
+            "$ref": "#/$defs/ObjectRef"
+          },
+          "needs_update": {
+            "title": "Needs Update",
+            "type": "boolean"
+          },
+          "reason": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "agreement_ref",
+          "needs_update",
+          "reason"
+        ],
+        "title": "DecideUpdateParams",
+        "type": "object"
+      }
+    },
+    {
+      "action_type": "m1a_propose_update",
+      "target_types": [
+        "StrategicIssue"
+      ],
+      "params_schema": {
+        "$defs": {
+          "JudgmentChange": {
+            "additionalProperties": false,
+            "properties": {
+              "scope": {
+                "const": "domain",
+                "title": "Scope",
+                "type": "string"
+              },
+              "domain_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Domain Id",
+                "type": "string"
+              },
+              "target_ref": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/ObjectRef"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null
+              },
+              "payload": {
+                "$ref": "#/$defs/StrategicJudgmentPayload"
+              }
+            },
+            "required": [
+              "scope",
+              "domain_id",
+              "payload"
+            ],
+            "title": "JudgmentChange",
+            "type": "object"
+          },
+          "ObjectRef": {
+            "additionalProperties": false,
+            "description": "正式引用的精确三元组：object_id + revision_id + payload_hash。",
+            "properties": {
+              "object_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Object Id",
+                "type": "string"
+              },
+              "revision_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Revision Id",
+                "type": "string"
+              },
+              "payload_hash": {
+                "pattern": "^[0-9a-f]{64}$",
+                "title": "Payload Hash",
+                "type": "string"
+              }
+            },
+            "required": [
+              "object_id",
+              "revision_id",
+              "payload_hash"
+            ],
+            "title": "ObjectRef",
+            "type": "object"
+          },
+          "StrategicJudgmentPayload": {
+            "additionalProperties": false,
+            "properties": {
+              "title": {
+                "minLength": 1,
+                "pattern": "\\S",
+                "title": "Title",
+                "type": "string"
+              },
+              "statement": {
+                "minLength": 1,
+                "pattern": "\\S",
+                "title": "Statement",
+                "type": "string"
+              },
+              "strategy_ref": {
+                "$ref": "#/$defs/ObjectRef"
+              },
+              "unit_id": {
+                "minLength": 1,
+                "pattern": "\\S",
+                "title": "Unit Id",
+                "type": "string"
+              },
+              "source_agreement_ref": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/ObjectRef"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null
+              },
+              "source_proposal_ref": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/ObjectRef"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null
+              }
+            },
+            "required": [
+              "title",
+              "statement",
+              "strategy_ref",
+              "unit_id"
+            ],
+            "title": "StrategicJudgmentPayload",
+            "type": "object"
+          },
+          "StrategyChange": {
+            "additionalProperties": false,
+            "properties": {
+              "scope": {
+                "const": "company",
+                "title": "Scope",
+                "type": "string"
+              },
+              "target_ref": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/ObjectRef"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null
+              },
+              "payload": {
+                "$ref": "#/$defs/StrategyPayload"
+              }
+            },
+            "required": [
+              "scope",
+              "payload"
+            ],
+            "title": "StrategyChange",
+            "type": "object"
+          },
+          "StrategyMap": {
+            "additionalProperties": false,
+            "properties": {
+              "units": {
+                "items": {
+                  "$ref": "#/$defs/StrategyUnit"
+                },
+                "minItems": 1,
+                "title": "Units",
+                "type": "array"
+              }
+            },
+            "required": [
+              "units"
+            ],
+            "title": "StrategyMap",
+            "type": "object"
+          },
+          "StrategyPayload": {
+            "additionalProperties": false,
+            "properties": {
+              "title": {
+                "minLength": 1,
+                "pattern": "\\S",
+                "title": "Title",
+                "type": "string"
+              },
+              "statement": {
+                "minLength": 1,
+                "pattern": "\\S",
+                "title": "Statement",
+                "type": "string"
+              },
+              "map": {
+                "$ref": "#/$defs/StrategyMap"
+              },
+              "source_agreement_ref": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/ObjectRef"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null
+              },
+              "source_proposal_ref": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/ObjectRef"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null
+              }
+            },
+            "required": [
+              "title",
+              "statement",
+              "map"
+            ],
+            "title": "StrategyPayload",
+            "type": "object"
+          },
+          "StrategyUnit": {
+            "additionalProperties": false,
+            "properties": {
+              "unit_id": {
+                "minLength": 1,
+                "pattern": "\\S",
+                "title": "Unit Id",
+                "type": "string"
+              },
+              "name": {
+                "minLength": 1,
+                "pattern": "\\S",
+                "title": "Name",
+                "type": "string"
+              },
+              "judgment": {
+                "minLength": 1,
+                "pattern": "\\S",
+                "title": "Judgment",
+                "type": "string"
+              },
+              "owner_principal_id": {
+                "anyOf": [
+                  {
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Owner Principal Id"
+              }
+            },
+            "required": [
+              "unit_id",
+              "name",
+              "judgment"
+            ],
+            "title": "StrategyUnit",
+            "type": "object"
+          },
+          "StrategyUpdateProposalPayload": {
+            "additionalProperties": false,
+            "properties": {
+              "title": {
+                "minLength": 1,
+                "pattern": "\\S",
+                "title": "Title",
+                "type": "string"
+              },
+              "issue_ref": {
+                "$ref": "#/$defs/ObjectRef"
+              },
+              "agreement_ref": {
+                "$ref": "#/$defs/ObjectRef"
+              },
+              "rationale": {
+                "minLength": 1,
+                "pattern": "\\S",
+                "title": "Rationale",
+                "type": "string"
+              },
+              "changes": {
+                "items": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/$defs/StrategyChange"
+                    },
+                    {
+                      "$ref": "#/$defs/JudgmentChange"
+                    }
+                  ]
+                },
+                "minItems": 1,
+                "title": "Changes",
+                "type": "array"
+              }
+            },
+            "required": [
+              "title",
+              "issue_ref",
+              "agreement_ref",
+              "rationale",
+              "changes"
+            ],
+            "title": "StrategyUpdateProposalPayload",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "payload": {
+            "$ref": "#/$defs/StrategyUpdateProposalPayload"
+          }
+        },
+        "required": [
+          "payload"
+        ],
+        "title": "ProposeUpdateParams",
+        "type": "object"
+      }
+    },
+    {
+      "action_type": "m1a_review_update",
+      "target_types": [
+        "StrategicIssue"
+      ],
+      "params_schema": {
+        "$defs": {
+          "ObjectRef": {
+            "additionalProperties": false,
+            "description": "正式引用的精确三元组：object_id + revision_id + payload_hash。",
+            "properties": {
+              "object_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Object Id",
+                "type": "string"
+              },
+              "revision_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Revision Id",
+                "type": "string"
+              },
+              "payload_hash": {
+                "pattern": "^[0-9a-f]{64}$",
+                "title": "Payload Hash",
+                "type": "string"
+              }
+            },
+            "required": [
+              "object_id",
+              "revision_id",
+              "payload_hash"
+            ],
+            "title": "ObjectRef",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "proposal_ref": {
+            "$ref": "#/$defs/ObjectRef"
+          },
+          "accepted": {
+            "title": "Accepted",
+            "type": "boolean"
+          },
+          "impact_level": {
+            "enum": [
+              "company",
+              "domain",
+              "company_and_domain"
+            ],
+            "title": "Impact Level",
+            "type": "string"
+          },
+          "findings": {
+            "items": {
+              "minLength": 1,
+              "pattern": "\\S",
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Findings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "proposal_ref",
+          "accepted",
+          "impact_level",
+          "findings"
+        ],
+        "title": "ReviewUpdateParams",
+        "type": "object"
+      }
+    },
+    {
+      "action_type": "m1a_confirm_update",
+      "target_types": [
+        "StrategicIssue"
+      ],
+      "params_schema": {
+        "$defs": {
+          "ObjectRef": {
+            "additionalProperties": false,
+            "description": "正式引用的精确三元组：object_id + revision_id + payload_hash。",
+            "properties": {
+              "object_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Object Id",
+                "type": "string"
+              },
+              "revision_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Revision Id",
+                "type": "string"
+              },
+              "payload_hash": {
+                "pattern": "^[0-9a-f]{64}$",
+                "title": "Payload Hash",
+                "type": "string"
+              }
+            },
+            "required": [
+              "object_id",
+              "revision_id",
+              "payload_hash"
+            ],
+            "title": "ObjectRef",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "proposal_ref": {
+            "$ref": "#/$defs/ObjectRef"
+          },
+          "reason": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "proposal_ref",
+          "reason"
+        ],
+        "title": "ConfirmUpdateParams",
+        "type": "object"
+      }
+    },
+    {
+      "action_type": "m1b_record_fact",
+      "target_types": [],
+      "params_schema": {
+        "$defs": {
+          "BusinessFactPayload": {
+            "additionalProperties": false,
+            "properties": {
+              "fact_id": {
+                "minLength": 1,
+                "pattern": "\\S",
+                "title": "Fact Id",
+                "type": "string"
+              },
+              "subject_ref": {
+                "$ref": "#/$defs/FactSubject"
+              },
+              "as_of": {
+                "format": "date-time",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?(Z|[+-]\\d{2}:\\d{2})$",
+                "title": "As Of",
+                "type": "string"
+              },
+              "metric": {
+                "minLength": 1,
+                "pattern": "\\S",
+                "title": "Metric",
+                "type": "string"
+              },
+              "value": {
+                "$ref": "#/$defs/JsonValue"
+              },
+              "unit": {
+                "anyOf": [
+                  {
+                    "minLength": 1,
+                    "pattern": "\\S",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Unit"
+              },
+              "source_ref": {
+                "$ref": "#/$defs/ExactRef"
+              },
+              "corrects_ref": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/ExactRef"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null
+              },
+              "correction_reason": {
+                "anyOf": [
+                  {
+                    "minLength": 1,
+                    "pattern": "\\S",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Correction Reason"
+              }
+            },
+            "required": [
+              "fact_id",
+              "subject_ref",
+              "as_of",
+              "metric",
+              "value",
+              "source_ref"
+            ],
+            "title": "BusinessFactPayload",
+            "type": "object"
+          },
+          "ExactRef": {
+            "additionalProperties": false,
+            "properties": {
+              "object_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Object Id",
+                "type": "string"
+              },
+              "revision_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Revision Id",
+                "type": "string"
+              },
+              "payload_hash": {
+                "pattern": "^[0-9a-f]{64}$",
+                "title": "Payload Hash",
+                "type": "string"
+              }
+            },
+            "required": [
+              "object_id",
+              "revision_id",
+              "payload_hash"
+            ],
+            "title": "ExactRef",
+            "type": "object"
+          },
+          "FactSubject": {
+            "additionalProperties": false,
+            "description": "An exact object/outcome reference, or an explicitly named company topic.",
+            "properties": {
+              "object_id": {
+                "anyOf": [
+                  {
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Object Id"
+              },
+              "revision_id": {
+                "anyOf": [
+                  {
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Revision Id"
+              },
+              "payload_hash": {
+                "anyOf": [
+                  {
+                    "pattern": "^[0-9a-f]{64}$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Payload Hash"
+              },
+              "outcome_id": {
+                "anyOf": [
+                  {
+                    "minLength": 1,
+                    "pattern": "\\S",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Outcome Id"
+              },
+              "topic": {
+                "anyOf": [
+                  {
+                    "minLength": 1,
+                    "pattern": "\\S",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Topic"
+              }
+            },
+            "title": "FactSubject",
+            "type": "object"
+          },
+          "JsonValue": {}
+        },
+        "additionalProperties": false,
+        "properties": {
+          "domain_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Domain Id",
+            "type": "string"
+          },
+          "payload": {
+            "$ref": "#/$defs/BusinessFactPayload"
+          }
+        },
+        "required": [
+          "domain_id",
+          "payload"
+        ],
+        "title": "CreateFact",
+        "type": "object"
+      }
+    },
+    {
+      "action_type": "m1b_correct_fact",
+      "target_types": [
+        "BusinessFact"
+      ],
+      "params_schema": {
+        "$defs": {
+          "BusinessFactPayload": {
+            "additionalProperties": false,
+            "properties": {
+              "fact_id": {
+                "minLength": 1,
+                "pattern": "\\S",
+                "title": "Fact Id",
+                "type": "string"
+              },
+              "subject_ref": {
+                "$ref": "#/$defs/FactSubject"
+              },
+              "as_of": {
+                "format": "date-time",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?(Z|[+-]\\d{2}:\\d{2})$",
+                "title": "As Of",
+                "type": "string"
+              },
+              "metric": {
+                "minLength": 1,
+                "pattern": "\\S",
+                "title": "Metric",
+                "type": "string"
+              },
+              "value": {
+                "$ref": "#/$defs/JsonValue"
+              },
+              "unit": {
+                "anyOf": [
+                  {
+                    "minLength": 1,
+                    "pattern": "\\S",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Unit"
+              },
+              "source_ref": {
+                "$ref": "#/$defs/ExactRef"
+              },
+              "corrects_ref": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/ExactRef"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null
+              },
+              "correction_reason": {
+                "anyOf": [
+                  {
+                    "minLength": 1,
+                    "pattern": "\\S",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Correction Reason"
+              }
+            },
+            "required": [
+              "fact_id",
+              "subject_ref",
+              "as_of",
+              "metric",
+              "value",
+              "source_ref"
+            ],
+            "title": "BusinessFactPayload",
+            "type": "object"
+          },
+          "ExactRef": {
+            "additionalProperties": false,
+            "properties": {
+              "object_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Object Id",
+                "type": "string"
+              },
+              "revision_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Revision Id",
+                "type": "string"
+              },
+              "payload_hash": {
+                "pattern": "^[0-9a-f]{64}$",
+                "title": "Payload Hash",
+                "type": "string"
+              }
+            },
+            "required": [
+              "object_id",
+              "revision_id",
+              "payload_hash"
+            ],
+            "title": "ExactRef",
+            "type": "object"
+          },
+          "FactSubject": {
+            "additionalProperties": false,
+            "description": "An exact object/outcome reference, or an explicitly named company topic.",
+            "properties": {
+              "object_id": {
+                "anyOf": [
+                  {
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Object Id"
+              },
+              "revision_id": {
+                "anyOf": [
+                  {
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Revision Id"
+              },
+              "payload_hash": {
+                "anyOf": [
+                  {
+                    "pattern": "^[0-9a-f]{64}$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Payload Hash"
+              },
+              "outcome_id": {
+                "anyOf": [
+                  {
+                    "minLength": 1,
+                    "pattern": "\\S",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Outcome Id"
+              },
+              "topic": {
+                "anyOf": [
+                  {
+                    "minLength": 1,
+                    "pattern": "\\S",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Topic"
+              }
+            },
+            "title": "FactSubject",
+            "type": "object"
+          },
+          "JsonValue": {}
+        },
+        "additionalProperties": false,
+        "properties": {
+          "payload": {
+            "$ref": "#/$defs/BusinessFactPayload"
+          }
+        },
+        "required": [
+          "payload"
+        ],
+        "title": "CorrectFact",
+        "type": "object"
+      }
+    },
+    {
+      "action_type": "m1b_generate_review",
+      "target_types": [],
+      "params_schema": {
+        "$defs": {
+          "ExactRef": {
+            "additionalProperties": false,
+            "properties": {
+              "object_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Object Id",
+                "type": "string"
+              },
+              "revision_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Revision Id",
+                "type": "string"
+              },
+              "payload_hash": {
+                "pattern": "^[0-9a-f]{64}$",
+                "title": "Payload Hash",
+                "type": "string"
+              }
+            },
+            "required": [
+              "object_id",
+              "revision_id",
+              "payload_hash"
+            ],
+            "title": "ExactRef",
+            "type": "object"
+          },
+          "Period": {
+            "additionalProperties": false,
+            "properties": {
+              "start": {
+                "format": "date-time",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?(Z|[+-]\\d{2}:\\d{2})$",
+                "title": "Start",
+                "type": "string"
+              },
+              "end": {
+                "format": "date-time",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?(Z|[+-]\\d{2}:\\d{2})$",
+                "title": "End",
+                "type": "string"
+              }
+            },
+            "required": [
+              "start",
+              "end"
+            ],
+            "title": "Period",
+            "type": "object"
+          },
+          "PeriodReviewPayload": {
+            "additionalProperties": false,
+            "properties": {
+              "review_id": {
+                "minLength": 1,
+                "pattern": "\\S",
+                "title": "Review Id",
+                "type": "string"
+              },
+              "title": {
+                "minLength": 1,
+                "pattern": "\\S",
+                "title": "Title",
+                "type": "string"
+              },
+              "period": {
+                "$ref": "#/$defs/Period"
+              },
+              "target_refs": {
+                "items": {
+                  "$ref": "#/$defs/ExactRef"
+                },
+                "minItems": 1,
+                "title": "Target Refs",
+                "type": "array"
+              },
+              "fact_refs": {
+                "items": {
+                  "$ref": "#/$defs/ExactRef"
+                },
+                "title": "Fact Refs",
+                "type": "array"
+              },
+              "findings": {
+                "items": {
+                  "minLength": 1,
+                  "pattern": "\\S",
+                  "type": "string"
+                },
+                "minItems": 1,
+                "title": "Findings",
+                "type": "array"
+              },
+              "learnings": {
+                "items": {
+                  "minLength": 1,
+                  "pattern": "\\S",
+                  "type": "string"
+                },
+                "title": "Learnings",
+                "type": "array"
+              },
+              "implications": {
+                "items": {
+                  "minLength": 1,
+                  "pattern": "\\S",
+                  "type": "string"
+                },
+                "title": "Implications",
+                "type": "array"
+              },
+              "generation_version": {
+                "minLength": 1,
+                "pattern": "\\S",
+                "title": "Generation Version",
+                "type": "string"
+              }
+            },
+            "required": [
+              "review_id",
+              "title",
+              "period",
+              "target_refs",
+              "findings",
+              "generation_version"
+            ],
+            "title": "PeriodReviewPayload",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "domain_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Domain Id",
+            "type": "string"
+          },
+          "payload": {
+            "$ref": "#/$defs/PeriodReviewPayload"
+          }
+        },
+        "required": [
+          "domain_id",
+          "payload"
+        ],
+        "title": "GenerateReview",
+        "type": "object"
+      }
+    },
+    {
+      "action_type": "m1b_regenerate_review",
+      "target_types": [
+        "PeriodReview"
+      ],
+      "params_schema": {
+        "$defs": {
+          "ExactRef": {
+            "additionalProperties": false,
+            "properties": {
+              "object_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Object Id",
+                "type": "string"
+              },
+              "revision_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Revision Id",
+                "type": "string"
+              },
+              "payload_hash": {
+                "pattern": "^[0-9a-f]{64}$",
+                "title": "Payload Hash",
+                "type": "string"
+              }
+            },
+            "required": [
+              "object_id",
+              "revision_id",
+              "payload_hash"
+            ],
+            "title": "ExactRef",
+            "type": "object"
+          },
+          "Period": {
+            "additionalProperties": false,
+            "properties": {
+              "start": {
+                "format": "date-time",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?(Z|[+-]\\d{2}:\\d{2})$",
+                "title": "Start",
+                "type": "string"
+              },
+              "end": {
+                "format": "date-time",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?(Z|[+-]\\d{2}:\\d{2})$",
+                "title": "End",
+                "type": "string"
+              }
+            },
+            "required": [
+              "start",
+              "end"
+            ],
+            "title": "Period",
+            "type": "object"
+          },
+          "PeriodReviewPayload": {
+            "additionalProperties": false,
+            "properties": {
+              "review_id": {
+                "minLength": 1,
+                "pattern": "\\S",
+                "title": "Review Id",
+                "type": "string"
+              },
+              "title": {
+                "minLength": 1,
+                "pattern": "\\S",
+                "title": "Title",
+                "type": "string"
+              },
+              "period": {
+                "$ref": "#/$defs/Period"
+              },
+              "target_refs": {
+                "items": {
+                  "$ref": "#/$defs/ExactRef"
+                },
+                "minItems": 1,
+                "title": "Target Refs",
+                "type": "array"
+              },
+              "fact_refs": {
+                "items": {
+                  "$ref": "#/$defs/ExactRef"
+                },
+                "title": "Fact Refs",
+                "type": "array"
+              },
+              "findings": {
+                "items": {
+                  "minLength": 1,
+                  "pattern": "\\S",
+                  "type": "string"
+                },
+                "minItems": 1,
+                "title": "Findings",
+                "type": "array"
+              },
+              "learnings": {
+                "items": {
+                  "minLength": 1,
+                  "pattern": "\\S",
+                  "type": "string"
+                },
+                "title": "Learnings",
+                "type": "array"
+              },
+              "implications": {
+                "items": {
+                  "minLength": 1,
+                  "pattern": "\\S",
+                  "type": "string"
+                },
+                "title": "Implications",
+                "type": "array"
+              },
+              "generation_version": {
+                "minLength": 1,
+                "pattern": "\\S",
+                "title": "Generation Version",
+                "type": "string"
+              }
+            },
+            "required": [
+              "review_id",
+              "title",
+              "period",
+              "target_refs",
+              "findings",
+              "generation_version"
+            ],
+            "title": "PeriodReviewPayload",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "payload": {
+            "$ref": "#/$defs/PeriodReviewPayload"
+          }
+        },
+        "required": [
+          "payload"
+        ],
+        "title": "RegenerateReview",
+        "type": "object"
+      }
+    },
+    {
+      "action_type": "m1b_advise_ltco",
+      "target_types": [],
+      "params_schema": {
+        "$defs": {
+          "ExactRef": {
+            "additionalProperties": false,
+            "properties": {
+              "object_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Object Id",
+                "type": "string"
+              },
+              "revision_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Revision Id",
+                "type": "string"
+              },
+              "payload_hash": {
+                "pattern": "^[0-9a-f]{64}$",
+                "title": "Payload Hash",
+                "type": "string"
+              }
+            },
+            "required": [
+              "object_id",
+              "revision_id",
+              "payload_hash"
+            ],
+            "title": "ExactRef",
+            "type": "object"
+          },
+          "LTCOReviewAdvicePayload": {
+            "additionalProperties": false,
+            "properties": {
+              "title": {
+                "minLength": 1,
+                "pattern": "\\S",
+                "title": "Title",
+                "type": "string"
+              },
+              "period_review_ref": {
+                "$ref": "#/$defs/ExactRef"
+              },
+              "strategy_ref": {
+                "$ref": "#/$defs/ExactRef"
+              },
+              "ltco_ref": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/ExactRef"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null
+              },
+              "recommendation": {
+                "enum": [
+                  "create",
+                  "retain",
+                  "revise"
+                ],
+                "title": "Recommendation",
+                "type": "string"
+              },
+              "observations": {
+                "items": {
+                  "minLength": 1,
+                  "pattern": "\\S",
+                  "type": "string"
+                },
+                "minItems": 1,
+                "title": "Observations",
+                "type": "array"
+              },
+              "generation_version": {
+                "minLength": 1,
+                "pattern": "\\S",
+                "title": "Generation Version",
+                "type": "string"
+              }
+            },
+            "required": [
+              "title",
+              "period_review_ref",
+              "strategy_ref",
+              "recommendation",
+              "observations",
+              "generation_version"
+            ],
+            "title": "LTCOReviewAdvicePayload",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "domain_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Domain Id",
+            "type": "string"
+          },
+          "payload": {
+            "$ref": "#/$defs/LTCOReviewAdvicePayload"
+          }
+        },
+        "required": [
+          "domain_id",
+          "payload"
+        ],
+        "title": "AdviseLTCO",
+        "type": "object"
+      }
+    },
+    {
+      "action_type": "m1b_propose_ltco",
+      "target_types": [],
+      "params_schema": {
+        "$defs": {
+          "ExactRef": {
+            "additionalProperties": false,
+            "properties": {
+              "object_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Object Id",
+                "type": "string"
+              },
+              "revision_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Revision Id",
+                "type": "string"
+              },
+              "payload_hash": {
+                "pattern": "^[0-9a-f]{64}$",
+                "title": "Payload Hash",
+                "type": "string"
+              }
+            },
+            "required": [
+              "object_id",
+              "revision_id",
+              "payload_hash"
+            ],
+            "title": "ExactRef",
+            "type": "object"
+          },
+          "LTCOOutcome": {
+            "additionalProperties": false,
+            "properties": {
+              "outcome_id": {
+                "minLength": 1,
+                "pattern": "\\S",
+                "title": "Outcome Id",
+                "type": "string"
+              },
+              "unit_id": {
+                "minLength": 1,
+                "pattern": "\\S",
+                "title": "Unit Id",
+                "type": "string"
+              },
+              "title": {
+                "minLength": 1,
+                "pattern": "\\S",
+                "title": "Title",
+                "type": "string"
+              },
+              "result_statement": {
+                "minLength": 1,
+                "pattern": "\\S",
+                "title": "Result Statement",
+                "type": "string"
+              },
+              "criteria": {
+                "items": {
+                  "minLength": 1,
+                  "pattern": "\\S",
+                  "type": "string"
+                },
+                "minItems": 1,
+                "title": "Criteria",
+                "type": "array"
+              }
+            },
+            "required": [
+              "outcome_id",
+              "unit_id",
+              "title",
+              "result_statement",
+              "criteria"
+            ],
+            "title": "LTCOOutcome",
+            "type": "object"
+          },
+          "LTCOPayload": {
+            "additionalProperties": false,
+            "properties": {
+              "title": {
+                "minLength": 1,
+                "pattern": "\\S",
+                "title": "Title",
+                "type": "string"
+              },
+              "period": {
+                "$ref": "#/$defs/Period"
+              },
+              "strategy_ref": {
+                "$ref": "#/$defs/ExactRef"
+              },
+              "owner_principal_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Owner Principal Id",
+                "type": "string"
+              },
+              "outcomes": {
+                "items": {
+                  "$ref": "#/$defs/LTCOOutcome"
+                },
+                "minItems": 1,
+                "title": "Outcomes",
+                "type": "array"
+              },
+              "advice_ref": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/ExactRef"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null
+              }
+            },
+            "required": [
+              "title",
+              "period",
+              "strategy_ref",
+              "owner_principal_id",
+              "outcomes"
+            ],
+            "title": "LTCOPayload",
+            "type": "object"
+          },
+          "Period": {
+            "additionalProperties": false,
+            "properties": {
+              "start": {
+                "format": "date-time",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?(Z|[+-]\\d{2}:\\d{2})$",
+                "title": "Start",
+                "type": "string"
+              },
+              "end": {
+                "format": "date-time",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?(Z|[+-]\\d{2}:\\d{2})$",
+                "title": "End",
+                "type": "string"
+              }
+            },
+            "required": [
+              "start",
+              "end"
+            ],
+            "title": "Period",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "domain_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Domain Id",
+            "type": "string"
+          },
+          "payload": {
+            "$ref": "#/$defs/LTCOPayload"
+          }
+        },
+        "required": [
+          "domain_id",
+          "payload"
+        ],
+        "title": "ProposeLTCO",
+        "type": "object"
+      }
+    },
+    {
+      "action_type": "m1b_revise_ltco",
+      "target_types": [
+        "LTCO"
+      ],
+      "params_schema": {
+        "$defs": {
+          "ExactRef": {
+            "additionalProperties": false,
+            "properties": {
+              "object_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Object Id",
+                "type": "string"
+              },
+              "revision_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Revision Id",
+                "type": "string"
+              },
+              "payload_hash": {
+                "pattern": "^[0-9a-f]{64}$",
+                "title": "Payload Hash",
+                "type": "string"
+              }
+            },
+            "required": [
+              "object_id",
+              "revision_id",
+              "payload_hash"
+            ],
+            "title": "ExactRef",
+            "type": "object"
+          },
+          "LTCOOutcome": {
+            "additionalProperties": false,
+            "properties": {
+              "outcome_id": {
+                "minLength": 1,
+                "pattern": "\\S",
+                "title": "Outcome Id",
+                "type": "string"
+              },
+              "unit_id": {
+                "minLength": 1,
+                "pattern": "\\S",
+                "title": "Unit Id",
+                "type": "string"
+              },
+              "title": {
+                "minLength": 1,
+                "pattern": "\\S",
+                "title": "Title",
+                "type": "string"
+              },
+              "result_statement": {
+                "minLength": 1,
+                "pattern": "\\S",
+                "title": "Result Statement",
+                "type": "string"
+              },
+              "criteria": {
+                "items": {
+                  "minLength": 1,
+                  "pattern": "\\S",
+                  "type": "string"
+                },
+                "minItems": 1,
+                "title": "Criteria",
+                "type": "array"
+              }
+            },
+            "required": [
+              "outcome_id",
+              "unit_id",
+              "title",
+              "result_statement",
+              "criteria"
+            ],
+            "title": "LTCOOutcome",
+            "type": "object"
+          },
+          "LTCOPayload": {
+            "additionalProperties": false,
+            "properties": {
+              "title": {
+                "minLength": 1,
+                "pattern": "\\S",
+                "title": "Title",
+                "type": "string"
+              },
+              "period": {
+                "$ref": "#/$defs/Period"
+              },
+              "strategy_ref": {
+                "$ref": "#/$defs/ExactRef"
+              },
+              "owner_principal_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Owner Principal Id",
+                "type": "string"
+              },
+              "outcomes": {
+                "items": {
+                  "$ref": "#/$defs/LTCOOutcome"
+                },
+                "minItems": 1,
+                "title": "Outcomes",
+                "type": "array"
+              },
+              "advice_ref": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/ExactRef"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null
+              }
+            },
+            "required": [
+              "title",
+              "period",
+              "strategy_ref",
+              "owner_principal_id",
+              "outcomes"
+            ],
+            "title": "LTCOPayload",
+            "type": "object"
+          },
+          "Period": {
+            "additionalProperties": false,
+            "properties": {
+              "start": {
+                "format": "date-time",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?(Z|[+-]\\d{2}:\\d{2})$",
+                "title": "Start",
+                "type": "string"
+              },
+              "end": {
+                "format": "date-time",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?(Z|[+-]\\d{2}:\\d{2})$",
+                "title": "End",
+                "type": "string"
+              }
+            },
+            "required": [
+              "start",
+              "end"
+            ],
+            "title": "Period",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "payload": {
+            "$ref": "#/$defs/LTCOPayload"
+          },
+          "response": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Response",
+            "type": "string"
+          }
+        },
+        "required": [
+          "payload",
+          "response"
+        ],
+        "title": "ReviseLTCO",
+        "type": "object"
+      }
+    },
+    {
+      "action_type": "m1b_return_ltco",
+      "target_types": [
+        "LTCO"
+      ],
+      "params_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "reason": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "title": "Reason",
+        "type": "object"
+      }
+    },
+    {
+      "action_type": "m1b_confirm_ltco",
+      "target_types": [
+        "LTCO"
+      ],
+      "params_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "reason": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "title": "Decision",
+        "type": "object"
+      }
+    },
+    {
+      "action_type": "m1b_draft_pco",
+      "target_types": [],
+      "params_schema": {
+        "$defs": {
+          "ExactRef": {
+            "additionalProperties": false,
+            "properties": {
+              "object_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Object Id",
+                "type": "string"
+              },
+              "revision_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Revision Id",
+                "type": "string"
+              },
+              "payload_hash": {
+                "pattern": "^[0-9a-f]{64}$",
+                "title": "Payload Hash",
+                "type": "string"
+              }
+            },
+            "required": [
+              "object_id",
+              "revision_id",
+              "payload_hash"
+            ],
+            "title": "ExactRef",
+            "type": "object"
+          },
+          "PCOOutcome": {
+            "additionalProperties": false,
+            "properties": {
+              "outcome_id": {
+                "minLength": 1,
+                "pattern": "\\S",
+                "title": "Outcome Id",
+                "type": "string"
+              },
+              "unit_id": {
+                "minLength": 1,
+                "pattern": "\\S",
+                "title": "Unit Id",
+                "type": "string"
+              },
+              "title": {
+                "minLength": 1,
+                "pattern": "\\S",
+                "title": "Title",
+                "type": "string"
+              },
+              "result_statement": {
+                "minLength": 1,
+                "pattern": "\\S",
+                "title": "Result Statement",
+                "type": "string"
+              },
+              "criteria": {
+                "items": {
+                  "minLength": 1,
+                  "pattern": "\\S",
+                  "type": "string"
+                },
+                "minItems": 1,
+                "title": "Criteria",
+                "type": "array"
+              },
+              "dri_principal_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Dri Principal Id",
+                "type": "string"
+              }
+            },
+            "required": [
+              "outcome_id",
+              "unit_id",
+              "title",
+              "result_statement",
+              "criteria",
+              "dri_principal_id"
+            ],
+            "title": "PCOOutcome",
+            "type": "object"
+          },
+          "PCOPayload": {
+            "additionalProperties": false,
+            "properties": {
+              "title": {
+                "minLength": 1,
+                "pattern": "\\S",
+                "title": "Title",
+                "type": "string"
+              },
+              "period": {
+                "$ref": "#/$defs/Period"
+              },
+              "strategy_ref": {
+                "$ref": "#/$defs/ExactRef"
+              },
+              "ltco_ref": {
+                "$ref": "#/$defs/ExactRef"
+              },
+              "unit_outcomes": {
+                "items": {
+                  "$ref": "#/$defs/PCOOutcome"
+                },
+                "minItems": 1,
+                "title": "Unit Outcomes",
+                "type": "array"
+              }
+            },
+            "required": [
+              "title",
+              "period",
+              "strategy_ref",
+              "ltco_ref",
+              "unit_outcomes"
+            ],
+            "title": "PCOPayload",
+            "type": "object"
+          },
+          "Period": {
+            "additionalProperties": false,
+            "properties": {
+              "start": {
+                "format": "date-time",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?(Z|[+-]\\d{2}:\\d{2})$",
+                "title": "Start",
+                "type": "string"
+              },
+              "end": {
+                "format": "date-time",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?(Z|[+-]\\d{2}:\\d{2})$",
+                "title": "End",
+                "type": "string"
+              }
+            },
+            "required": [
+              "start",
+              "end"
+            ],
+            "title": "Period",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "domain_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Domain Id",
+            "type": "string"
+          },
+          "payload": {
+            "$ref": "#/$defs/PCOPayload"
+          }
+        },
+        "required": [
+          "domain_id",
+          "payload"
+        ],
+        "title": "DraftPCO",
+        "type": "object"
+      }
+    },
+    {
+      "action_type": "m1b_revise_pco",
+      "target_types": [
+        "PCO"
+      ],
+      "params_schema": {
+        "$defs": {
+          "ExactRef": {
+            "additionalProperties": false,
+            "properties": {
+              "object_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Object Id",
+                "type": "string"
+              },
+              "revision_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Revision Id",
+                "type": "string"
+              },
+              "payload_hash": {
+                "pattern": "^[0-9a-f]{64}$",
+                "title": "Payload Hash",
+                "type": "string"
+              }
+            },
+            "required": [
+              "object_id",
+              "revision_id",
+              "payload_hash"
+            ],
+            "title": "ExactRef",
+            "type": "object"
+          },
+          "PCOOutcome": {
+            "additionalProperties": false,
+            "properties": {
+              "outcome_id": {
+                "minLength": 1,
+                "pattern": "\\S",
+                "title": "Outcome Id",
+                "type": "string"
+              },
+              "unit_id": {
+                "minLength": 1,
+                "pattern": "\\S",
+                "title": "Unit Id",
+                "type": "string"
+              },
+              "title": {
+                "minLength": 1,
+                "pattern": "\\S",
+                "title": "Title",
+                "type": "string"
+              },
+              "result_statement": {
+                "minLength": 1,
+                "pattern": "\\S",
+                "title": "Result Statement",
+                "type": "string"
+              },
+              "criteria": {
+                "items": {
+                  "minLength": 1,
+                  "pattern": "\\S",
+                  "type": "string"
+                },
+                "minItems": 1,
+                "title": "Criteria",
+                "type": "array"
+              },
+              "dri_principal_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Dri Principal Id",
+                "type": "string"
+              }
+            },
+            "required": [
+              "outcome_id",
+              "unit_id",
+              "title",
+              "result_statement",
+              "criteria",
+              "dri_principal_id"
+            ],
+            "title": "PCOOutcome",
+            "type": "object"
+          },
+          "PCOPayload": {
+            "additionalProperties": false,
+            "properties": {
+              "title": {
+                "minLength": 1,
+                "pattern": "\\S",
+                "title": "Title",
+                "type": "string"
+              },
+              "period": {
+                "$ref": "#/$defs/Period"
+              },
+              "strategy_ref": {
+                "$ref": "#/$defs/ExactRef"
+              },
+              "ltco_ref": {
+                "$ref": "#/$defs/ExactRef"
+              },
+              "unit_outcomes": {
+                "items": {
+                  "$ref": "#/$defs/PCOOutcome"
+                },
+                "minItems": 1,
+                "title": "Unit Outcomes",
+                "type": "array"
+              }
+            },
+            "required": [
+              "title",
+              "period",
+              "strategy_ref",
+              "ltco_ref",
+              "unit_outcomes"
+            ],
+            "title": "PCOPayload",
+            "type": "object"
+          },
+          "Period": {
+            "additionalProperties": false,
+            "properties": {
+              "start": {
+                "format": "date-time",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?(Z|[+-]\\d{2}:\\d{2})$",
+                "title": "Start",
+                "type": "string"
+              },
+              "end": {
+                "format": "date-time",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?(Z|[+-]\\d{2}:\\d{2})$",
+                "title": "End",
+                "type": "string"
+              }
+            },
+            "required": [
+              "start",
+              "end"
+            ],
+            "title": "Period",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "payload": {
+            "$ref": "#/$defs/PCOPayload"
+          }
+        },
+        "required": [
+          "payload"
+        ],
+        "title": "RevisePCO",
+        "type": "object"
+      }
+    },
+    {
+      "action_type": "m1b_draft_mission",
+      "target_types": [],
+      "params_schema": {
+        "$defs": {
+          "ExactRef": {
+            "additionalProperties": false,
+            "properties": {
+              "object_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Object Id",
+                "type": "string"
+              },
+              "revision_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Revision Id",
+                "type": "string"
+              },
+              "payload_hash": {
+                "pattern": "^[0-9a-f]{64}$",
+                "title": "Payload Hash",
+                "type": "string"
+              }
+            },
+            "required": [
+              "object_id",
+              "revision_id",
+              "payload_hash"
+            ],
+            "title": "ExactRef",
+            "type": "object"
+          },
+          "MissionPayload": {
+            "additionalProperties": false,
+            "properties": {
+              "title": {
+                "minLength": 1,
+                "pattern": "\\S",
+                "title": "Title",
+                "type": "string"
+              },
+              "pco_ref": {
+                "$ref": "#/$defs/ExactRef"
+              },
+              "owner_principal_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Owner Principal Id",
+                "type": "string"
+              },
+              "participants": {
+                "items": {
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                  "type": "string"
+                },
+                "title": "Participants",
+                "type": "array"
+              },
+              "supports": {
+                "items": {
+                  "$ref": "#/$defs/MissionSupport"
+                },
+                "minItems": 1,
+                "title": "Supports",
+                "type": "array"
+              },
+              "deliverable": {
+                "minLength": 1,
+                "pattern": "\\S",
+                "title": "Deliverable",
+                "type": "string"
+              },
+              "acceptance_criteria": {
+                "items": {
+                  "minLength": 1,
+                  "pattern": "\\S",
+                  "type": "string"
+                },
+                "minItems": 1,
+                "title": "Acceptance Criteria",
+                "type": "array"
+              },
+              "boundary": {
+                "minLength": 1,
+                "pattern": "\\S",
+                "title": "Boundary",
+                "type": "string"
+              },
+              "hard_deadline": {
+                "format": "date-time",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?(Z|[+-]\\d{2}:\\d{2})$",
+                "title": "Hard Deadline",
+                "type": "string"
+              }
+            },
+            "required": [
+              "title",
+              "pco_ref",
+              "owner_principal_id",
+              "supports",
+              "deliverable",
+              "acceptance_criteria",
+              "boundary",
+              "hard_deadline"
+            ],
+            "title": "MissionPayload",
+            "type": "object"
+          },
+          "MissionSupport": {
+            "additionalProperties": false,
+            "properties": {
+              "outcome_ref": {
+                "$ref": "#/$defs/OutcomeRef"
+              },
+              "contribution": {
+                "minLength": 1,
+                "pattern": "\\S",
+                "title": "Contribution",
+                "type": "string"
+              }
+            },
+            "required": [
+              "outcome_ref",
+              "contribution"
+            ],
+            "title": "MissionSupport",
+            "type": "object"
+          },
+          "OutcomeRef": {
+            "additionalProperties": false,
+            "properties": {
+              "object_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Object Id",
+                "type": "string"
+              },
+              "revision_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Revision Id",
+                "type": "string"
+              },
+              "payload_hash": {
+                "pattern": "^[0-9a-f]{64}$",
+                "title": "Payload Hash",
+                "type": "string"
+              },
+              "outcome_id": {
+                "minLength": 1,
+                "pattern": "\\S",
+                "title": "Outcome Id",
+                "type": "string"
+              }
+            },
+            "required": [
+              "object_id",
+              "revision_id",
+              "payload_hash",
+              "outcome_id"
+            ],
+            "title": "OutcomeRef",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "domain_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Domain Id",
+            "type": "string"
+          },
+          "payload": {
+            "$ref": "#/$defs/MissionPayload"
+          }
+        },
+        "required": [
+          "domain_id",
+          "payload"
+        ],
+        "title": "DraftMission",
+        "type": "object"
+      }
+    },
+    {
+      "action_type": "m1b_revise_mission",
+      "target_types": [
+        "Mission"
+      ],
+      "params_schema": {
+        "$defs": {
+          "ExactRef": {
+            "additionalProperties": false,
+            "properties": {
+              "object_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Object Id",
+                "type": "string"
+              },
+              "revision_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Revision Id",
+                "type": "string"
+              },
+              "payload_hash": {
+                "pattern": "^[0-9a-f]{64}$",
+                "title": "Payload Hash",
+                "type": "string"
+              }
+            },
+            "required": [
+              "object_id",
+              "revision_id",
+              "payload_hash"
+            ],
+            "title": "ExactRef",
+            "type": "object"
+          },
+          "MissionPayload": {
+            "additionalProperties": false,
+            "properties": {
+              "title": {
+                "minLength": 1,
+                "pattern": "\\S",
+                "title": "Title",
+                "type": "string"
+              },
+              "pco_ref": {
+                "$ref": "#/$defs/ExactRef"
+              },
+              "owner_principal_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Owner Principal Id",
+                "type": "string"
+              },
+              "participants": {
+                "items": {
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                  "type": "string"
+                },
+                "title": "Participants",
+                "type": "array"
+              },
+              "supports": {
+                "items": {
+                  "$ref": "#/$defs/MissionSupport"
+                },
+                "minItems": 1,
+                "title": "Supports",
+                "type": "array"
+              },
+              "deliverable": {
+                "minLength": 1,
+                "pattern": "\\S",
+                "title": "Deliverable",
+                "type": "string"
+              },
+              "acceptance_criteria": {
+                "items": {
+                  "minLength": 1,
+                  "pattern": "\\S",
+                  "type": "string"
+                },
+                "minItems": 1,
+                "title": "Acceptance Criteria",
+                "type": "array"
+              },
+              "boundary": {
+                "minLength": 1,
+                "pattern": "\\S",
+                "title": "Boundary",
+                "type": "string"
+              },
+              "hard_deadline": {
+                "format": "date-time",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?(Z|[+-]\\d{2}:\\d{2})$",
+                "title": "Hard Deadline",
+                "type": "string"
+              }
+            },
+            "required": [
+              "title",
+              "pco_ref",
+              "owner_principal_id",
+              "supports",
+              "deliverable",
+              "acceptance_criteria",
+              "boundary",
+              "hard_deadline"
+            ],
+            "title": "MissionPayload",
+            "type": "object"
+          },
+          "MissionSupport": {
+            "additionalProperties": false,
+            "properties": {
+              "outcome_ref": {
+                "$ref": "#/$defs/OutcomeRef"
+              },
+              "contribution": {
+                "minLength": 1,
+                "pattern": "\\S",
+                "title": "Contribution",
+                "type": "string"
+              }
+            },
+            "required": [
+              "outcome_ref",
+              "contribution"
+            ],
+            "title": "MissionSupport",
+            "type": "object"
+          },
+          "OutcomeRef": {
+            "additionalProperties": false,
+            "properties": {
+              "object_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Object Id",
+                "type": "string"
+              },
+              "revision_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Revision Id",
+                "type": "string"
+              },
+              "payload_hash": {
+                "pattern": "^[0-9a-f]{64}$",
+                "title": "Payload Hash",
+                "type": "string"
+              },
+              "outcome_id": {
+                "minLength": 1,
+                "pattern": "\\S",
+                "title": "Outcome Id",
+                "type": "string"
+              }
+            },
+            "required": [
+              "object_id",
+              "revision_id",
+              "payload_hash",
+              "outcome_id"
+            ],
+            "title": "OutcomeRef",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "payload": {
+            "$ref": "#/$defs/MissionPayload"
+          }
+        },
+        "required": [
+          "payload"
+        ],
+        "title": "ReviseMission",
+        "type": "object"
+      }
+    },
+    {
+      "action_type": "m1b_open_window",
+      "target_types": [],
+      "params_schema": {
+        "$defs": {
+          "ExactRef": {
+            "additionalProperties": false,
+            "properties": {
+              "object_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Object Id",
+                "type": "string"
+              },
+              "revision_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Revision Id",
+                "type": "string"
+              },
+              "payload_hash": {
+                "pattern": "^[0-9a-f]{64}$",
+                "title": "Payload Hash",
+                "type": "string"
+              }
+            },
+            "required": [
+              "object_id",
+              "revision_id",
+              "payload_hash"
+            ],
+            "title": "ExactRef",
+            "type": "object"
+          },
+          "Period": {
+            "additionalProperties": false,
+            "properties": {
+              "start": {
+                "format": "date-time",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?(Z|[+-]\\d{2}:\\d{2})$",
+                "title": "Start",
+                "type": "string"
+              },
+              "end": {
+                "format": "date-time",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?(Z|[+-]\\d{2}:\\d{2})$",
+                "title": "End",
+                "type": "string"
+              }
+            },
+            "required": [
+              "start",
+              "end"
+            ],
+            "title": "Period",
+            "type": "object"
+          },
+          "ReviewWindowPayload": {
+            "additionalProperties": false,
+            "properties": {
+              "title": {
+                "minLength": 1,
+                "pattern": "\\S",
+                "title": "Title",
+                "type": "string"
+              },
+              "period": {
+                "$ref": "#/$defs/Period"
+              },
+              "strategy_ref": {
+                "$ref": "#/$defs/ExactRef"
+              },
+              "ltco_ref": {
+                "$ref": "#/$defs/ExactRef"
+              },
+              "target_refs": {
+                "items": {
+                  "$ref": "#/$defs/ExactRef"
+                },
+                "minItems": 2,
+                "title": "Target Refs",
+                "type": "array"
+              },
+              "participants": {
+                "items": {
+                  "$ref": "#/$defs/WindowParticipant"
+                },
+                "minItems": 1,
+                "title": "Participants",
+                "type": "array"
+              },
+              "previous_window_ref": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/ExactRef"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null
+              }
+            },
+            "required": [
+              "title",
+              "period",
+              "strategy_ref",
+              "ltco_ref",
+              "target_refs",
+              "participants"
+            ],
+            "title": "ReviewWindowPayload",
+            "type": "object"
+          },
+          "WindowParticipant": {
+            "additionalProperties": false,
+            "properties": {
+              "principal_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Principal Id",
+                "type": "string"
+              },
+              "assignment_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Assignment Id",
+                "type": "string"
+              },
+              "personal_agent_id": {
+                "anyOf": [
+                  {
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Personal Agent Id"
+              }
+            },
+            "required": [
+              "principal_id",
+              "assignment_id"
+            ],
+            "title": "WindowParticipant",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "domain_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Domain Id",
+            "type": "string"
+          },
+          "payload": {
+            "$ref": "#/$defs/ReviewWindowPayload"
+          }
+        },
+        "required": [
+          "domain_id",
+          "payload"
+        ],
+        "title": "OpenWindow",
+        "type": "object"
+      }
+    },
+    {
+      "action_type": "m1b_comment",
+      "target_types": [
+        "ReviewWindow"
+      ],
+      "params_schema": {
+        "$defs": {
+          "ExactRef": {
+            "additionalProperties": false,
+            "properties": {
+              "object_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Object Id",
+                "type": "string"
+              },
+              "revision_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Revision Id",
+                "type": "string"
+              },
+              "payload_hash": {
+                "pattern": "^[0-9a-f]{64}$",
+                "title": "Payload Hash",
+                "type": "string"
+              }
+            },
+            "required": [
+              "object_id",
+              "revision_id",
+              "payload_hash"
+            ],
+            "title": "ExactRef",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "target_ref": {
+            "$ref": "#/$defs/ExactRef"
+          },
+          "content": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Content",
+            "type": "string"
+          },
+          "replaces_record_id": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Replaces Record Id"
+          }
+        },
+        "required": [
+          "target_ref",
+          "content"
+        ],
+        "title": "Comment",
+        "type": "object"
+      }
+    },
+    {
+      "action_type": "m1b_withdraw_comment",
+      "target_types": [
+        "ReviewWindow"
+      ],
+      "params_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "review_record_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Review Record Id",
+            "type": "string"
+          },
+          "reason": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "review_record_id",
+          "reason"
+        ],
+        "title": "WithdrawComment",
+        "type": "object"
+      }
+    },
+    {
+      "action_type": "m1b_assist_review",
+      "target_types": [
+        "ReviewWindow"
+      ],
+      "params_schema": {
+        "$defs": {
+          "ExactRef": {
+            "additionalProperties": false,
+            "properties": {
+              "object_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Object Id",
+                "type": "string"
+              },
+              "revision_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Revision Id",
+                "type": "string"
+              },
+              "payload_hash": {
+                "pattern": "^[0-9a-f]{64}$",
+                "title": "Payload Hash",
+                "type": "string"
+              }
+            },
+            "required": [
+              "object_id",
+              "revision_id",
+              "payload_hash"
+            ],
+            "title": "ExactRef",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "target_ref": {
+            "$ref": "#/$defs/ExactRef"
+          },
+          "owner_principal_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Owner Principal Id",
+            "type": "string"
+          },
+          "analysis": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Analysis",
+            "type": "string"
+          },
+          "source_refs": {
+            "items": {
+              "$ref": "#/$defs/ExactRef"
+            },
+            "title": "Source Refs",
+            "type": "array"
+          },
+          "generation_version": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Generation Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "target_ref",
+          "owner_principal_id",
+          "analysis",
+          "generation_version"
+        ],
+        "title": "AssistReview",
+        "type": "object"
+      }
+    },
+    {
+      "action_type": "m1b_close_window",
+      "target_types": [
+        "ReviewWindow"
+      ],
+      "params_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "reason": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "title": "CloseWindow",
+        "type": "object"
+      }
+    },
+    {
+      "action_type": "m1b_resolve_window",
+      "target_types": [
+        "ReviewWindow"
+      ],
+      "params_schema": {
+        "$defs": {
+          "CandidateMission": {
+            "additionalProperties": false,
+            "description": "Server binds the generated PCO revision atomically, never a guessed ID.",
+            "properties": {
+              "object_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Object Id",
+                "type": "string"
+              },
+              "title": {
+                "minLength": 1,
+                "pattern": "\\S",
+                "title": "Title",
+                "type": "string"
+              },
+              "owner_principal_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Owner Principal Id",
+                "type": "string"
+              },
+              "participants": {
+                "items": {
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                  "type": "string"
+                },
+                "title": "Participants",
+                "type": "array"
+              },
+              "supports": {
+                "items": {
+                  "$ref": "#/$defs/CandidateSupport"
+                },
+                "minItems": 1,
+                "title": "Supports",
+                "type": "array"
+              },
+              "deliverable": {
+                "minLength": 1,
+                "pattern": "\\S",
+                "title": "Deliverable",
+                "type": "string"
+              },
+              "acceptance_criteria": {
+                "items": {
+                  "minLength": 1,
+                  "pattern": "\\S",
+                  "type": "string"
+                },
+                "minItems": 1,
+                "title": "Acceptance Criteria",
+                "type": "array"
+              },
+              "boundary": {
+                "minLength": 1,
+                "pattern": "\\S",
+                "title": "Boundary",
+                "type": "string"
+              },
+              "hard_deadline": {
+                "format": "date-time",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?(Z|[+-]\\d{2}:\\d{2})$",
+                "title": "Hard Deadline",
+                "type": "string"
+              }
+            },
+            "required": [
+              "object_id",
+              "title",
+              "owner_principal_id",
+              "supports",
+              "deliverable",
+              "acceptance_criteria",
+              "boundary",
+              "hard_deadline"
+            ],
+            "title": "CandidateMission",
+            "type": "object"
+          },
+          "CandidateSupport": {
+            "additionalProperties": false,
+            "properties": {
+              "outcome_id": {
+                "minLength": 1,
+                "pattern": "\\S",
+                "title": "Outcome Id",
+                "type": "string"
+              },
+              "contribution": {
+                "minLength": 1,
+                "pattern": "\\S",
+                "title": "Contribution",
+                "type": "string"
+              }
+            },
+            "required": [
+              "outcome_id",
+              "contribution"
+            ],
+            "title": "CandidateSupport",
+            "type": "object"
+          },
+          "ExactRef": {
+            "additionalProperties": false,
+            "properties": {
+              "object_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Object Id",
+                "type": "string"
+              },
+              "revision_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Revision Id",
+                "type": "string"
+              },
+              "payload_hash": {
+                "pattern": "^[0-9a-f]{64}$",
+                "title": "Payload Hash",
+                "type": "string"
+              }
+            },
+            "required": [
+              "object_id",
+              "revision_id",
+              "payload_hash"
+            ],
+            "title": "ExactRef",
+            "type": "object"
+          },
+          "OpinionDisposition": {
+            "additionalProperties": false,
+            "properties": {
+              "review_record_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Review Record Id",
+                "type": "string"
+              },
+              "decision": {
+                "enum": [
+                  "adopted",
+                  "partially_adopted",
+                  "not_adopted",
+                  "unresolved"
+                ],
+                "title": "Decision",
+                "type": "string"
+              },
+              "rationale": {
+                "minLength": 1,
+                "pattern": "\\S",
+                "title": "Rationale",
+                "type": "string"
+              }
+            },
+            "required": [
+              "review_record_id",
+              "decision",
+              "rationale"
+            ],
+            "title": "OpinionDisposition",
+            "type": "object"
+          },
+          "PCOOutcome": {
+            "additionalProperties": false,
+            "properties": {
+              "outcome_id": {
+                "minLength": 1,
+                "pattern": "\\S",
+                "title": "Outcome Id",
+                "type": "string"
+              },
+              "unit_id": {
+                "minLength": 1,
+                "pattern": "\\S",
+                "title": "Unit Id",
+                "type": "string"
+              },
+              "title": {
+                "minLength": 1,
+                "pattern": "\\S",
+                "title": "Title",
+                "type": "string"
+              },
+              "result_statement": {
+                "minLength": 1,
+                "pattern": "\\S",
+                "title": "Result Statement",
+                "type": "string"
+              },
+              "criteria": {
+                "items": {
+                  "minLength": 1,
+                  "pattern": "\\S",
+                  "type": "string"
+                },
+                "minItems": 1,
+                "title": "Criteria",
+                "type": "array"
+              },
+              "dri_principal_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Dri Principal Id",
+                "type": "string"
+              }
+            },
+            "required": [
+              "outcome_id",
+              "unit_id",
+              "title",
+              "result_statement",
+              "criteria",
+              "dri_principal_id"
+            ],
+            "title": "PCOOutcome",
+            "type": "object"
+          },
+          "PCOPayload": {
+            "additionalProperties": false,
+            "properties": {
+              "title": {
+                "minLength": 1,
+                "pattern": "\\S",
+                "title": "Title",
+                "type": "string"
+              },
+              "period": {
+                "$ref": "#/$defs/Period"
+              },
+              "strategy_ref": {
+                "$ref": "#/$defs/ExactRef"
+              },
+              "ltco_ref": {
+                "$ref": "#/$defs/ExactRef"
+              },
+              "unit_outcomes": {
+                "items": {
+                  "$ref": "#/$defs/PCOOutcome"
+                },
+                "minItems": 1,
+                "title": "Unit Outcomes",
+                "type": "array"
+              }
+            },
+            "required": [
+              "title",
+              "period",
+              "strategy_ref",
+              "ltco_ref",
+              "unit_outcomes"
+            ],
+            "title": "PCOPayload",
+            "type": "object"
+          },
+          "Period": {
+            "additionalProperties": false,
+            "properties": {
+              "start": {
+                "format": "date-time",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?(Z|[+-]\\d{2}:\\d{2})$",
+                "title": "Start",
+                "type": "string"
+              },
+              "end": {
+                "format": "date-time",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?(Z|[+-]\\d{2}:\\d{2})$",
+                "title": "End",
+                "type": "string"
+              }
+            },
+            "required": [
+              "start",
+              "end"
+            ],
+            "title": "Period",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "title": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Title",
+            "type": "string"
+          },
+          "pco_payload": {
+            "$ref": "#/$defs/PCOPayload"
+          },
+          "missions": {
+            "items": {
+              "$ref": "#/$defs/CandidateMission"
+            },
+            "minItems": 1,
+            "title": "Missions",
+            "type": "array"
+          },
+          "dispositions": {
+            "items": {
+              "$ref": "#/$defs/OpinionDisposition"
+            },
+            "title": "Dispositions",
+            "type": "array"
+          },
+          "remaining_differences": {
+            "items": {
+              "minLength": 1,
+              "pattern": "\\S",
+              "type": "string"
+            },
+            "title": "Remaining Differences",
+            "type": "array"
+          },
+          "summary": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Summary",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "pco_payload",
+          "missions",
+          "summary"
+        ],
+        "title": "ResolveWindow",
+        "type": "object"
+      }
+    },
+    {
+      "action_type": "m1b_confirm_candidates",
+      "target_types": [
+        "CandidateSet"
+      ],
+      "params_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "reason": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "title": "Decision",
+        "type": "object"
+      }
+    },
+    {
+      "action_type": "m1b_reopen_candidates",
+      "target_types": [
+        "CandidateSet"
+      ],
+      "params_schema": {
+        "$defs": {
+          "ExactRef": {
+            "additionalProperties": false,
+            "properties": {
+              "object_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Object Id",
+                "type": "string"
+              },
+              "revision_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Revision Id",
+                "type": "string"
+              },
+              "payload_hash": {
+                "pattern": "^[0-9a-f]{64}$",
+                "title": "Payload Hash",
+                "type": "string"
+              }
+            },
+            "required": [
+              "object_id",
+              "revision_id",
+              "payload_hash"
+            ],
+            "title": "ExactRef",
+            "type": "object"
+          },
+          "WindowParticipant": {
+            "additionalProperties": false,
+            "properties": {
+              "principal_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Principal Id",
+                "type": "string"
+              },
+              "assignment_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Assignment Id",
+                "type": "string"
+              },
+              "personal_agent_id": {
+                "anyOf": [
+                  {
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Personal Agent Id"
+              }
+            },
+            "required": [
+              "principal_id",
+              "assignment_id"
+            ],
+            "title": "WindowParticipant",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "reason": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Reason",
+            "type": "string"
+          },
+          "title": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Title",
+            "type": "string"
+          },
+          "participants": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/$defs/WindowParticipant"
+                },
+                "minItems": 1,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Participants"
+          },
+          "rebase_strategy_ref": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ExactRef"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "rebase_ltco_ref": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ExactRef"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          }
+        },
+        "required": [
+          "reason",
+          "title"
+        ],
+        "title": "ReopenCandidates",
+        "type": "object"
+      }
+    },
+    {
+      "action_type": "m1b_reopen_window",
+      "target_types": [
+        "ReviewWindow"
+      ],
+      "params_schema": {
+        "$defs": {
+          "ExactRef": {
+            "additionalProperties": false,
+            "properties": {
+              "object_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Object Id",
+                "type": "string"
+              },
+              "revision_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Revision Id",
+                "type": "string"
+              },
+              "payload_hash": {
+                "pattern": "^[0-9a-f]{64}$",
+                "title": "Payload Hash",
+                "type": "string"
+              }
+            },
+            "required": [
+              "object_id",
+              "revision_id",
+              "payload_hash"
+            ],
+            "title": "ExactRef",
+            "type": "object"
+          },
+          "WindowParticipant": {
+            "additionalProperties": false,
+            "properties": {
+              "principal_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Principal Id",
+                "type": "string"
+              },
+              "assignment_id": {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "title": "Assignment Id",
+                "type": "string"
+              },
+              "personal_agent_id": {
+                "anyOf": [
+                  {
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Personal Agent Id"
+              }
+            },
+            "required": [
+              "principal_id",
+              "assignment_id"
+            ],
+            "title": "WindowParticipant",
+            "type": "object"
+          }
+        },
+        "additionalProperties": false,
+        "properties": {
+          "reason": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Reason",
+            "type": "string"
+          },
+          "title": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Title",
+            "type": "string"
+          },
+          "participants": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/$defs/WindowParticipant"
+                },
+                "minItems": 1,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Participants"
+          },
+          "rebase_strategy_ref": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ExactRef"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "rebase_ltco_ref": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ExactRef"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          }
+        },
+        "required": [
+          "reason",
+          "title"
+        ],
+        "title": "ReopenCandidates",
+        "type": "object"
+      }
+    }
+  ]
+}

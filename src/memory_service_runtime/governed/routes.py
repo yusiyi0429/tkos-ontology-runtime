@@ -11,7 +11,8 @@ import uuid
 from fastapi import APIRouter, Depends, Header, Query, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, Response
-from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, field_validator
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, StrictBool, field_validator, model_validator
+from typing import Literal
 from psycopg.types.json import Jsonb
 
 from memory_service_runtime.governed import db, evidence, protocol, readers, service, workbench
@@ -33,6 +34,18 @@ class ContextRequest(BaseModel):
     object_ids: list[uuid.UUID] = Field(min_length=1, max_length=100)
     valid_at: AwareDatetime
     known_at: AwareDatetime
+    contract_version: Literal["tkos.method/0.1"] | None = None
+    stage: str | None = Field(default=None, min_length=1, max_length=200)
+    purpose: str | None = Field(default=None, min_length=1, max_length=500)
+    include_drafts: StrictBool = False
+
+    @model_validator(mode="after")
+    def method_context(self):
+        if self.contract_version and (not self.stage or not self.purpose):
+            raise ValueError("Method context requires stage and purpose")
+        if not self.contract_version and (self.stage or self.purpose or self.include_drafts):
+            raise ValueError("Method context options require explicit protocol")
+        return self
 
     @field_validator("valid_at", "known_at", mode="before")
     @classmethod
@@ -121,6 +134,10 @@ def method_profiles_get(request: Request, response: Response, token: Annotated[s
 @router.post("/context-packs")
 def context_create(body: ContextRequest, token: Annotated[str, Depends(bearer)]):
     with db.transaction(token) as (conn, ctx):
+        if body.contract_version:
+            from . import method_readers
+            return method_readers.context_pack(conn, ctx, [str(oid) for oid in body.object_ids], body.valid_at, body.known_at,
+                                               body.stage, body.purpose, body.include_drafts)
         return readers.context_pack(conn, ctx, [str(oid) for oid in body.object_ids], body.valid_at, body.known_at)
 
 
@@ -129,10 +146,11 @@ Cursor = Annotated[str | None, Query(max_length=workbench.MAX_CURSOR_LENGTH)]
 
 
 @router.get("/object-types")
-def object_types_list(request: Request, response: Response, token: Annotated[str, Depends(bearer)]):
-    workbench.strict_query(request.query_params, set())
+def object_types_list(request: Request, response: Response, token: Annotated[str, Depends(bearer)],
+                      contract_version: Literal["tkos.method/0.1"] | None = None):
+    workbench.strict_query(request.query_params, {"contract_version"})
     with db.transaction(token) as (conn, ctx):
-        result = workbench.object_types(conn, ctx)
+        result = workbench.object_types(conn, ctx, contract_version) if contract_version else workbench.object_types(conn, ctx)
     response.headers["Cache-Control"] = "no-store"
     return result
 
@@ -251,16 +269,22 @@ def evidence_create(body: EvidenceRequest, token: Annotated[str, Depends(bearer)
 @router.get("/evidence-assets/{object_id}/revisions/{revision_id}")
 def evidence_download(object_id: uuid.UUID, revision_id: uuid.UUID, token: Annotated[str, Depends(bearer)]):
     with db.transaction(token) as (conn, ctx):
-        obj = db.object_row(conn, ctx, str(object_id))
+        from . import method_access
+        method = method_access.is_method_object(conn, ctx, str(object_id))
+        obj = method_access.head(conn, ctx, str(object_id)) if method else db.object_row(conn, ctx, str(object_id))
         if obj["object_type"] != "EvidenceAsset":
             raise GovernedError("NOT_FOUND", "Evidence was not found", status=404)
-        revision = db.revision_row(conn, ctx, str(object_id), str(revision_id))
+        revision = (method_access.revision(conn, ctx, str(object_id), str(revision_id)) if method
+                    else db.revision_row(conn, ctx, str(object_id), str(revision_id)))
         # Read-support re-check before touching the object store: unregistered
         # or read-unsupported bindings never reach S3.
         protocol.require_read_support(conn, ctx.scope_id, str(object_id))
         payload = revision["payload"]
         content = evidence.fetch_payload(payload, scope_id=ctx.scope_id, domain_id=obj["domain_id"])
-        db.authorize_domain(conn, ctx, obj["domain_id"], "read")
+        if method:
+            method_access.revision(conn, ctx, str(object_id), str(revision_id))
+        else:
+            db.authorize_domain(conn, ctx, obj["domain_id"], "read")
         return Response(content, media_type=payload["media_type"],
                         headers={"ETag": f'"{payload["sha256"]}"',
                                  "Content-Disposition": f'attachment; filename="{object_id}"',
@@ -279,3 +303,49 @@ def install_errors(app):
             return JSONResponse(status_code=422, content={"error": {"code": "INVALID_REQUEST", "message": "Request does not match the governed API schema"}})
         from fastapi.exception_handlers import request_validation_exception_handler
         return await request_validation_exception_handler(request, exc)
+
+
+@router.get("/method/{collection}")
+def method_list(collection: str, request: Request, response: Response,
+                token: Annotated[str, Depends(bearer)], domain_id: uuid.UUID | None = None,
+                after: uuid.UUID | None = None, limit: Limit = 50):
+    from . import method_readers
+    kinds = {"review-windows": "ReviewWindow", "candidate-sets": "CandidateSet", "business-facts": "BusinessFact",
+             "period-reviews": "PeriodReview", "strategies": "Strategy", "strategic-issues": "StrategicIssue", "runs": "MethodRun"}
+    if collection not in kinds:
+        raise GovernedError("NOT_FOUND")
+    workbench.strict_query(request.query_params, {"domain_id", "after", "limit"})
+    with db.transaction(token) as (conn, ctx):
+        result = method_readers.list_typed(conn, ctx, kinds[collection], str(domain_id) if domain_id else None,
+                                          str(after) if after else None, limit)
+    response.headers["Cache-Control"] = "no-store"
+    return result
+
+
+@router.get("/method/objects/{object_id}/reviews")
+def method_reviews(object_id: uuid.UUID, request: Request, response: Response,
+                   token: Annotated[str, Depends(bearer)], effective_only: bool = False):
+    from . import method_readers
+    workbench.strict_query(request.query_params, {"effective_only"})
+    with db.transaction(token) as (conn, ctx):
+        result = method_readers.review_records(conn, ctx, str(object_id), effective_only=effective_only)
+    response.headers["Cache-Control"] = "no-store"
+    return result
+
+
+@router.get("/method/objects/{object_id}/recovery")
+def method_recovery(object_id: uuid.UUID, response: Response, token: Annotated[str, Depends(bearer)]):
+    from . import method_readers
+    with db.transaction(token) as (conn, ctx):
+        result = method_readers.recovery(conn, ctx, str(object_id))
+    response.headers["Cache-Control"] = "no-store"
+    return result
+
+
+@router.get("/method/missions/{object_id}/handoff")
+def method_mission_handoff(object_id: uuid.UUID, response: Response, token: Annotated[str, Depends(bearer)]):
+    from . import method_readers
+    with db.transaction(token) as (conn, ctx):
+        result = method_readers.handoff(conn, ctx, str(object_id))
+    response.headers["Cache-Control"] = "no-store"
+    return result

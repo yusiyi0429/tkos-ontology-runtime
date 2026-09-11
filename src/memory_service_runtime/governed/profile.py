@@ -294,6 +294,9 @@ def check_profile_refs(core: ProfileCore) -> None:
 
 def validate_profile_core(data: object) -> ProfileCore:
     """严格解析并核验自声明 canonical_hash 与引用完整性；任何偏差都抛异常。"""
+    if isinstance(data, dict) and data.get("profile_core_schema_version") == "tkos.method-profile/0.1":
+        from .method_profile import validate
+        return validate(data)
     core = ProfileCore.model_validate(data)
     computed = canon.digest_excluding(
         core.model_dump(mode="json"), frozenset({"canonical_hash"})
@@ -316,6 +319,13 @@ def implied_protocol(schema_version: str, content: object) -> tuple[str, str] | 
     belongs to Contract-A only through its action_contract_ref.  Rows matching
     no implemented mapping return None and every consumer must reject them.
     """
+    if schema_version == "tkos.method-profile/0.1":
+        from . import method_profile
+        try:
+            method_profile.validate(content)
+        except (ValueError, TypeError):
+            return None
+        return (method_profile.PROTOCOL_ID, method_profile.CONTRACT_VERSION)
     if schema_version == LEGACY_PROFILE_SCHEMA_VERSION:
         if (isinstance(content, dict)
                 and content.get("profile_id") == LEGACY_PROFILE_ID

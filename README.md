@@ -6,6 +6,16 @@ TKOS 企业本体与记忆系统的治理运行内核。PostgreSQL 保存权威�
 
 `CompanyOutcome → BusinessCommitment → ExecutionCommitment → FeedbackThread → ManagementAdjustment → Acceptance → Closure`
 
+## M1A＋M1B：战略研究与经营目标定稿
+
+独立协议 `tkos.method/0.1` 采用 M1A L4 revision 21、M1B L5 revision 837，提供完整底座 API：
+
+`战略议题 → 研究澄清与预审 → 会议纪要 → Agreement → 战略更新 → 事实与周期复盘 → LTCO 审视 → PCO＋Mission 共同核对 → CEO 整组确认`
+
+49 个动作共用现有身份、精确版本、原始证据和治理事务。纪要、Agreement、战略更新分别确认；PeriodReview 无需审批；新版 CEO 确认不继承旧 A2 全体 DRI 签认条件。战略改版保留已确认目标的基线和效力，待确认方案须复核变化后的依据。新 Mission 提供明确的下游承接投影，执行授权仍需独立约定。
+
+详见 [Method API 与调用说明](docs/runtime-method-api.md)、[完整 OpenAPI](docs/runtime-method-openapi.json)、[Clark 接入契约](docs/method-clark-contract.md)、[独立验收报告](docs/runtime-method-acceptance-report.md) 和 [可复跑矩阵](acceptance/method_independent/README.md)。本轮范围是本地合成身份下的 API 验收，Clark 页面、真实身份、生产迁移和部署另行安排。旧 Contract-A 与 legacy 保持各自原义。
+
 ## A3：正常 DRI–IC 执行交接
 
 Contract-A 在 A1 协议治理、A2 公司组合之上增加正常执行交接：

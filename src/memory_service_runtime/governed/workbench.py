@@ -45,7 +45,8 @@ REGISTRATION_TYPES = ("ProtocolSentinel",)
 # is limited to the two source types; the rest are derived by A2 handlers and
 # can only be observed via authorized reads.
 A2_TYPES = A2_OBJECT_TYPE_NAMES
-KNOWN_TYPES = frozenset([*GENERIC_TYPES, *DEDICATED_TYPES, *REGISTRATION_TYPES, *A2_TYPES])
+from .method_models import METHOD_OBJECT_TYPES
+KNOWN_TYPES = frozenset([*GENERIC_TYPES, *DEDICATED_TYPES, *REGISTRATION_TYPES, *A2_TYPES, *METHOD_OBJECT_TYPES])
 
 _VERSIONING_NOTE = (
     "内容按不可变 revision 保存；latest_revision_id 是最新候选版本，"
@@ -273,7 +274,13 @@ def _page(fetch: Callable[[Any, int], list[Any]], keep: Callable[[Any], bool],
     return items[:limit], more
 
 
-def object_types(conn: Any, ctx: Any) -> dict[str, Any]:
+def object_types(conn: Any, ctx: Any, contract_version: str | None = None) -> dict[str, Any]:
+    if contract_version == "tkos.method/0.1":
+        from .method_models import METHOD_PAYLOAD_MODELS
+        return {"schema_version": "method-read/0.1", "contract_version": contract_version,
+                "items": [{"object_type": kind, "creation_mode": "typed_method_action",
+                           "payload_schema": model.model_json_schema(), "versioning": _VERSIONING_NOTE}
+                          for kind, model in METHOD_PAYLOAD_MODELS.items()]}
     return {"schema_version": SCHEMA_VERSION, "items": catalog_items()}
 
 
@@ -381,7 +388,13 @@ def objects(conn: Any, ctx: Any, domain_id: str, object_type: str | None,
 
 
 def revisions(conn: Any, ctx: Any, object_id: str, limit: int, cursor: str | None) -> dict[str, Any]:
-    head = db.object_row(conn, ctx, object_id)
+    from . import method_access
+    allowed = None
+    if method_access.is_method_object(conn, ctx, object_id):
+        head, allowed = method_access.head_access(conn, ctx, object_id)
+        protocol.require_read_support(conn, ctx.scope_id, object_id)
+    else:
+        head = db.object_row(conn, ctx, object_id)
     filters = {"object_id": head["object_id"]}
     raw = decode_cursor(cursor, "revisions", ctx, filters)
     key = None
@@ -402,7 +415,7 @@ def revisions(conn: Any, ctx: Any, object_id: str, limit: int, cursor: str | Non
         params.append(need)
         return conn.execute(sql, params).fetchall()
 
-    rows, more = _page(fetch, lambda row: True,
+    rows, more = _page(fetch, lambda row: allowed is None or str(row["revision_id"]) in allowed,
                        lambda row: [row["recorded_at"], str(row["revision_id"])], limit, key)
     items = []
     for row in rows:
@@ -469,7 +482,23 @@ def relation_refs(conn: Any, ctx: Any, payload: dict[str, Any]) -> list[tuple[st
 
 def relations(conn: Any, ctx: Any, object_id: str, revision_id: str | None,
               limit: int, cursor: str | None) -> dict[str, Any]:
-    from . import a2_readers, a3_readers
+    from . import a2_readers, a3_readers, method_access, method_readers
+    if method_access.is_method_object(conn, ctx, object_id):
+        result = method_readers.relation_items(conn, ctx, object_id, revision_id)
+        head = method_access.head(conn, ctx, object_id)
+        rid = revision_id or head["latest_revision_id"]
+        filters = {"object_id": object_id, "revision_id": rid, "contract_version": "tkos.method/0.1"}
+        key = decode_cursor(cursor, "method-relations", ctx, filters)
+        if key is not None and (len(key) != 2 or any(not isinstance(item, str) for item in key)):
+            raise _invalid_cursor()
+        items = sorted(result["items"], key=lambda item: (item["target_object_id"], item["target_revision_id"]))
+        if key:
+            items = [item for item in items if [item["target_object_id"], item["target_revision_id"]] > key]
+        page = items[:limit]
+        result["items"] = page
+        result["next_cursor"] = (encode_cursor("method-relations", ctx, filters, [page[-1]["target_object_id"], page[-1]["target_revision_id"]])
+                                 if len(items) > limit else None)
+        return result
     if a3_readers.is_a3_object(conn, ctx, object_id):
         return a3_readers.relations(conn, ctx, object_id, revision_id, limit, cursor)
     if a2_readers.is_a2_object(conn, ctx, object_id):
@@ -526,7 +555,9 @@ def relations(conn: Any, ctx: Any, object_id: str, revision_id: str | None,
 
 
 def action_receipts(conn: Any, ctx: Any, object_id: str, limit: int, cursor: str | None) -> dict[str, Any]:
-    head = db.object_row(conn, ctx, object_id)
+    from . import method_access
+    head = (method_access.head(conn, ctx, object_id) if method_access.is_method_object(conn, ctx, object_id)
+            else db.object_row(conn, ctx, object_id))
     filters = {"object_id": head["object_id"]}
     raw = decode_cursor(cursor, "action-receipts", ctx, filters)
     key = None

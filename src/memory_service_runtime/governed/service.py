@@ -19,7 +19,12 @@ from pydantic import ValidationError
 from memory_service_runtime.repository import enqueue_task
 from . import checkpoints, db, delivery, protocol
 from .errors import GovernedError
-from .models import ActionRequest, validated_payload
+from .models import (
+    A2_GENERIC_SOURCE_OBJECT_TYPES,
+    A2_OBJECT_TYPE_NAMES,
+    ActionRequest,
+    validated_payload,
+)
 
 
 COMMITMENTS = {"BusinessCommitment", "ExecutionCommitment"}
@@ -178,7 +183,8 @@ class ActionExecution:
         elif self.kind == "create_object":
             self.creation_fields = protocol.resolve_creation(
                 self.conn, self.ctx.scope_id, self.params["domain_id"],
-                self.params["object_type"], self.request.contract_version)
+                self.params["object_type"], self.request.contract_version,
+                action_type="create_object")
             self.protocol_context = self.creation_fields["contract_version"]
         # revoke_assignment is authority control over a role assignment, not a
         # business object write; it carries no protocol binding and is exempt.
@@ -943,6 +949,75 @@ class ActionExecution:
         return _receipt(row)
 
 
+# ---------------------- A2 execution factory ----------------------
+
+A2_ACTION_NAMES = frozenset({
+    "open_formation_round", "amend_formation_round",
+    "publish_domain_submission", "form_company_composition",
+    "confirm_company_composition", "activate_company_composition",
+})
+
+
+def _execution_factory(conn: Any, ctx: Any, request: ActionRequest) -> ActionExecution:
+    """Pick the right ActionExecution subclass for the request.
+
+    The A2Execution subclass (owned by a2_service) handles the six A2 actions
+    and A2 source writes (CompanyReference / CapacityObservation create_object
+    and propose_revision).  Every other command goes through the legacy
+    ActionExecution.  The a2_service module is imported lazily so this module's
+    import graph does not depend on Contract-A support being installed.
+    """
+    try:
+        from . import a2_service
+    except Exception as exc:  # pragma: no cover - broken installation must surface
+        raise
+    if a2_service.A2Execution.handles_request(conn, ctx, request):
+        return a2_service.A2Execution(conn, ctx, request)
+    return ActionExecution(conn, ctx, request)
+
+
+# ---- A2 receipt replay dispatch (server-side of A2 readers' authorize_receipt) ----
+
+
+def _a2_receipt_target_ids(conn: Any, ctx: Any, receipt: dict[str, Any]) -> list[str]:
+    """All object IDs the receipt transitively references. Used to decide
+    whether the replay path should defer to the A2 readers' authorization.
+    """
+    ids: set[str] = set()
+    if receipt.get("target_object_id"):
+        ids.add(str(receipt["target_object_id"]))
+    for item in receipt.get("object_versions", []):
+        if item.get("object_id"):
+            ids.add(str(item["object_id"]))
+    for ref in receipt.get("result", {}).get("referenced_object_ids", []):
+        ids.add(str(ref))
+    return [oid for oid in ids if oid]
+
+
+def _is_a2_receipt(conn: Any, ctx: Any, receipt: dict[str, Any]) -> bool:
+    """True iff the receipt is for a Contract-A bound object — the action
+    name alone is not enough: A2 source create/propose receipts also count as
+    A2, while a generic legacy receipt whose target happens to share a name
+    with an A2 object must not be misrouted.
+    """
+    if receipt.get("action_type") in A2_ACTION_NAMES:
+        return True
+    from . import protocol as _proto
+    candidates: list[str] = []
+    if receipt.get("target_object_id"):
+        candidates.append(str(receipt["target_object_id"]))
+    candidates.extend(_a2_receipt_target_ids(conn, ctx, receipt))
+    seen: set[str] = set()
+    for object_id in candidates:
+        if object_id in seen:
+            continue
+        seen.add(object_id)
+        binding = _proto.current_binding(conn, ctx.scope_id, object_id)
+        if binding is not None and binding["protocol_id"] == "tkos.contract-a":
+            return True
+    return False
+
+
 def _replay(conn: Any, ctx: Any, request: ActionRequest, digest: str) -> dict[str, Any] | None:
     row = conn.execute(
         "SELECT * FROM gov_action_receipts WHERE scope_id=%s AND principal_id=%s AND idempotency_key=%s",
@@ -951,16 +1026,34 @@ def _replay(conn: Any, ctx: Any, request: ActionRequest, digest: str) -> dict[st
     if row is None:
         return None
     row = db.jsonable(row)
-    # Reauthorize before returning a historical success, including every linked
-    # dependency and any target whose domain rights have since been revoked.
-    if row["result"].get("domain_id"):
-        db.authorize_domain(conn, ctx, row["result"]["domain_id"], action_type="read")
-    ids = set(row["result"].get("referenced_object_ids", []))
-    ids.update(item["object_id"] for item in row["object_versions"])
-    if row["target_object_id"]:
-        ids.add(row["target_object_id"])
-    for object_id in ids:
-        db.object_row(conn, ctx, object_id)
+    # A2 source create/propose receipts are also A2, so replay must dispatch
+    # based on real target/object IDs + binding, not only the six action names.
+    if _is_a2_receipt(conn, ctx, row):
+        # A2 receipts use the A2 readers' authorization path. A DRI of one
+        # member domain may have legitimate read access to a successful
+        # multi-scope receipt even when their primary domain is not the
+        # receipt's company domain; the generic company-domain check would
+        # deny that. The A2 reader authorizes by actor identity, current
+        # Round membership, or current read rights on the company domain.
+        try:
+            from . import a2_readers
+        except Exception:
+            raise  # broken installation must surface, not silently widen rights
+        if not hasattr(a2_readers, "authorize_receipt"):
+            _fail("FORBIDDEN", "A2 receipt reader is unavailable.")
+        a2_readers.authorize_receipt(conn, ctx, row)
+    else:
+        # Reauthorize before returning a historical success, including every
+        # linked dependency and any target whose domain rights have since
+        # been revoked.
+        if row["result"].get("domain_id"):
+            db.authorize_domain(conn, ctx, row["result"]["domain_id"], action_type="read")
+        ids = set(row["result"].get("referenced_object_ids", []))
+        ids.update(item["object_id"] for item in row["object_versions"])
+        if row["target_object_id"]:
+            ids.add(row["target_object_id"])
+        for object_id in ids:
+            db.object_row(conn, ctx, object_id)
     if row["request_hash"] != digest or row["action_type"] != request.action_type:
         _fail("IDEMPOTENCY_CONFLICT", "The key was used for a different command.")
     return _receipt(row)
@@ -968,7 +1061,7 @@ def _replay(conn: Any, ctx: Any, request: ActionRequest, digest: str) -> dict[st
 
 def prepare_action(conn: Any, ctx: Any, request: ActionRequest) -> dict[str, Any]:
     """Resolve required versions without mutating business state or receipts."""
-    execution = ActionExecution(conn, ctx, request)
+    execution = _execution_factory(conn, ctx, request)
     execution.authorize()
     execution.collect_dependencies()
     return {
@@ -986,7 +1079,7 @@ def execute_action(conn: Any, ctx: Any, request: ActionRequest) -> dict[str, Any
     replay = _replay(conn, ctx, request, digest)
     if replay is not None:
         return replay
-    execution = ActionExecution(conn, ctx, request)
+    execution = _execution_factory(conn, ctx, request)
     execution.authorize()
     execution.collect_dependencies()
     execution.check_versions()
@@ -994,4 +1087,4 @@ def execute_action(conn: Any, ctx: Any, request: ActionRequest) -> dict[str, Any
     return execution.finish(result, digest)
 
 
-__all__ = ["execute_action", "prepare_action"]
+__all__ = ["execute_action", "prepare_action", "ActionExecution"]

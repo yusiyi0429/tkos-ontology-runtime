@@ -43,6 +43,7 @@ def test_packaged_migrations_replay_from_empty_database() -> None:
             "0016_governed_runtime.sql",
             "0017_dri_delivery.sql",
             "0018_method_protocol.sql",
+            "0019_company_composition.sql",
         ]
         assert migrate(test_url) == expected
         assert migrate(test_url) == []
@@ -73,6 +74,12 @@ def test_packaged_migrations_replay_from_empty_database() -> None:
             "gov_protocol_support_registry",
             "gov_protocol_control_events",
             "gov_object_protocol_bindings",
+            # migration 0019 (A2 公司组合)
+            "gov_formation_round_state",
+            "gov_round_formal_submissions",
+            "gov_composition_confirmations",
+            "gov_mission_index",
+            "gov_activation_records",
         } <= tables
     finally:
         with psycopg.connect(admin_url, autocommit=True) as admin:

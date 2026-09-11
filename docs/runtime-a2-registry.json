@@ -1,0 +1,12 @@
+{
+  "can_read": true, "can_create": true, "can_write": true, "evidence_upload": true,
+  "actions": ["open_formation_round", "amend_formation_round",
+              "publish_domain_submission", "form_company_composition",
+              "confirm_company_composition", "activate_company_composition",
+              "create_object", "propose_revision"],
+  "object_types": ["CompanyReference", "CapacityObservation", "FormationRound",
+                   "DomainSubmission", "CompanyComposition", "Mission",
+                   "DomainCommitment"],
+  "readonly_compat": ["tkos.contract-a/0.1"],
+  "notes": "Contract-A A2 company composition support; generic create/propose limited to CompanyReference/CapacityObservation; actions/types also compiled-allowlisted."
+}

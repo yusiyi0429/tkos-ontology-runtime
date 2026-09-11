@@ -73,7 +73,7 @@ def test_objects_title_comes_from_latest_revision_and_paginates(readable_domains
 def test_objects_reject_unknown_type_and_unreadable_domain(readable_domains):
     conn = _objects_conn()
     with pytest.raises(GovernedError) as caught:
-        workbench.objects(conn, CTX, uid(1), "Mission", 50, None)
+        workbench.objects(conn, CTX, uid(1), "UnregisteredType", 50, None)
     assert caught.value.code == "INVALID_REQUEST"
     with pytest.raises(GovernedError) as caught:
         workbench.objects(conn, CTX, uid(2), None, 50, None)  # 不可读域统一 NOT_FOUND

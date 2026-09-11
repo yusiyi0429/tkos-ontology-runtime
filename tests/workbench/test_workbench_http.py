@@ -47,8 +47,8 @@ def test_object_types_returns_catalog_with_no_store(fake_transaction):
     assert response.headers["cache-control"] == "no-store"
     body = response.json()
     assert body["schema_version"] == workbench.SCHEMA_VERSION
-    # 8 generic + 2 dedicated + 1 control-plane-only ProtocolSentinel (A1).
-    assert len(body["items"]) == 11
+    # Original 11 types plus seven A2 types; derived A2 objects are not generic writes.
+    assert len(body["items"]) == 18
     modes = {item["object_type"]: item["creation_mode"] for item in body["items"]}
     assert modes["ProtocolSentinel"] == "control_plane_only"
 

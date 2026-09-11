@@ -8,7 +8,7 @@ import pytest
 
 from memory_service_runtime.governed import workbench
 from memory_service_runtime.governed.errors import GovernedError
-from memory_service_runtime.governed.models import PAYLOAD_MODELS
+from memory_service_runtime.governed.models import PAYLOAD_MODELS, A2_OBJECT_TYPE_NAMES
 
 from fakes import CTX, uid
 
@@ -18,12 +18,15 @@ def encode_raw(body) -> str:
         json.dumps(body, sort_keys=True, separators=(",", ":")).encode()).decode()
 
 
-def test_catalog_lists_eight_generic_two_dedicated_and_one_control_only_type():
+def test_catalog_preserves_legacy_and_adds_a2_types_with_explicit_creation_modes():
     result = workbench.object_types(None, CTX)
     assert result["schema_version"] == workbench.SCHEMA_VERSION
     items = {item["object_type"]: item for item in result["items"]}
-    assert set(items) == {*PAYLOAD_MODELS, "EvidenceAsset", "Deliverable", "ProtocolSentinel"}
-    assert not {"Mission", "Risk", "Lesson"} & set(items)
+    assert set(items) == {*PAYLOAD_MODELS, "EvidenceAsset", "Deliverable", "ProtocolSentinel", *A2_OBJECT_TYPE_NAMES}
+    assert not {"Risk", "Lesson"} & set(items)
+    for name in ("FormationRound", "DomainSubmission", "CompanyComposition", "Mission", "DomainCommitment"):
+        assert items[name]["creation_mode"] == "a2_action"
+        assert name not in PAYLOAD_MODELS
     for name, model in PAYLOAD_MODELS.items():
         assert items[name]["creation_mode"] == "generic_action"
         assert items[name]["payload_schema"] == model.model_json_schema()

@@ -152,11 +152,59 @@ class WorkItemPayload(StrictModel):
         return self
 
 
-BusinessPayload = Union[CommitmentPayload, FeedbackPayload, DecisionPayload,
-                        AdjustmentPayload, ObservationPayload, OutcomePayload, WorkItemPayload]
-ObjectType = Literal["CompanyOutcome", "BusinessCommitment", "ExecutionCommitment",
-                     "FeedbackThread", "ManagementAdjustment", "Decision", "MetricObservation",
-                     "WorkItem"]
+# ---------------------------------------------------------------- A2 schemas
+#
+# A2 公司组合 (Contract-A tkos.contract-a/0.1) schemas are imported directly
+# from a2_models.  a2_models has no dependency on this module (only on canon),
+# so this direct import is safe and keeps the public envelope flat: every A2
+# command's ``params`` is a single model instance with the A2 spec fields
+# directly accessible (e.g. ``request.params.company_id``).
+
+from .a2_models import (  # noqa: E402  (intentional module-level wiring)
+    ActivateCompanyCompositionParams,
+    AmendFormationRoundParams,
+    A2_ACTION_PARAMS,
+    CapacityObservationPayload,
+    CompanyReferencePayload,
+    ConfirmCompanyCompositionParams,
+    FormCompanyCompositionParams,
+    OpenFormationRoundParams,
+    PublishDomainSubmissionParams,
+)
+
+
+# Extended BusinessPayload: the two A2 source types are accepted by generic
+# create_object / propose_revision for Contract-A scopes.  Legacy Union
+# members stay exactly the legacy set; this widens the discriminated union
+# only to allow the two source payload models to validate.
+BusinessPayload = Union[
+    CommitmentPayload, FeedbackPayload, DecisionPayload,
+    AdjustmentPayload, ObservationPayload, OutcomePayload, WorkItemPayload,
+    CompanyReferencePayload, CapacityObservationPayload,
+]
+
+
+# Extended ObjectType literal: adds the two source types so the existing
+# ``CreateObjectParams.select_payload`` validator can route them through the
+# PAYLOAD_MODELS table.  Legacy members stay byte-identical.
+ObjectType = Literal[
+    "CompanyOutcome", "BusinessCommitment", "ExecutionCommitment",
+    "FeedbackThread", "ManagementAdjustment", "Decision", "MetricObservation",
+    "WorkItem",
+    "CompanyReference", "CapacityObservation",
+]
+
+# Full catalog of A2 types (Contract-A).  Used by readers / workbench / a2_service.
+A2_OBJECT_TYPE_NAMES = ("CompanyReference", "CapacityObservation", "FormationRound",
+                        "DomainSubmission", "CompanyComposition", "Mission",
+                        "DomainCommitment")
+
+# Generic create_object / propose_revision are only allowed for these two
+# source types; the other five A2 types are derived exclusively by A2 handlers
+# and must never be reached through generic create/propose.
+A2_GENERIC_SOURCE_OBJECT_TYPES = ("CompanyReference", "CapacityObservation")
+
+
 PAYLOAD_MODELS: dict[str, type[StrictModel]] = {
     "CompanyOutcome": OutcomePayload,
     "BusinessCommitment": CommitmentPayload,
@@ -166,6 +214,8 @@ PAYLOAD_MODELS: dict[str, type[StrictModel]] = {
     "Decision": DecisionPayload,
     "MetricObservation": ObservationPayload,
     "WorkItem": WorkItemPayload,
+    "CompanyReference": CompanyReferencePayload,
+    "CapacityObservation": CapacityObservationPayload,
 }
 
 
@@ -310,6 +360,9 @@ class EmptyParams(StrictModel):
     pass
 
 
+# A2 action_type -> strict param class.  Each value is the A2 model from
+# a2_models with its spec fields directly addressable (no wrapper, no nesting,
+# no lazy registration).  The six names line up with a2_models.A2_ACTION_PARAMS.
 ACTION_PARAMS: dict[str, type[StrictModel]] = {
     "create_object": CreateObjectParams,
     "propose_revision": ProposeRevisionParams,
@@ -330,6 +383,12 @@ ACTION_PARAMS: dict[str, type[StrictModel]] = {
     "submit_deliverable": SubmitDeliverableParams,
     "review_deliverable": ReviewDeliverableParams,
     "record_outcome_assessment": RecordOutcomeAssessmentParams,
+    "open_formation_round": OpenFormationRoundParams,
+    "amend_formation_round": AmendFormationRoundParams,
+    "publish_domain_submission": PublishDomainSubmissionParams,
+    "form_company_composition": FormCompanyCompositionParams,
+    "confirm_company_composition": ConfirmCompanyCompositionParams,
+    "activate_company_composition": ActivateCompanyCompositionParams,
 }
 
 ActionType = Literal["create_object", "propose_revision", "accept_commitment", "activate_commitment",
@@ -337,12 +396,18 @@ ActionType = Literal["create_object", "propose_revision", "accept_commitment", "
                      "investigate_feedback", "confirm_decision", "confirm_outcome", "record_acceptance",
                      "request_feedback_acceptance", "reopen_feedback", "revoke_assignment",
                      "accept_work_item", "submit_deliverable", "review_deliverable",
-                     "record_outcome_assessment"]
+                     "record_outcome_assessment",
+                     "open_formation_round", "amend_formation_round",
+                     "publish_domain_submission", "form_company_composition",
+                     "confirm_company_composition", "activate_company_composition"]
 ActionParams = Union[CreateObjectParams, ProposeRevisionParams, AcceptCommitmentParams,
                      ActivateCommitmentParams, ConfirmAdjustmentParams, ConfirmClosureParams,
                      RouteFeedbackParams, RecordAcceptanceParams, RequestFeedbackAcceptanceParams,
                      RevokeAssignmentParams, SubmitDeliverableParams, ReviewDeliverableParams,
-                     RecordOutcomeAssessmentParams, EmptyParams]
+                     RecordOutcomeAssessmentParams, EmptyParams,
+                     OpenFormationRoundParams, AmendFormationRoundParams,
+                     PublishDomainSubmissionParams, FormCompanyCompositionParams,
+                     ConfirmCompanyCompositionParams, ActivateCompanyCompositionParams]
 
 
 class ActionRequest(StrictModel):
@@ -360,14 +425,29 @@ class ActionRequest(StrictModel):
     @model_validator(mode="before")
     @classmethod
     def select_params(cls, data: Any) -> Any:
-        if isinstance(data, dict) and isinstance(data.get("action_type"), str) and data["action_type"] in ACTION_PARAMS:
-            data = dict(data)
-            data["params"] = ACTION_PARAMS[data["action_type"]].model_validate(data.get("params"))
+        if isinstance(data, dict) and isinstance(data.get("action_type"), str):
+            action_type = data["action_type"]
+            if action_type in ACTION_PARAMS:
+                data = dict(data)
+                data["params"] = ACTION_PARAMS[action_type].model_validate(data.get("params"))
         return data
 
     @model_validator(mode="after")
     def envelope_rules(self) -> "ActionRequest":
-        if (self.action_type in {"create_object", "revoke_assignment"}) != (self.target is None):
+        # A2 actions: open_formation_round has target=None; the other five
+        # A2 action names target an A2-bound object. None of them support
+        # the legacy create_object / revoke_assignment null-target exception.
+        if self.action_type == "open_formation_round":
+            if self.target is not None:
+                raise ValueError("open_formation_round must carry target=None")
+        elif self.action_type in {"amend_formation_round", "publish_domain_submission",
+                                   "form_company_composition"}:
+            if self.target is None:
+                raise ValueError("amend/publish/form actions must target a FormationRound")
+        elif self.action_type in {"confirm_company_composition", "activate_company_composition"}:
+            if self.target is None:
+                raise ValueError("confirm/activate actions must target a CompanyComposition")
+        elif (self.action_type in {"create_object", "revoke_assignment"}) != (self.target is None):
             raise ValueError("target must be null only for create_object/revoke_assignment")
         if self.idempotency_key != self.idempotency_key.strip():
             raise ValueError("idempotency_key cannot have surrounding whitespace")
@@ -389,4 +469,12 @@ def validated_payload(object_type: str, payload: Any) -> dict[str, Any]:
     return model.model_validate(payload).model_dump(mode="json", exclude_none=True)
 
 
-__all__ = ["ActionRequest", "ActionTarget", "ExpectedVersion", "validated_payload", "PAYLOAD_MODELS"]
+__all__ = [
+    "ActionRequest", "ActionTarget", "ExpectedVersion",
+    "validated_payload", "PAYLOAD_MODELS",
+    "A2_OBJECT_TYPE_NAMES", "A2_GENERIC_SOURCE_OBJECT_TYPES",
+    "OpenFormationRoundParams", "AmendFormationRoundParams",
+    "PublishDomainSubmissionParams", "FormCompanyCompositionParams",
+    "ConfirmCompanyCompositionParams", "ActivateCompanyCompositionParams",
+    "CompanyReferencePayload", "CapacityObservationPayload",
+]

@@ -26,7 +26,11 @@ from uuid import UUID
 
 from memory_service_runtime.governed import db, delivery, protocol, readers
 from memory_service_runtime.governed.errors import GovernedError
-from memory_service_runtime.governed.models import PAYLOAD_MODELS
+from memory_service_runtime.governed.models import (
+    A2_GENERIC_SOURCE_OBJECT_TYPES,
+    A2_OBJECT_TYPE_NAMES,
+    PAYLOAD_MODELS,
+)
 
 SCHEMA_VERSION = "workbench-read/0.1"
 DEFAULT_LIMIT = 50
@@ -36,7 +40,12 @@ MAX_CURSOR_LENGTH = 4096
 GENERIC_TYPES = tuple(PAYLOAD_MODELS)
 DEDICATED_TYPES = ("EvidenceAsset", "Deliverable")
 REGISTRATION_TYPES = ("ProtocolSentinel",)
-KNOWN_TYPES = frozenset([*GENERIC_TYPES, *DEDICATED_TYPES, *REGISTRATION_TYPES])
+# A2 types are listed in the workbench catalog and KNOWN_TYPES so the read-only
+# list endpoint and filters accept them. Generic create_object / propose_revision
+# is limited to the two source types; the rest are derived by A2 handlers and
+# can only be observed via authorized reads.
+A2_TYPES = A2_OBJECT_TYPE_NAMES
+KNOWN_TYPES = frozenset([*GENERIC_TYPES, *DEDICATED_TYPES, *REGISTRATION_TYPES, *A2_TYPES])
 
 _VERSIONING_NOTE = (
     "内容按不可变 revision 保存；latest_revision_id 是最新候选版本，"
@@ -113,6 +122,50 @@ TYPE_CATALOG: list[dict[str, Any]] = [
         "object_type": "ProtocolSentinel", "label": "协议登记哨兵", "creation_mode": "control_plane_only",
         "description": "A1 协议登记的合成哨兵，仅由控制面受控创建；无业务语义，不可经任何业务动作创建或推进，"
                        "仅用于验证协议绑定与读支持登记。不提供任何可执行业务动作。",
+        "reference_fields": [],
+    },
+    {
+        "object_type": "CompanyReference", "label": "公司 Reference", "creation_mode": "generic_action",
+        "description": "A2 公司正式 Reference（受控输入）。Company 域 CEO 经 create_object 创建；"
+                       "改版走 propose_revision；发布者通过 shared_with_domain_ids 显式授权跨域读取。",
+        "reference_fields": ["upstream_refs: 上游精确 revision 引用（可为空）",
+                              "shared_with_domain_ids: 显式发布的本 scope 域白名单"],
+    },
+    {
+        "object_type": "CapacityObservation", "label": "容量观察", "creation_mode": "generic_action",
+        "description": "A2 容量来源观察（受控输入）。提供方域 CEO 或 DOMAIN_DRI 经 create_object / "
+                       "propose_revision 创建；available / reserved 为非负严格整数且 reserved ≤ available。",
+        "reference_fields": ["upstream_refs: 上游精确 revision 引用（可为空）",
+                              "shared_with_domain_ids: 显式发布的本 scope 域白名单"],
+    },
+    {
+        "object_type": "FormationRound", "label": "组成 Round", "creation_mode": "a2_action",
+        "description": "A2 FormationRound 由 open_formation_round 创建；amend / publish / form 以它为目标，"
+                       "confirm / activate 以公司组合为目标。定义不可变，修改通过新 revision 与 member_set_version 推进。",
+        "reference_fields": [],
+    },
+    {
+        "object_type": "DomainSubmission", "label": "域正式提交", "creation_mode": "a2_action",
+        "description": "A2 域正式提交：每次 publish_domain_submission 创建新的不可变提交对象，"
+                       "更新该 Round 本域的当前正式提交指针，保留旧提交。不可通用 create / propose。",
+        "reference_fields": [],
+    },
+    {
+        "object_type": "CompanyComposition", "label": "公司组合", "creation_mode": "a2_action",
+        "description": "A2 候选组合：form_company_composition 内部创建；confirm / activate 推进；"
+                       "manifest 不可变，仅头部与进度可变。",
+        "reference_fields": [],
+    },
+    {
+        "object_type": "Mission", "label": "任务", "creation_mode": "a2_action",
+        "description": "A2 任务：publish_domain_submission 派生的稳定身份 Mission；activate_company_composition "
+                       "选择对应 mission_key 的 Mission revision 置生效。不可通用 create / propose。",
+        "reference_fields": [],
+    },
+    {
+        "object_type": "DomainCommitment", "label": "域承诺", "creation_mode": "a2_action",
+        "description": "A2 域承诺：activate_company_composition 派生生效；精确引用组合、本域 Submission 与 "
+                       "Mission 选择。不可通用 create / propose。",
         "reference_fields": [],
     },
 ]
@@ -411,9 +464,18 @@ def relation_refs(conn: Any, ctx: Any, payload: dict[str, Any]) -> list[tuple[st
 
 def relations(conn: Any, ctx: Any, object_id: str, revision_id: str | None,
               limit: int, cursor: str | None) -> dict[str, Any]:
+    from . import a2_readers
+    if a2_readers.is_a2_object(conn, ctx, object_id):
+        return a2_readers.relations(conn, ctx, object_id, revision_id, limit, cursor)
     head = db.object_row(conn, ctx, object_id)
     head_protocol = protocol.read_metadata(conn, ctx.scope_id, head["object_id"])
-    if head_protocol["interpretation_status"] not in ("legacy_v0_2", "contract_a_metadata_read_only"):
+    # Accepted interpretation statuses stay the legacy two plus the A2-aware
+    # contract_a_v0_1 status; contract_a_v0_1 is reported by _binding_interpretation
+    # only for objects that are actually A2-bound (CompanyReference,
+    # CapacityObservation, FormationRound). Other A2 objects keep the
+    # readonly metadata label and still go through this gate.
+    if head_protocol["interpretation_status"] not in (
+            "legacy_v0_2", "contract_a_metadata_read_only", "contract_a_v0_1"):
         raise GovernedError("PROTOCOL_NOT_SUPPORTED",
                             "The object's protocol registration does not support relation reads.", status=409)
     if revision_id is None:

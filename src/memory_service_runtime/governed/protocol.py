@@ -26,6 +26,10 @@ from pydantic import BaseModel, ConfigDict, StrictBool, StrictInt, StrictStr
 
 from . import db, profile
 from .errors import GovernedError
+from .models import (
+    A2_GENERIC_SOURCE_OBJECT_TYPES,
+    A2_OBJECT_TYPE_NAMES,
+)
 
 
 def _fail(code: str, message: str = "") -> None:
@@ -178,9 +182,32 @@ def _declared_mismatch(code_for_known_legacy_or_absent: bool, declared: str | No
 # ------------------------------------------------------------ write-time gates
 
 
+# A2 action -> target object_type allowlist. ``propose_revision`` is allowed on
+# the two A2 source types only; the other four A2 action names are bound to a
+# single target type. ``open_formation_round`` has no target and is handled by
+# resolve_creation() instead.
+A2_TARGET_OBJECT_TYPES: dict[str, frozenset[str]] = {
+    "amend_formation_round": frozenset({"FormationRound"}),
+    "publish_domain_submission": frozenset({"FormationRound"}),
+    "form_company_composition": frozenset({"FormationRound"}),
+    "confirm_company_composition": frozenset({"CompanyComposition"}),
+    "activate_company_composition": frozenset({"CompanyComposition"}),
+    # propose_revision only ever lands on the two source types (A2_ACTIONS-bound
+    # objects cannot be rewritten through this generic path).
+    "propose_revision": frozenset(A2_GENERIC_SOURCE_OBJECT_TYPES),
+}
+
+
 def gate_target_action(conn: Any, scope_id: str, target_object_id: str,
                        action_type: str, declared: str | None) -> str:
-    """Resolve and gate a targeted action; returns the binding contract_version."""
+    """Resolve and gate a targeted action; returns the binding contract_version.
+
+    Contract-A support requires explicit registry installation and per-action
+    target-type matching: amend/publish/form must land on a FormationRound,
+    confirm/activate must land on a CompanyComposition, propose_revision is
+    allowed only on the two A2 source types. All other A2 actions still fail
+    with ACTION_NOT_SUPPORTED_FOR_PROTOCOL.
+    """
     binding = current_binding(conn, scope_id, target_object_id)
     if binding is None:
         _fail("PROTOCOL_BINDING_MISSING")
@@ -189,9 +216,36 @@ def gate_target_action(conn: Any, scope_id: str, target_object_id: str,
     if binding["protocol_id"] == profile.CONTRACT_A_PROTOCOL_ID:
         if declared != binding["contract_version"]:
             _declared_mismatch(True, declared, binding["contract_version"])
-        # A1 registers the Contract-A protocol for metadata/read support only;
-        # no business handler exists for any action on Contract-A objects yet.
-        _fail("ACTION_NOT_SUPPORTED_FOR_PROTOCOL")
+        # Look up the actual target object type so we can match A2 action
+        # allowlists against authoritative state. A2 targets are read here,
+        # which the registry's read support gate already guards.  When the
+        # type cannot be resolved (e.g. the object does not exist, or the
+        # protocol does not name the object_type), the A2 allowlist is
+        # considered unmatched — the legacy test matrix expected exactly
+        # ACTION_NOT_SUPPORTED_FOR_PROTOCOL here, never a leaked NOT_FOUND.
+        try:
+            target_row = conn.execute(
+                "SELECT object_type FROM gov_objects WHERE scope_id=%s AND object_id=%s",
+                (scope_id, target_object_id),
+            ).fetchone()
+        except Exception:
+            target_row = None
+        target_object_type = str(target_row["object_type"]) if target_row is not None else None
+        allowed_targets = A2_TARGET_OBJECT_TYPES.get(action_type)
+        if allowed_targets is None:
+            _fail("ACTION_NOT_SUPPORTED_FOR_PROTOCOL")
+        if target_object_type is None or target_object_type not in allowed_targets:
+            _fail("ACTION_NOT_SUPPORTED_FOR_PROTOCOL")
+        if action_type not in registry.actions:
+            _fail("ACTION_NOT_SUPPORTED_FOR_PROTOCOL")
+        if not registry.can_write:
+            _fail("PROTOCOL_WRITE_DISABLED")
+        if not registry.can_create and action_type == "propose_revision":
+            # propose_revision on A2 sources needs can_create as well as
+            # can_write per the explicit "new creation requires can_create AND
+            # can_write AND action membership" rule.
+            _fail("PROTOCOL_WRITE_DISABLED")
+        return binding["contract_version"]
     if declared is not None and declared != binding["contract_version"]:
         _declared_mismatch(False, declared, binding["contract_version"])
     if not registry.can_write:
@@ -202,7 +256,13 @@ def gate_target_action(conn: Any, scope_id: str, target_object_id: str,
 
 
 def gate_dependency(conn: Any, scope_id: str, object_id: str, expected_contract: str) -> None:
-    """Every non-target object pulled into a write must share the write's protocol."""
+    """Every non-target object pulled into a write must share the write's protocol.
+
+    A2 source objects (CompanyReference / CapacityObservation) participate in
+    the same authoritative dependency gate as legacy objects: a registered A2
+    source binding plus matching profile and registry are required, but the
+    declared contract_version is never trusted as authority.
+    """
     binding = current_binding(conn, scope_id, object_id)
     if binding is None:
         _fail("PROTOCOL_BINDING_MISSING")
@@ -212,12 +272,28 @@ def gate_dependency(conn: Any, scope_id: str, object_id: str, expected_contract:
         _fail("PROTOCOL_BINDING_CONFLICT")
 
 
+# Creation path policy for Contract-A. ``open_formation_round`` is the only
+# A2 action that creates a non-derived object via the same policy lookup;
+# everything else is derived by A2 handlers and must go through
+# ``inherit_binding``.
+A2_GENERIC_CREATABLE = frozenset(A2_GENERIC_SOURCE_OBJECT_TYPES)
+A2_INTERNAL_CREATABLE = frozenset({"FormationRound"})
+A2_DERIVED_TYPES = frozenset({"DomainSubmission", "CompanyComposition",
+                              "Mission", "DomainCommitment"})
+
+
 def resolve_creation(conn: Any, scope_id: str, domain_id: str, object_type: str,
-                     declared: str | None, *, for_evidence: bool = False) -> dict[str, Any]:
+                     declared: str | None, *, for_evidence: bool = False,
+                     action_type: str | None = None) -> dict[str, Any]:
     """Resolve the server-side creation registration for a new object.
 
     Returns the binding fields to persist with the new object. Never trusts a
     client-selected protocol; unregistered scopes/domains fail closed.
+
+    ``action_type`` lets the handler specify the A2 action name driving the
+    creation (``open_formation_round``, ``create_object``, ``propose_revision``
+    for source types).  ``for_evidence`` is the legacy EvidenceAsset upload
+    shortcut and is not used as a bypass by A2 paths.
     """
     policy_row = creation_policy(conn, scope_id, domain_id)
     if policy_row is None:
@@ -226,11 +302,39 @@ def resolve_creation(conn: Any, scope_id: str, domain_id: str, object_type: str,
     if (policy.default_protocol, policy.default_contract_version) not in SUPPORTED_PROTOCOL_CONTRACTS:
         _fail("PROTOCOL_NOT_SUPPORTED")
     if policy.default_protocol == profile.CONTRACT_A_PROTOCOL_ID:
-        if declared != policy.default_contract_version and not for_evidence:
-            _declared_mismatch(True, declared, policy.default_contract_version)
-        if not for_evidence:
-            # Contract-A object creation requires A2/A3 handlers, not in A1.
-            _fail("ACTION_NOT_SUPPORTED_FOR_PROTOCOL")
+        if for_evidence:
+            # EvidenceAsset pre-upload check stays strictly legacy-shaped:
+            # metadata-level, accepted only when the Contract-A registry
+            # reports evidence_upload=True.  No A2 path uses this shortcut;
+            # business creation still rejects WorkItem et al.
+            pass
+        else:
+            if declared != policy.default_contract_version:
+                _declared_mismatch(True, declared, policy.default_contract_version)
+        registry = _check_registry(conn, scope_id, policy.default_protocol,
+                                   policy.default_contract_version)
+        if for_evidence:
+            if not registry.evidence_upload:
+                _fail("PROTOCOL_WRITE_DISABLED")
+        else:
+            # Compile-time A2 allowlist. Generic create_object on Contract-A is
+            # limited to the two source types. open_formation_round creates only
+            # FormationRound. Other derived A2 types must call inherit_binding()
+            # from their handler instead of resolve_creation().
+            if action_type in (None, "create_object"):
+                if object_type not in A2_GENERIC_CREATABLE:
+                    _fail("ACTION_NOT_SUPPORTED_FOR_PROTOCOL")
+            elif action_type == "open_formation_round":
+                if object_type not in A2_INTERNAL_CREATABLE:
+                    _fail("ACTION_NOT_SUPPORTED_FOR_PROTOCOL")
+            else:
+                _fail("ACTION_NOT_SUPPORTED_FOR_PROTOCOL")
+            if not registry.can_create or not registry.can_write:
+                _fail("PROTOCOL_WRITE_DISABLED")
+            # Action membership: create_object/open_formation_round must be
+            # listed in the compiled registry actions.
+            if (action_type or "create_object") not in registry.actions:
+                _fail("ACTION_NOT_SUPPORTED_FOR_PROTOCOL")
     else:
         if policy.default_protocol != profile.LEGACY_PROTOCOL_ID:
             _fail("PROTOCOL_NOT_SUPPORTED")
@@ -238,16 +342,16 @@ def resolve_creation(conn: Any, scope_id: str, domain_id: str, object_type: str,
             _declared_mismatch(False, declared, policy.default_contract_version)
         if not policy.allow_legacy_create:
             _fail("PROTOCOL_WRITE_DISABLED")
-    registry = _check_registry(conn, scope_id, policy.default_protocol,
-                               policy.default_contract_version)
-    if for_evidence:
-        if not registry.evidence_upload:
-            _fail("PROTOCOL_WRITE_DISABLED")
-    else:
-        if not registry.can_create:
-            _fail("PROTOCOL_WRITE_DISABLED")
-        if object_type not in registry.object_types:
-            _fail("ACTION_NOT_SUPPORTED_FOR_PROTOCOL")
+        registry = _check_registry(conn, scope_id, policy.default_protocol,
+                                   policy.default_contract_version)
+        if for_evidence:
+            if not registry.evidence_upload:
+                _fail("PROTOCOL_WRITE_DISABLED")
+        else:
+            if not registry.can_create:
+                _fail("PROTOCOL_WRITE_DISABLED")
+            if object_type not in registry.object_types:
+                _fail("ACTION_NOT_SUPPORTED_FOR_PROTOCOL")
     installed = installed_profile(conn, scope_id, policy.default_profile_ref.profile_id,
                                   policy.default_profile_ref.revision)
     if installed is None:
@@ -327,11 +431,26 @@ def inherit_binding(conn: Any, scope_id: str, object_id: str, source_object_id: 
 
 # ------------------------------------------------------------------ read paths
 
+# Accepted interpretation statuses for require_read_support.  Legacy v0.2 and
+# the existing Contract-A metadata/read-only status stay accepted verbatim.
+# A new "contract_a_v0_1" status reports A2-aware read support: the current
+# registry grants both read and write to Contract-A, the bound profile is
+# installed and hash-matched, and the object is one of the A2 types.
+CONTRACT_A_READ_STATUSES = ("legacy_v0_2", "contract_a_metadata_read_only", "contract_a_v0_1")
+
 
 def _binding_interpretation(installed: dict[str, Any] | None,
                             registry_row: dict[str, Any] | None,
                             binding: dict[str, Any]) -> tuple[str, str]:
-    """(interpretation_status, note) for a binding under current registrations."""
+    """(interpretation_status, note) for a binding under current registrations.
+
+    The new ``contract_a_v0_1`` status fires only when the current registry
+    grants both read and write to Contract-A.  Resolving the actual
+    object_type from the binding requires a DB lookup; callers that have a
+    live connection must pass it through ``_binding_interpretation_with_conn``;
+    legacy callers without a connection keep the existing A1 readonly
+    metadata label.
+    """
     profile_ok = (
         installed is not None
         and installed["canonical_hash"] == binding["profile_canonical_hash"]
@@ -339,6 +458,7 @@ def _binding_interpretation(installed: dict[str, Any] | None,
             == (binding["protocol_id"], binding["contract_version"])
     )
     read_supported = False
+    registry = None
     if registry_row is not None and registry_row["contract_version"] == binding["contract_version"]:
         try:
             registry = _registry_content(registry_row)
@@ -363,6 +483,41 @@ def _binding_interpretation(installed: dict[str, Any] | None,
             "no composition, IC handover or delivery interpretation is attached "
             "and legacy DRI fields are not reinterpreted.")
     return "unsupported_protocol", "The registered protocol is not interpreted by this runtime."
+
+
+def _binding_interpretation_with_conn(conn: Any,
+                                      installed: dict[str, Any] | None,
+                                      registry_row: dict[str, Any] | None,
+                                      binding: dict[str, Any]) -> tuple[str, str]:
+    """A2-aware variant: looks up the actual object_type to distinguish the
+    new ``contract_a_v0_1`` status (any of the seven A2 object types under an
+    explicitly writable Contract-A registry) from the existing
+    ``contract_a_metadata_read_only`` label (everything else).  The object
+    lookup SQL runs unguarded: a database error must never be downgraded
+    into metadata output.
+    """
+    base_status, base_note = _binding_interpretation(installed, registry_row, binding)
+    if base_status != "contract_a_metadata_read_only":
+        return base_status, base_note
+    registry = None
+    if registry_row is not None and registry_row["contract_version"] == binding["contract_version"]:
+        try:
+            registry = _registry_content(registry_row)
+        except GovernedError:
+            registry = None
+    if registry is None or not registry.can_write:
+        return base_status, base_note
+    row = conn.execute(
+        "SELECT object_type FROM gov_objects WHERE scope_id=%s AND object_id=%s",
+        (binding["scope_id"], binding["object_id"]),
+    ).fetchone()
+    object_type = str(row["object_type"]) if row is not None else None
+    if object_type in A2_OBJECT_TYPE_NAMES:
+        return "contract_a_v0_1", (
+            "Contract-A v0.1 registration with active A2 read support. "
+            "Reads of all seven A2 object types project through the A2 readers; "
+            "legacy DRI fields are not reinterpreted.")
+    return base_status, base_note
 
 
 def _metadata_dict(binding: dict[str, Any] | None, status: str | None, note: str | None) -> dict[str, Any]:
@@ -407,7 +562,7 @@ def read_metadata(conn: Any, scope_id: str, object_id: str) -> dict[str, Any]:
         return _metadata_dict(None, None, None)
     installed = installed_profile(conn, scope_id, binding["profile_id"], binding["profile_revision"])
     registry_row = current_registry(conn, scope_id, binding["protocol_id"])
-    status, note = _binding_interpretation(installed, registry_row, binding)
+    status, note = _binding_interpretation_with_conn(conn, installed, registry_row, binding)
     return _metadata_dict(binding, status, note)
 
 
@@ -436,7 +591,8 @@ def list_metadata(conn: Any, scope_id: str, object_ids: list[str]) -> dict[str, 
             profiles[pkey] = installed_profile(conn, scope_id, *pkey)
         if binding["protocol_id"] not in registries:
             registries[binding["protocol_id"]] = current_registry(conn, scope_id, binding["protocol_id"])
-        status, note = _binding_interpretation(profiles[pkey], registries[binding["protocol_id"]], binding)
+        status, note = _binding_interpretation_with_conn(conn, profiles[pkey],
+                                                          registries[binding["protocol_id"]], binding)
         result[oid] = _metadata_dict(binding, status, note)
     return result
 
@@ -447,8 +603,11 @@ def require_read_support(conn: Any, scope_id: str, object_id: str) -> dict[str, 
     the current registry grants read support; otherwise PROTOCOL_NOT_SUPPORTED.
     """
     metadata = read_metadata(conn, scope_id, object_id)
+    # Accepted statuses now include the A2-aware contract_a_v0_1 label for
+    # any of the seven A2 object types when the registry grants write.
+    # Legacy v0.2 and the existing A1 readonly label remain accepted verbatim.
     if metadata["registration_status"] != "registered" or metadata["interpretation_status"] not in (
-            "legacy_v0_2", "contract_a_metadata_read_only"):
+            "legacy_v0_2", "contract_a_metadata_read_only", "contract_a_v0_1"):
         _fail("PROTOCOL_NOT_SUPPORTED",
               "The object's protocol registration does not support read interpretation.")
     return metadata

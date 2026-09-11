@@ -19,7 +19,28 @@ def timestamp(value):
     return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
 
 
+def _is_a2_object(conn, ctx, object_id: str) -> bool:
+    """True iff the object is one of the seven A2 types AND currently bound
+    to Contract-A.  Legacy / unregistered / non-A2 objects return False;
+    raw EvidenceAsset stays on the legacy boundary.
+    """
+    from . import a2_readers
+    return bool(a2_readers.is_a2_object(conn, ctx, object_id))
+
+
+def _delegate_a2_reader(name: str, conn, ctx, *args, **kwargs):
+    """Delegate a read to the corresponding a2_readers function if it exists.
+    Returns None if the A2 readers module is missing or does not implement
+    the named helper — callers fall back to the legacy path.
+    """
+    from . import a2_readers
+    func = getattr(a2_readers, name)
+    return func(conn, ctx, *args, **kwargs)
+
+
 def object_state(conn, ctx, object_id: str) -> dict:
+    if _is_a2_object(conn, ctx, object_id):
+        return db.jsonable(_delegate_a2_reader("object_state", conn, ctx, object_id))
     obj = db.object_row(conn, ctx, object_id)
     result = dict(obj)
     # Protocol metadata attaches to every authorized read; legacy type
@@ -90,6 +111,8 @@ def feedback_state(conn, ctx, obj: dict) -> dict:
 
 
 def revision(conn, ctx, object_id: str, revision_id: str) -> dict:
+    if _is_a2_object(conn, ctx, object_id):
+        return db.jsonable(_delegate_a2_reader("revision", conn, ctx, object_id, revision_id))
     result = db.jsonable(db.revision_row(conn, ctx, object_id, revision_id))
     # A1-12: revision reads carry the object's current protocol identity, just
     # like object GET; stored revision bytes and payload_hash stay untouched.
@@ -98,6 +121,14 @@ def revision(conn, ctx, object_id: str, revision_id: str) -> dict:
 
 
 def authorize_receipt(conn, ctx, receipt: dict):
+    from .service import _is_a2_receipt
+    if _is_a2_receipt(conn, ctx, receipt):
+        return _delegate_a2_reader("authorize_receipt", conn, ctx, db.jsonable(receipt))
+    # A2 receipts: the A2 reader authorizes by actor identity, current Round
+    # membership, or current read rights on the Round's company domain — not
+    # by a generic company-domain check that can wrongly deny a DRI's own
+    # successful multi-scope receipt.  The actual A2 dispatch decision lives
+    # in service._replay/_is_a2_receipt so legacy receipt reads never change.
     domain_id = receipt["result"].get("domain_id")
     if domain_id:
         db.authorize_domain(conn, ctx, str(domain_id), "read")

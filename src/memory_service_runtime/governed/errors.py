@@ -20,6 +20,9 @@ _STATUS = {
     "PROTOCOL_BINDING_MISSING": 409,
     "PROTOCOL_BINDING_CONFLICT": 409,
     "PROTOCOL_WRITE_DISABLED": 409,
+    "COMPOSITION_INPUT_CHANGED": 409,
+    "COMPOSITION_NOT_READY": 409,
+    "CONFIRMATION_INCOMPLETE": 409,
 }
 
 _MESSAGES = {
@@ -42,6 +45,9 @@ _MESSAGES = {
     "PROTOCOL_BINDING_MISSING": "The object has no server-side protocol registration.",
     "PROTOCOL_BINDING_CONFLICT": "A referenced object is registered under a conflicting protocol.",
     "PROTOCOL_WRITE_DISABLED": "Protocol writes are disabled by the current server-side registry.",
+    "COMPOSITION_INPUT_CHANGED": "Composition inputs or versions do not match the candidate manifest.",
+    "COMPOSITION_NOT_READY": "Composition is not yet ready to confirm or activate.",
+    "CONFIRMATION_INCOMPLETE": "Composition confirmation set is not complete.",
 }
 
 

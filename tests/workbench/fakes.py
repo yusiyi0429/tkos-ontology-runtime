@@ -66,6 +66,12 @@ class FakeConn:
             else {str(row["object_id"]) for row in self._objects})
 
     def execute(self, sql, params=()):
+        # A2 routing may inspect a known header before the ordinary legacy
+        # reader runs. This fixture returns only explicitly supplied heads;
+        # it does not manufacture protocol membership or grant any rights.
+        if " ".join(sql.split()) == "SELECT * FROM gov_objects WHERE scope_id=%s AND object_id=%s":
+            return Result([row for row in self._objects
+                           if params[0] == CTX.scope_id and str(row['object_id']) == str(params[1])])
         if "/*workbench:domain-check*/" in sql:
             return Result([row for row in self._domains if str(row["domain_id"]) == str(params[1])])
         if "/*workbench:domains*/" in sql:

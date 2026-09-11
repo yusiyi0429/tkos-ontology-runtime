@@ -1,6 +1,436 @@
 {
   "components": {
     "schemas": {
+      "A3AcceptWorkItemParams": {
+        "additionalProperties": false,
+        "description": "IC 接收任务：显式绑定接收时的执行授权 ID 与代次（§2）。\n\n接收人即当前 IC 由服务端 actor 推导；标准/硬期限与已确认 What 的一致\n性（不以接收暗加责任）由 service 层核对。",
+        "properties": {
+          "execution_authority_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Execution Authority Id",
+            "type": "string"
+          },
+          "execution_epoch": {
+            "minimum": 1.0,
+            "title": "Execution Epoch",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "execution_authority_id",
+          "execution_epoch"
+        ],
+        "title": "A3AcceptWorkItemParams",
+        "type": "object"
+      },
+      "A3CriterionResult": {
+        "additionalProperties": false,
+        "properties": {
+          "criterion_id": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Criterion Id",
+            "type": "string"
+          },
+          "note": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Note",
+            "type": "string"
+          },
+          "result": {
+            "enum": [
+              "passed",
+              "failed"
+            ],
+            "title": "Result",
+            "type": "string"
+          }
+        },
+        "required": [
+          "criterion_id",
+          "result",
+          "note"
+        ],
+        "title": "A3CriterionResult",
+        "type": "object"
+      },
+      "A3ExecutionCommitmentPayload": {
+        "additionalProperties": false,
+        "description": "ExecutionCommitment revision 载荷：同一 Mission 下 DRI 与 IC 对\nWhat/边界的同版承诺，绑定三位不同自然人的任职（草案形态）。\n\ndri/ic/acceptor 三者任职两两不同（静态形状校验）；其背后是不同自然人、\n任职当前有效等只能由 service 层核对。执行窗口截止不得晚于 What 硬期限。",
+        "properties": {
+          "acceptance_window": {
+            "$ref": "#/components/schemas/A3Window"
+          },
+          "acceptor_assignment_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Acceptor Assignment Id",
+            "type": "string"
+          },
+          "domain_commitment_ref": {
+            "$ref": "#/components/schemas/ExactRef"
+          },
+          "dri_assignment_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Dri Assignment Id",
+            "type": "string"
+          },
+          "execution_window": {
+            "$ref": "#/components/schemas/A3Window"
+          },
+          "ic_assignment_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Ic Assignment Id",
+            "type": "string"
+          },
+          "mission_ref": {
+            "$ref": "#/components/schemas/ExactRef"
+          },
+          "title": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Title",
+            "type": "string"
+          },
+          "what": {
+            "$ref": "#/components/schemas/A3What"
+          }
+        },
+        "required": [
+          "title",
+          "mission_ref",
+          "domain_commitment_ref",
+          "dri_assignment_id",
+          "ic_assignment_id",
+          "acceptor_assignment_id",
+          "what",
+          "execution_window",
+          "acceptance_window"
+        ],
+        "title": "A3ExecutionCommitmentPayload",
+        "type": "object"
+      },
+      "A3ExecutionPlanPayload": {
+        "additionalProperties": false,
+        "description": "ExecutionPlan revision 载荷：IC 的 How。\n\n本载荷不含 What：传入结构化 what（或任何未知字段）一律拒绝——计划\n文本/结构不得改写结果、标准、责任或外部依赖。step_id 唯一、依赖引用\n必须存在且无循环。步骤时间不超 What 硬期限属跨对象核对（service 层）。",
+        "properties": {
+          "execution_commitment_ref": {
+            "$ref": "#/components/schemas/ExactRef"
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/A3PlanStep"
+            },
+            "minItems": 1,
+            "title": "Steps",
+            "type": "array"
+          },
+          "title": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Title",
+            "type": "string"
+          },
+          "work_item_ref": {
+            "$ref": "#/components/schemas/ExactRef"
+          }
+        },
+        "required": [
+          "title",
+          "work_item_ref",
+          "execution_commitment_ref",
+          "steps"
+        ],
+        "title": "A3ExecutionPlanPayload",
+        "type": "object"
+      },
+      "A3PlanStep": {
+        "additionalProperties": false,
+        "description": "ExecutionPlan 的单步。description 是自由文本但不具有改变结构化\nWhat 的效力（无结构化字段可承载标准/责任/依赖改写）。",
+        "properties": {
+          "depends_on_step_ids": {
+            "items": {
+              "minLength": 1,
+              "pattern": "\\S",
+              "type": "string"
+            },
+            "title": "Depends On Step Ids",
+            "type": "array"
+          },
+          "description": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Description",
+            "type": "string"
+          },
+          "due_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?(Z|[+-]\\d{2}:\\d{2})$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due At"
+          },
+          "step_id": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Step Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "step_id",
+          "description"
+        ],
+        "title": "A3PlanStep",
+        "type": "object"
+      },
+      "A3ReviewDeliverableParams": {
+        "additionalProperties": false,
+        "description": "保留既有 review 字段（精确交付版本/hash、逐项判断、评语），另绑定\n验收任命 ID/版本（§2）。\n\n当前验收者不得是 DRI/IC 或可信作者/共同作者——该核对需要服务端\nactor 与任命记录，不在本模型范围。",
+        "properties": {
+          "appointment_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Appointment Id",
+            "type": "string"
+          },
+          "appointment_version": {
+            "minimum": 1.0,
+            "title": "Appointment Version",
+            "type": "integer"
+          },
+          "criterion_results": {
+            "items": {
+              "$ref": "#/components/schemas/A3CriterionResult"
+            },
+            "minItems": 1,
+            "title": "Criterion Results",
+            "type": "array"
+          },
+          "deliverable_revision_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Deliverable Revision Id",
+            "type": "string"
+          },
+          "delivery_payload_hash": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Delivery Payload Hash",
+            "type": "string"
+          },
+          "review_note": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Review Note",
+            "type": "string"
+          },
+          "verification_result": {
+            "enum": [
+              "accepted",
+              "changes_requested"
+            ],
+            "title": "Verification Result",
+            "type": "string"
+          }
+        },
+        "required": [
+          "deliverable_revision_id",
+          "delivery_payload_hash",
+          "verification_result",
+          "criterion_results",
+          "review_note",
+          "appointment_id",
+          "appointment_version"
+        ],
+        "title": "A3ReviewDeliverableParams",
+        "type": "object"
+      },
+      "A3SubmitDeliverableParams": {
+        "additionalProperties": false,
+        "description": "保留既有 submit 字段（标题、摘要、真实证据版本、回应退回 ID），\n另精确绑定接收时执行授权/代次及当前计划引用（§2）。\n\n作者集合由服务端提交人与证据实际记录者推导，本形状不接受作者字段。",
+        "properties": {
+          "evidence_revision_ids": {
+            "items": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Evidence Revision Ids",
+            "type": "array"
+          },
+          "execution_authority_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Execution Authority Id",
+            "type": "string"
+          },
+          "execution_epoch": {
+            "minimum": 1.0,
+            "title": "Execution Epoch",
+            "type": "integer"
+          },
+          "plan_ref": {
+            "$ref": "#/components/schemas/ExactRef"
+          },
+          "responds_to_acceptance_id": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Responds To Acceptance Id"
+          },
+          "summary": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Summary",
+            "type": "string"
+          },
+          "title": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "summary",
+          "evidence_revision_ids",
+          "execution_authority_id",
+          "execution_epoch",
+          "plan_ref"
+        ],
+        "title": "A3SubmitDeliverableParams",
+        "type": "object"
+      },
+      "A3What": {
+        "additionalProperties": false,
+        "description": "结构化 What：结果/边界/标准/硬期限/对外依赖。\n\n与 A2 Mission 正式内容的一致性核对属于 service 层；此处只做结构校验。\n字符串按来源原样保留（不 strip、不改写）。",
+        "properties": {
+          "acceptance_criteria": {
+            "items": {
+              "$ref": "#/components/schemas/memory_service_runtime__governed__a2_models__AcceptanceCriterion"
+            },
+            "minItems": 1,
+            "title": "Acceptance Criteria",
+            "type": "array"
+          },
+          "boundary": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Boundary",
+            "type": "string"
+          },
+          "external_dependency_refs": {
+            "items": {
+              "$ref": "#/components/schemas/ExactRef"
+            },
+            "title": "External Dependency Refs",
+            "type": "array"
+          },
+          "hard_deadline": {
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?(Z|[+-]\\d{2}:\\d{2})$",
+            "title": "Hard Deadline",
+            "type": "string"
+          },
+          "result_statement": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Result Statement",
+            "type": "string"
+          }
+        },
+        "required": [
+          "result_statement",
+          "boundary",
+          "acceptance_criteria",
+          "hard_deadline"
+        ],
+        "title": "A3What",
+        "type": "object"
+      },
+      "A3Window": {
+        "additionalProperties": false,
+        "description": "前闭后开 [valid_from, valid_to)。验收窗口与执行窗口相互独立：\n本模型不施加两者之间的先后约束（执行权失效不解释为验收任命失效）。",
+        "properties": {
+          "valid_from": {
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?(Z|[+-]\\d{2}:\\d{2})$",
+            "title": "Valid From",
+            "type": "string"
+          },
+          "valid_to": {
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?(Z|[+-]\\d{2}:\\d{2})$",
+            "title": "Valid To",
+            "type": "string"
+          }
+        },
+        "required": [
+          "valid_from",
+          "valid_to"
+        ],
+        "title": "A3Window",
+        "type": "object"
+      },
+      "A3WorkItemPayload": {
+        "additionalProperties": false,
+        "description": "WorkItem revision 载荷：不超出 What 的交付单元。\n\nacceptance_criteria/due_at 与已确认 What 的一致性是跨对象核对，\n属 service 层；此处只保证结构、唯一性与精确引用形状。",
+        "properties": {
+          "acceptance_criteria": {
+            "items": {
+              "$ref": "#/components/schemas/memory_service_runtime__governed__a2_models__AcceptanceCriterion"
+            },
+            "minItems": 1,
+            "title": "Acceptance Criteria",
+            "type": "array"
+          },
+          "due_at": {
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?(Z|[+-]\\d{2}:\\d{2})$",
+            "title": "Due At",
+            "type": "string"
+          },
+          "execution_authority_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Execution Authority Id",
+            "type": "string"
+          },
+          "execution_commitment_ref": {
+            "$ref": "#/components/schemas/ExactRef"
+          },
+          "execution_epoch": {
+            "minimum": 1.0,
+            "title": "Execution Epoch",
+            "type": "integer"
+          },
+          "title": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "execution_commitment_ref",
+          "execution_authority_id",
+          "execution_epoch",
+          "acceptance_criteria",
+          "due_at"
+        ],
+        "title": "A3WorkItemPayload",
+        "type": "object"
+      },
       "AcceptCommitmentParams": {
         "additionalProperties": false,
         "properties": {
@@ -27,29 +457,6 @@
         "title": "AcceptCommitmentParams",
         "type": "object"
       },
-      "AcceptanceCriterion": {
-        "additionalProperties": false,
-        "properties": {
-          "criterion_id": {
-            "maxLength": 200,
-            "minLength": 1,
-            "title": "Criterion Id",
-            "type": "string"
-          },
-          "description": {
-            "maxLength": 20000,
-            "minLength": 1,
-            "title": "Description",
-            "type": "string"
-          }
-        },
-        "required": [
-          "criterion_id",
-          "description"
-        ],
-        "title": "AcceptanceCriterion",
-        "type": "object"
-      },
       "ActionRequest": {
         "additionalProperties": false,
         "properties": {
@@ -73,7 +480,13 @@
               "accept_work_item",
               "submit_deliverable",
               "review_deliverable",
-              "record_outcome_assessment"
+              "record_outcome_assessment",
+              "open_formation_round",
+              "amend_formation_round",
+              "publish_domain_submission",
+              "form_company_composition",
+              "confirm_company_composition",
+              "activate_company_composition"
             ],
             "title": "Action Type",
             "type": "string"
@@ -147,6 +560,33 @@
               },
               {
                 "$ref": "#/components/schemas/EmptyParams"
+              },
+              {
+                "$ref": "#/components/schemas/A3AcceptWorkItemParams"
+              },
+              {
+                "$ref": "#/components/schemas/A3SubmitDeliverableParams"
+              },
+              {
+                "$ref": "#/components/schemas/A3ReviewDeliverableParams"
+              },
+              {
+                "$ref": "#/components/schemas/OpenFormationRoundParams"
+              },
+              {
+                "$ref": "#/components/schemas/AmendFormationRoundParams"
+              },
+              {
+                "$ref": "#/components/schemas/PublishDomainSubmissionParams"
+              },
+              {
+                "$ref": "#/components/schemas/FormCompanyCompositionParams"
+              },
+              {
+                "$ref": "#/components/schemas/ConfirmCompanyCompositionParams"
+              },
+              {
+                "$ref": "#/components/schemas/ActivateCompanyCompositionParams"
               }
             ],
             "title": "Params"
@@ -226,6 +666,31 @@
         "title": "ActivateCommitmentParams",
         "type": "object"
       },
+      "ActivateCompanyCompositionParams": {
+        "additionalProperties": false,
+        "properties": {
+          "composition_ref": {
+            "$ref": "#/components/schemas/CompositionRef"
+          },
+          "expected_input_set_version": {
+            "minimum": 1.0,
+            "title": "Expected Input Set Version",
+            "type": "integer"
+          },
+          "expected_member_set_version": {
+            "minimum": 1.0,
+            "title": "Expected Member Set Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "composition_ref",
+          "expected_member_set_version",
+          "expected_input_set_version"
+        ],
+        "title": "ActivateCompanyCompositionParams",
+        "type": "object"
+      },
       "AdjustmentPayload": {
         "additionalProperties": false,
         "properties": {
@@ -260,6 +725,188 @@
         "title": "AdjustmentPayload",
         "type": "object"
       },
+      "AmendFormationRoundParams": {
+        "additionalProperties": false,
+        "description": "未激活 Round 的定义修订；period/Profile 不可变（字段不存在，携带即\n422）。members 与 company_reference_ref 至少一项实际变化（review 2）。",
+        "properties": {
+          "change_reason": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Change Reason",
+            "type": "string"
+          },
+          "company_reference_ref": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ObjectRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "expected_member_set_version": {
+            "minimum": 1.0,
+            "title": "Expected Member Set Version",
+            "type": "integer"
+          },
+          "members": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/MemberSpec"
+                },
+                "minItems": 1,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Members"
+          }
+        },
+        "required": [
+          "expected_member_set_version",
+          "change_reason"
+        ],
+        "title": "AmendFormationRoundParams",
+        "type": "object"
+      },
+      "BindingSpec": {
+        "additionalProperties": false,
+        "description": "绑定只标识精确来源/资源/周期/单位，不含第二个需求量（review 5）。",
+        "properties": {
+          "period_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Period Id",
+            "type": "string"
+          },
+          "relation_type": {
+            "const": "resource_capacity",
+            "title": "Relation Type",
+            "type": "string"
+          },
+          "resource_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Resource Id",
+            "type": "string"
+          },
+          "source_ref": {
+            "$ref": "#/components/schemas/ObjectRef"
+          },
+          "unit": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Unit",
+            "type": "string"
+          }
+        },
+        "required": [
+          "relation_type",
+          "source_ref",
+          "resource_id",
+          "period_id",
+          "unit"
+        ],
+        "title": "BindingSpec",
+        "type": "object"
+      },
+      "CapacityObservationPayload": {
+        "additionalProperties": false,
+        "description": "容量来源观察（受控输入）。available/reserved 为非负严格整数；\nobserved_at 是显式观察时刻（未来时刻在准入时拒绝）。",
+        "properties": {
+          "available": {
+            "minimum": 0.0,
+            "title": "Available",
+            "type": "integer"
+          },
+          "note": {
+            "default": "",
+            "title": "Note",
+            "type": "string"
+          },
+          "observed_at": {
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?(Z|[+-]\\d{2}:\\d{2})$",
+            "title": "Observed At",
+            "type": "string"
+          },
+          "period_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Period Id",
+            "type": "string"
+          },
+          "reserved": {
+            "minimum": 0.0,
+            "title": "Reserved",
+            "type": "integer"
+          },
+          "resource_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Resource Id",
+            "type": "string"
+          },
+          "shared_with_domain_ids": {
+            "items": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+              "type": "string"
+            },
+            "title": "Shared With Domain Ids",
+            "type": "array"
+          },
+          "title": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Title",
+            "type": "string"
+          },
+          "unit": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Unit",
+            "type": "string"
+          },
+          "upstream_refs": {
+            "items": {
+              "$ref": "#/components/schemas/memory_service_runtime__governed__a2_models__RevisionRef"
+            },
+            "title": "Upstream Refs",
+            "type": "array"
+          },
+          "valid_from": {
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?(Z|[+-]\\d{2}:\\d{2})$",
+            "title": "Valid From",
+            "type": "string"
+          },
+          "valid_to": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?(Z|[+-]\\d{2}:\\d{2})$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valid To"
+          }
+        },
+        "required": [
+          "title",
+          "resource_id",
+          "period_id",
+          "unit",
+          "available",
+          "reserved",
+          "observed_at",
+          "valid_from"
+        ],
+        "title": "CapacityObservationPayload",
+        "type": "object"
+      },
       "CommitmentPayload": {
         "additionalProperties": false,
         "properties": {
@@ -287,7 +934,7 @@
           },
           "upstream_refs": {
             "items": {
-              "$ref": "#/components/schemas/RevisionRef"
+              "$ref": "#/components/schemas/memory_service_runtime__governed__models__RevisionRef"
             },
             "minItems": 1,
             "title": "Upstream Refs",
@@ -301,6 +948,86 @@
           "upstream_refs"
         ],
         "title": "CommitmentPayload",
+        "type": "object"
+      },
+      "CompanyReferencePayload": {
+        "additionalProperties": false,
+        "description": "公司正式 Reference（受控输入）。shared_with_domain_ids 为发布者显式\n选择的本 scope 域白名单；空 = 私有。",
+        "properties": {
+          "period_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Period Id",
+            "type": "string"
+          },
+          "shared_with_domain_ids": {
+            "items": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+              "type": "string"
+            },
+            "title": "Shared With Domain Ids",
+            "type": "array"
+          },
+          "statement": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Statement",
+            "type": "string"
+          },
+          "terms": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "title": "Terms",
+            "type": "object"
+          },
+          "title": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Title",
+            "type": "string"
+          },
+          "upstream_refs": {
+            "items": {
+              "$ref": "#/components/schemas/memory_service_runtime__governed__a2_models__RevisionRef"
+            },
+            "title": "Upstream Refs",
+            "type": "array"
+          }
+        },
+        "required": [
+          "title",
+          "statement",
+          "period_id"
+        ],
+        "title": "CompanyReferencePayload",
+        "type": "object"
+      },
+      "CompositionRef": {
+        "additionalProperties": false,
+        "description": "组合的精确引用：object + revision + manifest_hash。",
+        "properties": {
+          "manifest_hash": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Manifest Hash",
+            "type": "string"
+          },
+          "object_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Object Id",
+            "type": "string"
+          },
+          "revision_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Revision Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "object_id",
+          "revision_id",
+          "manifest_hash"
+        ],
+        "title": "CompositionRef",
         "type": "object"
       },
       "ConfirmAdjustmentParams": {
@@ -375,6 +1102,32 @@
         "title": "ConfirmClosureParams",
         "type": "object"
       },
+      "ConfirmCompanyCompositionParams": {
+        "additionalProperties": false,
+        "properties": {
+          "assignment_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Assignment Id",
+            "type": "string"
+          },
+          "composition_ref": {
+            "$ref": "#/components/schemas/CompositionRef"
+          },
+          "confirmation_statement": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Confirmation Statement",
+            "type": "string"
+          }
+        },
+        "required": [
+          "composition_ref",
+          "assignment_id",
+          "confirmation_statement"
+        ],
+        "title": "ConfirmCompanyCompositionParams",
+        "type": "object"
+      },
       "ContextRequest": {
         "additionalProperties": false,
         "properties": {
@@ -423,7 +1176,10 @@
               "ManagementAdjustment",
               "Decision",
               "MetricObservation",
-              "WorkItem"
+              "WorkItem",
+              "CompanyReference",
+              "CapacityObservation",
+              "ExecutionPlan"
             ],
             "title": "Object Type",
             "type": "string"
@@ -450,6 +1206,21 @@
               },
               {
                 "$ref": "#/components/schemas/WorkItemPayload"
+              },
+              {
+                "$ref": "#/components/schemas/CompanyReferencePayload"
+              },
+              {
+                "$ref": "#/components/schemas/CapacityObservationPayload"
+              },
+              {
+                "$ref": "#/components/schemas/A3ExecutionCommitmentPayload"
+              },
+              {
+                "$ref": "#/components/schemas/A3WorkItemPayload"
+              },
+              {
+                "$ref": "#/components/schemas/A3ExecutionPlanPayload"
               }
             ],
             "title": "Payload"
@@ -529,6 +1300,28 @@
         "title": "DecisionPayload",
         "type": "object"
       },
+      "DeclaredConflict": {
+        "additionalProperties": false,
+        "description": "人工声明的未决冲突；blocking=true 使候选不得确认/生效（review 10）。",
+        "properties": {
+          "blocking": {
+            "title": "Blocking",
+            "type": "boolean"
+          },
+          "summary": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Summary",
+            "type": "string"
+          }
+        },
+        "required": [
+          "summary",
+          "blocking"
+        ],
+        "title": "DeclaredConflict",
+        "type": "object"
+      },
       "EmptyParams": {
         "additionalProperties": false,
         "properties": {},
@@ -570,6 +1363,34 @@
           "content_base64"
         ],
         "title": "EvidenceRequest",
+        "type": "object"
+      },
+      "ExactRef": {
+        "additionalProperties": false,
+        "description": "A3 精确引用三元组：object_id + revision_id + payload_hash（§2）。",
+        "properties": {
+          "object_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Object Id",
+            "type": "string"
+          },
+          "payload_hash": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Payload Hash",
+            "type": "string"
+          },
+          "revision_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Revision Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "object_id",
+          "revision_id",
+          "payload_hash"
+        ],
+        "title": "ExactRef",
         "type": "object"
       },
       "ExpectedVersion": {
@@ -615,8 +1436,40 @@
         "title": "FeedbackPayload",
         "type": "object"
       },
+      "FormCompanyCompositionParams": {
+        "additionalProperties": false,
+        "properties": {
+          "expected_input_set_version": {
+            "minimum": 1.0,
+            "title": "Expected Input Set Version",
+            "type": "integer"
+          },
+          "expected_member_set_version": {
+            "minimum": 1.0,
+            "title": "Expected Member Set Version",
+            "type": "integer"
+          },
+          "judgments": {
+            "$ref": "#/components/schemas/JudgmentsInput"
+          },
+          "unresolved_conflicts": {
+            "items": {
+              "$ref": "#/components/schemas/DeclaredConflict"
+            },
+            "title": "Unresolved Conflicts",
+            "type": "array"
+          }
+        },
+        "required": [
+          "expected_member_set_version",
+          "expected_input_set_version",
+          "judgments"
+        ],
+        "title": "FormCompanyCompositionParams",
+        "type": "object"
+      },
       "GkDynamic": {
-        "description": "P3 \u8fd4\u56de\u4f53\u3002warning \u662f\u670d\u52a1\u7aef\u81ea\u62a5\u7684\u964d\u7ea7\uff08\u5982 embedding \u672a\u7f13\u5b58\uff09\uff0c\u4e0d\u662f\u9519\u8bef\u3002",
+        "description": "P3 返回体。warning 是服务端自报的降级（如 embedding 未缓存），不是错误。",
         "properties": {
           "query": {
             "anyOf": [
@@ -670,7 +1523,7 @@
         "type": "object"
       },
       "GkEntity": {
-        "description": "P1/P2 \u8fd4\u56de\u4f53\u3002relations \u662f {\u5173\u7cfb\u540d: [\u5bf9\u65b9\u77ed\u7801]} \u7684\u888b\u5b50\uff08M7 \u8bed\u4e49\uff09\u3002",
+        "description": "P1/P2 返回体。relations 是 {关系名: [对方短码]} 的袋子（M7 语义）。",
         "properties": {
           "code": {
             "anyOf": [
@@ -742,7 +1595,7 @@
         "type": "object"
       },
       "GkEntitySummary": {
-        "description": "\u53ea\u8bfb\u951a\u70b9\u76ee\u5f55\u4e2d\u7684\u6700\u5c0f\u5b9e\u4f53\u5f62\u72b6\u3002",
+        "description": "只读锚点目录中的最小实体形状。",
         "properties": {
           "code": {
             "title": "Code",
@@ -761,7 +1614,7 @@
         "type": "object"
       },
       "GkSeed": {
-        "description": "P3 \u53ec\u56de\u79cd\u5b50\u3002code \u5fc5\u987b\u662f\u7a33\u5b9a\u4e1a\u52a1\u77ed\u7801\uff08\u89c1 adapter/codes.py\uff09\u3002",
+        "description": "P3 召回种子。code 必须是稳定业务短码（见 adapter/codes.py）。",
         "properties": {
           "code": {
             "anyOf": [
@@ -801,7 +1654,7 @@
         "type": "object"
       },
       "GkVersion": {
-        "description": "P2 \u7248\u672c\u94fe\u4e2d\u7684\u4e00\u7248\u3002\u5168\u90e8\u53ef\u7a7a\u2014\u2014\u670d\u52a1\u7aef\u7f3a\u5b57\u6bb5\u4e0d\u5d29\uff0c\u6d88\u8d39\u65b9\u6309\u7f3a\u7701\u5904\u7406\u3002",
+        "description": "P2 版本链中的一版。全部可空——服务端缺字段不崩，消费方按缺省处理。",
         "properties": {
           "at": {
             "anyOf": [
@@ -917,6 +1770,133 @@
         "type": "object"
       },
       "JsonValue": {},
+      "JudgmentInput": {
+        "additionalProperties": false,
+        "description": "四项判断之一；judge_principal_id 由服务端记为 actor（CEO）。",
+        "properties": {
+          "conclusion": {
+            "enum": [
+              "pass",
+              "fail",
+              "unknown"
+            ],
+            "title": "Conclusion",
+            "type": "string"
+          },
+          "evidence_refs": {
+            "items": {
+              "$ref": "#/components/schemas/ObjectRef"
+            },
+            "title": "Evidence Refs",
+            "type": "array"
+          },
+          "reason": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "conclusion",
+          "reason"
+        ],
+        "title": "JudgmentInput",
+        "type": "object"
+      },
+      "JudgmentsInput": {
+        "additionalProperties": false,
+        "properties": {
+          "coherence": {
+            "$ref": "#/components/schemas/JudgmentInput"
+          },
+          "coverage": {
+            "$ref": "#/components/schemas/JudgmentInput"
+          },
+          "feasibility": {
+            "$ref": "#/components/schemas/JudgmentInput"
+          },
+          "tradeoff": {
+            "$ref": "#/components/schemas/JudgmentInput"
+          }
+        },
+        "required": [
+          "coverage",
+          "coherence",
+          "feasibility",
+          "tradeoff"
+        ],
+        "title": "JudgmentsInput",
+        "type": "object"
+      },
+      "MemberSpec": {
+        "additionalProperties": false,
+        "properties": {
+          "domain_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Domain Id",
+            "type": "string"
+          },
+          "dri_assignment_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Dri Assignment Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "domain_id",
+          "dri_assignment_id"
+        ],
+        "title": "MemberSpec",
+        "type": "object"
+      },
+      "MissionSpec": {
+        "additionalProperties": false,
+        "description": "Submission 内的 Mission 定义；mission_key 稳定，身份由服务端派生。",
+        "properties": {
+          "acceptance_criteria": {
+            "items": {
+              "$ref": "#/components/schemas/memory_service_runtime__governed__a2_models__AcceptanceCriterion"
+            },
+            "minItems": 1,
+            "title": "Acceptance Criteria",
+            "type": "array"
+          },
+          "boundary": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Boundary",
+            "type": "string"
+          },
+          "dependency_refs": {
+            "items": {
+              "$ref": "#/components/schemas/memory_service_runtime__governed__a2_models__RevisionRef"
+            },
+            "title": "Dependency Refs",
+            "type": "array"
+          },
+          "mission_key": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Mission Key",
+            "type": "string"
+          },
+          "result_statement": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Result Statement",
+            "type": "string"
+          }
+        },
+        "required": [
+          "mission_key",
+          "result_statement",
+          "boundary",
+          "acceptance_criteria"
+        ],
+        "title": "MissionSpec",
+        "type": "object"
+      },
       "NarrativeRequest": {
         "additionalProperties": false,
         "properties": {
@@ -1099,6 +2079,34 @@
         "title": "NarrativeResponse",
         "type": "object"
       },
+      "ObjectRef": {
+        "additionalProperties": false,
+        "description": "正式引用的精确三元组：object_id + revision_id + payload_hash。",
+        "properties": {
+          "object_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Object Id",
+            "type": "string"
+          },
+          "payload_hash": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Payload Hash",
+            "type": "string"
+          },
+          "revision_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Revision Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "object_id",
+          "revision_id",
+          "payload_hash"
+        ],
+        "title": "ObjectRef",
+        "type": "object"
+      },
       "ObservationPayload": {
         "additionalProperties": false,
         "properties": {
@@ -1122,7 +2130,7 @@
           },
           "upstream_refs": {
             "items": {
-              "$ref": "#/components/schemas/RevisionRef"
+              "$ref": "#/components/schemas/memory_service_runtime__governed__models__RevisionRef"
             },
             "title": "Upstream Refs",
             "type": "array"
@@ -1164,6 +2172,60 @@
         "title": "ObservationPayload",
         "type": "object"
       },
+      "OpenFormationRoundParams": {
+        "additionalProperties": false,
+        "properties": {
+          "ceo_assignment_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Ceo Assignment Id",
+            "type": "string"
+          },
+          "company_domain_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Company Domain Id",
+            "type": "string"
+          },
+          "company_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Company Id",
+            "type": "string"
+          },
+          "company_reference_ref": {
+            "$ref": "#/components/schemas/ObjectRef"
+          },
+          "members": {
+            "items": {
+              "$ref": "#/components/schemas/MemberSpec"
+            },
+            "minItems": 1,
+            "title": "Members",
+            "type": "array"
+          },
+          "method_profile_ref": {
+            "$ref": "#/components/schemas/ProfileRefSpec"
+          },
+          "period_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Period Id",
+            "type": "string"
+          },
+          "period_window": {
+            "$ref": "#/components/schemas/PeriodWindow"
+          }
+        },
+        "required": [
+          "company_id",
+          "company_domain_id",
+          "ceo_assignment_id",
+          "period_id",
+          "period_window",
+          "method_profile_ref",
+          "company_reference_ref",
+          "members"
+        ],
+        "title": "OpenFormationRoundParams",
+        "type": "object"
+      },
       "OutcomePayload": {
         "additionalProperties": false,
         "properties": {
@@ -1193,7 +2255,7 @@
           },
           "upstream_refs": {
             "items": {
-              "$ref": "#/components/schemas/RevisionRef"
+              "$ref": "#/components/schemas/memory_service_runtime__governed__models__RevisionRef"
             },
             "title": "Upstream Refs",
             "type": "array"
@@ -1203,6 +2265,85 @@
           "title"
         ],
         "title": "OutcomePayload",
+        "type": "object"
+      },
+      "PdoSpec": {
+        "additionalProperties": false,
+        "properties": {
+          "pdo_key": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Pdo Key",
+            "type": "string"
+          },
+          "result_criteria": {
+            "items": {
+              "$ref": "#/components/schemas/memory_service_runtime__governed__a2_models__AcceptanceCriterion"
+            },
+            "minItems": 1,
+            "title": "Result Criteria",
+            "type": "array"
+          },
+          "statement": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Statement",
+            "type": "string"
+          }
+        },
+        "required": [
+          "pdo_key",
+          "statement",
+          "result_criteria"
+        ],
+        "title": "PdoSpec",
+        "type": "object"
+      },
+      "PeriodWindow": {
+        "additionalProperties": false,
+        "properties": {
+          "end": {
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?(Z|[+-]\\d{2}:\\d{2})$",
+            "title": "End",
+            "type": "string"
+          },
+          "start": {
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?(Z|[+-]\\d{2}:\\d{2})$",
+            "title": "Start",
+            "type": "string"
+          }
+        },
+        "required": [
+          "start",
+          "end"
+        ],
+        "title": "PeriodWindow",
+        "type": "object"
+      },
+      "ProfileRefSpec": {
+        "additionalProperties": false,
+        "description": "请求侧 Profile 引用；canonical_hash 由服务端从已安装记录核对。",
+        "properties": {
+          "profile_id": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Profile Id",
+            "type": "string"
+          },
+          "revision": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Revision",
+            "type": "string"
+          }
+        },
+        "required": [
+          "profile_id",
+          "revision"
+        ],
+        "title": "ProfileRefSpec",
         "type": "object"
       },
       "ProposeRevisionParams": {
@@ -1241,6 +2382,21 @@
               },
               {
                 "$ref": "#/components/schemas/WorkItemPayload"
+              },
+              {
+                "$ref": "#/components/schemas/CompanyReferencePayload"
+              },
+              {
+                "$ref": "#/components/schemas/CapacityObservationPayload"
+              },
+              {
+                "$ref": "#/components/schemas/A3ExecutionCommitmentPayload"
+              },
+              {
+                "$ref": "#/components/schemas/A3WorkItemPayload"
+              },
+              {
+                "$ref": "#/components/schemas/A3ExecutionPlanPayload"
               }
             ],
             "title": "Payload"
@@ -1250,6 +2406,45 @@
           "payload"
         ],
         "title": "ProposeRevisionParams",
+        "type": "object"
+      },
+      "PublishDomainSubmissionParams": {
+        "additionalProperties": false,
+        "properties": {
+          "commitment_statement": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Commitment Statement",
+            "type": "string"
+          },
+          "domain_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Domain Id",
+            "type": "string"
+          },
+          "draft_checkpoint": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Draft Checkpoint",
+            "type": "string"
+          },
+          "dri_assignment_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Dri Assignment Id",
+            "type": "string"
+          },
+          "submission": {
+            "$ref": "#/components/schemas/SubmissionContent"
+          }
+        },
+        "required": [
+          "domain_id",
+          "dri_assignment_id",
+          "draft_checkpoint",
+          "commitment_statement",
+          "submission"
+        ],
+        "title": "PublishDomainSubmissionParams",
         "type": "object"
       },
       "RecordAcceptanceParams": {
@@ -1349,6 +2544,41 @@
         "title": "RequestFeedbackAcceptanceParams",
         "type": "object"
       },
+      "ResourceDemand": {
+        "additionalProperties": false,
+        "description": "唯一需求量（review 5）；非负严格整数，bool/float/str 一律拒绝。",
+        "properties": {
+          "period_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Period Id",
+            "type": "string"
+          },
+          "required": {
+            "minimum": 0.0,
+            "title": "Required",
+            "type": "integer"
+          },
+          "resource_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Resource Id",
+            "type": "string"
+          },
+          "unit": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Unit",
+            "type": "string"
+          }
+        },
+        "required": [
+          "resource_id",
+          "period_id",
+          "unit",
+          "required"
+        ],
+        "title": "ResourceDemand",
+        "type": "object"
+      },
       "ReviewDeliverableParams": {
         "additionalProperties": false,
         "properties": {
@@ -1418,25 +2648,6 @@
         "title": "RevisionChange",
         "type": "object"
       },
-      "RevisionRef": {
-        "additionalProperties": false,
-        "properties": {
-          "object_id": {
-            "title": "Object Id",
-            "type": "string"
-          },
-          "revision_id": {
-            "title": "Revision Id",
-            "type": "string"
-          }
-        },
-        "required": [
-          "object_id",
-          "revision_id"
-        ],
-        "title": "RevisionRef",
-        "type": "object"
-      },
       "RevokeAssignmentParams": {
         "additionalProperties": false,
         "properties": {
@@ -1463,6 +2674,66 @@
           "responsible_assignment_id"
         ],
         "title": "RouteFeedbackParams",
+        "type": "object"
+      },
+      "SubmissionContent": {
+        "additionalProperties": false,
+        "description": "正式 Submission 的结构化内容（review 5）。\n\n单个 Submission 的 `resources[]` 与 `bindings[]` 各自保持严格类型与池键\n唯一性，但不再要求两份池键一一对应——每个独立域可只发布\ndemand-only（仅 `resources[]`）或 provider-only（仅 `bindings[]`）。\n全员正式 Submission 之间的完整池覆盖与每个池键\n`(resource_id, period_id, unit)` 唯一一致的 binding，由 service 层在\nform/activate 阶段跨全部当前有效 Submission 汇总并强制。",
+        "properties": {
+          "bindings": {
+            "items": {
+              "$ref": "#/components/schemas/BindingSpec"
+            },
+            "title": "Bindings",
+            "type": "array"
+          },
+          "missions": {
+            "items": {
+              "$ref": "#/components/schemas/MissionSpec"
+            },
+            "minItems": 1,
+            "title": "Missions",
+            "type": "array"
+          },
+          "pdo": {
+            "$ref": "#/components/schemas/PdoSpec"
+          },
+          "resources": {
+            "items": {
+              "$ref": "#/components/schemas/ResourceDemand"
+            },
+            "title": "Resources",
+            "type": "array"
+          },
+          "result_statement": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Result Statement",
+            "type": "string"
+          },
+          "unknowns": {
+            "items": {
+              "minLength": 1,
+              "pattern": "\\S",
+              "type": "string"
+            },
+            "title": "Unknowns",
+            "type": "array"
+          },
+          "upstream_refs": {
+            "items": {
+              "$ref": "#/components/schemas/memory_service_runtime__governed__a2_models__RevisionRef"
+            },
+            "title": "Upstream Refs",
+            "type": "array"
+          }
+        },
+        "required": [
+          "result_statement",
+          "pdo",
+          "missions"
+        ],
+        "title": "SubmissionContent",
         "type": "object"
       },
       "SubmitDeliverableParams": {
@@ -1553,7 +2824,7 @@
         "properties": {
           "acceptance_criteria": {
             "items": {
-              "$ref": "#/components/schemas/AcceptanceCriterion"
+              "$ref": "#/components/schemas/memory_service_runtime__governed__models__AcceptanceCriterion"
             },
             "minItems": 1,
             "title": "Acceptance Criteria",
@@ -1579,12 +2850,12 @@
             "title": "Due At"
           },
           "execution_commitment_ref": {
-            "$ref": "#/components/schemas/RevisionRef"
+            "$ref": "#/components/schemas/memory_service_runtime__governed__models__RevisionRef"
           },
           "feedback_ref": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/RevisionRef"
+                "$ref": "#/components/schemas/memory_service_runtime__governed__models__RevisionRef"
               },
               {
                 "type": "null"
@@ -1607,6 +2878,92 @@
         ],
         "title": "WorkItemPayload",
         "type": "object"
+      },
+      "memory_service_runtime__governed__a2_models__AcceptanceCriterion": {
+        "additionalProperties": false,
+        "properties": {
+          "criterion_id": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Criterion Id",
+            "type": "string"
+          },
+          "description": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Description",
+            "type": "string"
+          }
+        },
+        "required": [
+          "criterion_id",
+          "description"
+        ],
+        "title": "AcceptanceCriterion",
+        "type": "object"
+      },
+      "memory_service_runtime__governed__a2_models__RevisionRef": {
+        "additionalProperties": false,
+        "properties": {
+          "object_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Object Id",
+            "type": "string"
+          },
+          "revision_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Revision Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "object_id",
+          "revision_id"
+        ],
+        "title": "RevisionRef",
+        "type": "object"
+      },
+      "memory_service_runtime__governed__models__AcceptanceCriterion": {
+        "additionalProperties": false,
+        "properties": {
+          "criterion_id": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Criterion Id",
+            "type": "string"
+          },
+          "description": {
+            "maxLength": 20000,
+            "minLength": 1,
+            "title": "Description",
+            "type": "string"
+          }
+        },
+        "required": [
+          "criterion_id",
+          "description"
+        ],
+        "title": "AcceptanceCriterion",
+        "type": "object"
+      },
+      "memory_service_runtime__governed__models__RevisionRef": {
+        "additionalProperties": false,
+        "properties": {
+          "object_id": {
+            "title": "Object Id",
+            "type": "string"
+          },
+          "revision_id": {
+            "title": "Revision Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "object_id",
+          "revision_id"
+        ],
+        "title": "RevisionRef",
+        "type": "object"
       }
     },
     "securitySchemes": {
@@ -1617,7 +2974,7 @@
     }
   },
   "info": {
-    "description": "Standalone governed Memory Service with a native API and a temporary Clark GraphKnowledge compatibility fa\u00e7ade.",
+    "description": "Standalone governed Memory Service with a native API and a temporary Clark GraphKnowledge compatibility façade.",
     "title": "TKOS Memory Service",
     "version": "0.2.0"
   },

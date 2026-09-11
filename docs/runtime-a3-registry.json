@@ -1,0 +1,39 @@
+{
+  "can_read": true,
+  "can_create": true,
+  "can_write": true,
+  "evidence_upload": true,
+  "actions": [
+    "open_formation_round",
+    "amend_formation_round",
+    "publish_domain_submission",
+    "form_company_composition",
+    "confirm_company_composition",
+    "activate_company_composition",
+    "create_object",
+    "propose_revision",
+    "accept_commitment",
+    "activate_commitment",
+    "accept_work_item",
+    "submit_deliverable",
+    "review_deliverable",
+    "record_outcome_assessment"
+  ],
+  "object_types": [
+    "CompanyReference",
+    "CapacityObservation",
+    "FormationRound",
+    "DomainSubmission",
+    "CompanyComposition",
+    "Mission",
+    "DomainCommitment",
+    "ExecutionCommitment",
+    "WorkItem",
+    "ExecutionPlan",
+    "Deliverable"
+  ],
+  "readonly_compat": [
+    "tkos.contract-a/0.1"
+  ],
+  "notes": "Contract-A A2 composition plus A3 normal DRI-IC handover, mandatory execution plan, independent appointment and synthetic outcome assessment. Compiled object/action allowlists apply; no external dispatch."
+}

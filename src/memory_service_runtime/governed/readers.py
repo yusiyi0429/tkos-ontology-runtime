@@ -39,8 +39,16 @@ def _delegate_a2_reader(name: str, conn, ctx, *args, **kwargs):
 
 
 def object_state(conn, ctx, object_id: str) -> dict:
+    from . import a3_readers
+    if a3_readers.is_a3_object(conn, ctx, object_id):
+        return a3_readers.object_state(conn, ctx, object_id)
     if _is_a2_object(conn, ctx, object_id):
-        return db.jsonable(_delegate_a2_reader("object_state", conn, ctx, object_id))
+        result = db.jsonable(_delegate_a2_reader("object_state", conn, ctx, object_id))
+        if result["object_type"] == "CompanyReference":
+            projection = a3_readers.project_outcome(conn, ctx, object_id)
+            if projection is not None:
+                result["a3_outcome"] = projection
+        return result
     obj = db.object_row(conn, ctx, object_id)
     result = dict(obj)
     # Protocol metadata attaches to every authorized read; legacy type
@@ -111,6 +119,9 @@ def feedback_state(conn, ctx, obj: dict) -> dict:
 
 
 def revision(conn, ctx, object_id: str, revision_id: str) -> dict:
+    from . import a3_readers
+    if a3_readers.is_a3_object(conn, ctx, object_id):
+        return a3_readers.revision(conn, ctx, object_id, revision_id)
     if _is_a2_object(conn, ctx, object_id):
         return db.jsonable(_delegate_a2_reader("revision", conn, ctx, object_id, revision_id))
     result = db.jsonable(db.revision_row(conn, ctx, object_id, revision_id))
@@ -121,6 +132,9 @@ def revision(conn, ctx, object_id: str, revision_id: str) -> dict:
 
 
 def authorize_receipt(conn, ctx, receipt: dict):
+    from . import a3_readers
+    if a3_readers.is_a3_receipt(conn, ctx, receipt):
+        return a3_readers.authorize_receipt(conn, ctx, db.jsonable(receipt))
     from .service import _is_a2_receipt
     if _is_a2_receipt(conn, ctx, receipt):
         return _delegate_a2_reader("authorize_receipt", conn, ctx, db.jsonable(receipt))

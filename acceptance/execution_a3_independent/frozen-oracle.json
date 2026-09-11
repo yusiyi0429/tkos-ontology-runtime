@@ -1,0 +1,111 @@
+{
+  "scope": "runtime-a3-execution-handover",
+  "base_head": "e7d0d6b821f6ca94672c73610a3da85aa5ce6577",
+  "normative_sources": {
+    "契约包A.md": "fff438ca5eb3b2c709d9911929bc0d8d393a27b42f0af62d48767a2f65388fd4",
+    "独立验收契约.md": "d84bde5e5288ac9c8ca3e89d6d4450759b5c3bd62b0c38eb928ba1d2d8c4e7de",
+    "模拟策略与数据.md": "fc32c99cb717bba2d1ed1c8b957a9e7295b2c4e7e822ff990bcdd7ae67343cdb",
+    "profile-core.json": "2b7ec89bc489090f4d12d094d19ba49a52124425e094c6131d68c94488efe654"
+  },
+  "required_cases": {
+    "A3-01": [
+      "company_activation_has_no_ic_or_work_receipt",
+      "unaccepted_execution_rejected",
+      "company_approval_cannot_submit_or_review"
+    ],
+    "A3-02": [
+      "two_distinct_humans_exact_revision",
+      "different_revision_rejected",
+      "same_human_two_roles_rejected",
+      "wrong_assignment_rejected",
+      "agent_signature_rejected"
+    ],
+    "A3-03": [
+      "single_current_execution_authority",
+      "receipt_binds_task_revision_and_epoch",
+      "task_reception_does_not_duplicate_what",
+      "submit_before_reception_rejected"
+    ],
+    "A3-04": [
+      "current_plan_required",
+      "designated_ic_creates_plan",
+      "how_revision_preserves_history",
+      "foreign_actor_plan_rejected",
+      "what_criteria_deadline_role_dependency_changes_rejected",
+      "plan_has_no_extra_approval"
+    ],
+    "A3-05": [
+      "one_deliverable_two_immutable_revisions",
+      "v2_responds_to_exact_return",
+      "reviews_bind_each_revision_and_criteria",
+      "evidence_hash_author_and_receipt_traceable"
+    ],
+    "A3-06": [
+      "wrong_ic_submission_rejected",
+      "self_review_via_other_role_rejected",
+      "trusted_coauthor_review_rejected",
+      "expired_appointment_review_rejected",
+      "unauthorized_review_rejected"
+    ],
+    "A3-07": [
+      "old_revision_review_rejected",
+      "other_task_return_rejected",
+      "new_key_cannot_repeat_terminal_review"
+    ],
+    "A3-08": [
+      "ic_revoked_after_prepare_rejected",
+      "authority_naturally_expires_at_final_barrier",
+      "old_authority_epoch_rejected",
+      "old_receipt_does_not_restore_authority",
+      "historic_assignments_and_authors_preserved"
+    ],
+    "A3-09": [
+      "same_cas_single_submission_winner",
+      "original_request_replays_same_receipt",
+      "same_key_changed_evidence_conflicts",
+      "no_duplicate_submission_or_review"
+    ],
+    "A3-10": [
+      "submission_first_write_failure_rolls_back",
+      "review_first_write_failure_rolls_back",
+      "unlinked_storage_is_not_successful_delivery"
+    ],
+    "A3-11": [
+      "accepted_delivery_leaves_outcome_and_mf_unchanged",
+      "p01_two_distinct_qualified_customers_not_three",
+      "p02_three_qualified_customers_achieved_independently",
+      "outcome_assessment_does_not_rewrite_delivery_or_mf"
+    ],
+    "A3-12": [
+      "absent_or_legacy_contract_cannot_downgrade",
+      "generic_create_propose_cannot_bypass",
+      "prepare_enforces_same_protocol_boundaries"
+    ],
+    "A3-13": [
+      "binding_source_change_rechecked_on_submit",
+      "source_changes_at_final_barrier_have_ordered_outcome",
+      "ic_cannot_repair_foreign_domain_dependency"
+    ],
+    "A3-14": [
+      "restart_preserves_binding_epoch_author_hash_and_receipt",
+      "restart_replay_produces_no_new_effect",
+      "api_and_worker_restart_scoped_to_acceptance"
+    ]
+  },
+  "excluded_capabilities": [
+    "full_reassignment",
+    "temporary_proxy",
+    "acceptor_replacement",
+    "missing_acceptor_execution_continuity",
+    "baseline_suspension_and_resume",
+    "profile_migration",
+    "formal_adjustment",
+    "external_business_dispatch",
+    "clark_ui",
+    "deployment"
+  ],
+  "required_case_count": 14,
+  "required_check_count": 55,
+  "accepted": false,
+  "status": "FROZEN_BEFORE_IMPLEMENTATION"
+}

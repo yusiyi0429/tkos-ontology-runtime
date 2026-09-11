@@ -531,7 +531,7 @@ def test_actionexecution_has_original_finish_method() -> None:
     # INSERT; any wrapper or duplicate would also touch this query but the
     # surrounding bookkeeping (enqueue_task, _receipt) is unique.
     assert "gov_action_receipts" in src
-    assert "enqueue_task" in src
+    assert "enqueue_task" in inspect.getsource(ActionExecution._enqueue_effects)
     assert "self.required_assignments" in src
 
 

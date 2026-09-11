@@ -7,7 +7,7 @@ from uuid import UUID
 
 from pydantic import (
     AfterValidator, BaseModel, ConfigDict, Field, JsonValue,
-    StrictInt, StrictStr, ValidationError, model_validator,
+    StrictInt, StrictStr, TypeAdapter, ValidationError, model_validator,
 )
 
 
@@ -172,26 +172,45 @@ from .a2_models import (  # noqa: E402  (intentional module-level wiring)
     PublishDomainSubmissionParams,
 )
 
+# A3 DRI-IC execution handover (Contract-A tkos.contract-a/0.1) schemas are
+# imported directly from a3_models, same wiring idiom as a2_models.  Legacy
+# members stay exactly the legacy set; the A3 models only widen the unions so
+# the A3 wire shapes can validate under the server-side protocol gate.
+from .a3_models import (  # noqa: E402  (intentional module-level wiring)
+    A3AcceptWorkItemParams,
+    A3ExecutionCommitmentPayload,
+    A3ExecutionPlanPayload,
+    A3ReviewDeliverableParams,
+    A3SubmitDeliverableParams,
+    A3WorkItemPayload,
+    A3_PAYLOAD_MODELS,
+)
+
 
 # Extended BusinessPayload: the two A2 source types are accepted by generic
 # create_object / propose_revision for Contract-A scopes.  Legacy Union
 # members stay exactly the legacy set; this widens the discriminated union
-# only to allow the two source payload models to validate.
+# only to allow the two source payload models to validate.  The three A3
+# payload models are appended last so legacy dicts keep their legacy match.
 BusinessPayload = Union[
     CommitmentPayload, FeedbackPayload, DecisionPayload,
     AdjustmentPayload, ObservationPayload, OutcomePayload, WorkItemPayload,
     CompanyReferencePayload, CapacityObservationPayload,
+    A3ExecutionCommitmentPayload, A3WorkItemPayload, A3ExecutionPlanPayload,
 ]
 
 
 # Extended ObjectType literal: adds the two source types so the existing
 # ``CreateObjectParams.select_payload`` validator can route them through the
-# PAYLOAD_MODELS table.  Legacy members stay byte-identical.
+# PAYLOAD_MODELS table.  Legacy members stay byte-identical.  ``ExecutionPlan``
+# is added for the A3 execution handover; it validates through the strict A3
+# model registered in PAYLOAD_MODELS.
 ObjectType = Literal[
     "CompanyOutcome", "BusinessCommitment", "ExecutionCommitment",
     "FeedbackThread", "ManagementAdjustment", "Decision", "MetricObservation",
     "WorkItem",
     "CompanyReference", "CapacityObservation",
+    "ExecutionPlan",
 ]
 
 # Full catalog of A2 types (Contract-A).  Used by readers / workbench / a2_service.
@@ -216,6 +235,11 @@ PAYLOAD_MODELS: dict[str, type[StrictModel]] = {
     "WorkItem": WorkItemPayload,
     "CompanyReference": CompanyReferencePayload,
     "CapacityObservation": CapacityObservationPayload,
+    # A3-only type: no legacy payload model exists.  ExecutionCommitment and
+    # WorkItem keep their legacy entries here; the A3 variants live in
+    # a3_models.A3_PAYLOAD_MODELS and are tried as a fallback in
+    # CreateObjectParams.select_payload.
+    "ExecutionPlan": A3ExecutionPlanPayload,
 }
 
 
@@ -230,7 +254,25 @@ class CreateObjectParams(StrictModel):
     def select_payload(cls, data: Any) -> Any:
         if isinstance(data, dict) and isinstance(data.get("object_type"), str) and data["object_type"] in PAYLOAD_MODELS:
             data = dict(data)
-            data["payload"] = PAYLOAD_MODELS[data["object_type"]].model_validate(data.get("payload"))
+            object_type = data["object_type"]
+            model = PAYLOAD_MODELS[object_type]
+            a3_model = A3_PAYLOAD_MODELS.get(object_type)
+            if a3_model is None or a3_model is model:
+                data["payload"] = model.model_validate(data.get("payload"))
+            else:
+                # ExecutionCommitment / WorkItem exist under both the legacy
+                # and the A3 payload shapes; the two are disjoint (distinct
+                # required fields, extra=forbid).  Legacy is tried first so a
+                # legacy request keeps byte-identical validation and error
+                # behavior; only a legacy failure falls back to the strict A3
+                # model, and if both fail the legacy error is re-raised.
+                try:
+                    data["payload"] = model.model_validate(data.get("payload"))
+                except ValidationError as legacy_error:
+                    try:
+                        data["payload"] = a3_model.model_validate(data.get("payload"))
+                    except ValidationError:
+                        raise legacy_error
         return data
 
 
@@ -363,7 +405,12 @@ class EmptyParams(StrictModel):
 # A2 action_type -> strict param class.  Each value is the A2 model from
 # a2_models with its spec fields directly addressable (no wrapper, no nesting,
 # no lazy registration).  The six names line up with a2_models.A2_ACTION_PARAMS.
-ACTION_PARAMS: dict[str, type[StrictModel]] = {
+# action_type -> strict param spec.  Each value is a model class, or — for the
+# three delivery-loop actions that exist under both legacy and A3 semantics —
+# a Union with the LEGACY member first so a legacy request keeps its legacy
+# match and error behavior (the A3 wire shapes carry extra required fields and
+# are disjoint from the legacy ones under extra=forbid).
+ACTION_PARAMS: dict[str, Any] = {
     "create_object": CreateObjectParams,
     "propose_revision": ProposeRevisionParams,
     "accept_commitment": AcceptCommitmentParams,
@@ -379,9 +426,9 @@ ACTION_PARAMS: dict[str, type[StrictModel]] = {
     "request_feedback_acceptance": RequestFeedbackAcceptanceParams,
     "reopen_feedback": EmptyParams,
     "revoke_assignment": RevokeAssignmentParams,
-    "accept_work_item": EmptyParams,
-    "submit_deliverable": SubmitDeliverableParams,
-    "review_deliverable": ReviewDeliverableParams,
+    "accept_work_item": Union[EmptyParams, A3AcceptWorkItemParams],
+    "submit_deliverable": Union[SubmitDeliverableParams, A3SubmitDeliverableParams],
+    "review_deliverable": Union[ReviewDeliverableParams, A3ReviewDeliverableParams],
     "record_outcome_assessment": RecordOutcomeAssessmentParams,
     "open_formation_round": OpenFormationRoundParams,
     "amend_formation_round": AmendFormationRoundParams,
@@ -405,9 +452,29 @@ ActionParams = Union[CreateObjectParams, ProposeRevisionParams, AcceptCommitment
                      RouteFeedbackParams, RecordAcceptanceParams, RequestFeedbackAcceptanceParams,
                      RevokeAssignmentParams, SubmitDeliverableParams, ReviewDeliverableParams,
                      RecordOutcomeAssessmentParams, EmptyParams,
+                     A3AcceptWorkItemParams, A3SubmitDeliverableParams, A3ReviewDeliverableParams,
                      OpenFormationRoundParams, AmendFormationRoundParams,
                      PublishDomainSubmissionParams, FormCompanyCompositionParams,
                      ConfirmCompanyCompositionParams, ActivateCompanyCompositionParams]
+
+
+_PARAM_ADAPTERS: dict[str, "TypeAdapter[Any]"] = {}
+
+
+def _validate_action_params(action_type: str, raw: Any) -> Any:
+    """Validate ``params`` against the action's spec (model class or Union).
+
+    Union specs (the legacy/A3 dual-shape delivery actions) go through a cached
+    TypeAdapter; everything else keeps the plain model_validate call.
+    """
+    spec = ACTION_PARAMS[action_type]
+    if isinstance(spec, type) and issubclass(spec, BaseModel):
+        return spec.model_validate(raw)
+    adapter = _PARAM_ADAPTERS.get(action_type)
+    if adapter is None:
+        adapter = TypeAdapter(spec)
+        _PARAM_ADAPTERS[action_type] = adapter
+    return adapter.validate_python(raw)
 
 
 class ActionRequest(StrictModel):
@@ -429,7 +496,7 @@ class ActionRequest(StrictModel):
             action_type = data["action_type"]
             if action_type in ACTION_PARAMS:
                 data = dict(data)
-                data["params"] = ACTION_PARAMS[action_type].model_validate(data.get("params"))
+                data["params"] = _validate_action_params(action_type, data.get("params"))
         return data
 
     @model_validator(mode="after")
@@ -477,4 +544,7 @@ __all__ = [
     "PublishDomainSubmissionParams", "FormCompanyCompositionParams",
     "ConfirmCompanyCompositionParams", "ActivateCompanyCompositionParams",
     "CompanyReferencePayload", "CapacityObservationPayload",
+    "A3_PAYLOAD_MODELS",
+    "A3ExecutionCommitmentPayload", "A3WorkItemPayload", "A3ExecutionPlanPayload",
+    "A3AcceptWorkItemParams", "A3SubmitDeliverableParams", "A3ReviewDeliverableParams",
 ]

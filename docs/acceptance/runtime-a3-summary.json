@@ -1,0 +1,275 @@
+{
+  "schema_version": "tkos.local-acceptance-summary/1",
+  "date": "2026-09-11",
+  "generated_at": "2026-09-11T03:35:27.407395+00:00",
+  "scope": "A3 normal execution handover, local synthetic business data",
+  "a3_local_delivery_accepted": true,
+  "committed_at_report_time": false,
+  "pushed_at_report_time": false,
+  "released": false,
+  "deployed": false,
+  "clark_a3_integrated": false,
+  "real_business_data_verified": false,
+  "base_head": "e7d0d6b821f6ca94672c73610a3da85aa5ce6577",
+  "branch": "codex/runtime-a3-execution-handover",
+  "development": "Kimi initial implementation; Codex completed and verified after explicit user authorization",
+  "acceptance_independence": "Preimplementation frozen contract and matrix with real HTTP/SQL/S3 assertions; not a claim of separate-developer review of final Codex changes",
+  "source_manifest": {
+    "path": "docs/acceptance/runtime-a3-source-sha256.json",
+    "sha256": "feea624ef936040254e68daacada7b13db92092748876f8538e061f21bc89cac",
+    "files": 116,
+    "matches_a3_and_a2_before_and_after": true
+  },
+  "a3_matrix": {
+    "accepted": true,
+    "cases_passed": 14,
+    "mandatory_cases": 14,
+    "checks_passed": 55,
+    "mandatory_checks": 55,
+    "scenarios_completed": 19,
+    "scenario_count": 19,
+    "gates": {
+      "schema_privileges": true,
+      "legacy_serialization": true,
+      "independent_acceptance_authority": true,
+      "read_authority_rechecks": true,
+      "no_external_effects": true,
+      "write_capability": true,
+      "immutable_history": true,
+      "source_unchanged": true
+    },
+    "case_checks": {
+      "A3-01": 3,
+      "A3-02": 5,
+      "A3-03": 4,
+      "A3-04": 6,
+      "A3-05": 4,
+      "A3-06": 5,
+      "A3-07": 3,
+      "A3-08": 5,
+      "A3-09": 4,
+      "A3-10": 3,
+      "A3-11": 4,
+      "A3-12": 3,
+      "A3-13": 3,
+      "A3-14": 3
+    },
+    "evidence": {
+      "path": "artifacts/runtime-acceptance/a3-20260911/run-full-r2/report.json",
+      "sha256": "2aaf9f432dc31eac66206d2833185d46a26f982a7fbe9d30277a2f684559d872"
+    }
+  },
+  "a2_regression": {
+    "accepted": true,
+    "cases_passed": 18,
+    "mandatory_cases": 18,
+    "checks_passed": 66,
+    "mandatory_checks": 66,
+    "scenarios_completed": 27,
+    "scenario_count": 27,
+    "gates": {
+      "schema_privileges": true,
+      "review_boundaries": true,
+      "source_expiry": true,
+      "source_input_http": true,
+      "read_authority_rechecks": true,
+      "write_capability": true,
+      "immutable_history": true,
+      "source_unchanged": true
+    },
+    "case_checks": {
+      "A2-01": 4,
+      "A2-02": 3,
+      "A2-03": 2,
+      "A2-04": 4,
+      "A2-05": 6,
+      "A2-06": 4,
+      "A2-07": 5,
+      "A2-08": 6,
+      "A2-09": 1,
+      "A2-10": 3,
+      "A2-11": 3,
+      "A2-12": 3,
+      "A2-13": 4,
+      "A2-14": 4,
+      "A2-15": 4,
+      "A2-16": 3,
+      "A2-17": 2,
+      "A2-18": 5
+    },
+    "evidence": {
+      "path": "artifacts/runtime-acceptance/a3-20260911/a2-regression-r1/report.json",
+      "sha256": "3d07d850b5653a09d0b8296ab6596e92d97784e9dd2f49bd9d01daf3397e0945"
+    }
+  },
+  "legacy_history": {
+    "checks_passed": 90,
+    "original_storage_unchanged": true,
+    "replay_business_state_unchanged": true,
+    "evidence": {
+      "path": "artifacts/runtime-acceptance/a3-20260911/legacy-preserve-r1/legacy-preservation.json",
+      "sha256": "0194083a6d381b3a9bc36753929d173c00ded95ab42f8904ef5d5097877f664a"
+    }
+  },
+  "a2_history": {
+    "objects": 10,
+    "revisions": 10,
+    "receipts_replayed": 10,
+    "historic_tables": 27,
+    "replay_business_state_unchanged": true,
+    "evidence": {
+      "path": "artifacts/runtime-acceptance/a3-20260911/a2-preserve-r1/history-preservation.json",
+      "sha256": "d87eee5f016a1f9ae35caaceb0a12221f4e32b7d8c725d16da2b390018e57cf7"
+    }
+  },
+  "fresh_legacy_flow": {
+    "real_http_commands": 20,
+    "delivery_accepted": true,
+    "outcome_achievement": "not_assessed",
+    "feedback_status": "investigating",
+    "evidence": {
+      "path": "artifacts/runtime-acceptance/a3-20260911/legacy-current-r1/pre-a2-history.json",
+      "sha256": "527bb8df23846f0c1e288d970d0b456658dc1f36fbb464152a13cbe608f09379"
+    }
+  },
+  "python_regression": {
+    "main": {
+      "passed": 604,
+      "skipped": 15,
+      "failed": 0,
+      "evidence": {
+        "path": "artifacts/runtime-acceptance/a3-20260911/project-tests-r3.json",
+        "sha256": "be43f35070db35ee54b6970df46120b3eebd9f7475878ea8906bf09f0a717bc3"
+      }
+    },
+    "narrative_followup": {
+      "passed": 14,
+      "failed": 0,
+      "formerly_skipped_in_main": true,
+      "live_model_provider_verified": false,
+      "evidence": {
+        "path": "artifacts/runtime-acceptance/a3-20260911/narrative-legacy-r1.json",
+        "sha256": "6910eb623dd802bd8cb103938962f87723c8439d22a2c27c368aebbb1e139aa5"
+      }
+    },
+    "distinct_passed": 618,
+    "remaining_skipped": 1,
+    "remaining_skip": "tests/test_health.py::test_viewer_rejects_non_human: agent_service fixture absent",
+    "excluded": "tests/test_migrations.py administrative create-database test: TEST_ADMIN_DATABASE_URL unavailable",
+    "a1_independent_matrix_rerun": false
+  },
+  "independent_outcomes": {
+    "p01": {
+      "assessment_result": "not_achieved",
+      "qualified_customer_count": 2,
+      "target_count": 3
+    },
+    "p02": {
+      "assessment_result": "achieved",
+      "qualified_customer_count": 3,
+      "target_count": 3
+    }
+  },
+  "migration": {
+    "isolated_database": "tkos_a1_a2_a3_4dd88c7d58ef4d73",
+    "base_empty_database_migrations": 12,
+    "a3_added_migration": "0020_execution_handover.sql",
+    "sha256": "f46815d29d0ab8ef06be4acaa986515b791f01f9b5da3135574706e62cf1343c",
+    "repeat_runner_applied": [],
+    "new_tables": 7,
+    "new_updateable_tables": 2,
+    "new_append_only_tables": 5,
+    "production_databases_modified": false,
+    "evidence": [
+      {
+        "path": "artifacts/runtime-acceptance/a3-20260911/database/base-migrate-first.json",
+        "sha256": "13f4ba578b461325d53b7da9168664e6240ac9673e2c9ee8518280d3cd5a5ef3"
+      },
+      {
+        "path": "artifacts/runtime-acceptance/a3-20260911/database/base-migrate-repeat.json",
+        "sha256": "2f7532224510335154631ad41a09b9bfcab59ed57c1e73925fb76287461fdd1b"
+      },
+      {
+        "path": "artifacts/runtime-acceptance/a3-20260911/database/a3-migrate-first.json",
+        "sha256": "b18b3ceb24a8a927712e8f44994924975c1eca2801603a0391fe546183ab7810"
+      },
+      {
+        "path": "artifacts/runtime-acceptance/a3-20260911/database/a3-migrate-repeat.json",
+        "sha256": "412afc70fa9dd0d5c5d27c724e5dc6920f6a99503b6ea1fdf7a82d518360f6eb"
+      },
+      {
+        "path": "artifacts/runtime-acceptance/a3-20260911/migration-reviewed-rollback.json",
+        "sha256": "1f80c7c0382c5126ee507b67ff2ca90729ecf022a6b6470e2744ae3d8b946812"
+      }
+    ]
+  },
+  "preservation": {
+    "checked_at": "2026-09-11T03:31:52.234903+00:00",
+    "original_containers": 27,
+    "current_containers": 27,
+    "original_running_containers": 14,
+    "current_running_containers": 14,
+    "container_changes": [],
+    "original_container_state_preserved": true,
+    "comparison_fields": [
+      "ID",
+      "Image",
+      "State",
+      "Names",
+      "Ports",
+      "Mounts",
+      "Networks",
+      "CreatedAt",
+      "Command",
+      "Labels",
+      "LocalVolumes",
+      "Platform"
+    ],
+    "deferred_files_unchanged": true,
+    "deferred_file_count": 19,
+    "deferred_file_changes": [],
+    "docker_context_unchanged": true,
+    "source_file_count": 116,
+    "final_source_matches_a3_and_a2_runs": true,
+    "remaining_acceptance_process_ids": [],
+    "deployed": false,
+    "evidence": {
+      "path": "artifacts/runtime-acceptance/a3-20260911/preservation-final.json",
+      "sha256": "6dbba1a2b040fe0914c313d69662338d01d6af6ed7854b13e47fdf83f1c94406"
+    }
+  },
+  "delivery_checks": {
+    "checked_at": "2026-09-11T03:34:17.591389+00:00",
+    "openapi_matches_application": true,
+    "openapi_paths": 24,
+    "openapi_schemas": 75,
+    "git_diff_check_passed": true,
+    "frozen_matrix_unchanged": true,
+    "frozen_mandatory_cases": 14,
+    "frozen_mandatory_checks": 55,
+    "production_source_files": 116,
+    "final_source_matches_full_a3_and_a2_runs": true,
+    "production_dependency_manifest_unchanged": true,
+    "contract_and_source_json_valid": true,
+    "evidence": {
+      "path": "artifacts/runtime-acceptance/a3-20260911/delivery-checks.json",
+      "sha256": "7b0a5fd38fc23a0d07a0872d979d6875c32fc775117f73e74db7a179eafa53c5"
+    }
+  },
+  "excluded_capabilities": [
+    "full_reassignment",
+    "temporary_proxy",
+    "acceptor_replacement",
+    "missing_acceptor_execution_continuity",
+    "baseline_suspension_and_resume",
+    "profile_migration",
+    "formal_adjustment",
+    "external_business_dispatch",
+    "clark_ui",
+    "deployment",
+    "complete_feedback_and_memory_reuse_loop",
+    "real_enterprise_system_integration"
+  ],
+  "report_boundary": "Raw A3/A2 reports retain runtime_accepted=false because compatibility is separately reported; this aggregate records only A3 local normal-handover acceptance.",
+  "raw_artifacts": "Ignored local artifacts; portable summary records hashes, not credentials or private command fixtures."
+}

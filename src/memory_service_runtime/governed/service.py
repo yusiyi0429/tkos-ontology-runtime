@@ -188,6 +188,20 @@ class ActionExecution:
             self.protocol_context = self.creation_fields["contract_version"]
         # revoke_assignment is authority control over a role assignment, not a
         # business object write; it carries no protocol binding and is exempt.
+        if self.protocol_context == "tkos.governed/v0.2":
+            from .models import (PAYLOAD_MODELS, EmptyParams,
+                                 SubmitDeliverableParams, ReviewDeliverableParams)
+            try:
+                model = {"accept_work_item": EmptyParams,
+                         "submit_deliverable": SubmitDeliverableParams,
+                         "review_deliverable": ReviewDeliverableParams}.get(self.kind)
+                if model is not None:
+                    model.model_validate(self.params)
+                if self.kind in {"create_object", "propose_revision"}:
+                    kind = self.params["object_type"] if self.kind == "create_object" else self.target["object_type"]
+                    PAYLOAD_MODELS[kind].model_validate(self.params["payload"])
+            except (ValidationError, ValueError, TypeError, KeyError):
+                _fail("INVALID_REQUEST", "The payload does not match the registered legacy protocol.", 422)
         if self.kind == "create_object":
             self.payload = self.checked_payload(self.params["object_type"], self.params["payload"])
             object_type = self.params["object_type"]
@@ -913,11 +927,7 @@ class ActionExecution:
         }
         return methods[self.kind]()
 
-    def finish(self, result: dict[str, Any], request_hash: str) -> dict[str, Any]:
-        versions = [{"object_id": key, "object_version": value["object_version"]}
-                    for key, value in sorted(self.changed.items())]
-        result.update(domain_id=self.domain_id, referenced_object_ids=sorted(self.heads),
-                      required_assignment_ids=sorted(self.required_assignments))
+    def _enqueue_effects(self, result: dict[str, Any], versions: list[dict[str, Any]]) -> None:
         if self.kind in {"activate_commitment", "confirm_adjustment"}:
             effect_payload = {"effect_key": f"governed:{self.ctx.scope_id}:{self.action_id}:0",
                               "scope_id": self.ctx.scope_id, "receipt_id": self.action_id,
@@ -929,6 +939,18 @@ class ActionExecution:
             )
             self.effect_task_ids.append(enqueued.task.task_id)
             result["effect_payload"] = effect_payload
+
+    def recheck_final_barrier(self) -> None:
+        db.authorize_domain(self.conn, self.ctx, self.domain_id, action_type=self.kind)
+        for assignment_id in self.required_assignments:
+            self.assignment(assignment_id)
+
+    def finish(self, result: dict[str, Any], request_hash: str) -> dict[str, Any]:
+        versions = [{"object_id": key, "object_version": value["object_version"]}
+                    for key, value in sorted(self.changed.items())]
+        result.update(domain_id=self.domain_id, referenced_object_ids=sorted(self.heads),
+                      required_assignment_ids=sorted(self.required_assignments))
+        self._enqueue_effects(result, versions)
         epoch = getattr(self, "receipt_epoch", self.ctx.auth_epoch)
         row = self.conn.execute(
             """INSERT INTO gov_action_receipts
@@ -943,9 +965,7 @@ class ActionExecution:
                                                             "auth_epoch": epoch})
         # Natural assignment expiry is not stopped by the scope lock. Recheck
         # after slow evidence calls/test barriers and immediately before return.
-        db.authorize_domain(self.conn, self.ctx, self.domain_id, action_type=self.kind)
-        for assignment_id in self.required_assignments:
-            self.assignment(assignment_id)
+        self.recheck_final_barrier()
         return _receipt(row)
 
 
@@ -967,6 +987,9 @@ def _execution_factory(conn: Any, ctx: Any, request: ActionRequest) -> ActionExe
     ActionExecution.  The a2_service module is imported lazily so this module's
     import graph does not depend on Contract-A support being installed.
     """
+    from .a3_service import A3Execution
+    if A3Execution.handles_request(conn, ctx, request):
+        return A3Execution(conn, ctx, request)
     try:
         from . import a2_service
     except Exception as exc:  # pragma: no cover - broken installation must surface
@@ -1028,7 +1051,10 @@ def _replay(conn: Any, ctx: Any, request: ActionRequest, digest: str) -> dict[st
     row = db.jsonable(row)
     # A2 source create/propose receipts are also A2, so replay must dispatch
     # based on real target/object IDs + binding, not only the six action names.
-    if _is_a2_receipt(conn, ctx, row):
+    from . import a3_readers
+    if a3_readers.is_a3_receipt(conn, ctx, row):
+        a3_readers.authorize_receipt(conn, ctx, row)
+    elif _is_a2_receipt(conn, ctx, row):
         # A2 receipts use the A2 readers' authorization path. A DRI of one
         # member domain may have legitimate read access to a successful
         # multi-scope receipt even when their primary domain is not the
@@ -1056,6 +1082,9 @@ def _replay(conn: Any, ctx: Any, request: ActionRequest, digest: str) -> dict[st
             db.object_row(conn, ctx, object_id)
     if row["request_hash"] != digest or row["action_type"] != request.action_type:
         _fail("IDEMPOTENCY_CONFLICT", "The key was used for a different command.")
+    if a3_readers.is_a3_receipt(conn, ctx, row):
+        from .a3_service import reauthorize_replay
+        reauthorize_replay(conn, ctx, request, row)
     return _receipt(row)
 
 

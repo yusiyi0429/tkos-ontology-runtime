@@ -23,6 +23,8 @@ _STATUS = {
     "COMPOSITION_INPUT_CHANGED": 409,
     "COMPOSITION_NOT_READY": 409,
     "CONFIRMATION_INCOMPLETE": 409,
+    "EXECUTION_AUTHORITY_EXPIRED": 409,
+    "ACCEPTANCE_APPOINTMENT_EXPIRED": 409,
 }
 
 _MESSAGES = {
@@ -48,6 +50,8 @@ _MESSAGES = {
     "COMPOSITION_INPUT_CHANGED": "Composition inputs or versions do not match the candidate manifest.",
     "COMPOSITION_NOT_READY": "Composition is not yet ready to confirm or activate.",
     "CONFIRMATION_INCOMPLETE": "Composition confirmation set is not complete.",
+    "EXECUTION_AUTHORITY_EXPIRED": "The execution authority window has expired.",
+    "ACCEPTANCE_APPOINTMENT_EXPIRED": "The acceptance appointment window has expired.",
 }
 
 

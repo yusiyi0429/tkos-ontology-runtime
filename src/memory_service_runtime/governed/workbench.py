@@ -57,6 +57,11 @@ _VERSIONING_NOTE = (
 # semantics, not a claim that the current caller may execute them.
 TYPE_CATALOG: list[dict[str, Any]] = [
     {
+        "object_type": "ExecutionPlan", "label": "执行计划", "creation_mode": "generic_action",
+        "description": "A3 由已接收任务的指定 IC 发布和修订的 How 计划；不可改动已确认 What、标准、期限或责任。",
+        "reference_fields": ["work_item_ref: 已接收的冻结任务版本", "execution_commitment_ref: 同版生效执行承诺"],
+    },
+    {
         "object_type": "CompanyOutcome", "label": "公司成果", "creation_mode": "generic_action",
         "description": "公司层成果目标；bootstrap 可建立已确认起点，confirm_outcome 确认，record_outcome_assessment 记录独立成果评估。",
         "reference_fields": ["upstream_refs: 上游精确 revision 引用（可为空）"],
@@ -464,7 +469,9 @@ def relation_refs(conn: Any, ctx: Any, payload: dict[str, Any]) -> list[tuple[st
 
 def relations(conn: Any, ctx: Any, object_id: str, revision_id: str | None,
               limit: int, cursor: str | None) -> dict[str, Any]:
-    from . import a2_readers
+    from . import a2_readers, a3_readers
+    if a3_readers.is_a3_object(conn, ctx, object_id):
+        return a3_readers.relations(conn, ctx, object_id, revision_id, limit, cursor)
     if a2_readers.is_a2_object(conn, ctx, object_id):
         return a2_readers.relations(conn, ctx, object_id, revision_id, limit, cursor)
     head = db.object_row(conn, ctx, object_id)

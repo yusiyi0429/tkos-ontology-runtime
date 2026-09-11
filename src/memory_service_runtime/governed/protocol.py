@@ -30,6 +30,7 @@ from .models import (
     A2_GENERIC_SOURCE_OBJECT_TYPES,
     A2_OBJECT_TYPE_NAMES,
 )
+from .a3_models import A3_GENERIC_CREATE_TYPES, A3_GENERIC_REVISE_TYPES
 
 
 def _fail(code: str, message: str = "") -> None:
@@ -197,6 +198,32 @@ A2_TARGET_OBJECT_TYPES: dict[str, frozenset[str]] = {
     "propose_revision": frozenset(A2_GENERIC_SOURCE_OBJECT_TYPES),
 }
 
+# A3 action -> target object_type allowlist (docs/runtime-a3-api.md).  The A3
+# delivery loop reuses the legacy action NAMES on Contract-A-bound targets:
+# accept/activate target an ExecutionCommitment, the delivery loop targets a
+# WorkItem, record_outcome_assessment targets the adopted CompanyReference,
+# and A3 propose_revision is limited to ExecutionCommitment/ExecutionPlan
+# (existing WorkItem/Deliverable generic revision is prohibited).  The A2 maps
+# above are unchanged: an A2-only registry never gains A3 support because the
+# registry actions/object_types membership checks below still apply.
+A3_TARGET_OBJECT_TYPES: dict[str, frozenset[str]] = {
+    "accept_commitment": frozenset({"ExecutionCommitment"}),
+    "activate_commitment": frozenset({"ExecutionCommitment"}),
+    "accept_work_item": frozenset({"WorkItem"}),
+    "submit_deliverable": frozenset({"WorkItem"}),
+    "review_deliverable": frozenset({"WorkItem"}),
+    "record_outcome_assessment": frozenset({"CompanyReference"}),
+    "propose_revision": frozenset(A3_GENERIC_REVISE_TYPES),
+}
+
+# Object types whose Contract-A binding is interpreted with A3 execution
+# semantics by the read paths (engineering section 6).  Deliverable joins the
+# set because A3 submissions are Deliverable objects under a Contract-A
+# binding inherited from their WorkItem.
+A3_EXECUTION_OBJECT_TYPES = frozenset({
+    "ExecutionCommitment", "ExecutionPlan", "WorkItem", "Deliverable",
+})
+
 
 def gate_target_action(conn: Any, scope_id: str, target_object_id: str,
                        action_type: str, declared: str | None) -> str:
@@ -231,12 +258,23 @@ def gate_target_action(conn: Any, scope_id: str, target_object_id: str,
         except Exception:
             target_row = None
         target_object_type = str(target_row["object_type"]) if target_row is not None else None
-        allowed_targets = A2_TARGET_OBJECT_TYPES.get(action_type)
-        if allowed_targets is None:
+        # Union the compiled A2 and A3 target sets (review: propose_revision
+        # exists in both and must accept A2 sources AND A3 EC/Plan).  The
+        # installed registry's explicit actions/object_types membership below
+        # still narrows the result, so an A2-only registry keeps rejecting
+        # every A3 execution type.
+        allowed_targets = (A2_TARGET_OBJECT_TYPES.get(action_type, frozenset())
+                           | A3_TARGET_OBJECT_TYPES.get(action_type, frozenset()))
+        if not allowed_targets:
             _fail("ACTION_NOT_SUPPORTED_FOR_PROTOCOL")
         if target_object_type is None or target_object_type not in allowed_targets:
             _fail("ACTION_NOT_SUPPORTED_FOR_PROTOCOL")
         if action_type not in registry.actions:
+            _fail("ACTION_NOT_SUPPORTED_FOR_PROTOCOL")
+        if target_object_type not in registry.object_types:
+            # Per-object support is explicit in the installed registry: an
+            # A2-only registry never carries the A3 execution types, so the
+            # original A2 registry keeps behaving as A2 only.
             _fail("ACTION_NOT_SUPPORTED_FOR_PROTOCOL")
         if not registry.can_write:
             _fail("PROTOCOL_WRITE_DISABLED")
@@ -281,6 +319,13 @@ A2_INTERNAL_CREATABLE = frozenset({"FormationRound"})
 A2_DERIVED_TYPES = frozenset({"DomainSubmission", "CompanyComposition",
                               "Mission", "DomainCommitment"})
 
+# A3 generic create_object allowlist (docs/runtime-a3-engineering.md §2):
+# ExecutionCommitment drafts, restricted ExecutionPlan, and WorkItem under an
+# existing execution authority.  Mission stays A2-controlled; existing
+# WorkItem/Deliverable generic revision is prohibited, so A3 propose_revision
+# only covers ExecutionCommitment/ExecutionPlan (A3_GENERIC_REVISE_TYPES).
+A3_GENERIC_CREATABLE = frozenset(A3_GENERIC_CREATE_TYPES)
+
 
 def resolve_creation(conn: Any, scope_id: str, domain_id: str, object_type: str,
                      declared: str | None, *, for_evidence: bool = False,
@@ -320,20 +365,28 @@ def resolve_creation(conn: Any, scope_id: str, domain_id: str, object_type: str,
             # Compile-time A2 allowlist. Generic create_object on Contract-A is
             # limited to the two source types. open_formation_round creates only
             # FormationRound. Other derived A2 types must call inherit_binding()
-            # from their handler instead of resolve_creation().
+            # from their handler instead of resolve_creation().  A3 adds its
+            # three generic-creatable execution types; both allowlists are then
+            # narrowed by the installed registry's explicit object_types.
             if action_type in (None, "create_object"):
-                if object_type not in A2_GENERIC_CREATABLE:
+                if object_type not in A2_GENERIC_CREATABLE and object_type not in A3_GENERIC_CREATABLE:
                     _fail("ACTION_NOT_SUPPORTED_FOR_PROTOCOL")
             elif action_type == "open_formation_round":
                 if object_type not in A2_INTERNAL_CREATABLE:
                     _fail("ACTION_NOT_SUPPORTED_FOR_PROTOCOL")
             else:
                 _fail("ACTION_NOT_SUPPORTED_FOR_PROTOCOL")
+            if object_type in A3_GENERIC_CREATABLE and (
+                    object_type not in registry.object_types
+                    or (action_type or "create_object") not in registry.actions):
+                _fail("ACTION_NOT_SUPPORTED_FOR_PROTOCOL")
             if not registry.can_create or not registry.can_write:
                 _fail("PROTOCOL_WRITE_DISABLED")
             # Action membership: create_object/open_formation_round must be
             # listed in the compiled registry actions.
             if (action_type or "create_object") not in registry.actions:
+                _fail("ACTION_NOT_SUPPORTED_FOR_PROTOCOL")
+            if object_type not in registry.object_types:
                 _fail("ACTION_NOT_SUPPORTED_FOR_PROTOCOL")
     else:
         if policy.default_protocol != profile.LEGACY_PROTOCOL_ID:
@@ -436,7 +489,11 @@ def inherit_binding(conn: Any, scope_id: str, object_id: str, source_object_id: 
 # A new "contract_a_v0_1" status reports A2-aware read support: the current
 # registry grants both read and write to Contract-A, the bound profile is
 # installed and hash-matched, and the object is one of the A2 types.
-CONTRACT_A_READ_STATUSES = ("legacy_v0_2", "contract_a_metadata_read_only", "contract_a_v0_1")
+# "contract_a_a3_execution" reports A3 execution-handover read support for
+# ExecutionCommitment/ExecutionPlan/WorkItem/Deliverable objects under a
+# writable Contract-A registry that explicitly lists the object type.
+CONTRACT_A_READ_STATUSES = ("legacy_v0_2", "contract_a_metadata_read_only", "contract_a_v0_1",
+                            "contract_a_a3_execution")
 
 
 def _binding_interpretation(installed: dict[str, Any] | None,
@@ -517,6 +574,12 @@ def _binding_interpretation_with_conn(conn: Any,
             "Contract-A v0.1 registration with active A2 read support. "
             "Reads of all seven A2 object types project through the A2 readers; "
             "legacy DRI fields are not reinterpreted.")
+    if object_type in A3_EXECUTION_OBJECT_TYPES and object_type in registry.object_types:
+        return "contract_a_a3_execution", (
+            "Contract-A v0.1 registration with active A3 execution-handover read "
+            "support. ExecutionCommitment/ExecutionPlan/WorkItem/Deliverable reads "
+            "project authority, appointment, plan and receipt state through the A3 "
+            "readers; legacy DRI fields are not reinterpreted.")
     return base_status, base_note
 
 
@@ -604,10 +667,13 @@ def require_read_support(conn: Any, scope_id: str, object_id: str) -> dict[str, 
     """
     metadata = read_metadata(conn, scope_id, object_id)
     # Accepted statuses now include the A2-aware contract_a_v0_1 label for
-    # any of the seven A2 object types when the registry grants write.
+    # any of the seven A2 object types when the registry grants write, and
+    # the A3-aware contract_a_a3_execution label for the A3 execution object
+    # types under a registry that explicitly lists them.
     # Legacy v0.2 and the existing A1 readonly label remain accepted verbatim.
     if metadata["registration_status"] != "registered" or metadata["interpretation_status"] not in (
-            "legacy_v0_2", "contract_a_metadata_read_only", "contract_a_v0_1"):
+            "legacy_v0_2", "contract_a_metadata_read_only", "contract_a_v0_1",
+            "contract_a_a3_execution"):
         _fail("PROTOCOL_NOT_SUPPORTED",
               "The object's protocol registration does not support read interpretation.")
     return metadata

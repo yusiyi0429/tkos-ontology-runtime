@@ -6,6 +6,16 @@ TKOS 企业本体与记忆系统的治理运行内核。PostgreSQL 保存权威�
 
 `CompanyOutcome → BusinessCommitment → ExecutionCommitment → FeedbackThread → ManagementAdjustment → Acceptance → Closure`
 
+## A3：正常 DRI–IC 执行交接
+
+Contract-A 在 A1 协议治理、A2 公司组合之上增加正常执行交接：
+
+`公司组合生效 → 指定 DRI 与 IC 同版签认 → 释放执行授权／独立验收任命 → 下达任务 → IC 接收 → 发布计划 → v1 → 退回 → v2 → 独立验收`
+
+What、IC 的 How、执行授权和验收任命分别记录。交付通过、Outcome 达成与 MF 关闭仍分别判断；IC 撤权或执行到期后禁止新执行，已提交内容可由仍有权的独立验收人评审。只覆盖实验 Profile 下的正常交接和合成结果证据；不含替岗、临时授权、正式调整、Clark A3 界面或部署。
+
+详见 [A3 API](docs/runtime-a3-api.md)、[工程映射](docs/runtime-a3-engineering.md)、[验收记录](docs/runtime-a3-acceptance-report.md) 与 [可复跑矩阵](acceptance/execution_a3_independent/README.md)。下述 v0.2 闭环保留其原有角色和对象含义。
+
 ## v0.2：真实 DRI 交付闭环
 
 `派单 → DRI 承接 → 提交 v1 → 有权人退回补充 → 提交 v2 → 有权人验收`

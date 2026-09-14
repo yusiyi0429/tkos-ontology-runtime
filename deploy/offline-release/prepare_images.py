@@ -102,7 +102,12 @@ def main() -> None:
         vendor = plan["components"][component]
         source_ref = f'{vendor["repository"]}@{vendor["platforms"][args.arch]}'
         target_tag = f"{target_repository}:{args.release}-{args.arch}"
-        run(["docker", "pull", "--platform", f"linux/{args.arch}", source_ref])
+        try:
+            inspect(source_ref, args.arch)
+        except RuntimeError as exc:
+            if not str(exc).startswith("COMMAND_FAILED:docker:"):
+                raise
+            run(["docker", "pull", "--platform", f"linux/{args.arch}", source_ref])
         run(["docker", "tag", source_ref, target_tag])
         images[component] = inspect(target_tag, args.arch)
         images[component]["upstream"] = {

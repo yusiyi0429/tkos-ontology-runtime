@@ -28,6 +28,12 @@ def test_vendor_plan_has_every_component_and_platform() -> None:
         assert all(value.startswith("sha256:") for value in component["platforms"].values())
 
 
+def test_dependency_lock_is_exported_from_the_frozen_project_lock() -> None:
+    lock = (RELEASE.parents[1] / "requirements.lock").read_text()
+    assert "--hash=sha256:" in lock
+    assert not any(line.startswith("tkos-memory-service==") for line in lock.splitlines())
+
+
 def test_database_privilege_classes_keep_control_plane_read_only() -> None:
     admin = load("db_admin")
     assert admin.expected_privileges("gov_method_agent_bindings") == {"SELECT"}

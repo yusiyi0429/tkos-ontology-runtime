@@ -50,6 +50,7 @@ def main() -> None:
     parser.add_argument("--arch", choices=sorted(ARCHES), required=True)
     parser.add_argument("--source-ref", required=True)
     parser.add_argument("--source-dir", type=Path, required=True)
+    parser.add_argument("--wheelhouse", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--build-date")
     args = parser.parse_args()
@@ -62,6 +63,14 @@ def main() -> None:
     source = args.source_dir.resolve()
     if not (source / "Dockerfile").is_file():
         raise RuntimeError("SOURCE_DIR_INVALID")
+    wheelhouse = args.wheelhouse.resolve()
+    wheel_manifest = wheelhouse / "wheelhouse-manifest.json"
+    if not wheel_manifest.is_file():
+        raise RuntimeError("WHEELHOUSE_INVALID")
+    wheel_data = json.loads(wheel_manifest.read_text(encoding="utf-8"))
+    if (wheel_data.get("architecture"), wheel_data.get("release"),
+            wheel_data.get("source_ref")) != (args.arch, args.release, args.source_ref):
+        raise RuntimeError("WHEELHOUSE_ARCHITECTURE_MISMATCH")
     if args.output.exists():
         raise RuntimeError("OUTPUT_ALREADY_EXISTS")
     args.output.parent.mkdir(parents=True, exist_ok=True)
@@ -73,6 +82,7 @@ def main() -> None:
         tag = f"{repository}:{args.release}-{args.arch}"
         run([
             "docker", "buildx", "build", "--load", "--platform", f"linux/{args.arch}",
+            "--build-context", f"wheelhouse={wheelhouse}",
             "--target", target,
             "--build-arg", f"VERSION={version}",
             "--build-arg", f"VCS_REF={args.source_ref}",

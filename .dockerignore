@@ -4,6 +4,7 @@
 !.dockerignore
 !pyproject.toml
 !uv.lock
+!requirements.lock
 !README.md
 !src/
 !src/**

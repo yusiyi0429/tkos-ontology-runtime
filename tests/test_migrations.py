@@ -45,6 +45,7 @@ def test_packaged_migrations_replay_from_empty_database() -> None:
             "0018_method_protocol.sql",
             "0019_company_composition.sql",
             "0020_execution_handover.sql",
+            "0021_method_foundation.sql",
         ]
         assert migrate(test_url) == expected
         assert migrate(test_url) == []

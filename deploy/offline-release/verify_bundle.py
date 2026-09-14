@@ -42,7 +42,9 @@ def extract_bundle(package: Path, destination: Path) -> Path:
         roots = {PurePosixPath(member.name).parts[0] for member in members}
         if len(roots) != 1:
             raise RuntimeError("BUNDLE_ROOT_MISMATCH")
-        archive.extractall(destination, members=members, filter="data")
+        # validate_member has already rejected traversal, links, and special files.
+        # Avoid Python 3.12-only extraction filters on older offline hosts.
+        archive.extractall(destination, members=members)
     return destination / roots.pop()
 
 

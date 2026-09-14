@@ -58,6 +58,10 @@ def main() -> None:
     plan = json.loads(PLAN.read_text(encoding="utf-8"))
     if args.release != plan["release"] or not re.fullmatch(r"v\d+\.\d+\.\d+", args.release):
         raise RuntimeError("RELEASE_PLAN_MISMATCH")
+    for vendor in plan["components"].values():
+        digests = [vendor["index_digest"], *vendor["platforms"].values()]
+        if any(not re.fullmatch(r"sha256:[0-9a-f]{64}", digest) for digest in digests):
+            raise RuntimeError("VENDOR_DIGEST_INVALID")
     if not re.fullmatch(r"[0-9a-f]{40}", args.source_ref):
         raise RuntimeError("SOURCE_REF_MUST_BE_FULL_COMMIT")
     source = args.source_dir.resolve()

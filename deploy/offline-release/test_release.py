@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib.util
 import json
 from pathlib import Path
+import re
 import tarfile
 
 import pytest
@@ -24,8 +25,9 @@ def test_vendor_plan_has_every_component_and_platform() -> None:
     assert set(plan["components"]) == {"postgres_pgvector", "minio_server", "minio_client"}
     for component in plan["components"].values():
         assert set(component["platforms"]) == {"amd64", "arm64"}
-        assert component["index_digest"].startswith("sha256:")
-        assert all(value.startswith("sha256:") for value in component["platforms"].values())
+        assert re.fullmatch(r"sha256:[0-9a-f]{64}", component["index_digest"])
+        assert all(re.fullmatch(r"sha256:[0-9a-f]{64}", value)
+                   for value in component["platforms"].values())
 
 
 def test_dependency_lock_is_exported_from_the_frozen_project_lock() -> None:

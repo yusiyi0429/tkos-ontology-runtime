@@ -3,7 +3,7 @@
   "info": {
     "title": "TKOS Memory Service",
     "description": "Standalone governed Memory Service with a native API and a temporary Clark GraphKnowledge compatibility façade.",
-    "version": "0.2.0"
+    "version": "0.2.1"
   },
   "paths": {
     "/v1/health": {

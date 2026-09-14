@@ -1,0 +1,205 @@
+name: ${COMPOSE_PROJECT_NAME:-tkos-ontology-runtime}
+
+x-runtime-environment: &runtime-environment
+  DATABASE_URL: host=postgres port=5432 dbname=${POSTGRES_DB} user=${POSTGRES_APP_USER} password=${POSTGRES_APP_PASSWORD}
+  DB_CONNECT_TIMEOUT: ${DB_CONNECT_TIMEOUT:-5}
+  MEMORY_TENANT: ${MEMORY_TENANT}
+  MEMORY_ORG: ${MEMORY_ORG}
+  TKOS_OBJECT_STORE_ENDPOINT: http://minio:9000
+  TKOS_OBJECT_STORE_BUCKET: ${MINIO_SNAPSHOT_BUCKET:-tkos-runtime-snapshots}
+  TKOS_OBJECT_STORE_ARTIFACT_BUCKET: ${MINIO_ARTIFACT_BUCKET:-tkos-runtime-artifacts}
+  TKOS_OBJECT_STORE_ACCESS_KEY_FILE: /run/secrets/minio-app-access-key
+  TKOS_OBJECT_STORE_SECRET_KEY_FILE: /run/secrets/minio-app-secret-key
+  TKOS_OBJECT_STORE_REGION: us-east-1
+  TKOS_OBJECT_STORE_VERIFY_TLS: "false"
+
+x-runtime-security: &runtime-security
+  init: true
+  read_only: true
+  restart: unless-stopped
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+  tmpfs: [/tmp]
+
+services:
+  postgres:
+    image: ${POSTGRES_IMAGE}
+    platform: linux/${TARGET_ARCH}
+    environment:
+      POSTGRES_USER: ${POSTGRES_ADMIN_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_ADMIN_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    shm_size: 256m
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
+    stop_grace_period: 60s
+    restart: unless-stopped
+    networks: [data-internal]
+
+  minio:
+    image: ${MINIO_IMAGE}
+    platform: linux/${TARGET_ARCH}
+    command: [server, /data, --console-address, ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: [CMD, curl, -fsS, http://127.0.0.1:9000/minio/health/ready]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
+    stop_grace_period: 30s
+    restart: unless-stopped
+    networks: [data-internal]
+
+  minio-init:
+    image: ${MINIO_MC_IMAGE}
+    platform: linux/${TARGET_ARCH}
+    profiles: [ops]
+    entrypoint: [/bin/sh, -ec]
+    command:
+      - |
+        app_access="$$(cat /run/secrets/minio-app-access-key)"
+        app_secret="$$(cat /run/secrets/minio-app-secret-key)"
+        mc alias set local http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD" >/dev/null
+        mc ready local >/dev/null
+        mc mb --ignore-existing "local/$$MINIO_ARTIFACT_BUCKET" >/dev/null
+        mc version enable "local/$$MINIO_ARTIFACT_BUCKET" >/dev/null
+        mc mb --ignore-existing --with-lock "local/$$MINIO_SNAPSHOT_BUCKET" >/dev/null
+        mc version enable "local/$$MINIO_SNAPSHOT_BUCKET" >/dev/null
+        policy=/tmp/runtime-policy.json
+        printf '%s\n' \
+          '{"Version":"2012-10-17","Statement":[' \
+          '{"Effect":"Allow","Action":["s3:GetBucketLocation","s3:ListBucket","s3:GetBucketVersioning","s3:GetBucketObjectLockConfiguration"],"Resource":["arn:aws:s3:::'"$$MINIO_ARTIFACT_BUCKET"'","arn:aws:s3:::'"$$MINIO_SNAPSHOT_BUCKET"'"]},' \
+          '{"Effect":"Allow","Action":["s3:GetObject","s3:GetObjectVersion","s3:PutObject"],"Resource":["arn:aws:s3:::'"$$MINIO_ARTIFACT_BUCKET"'/*","arn:aws:s3:::'"$$MINIO_SNAPSHOT_BUCKET"'/*"]},' \
+          '{"Effect":"Allow","Action":["s3:DeleteObject"],"Resource":["arn:aws:s3:::'"$$MINIO_ARTIFACT_BUCKET"'/*"]}' \
+          ']}' > "$$policy"
+        mc admin user add local "$$app_access" "$$app_secret" >/dev/null
+        if ! mc admin policy info local "$$MINIO_APP_POLICY" >/dev/null 2>&1; then
+          mc admin policy create local "$$MINIO_APP_POLICY" "$$policy" >/dev/null
+        fi
+        mc admin policy attach local "$$MINIO_APP_POLICY" --user "$$app_access" >/dev/null
+    environment:
+      MC_CONFIG_DIR: /tmp/.mc
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_APP_POLICY: ${MINIO_APP_POLICY:-tkos-runtime-v1}
+      MINIO_ARTIFACT_BUCKET: ${MINIO_ARTIFACT_BUCKET:-tkos-runtime-artifacts}
+      MINIO_SNAPSHOT_BUCKET: ${MINIO_SNAPSHOT_BUCKET:-tkos-runtime-snapshots}
+    secrets: [minio-app-access-key, minio-app-secret-key]
+    depends_on:
+      minio: {condition: service_healthy}
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    networks: [data-internal]
+
+  db-admin:
+    image: ${RUNTIME_API_IMAGE}
+    platform: linux/${TARGET_ARCH}
+    profiles: [ops]
+    entrypoint: [python, /ops/db_admin.py]
+    environment:
+      POSTGRES_ADMIN_URL: host=postgres port=5432 dbname=${POSTGRES_DB} user=${POSTGRES_ADMIN_USER} password=${POSTGRES_ADMIN_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_OWNER_USER: ${POSTGRES_OWNER_USER}
+      POSTGRES_OWNER_PASSWORD: ${POSTGRES_OWNER_PASSWORD}
+      POSTGRES_APP_USER: ${POSTGRES_APP_USER}
+      POSTGRES_APP_PASSWORD: ${POSTGRES_APP_PASSWORD}
+    volumes:
+      - ./db_admin.py:/ops/db_admin.py:ro
+    depends_on:
+      postgres: {condition: service_healthy}
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    networks: [data-internal]
+
+  migrate:
+    image: ${RUNTIME_API_IMAGE}
+    platform: linux/${TARGET_ARCH}
+    profiles: [ops]
+    command: [tkos-memory-migrate]
+    environment:
+      DATABASE_URL: host=postgres port=5432 dbname=${POSTGRES_DB} user=${POSTGRES_OWNER_USER} password=${POSTGRES_OWNER_PASSWORD}
+      DB_CONNECT_TIMEOUT: ${DB_CONNECT_TIMEOUT:-5}
+    depends_on:
+      postgres: {condition: service_healthy}
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    networks: [data-internal]
+
+  runtime-api:
+    <<: *runtime-security
+    image: ${RUNTIME_API_IMAGE}
+    platform: linux/${TARGET_ARCH}
+    environment:
+      <<: *runtime-environment
+      ADAPTER_AUTH: ${ADAPTER_AUTH:-}
+      VIEWER_USER_ID: ${VIEWER_USER_ID:-}
+      MEMORY_EMBEDDING_API_KEY: ${MEMORY_EMBEDDING_API_KEY:-}
+      MEMORY_EMBEDDING_BASE_URL: ${MEMORY_EMBEDDING_BASE_URL:-}
+      MEMORY_EMBEDDING_MODEL: ${MEMORY_EMBEDDING_MODEL:-}
+      MEMORY_EMBEDDING_DIM: ${MEMORY_EMBEDDING_DIM:-2048}
+    secrets: [minio-app-access-key, minio-app-secret-key]
+    ports:
+      - 127.0.0.1:${RUNTIME_HTTP_PORT:-8030}:8010
+    depends_on:
+      postgres: {condition: service_healthy}
+      minio: {condition: service_healthy}
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8010/v1/health',timeout=4)"]
+      interval: 10s
+      timeout: 5s
+      retries: 18
+      start_period: 15s
+    networks: [data-internal, egress]
+
+  runtime-worker:
+    <<: *runtime-security
+    image: ${RUNTIME_WORKER_IMAGE}
+    platform: linux/${TARGET_ARCH}
+    environment:
+      <<: *runtime-environment
+      RUNTIME_WORKER_ID: ${RUNTIME_WORKER_ID:-tkos-runtime-worker-1}
+      RUNTIME_WORKER_POLL_SECONDS: ${RUNTIME_WORKER_POLL_SECONDS:-1}
+    secrets: [minio-app-access-key, minio-app-secret-key]
+    depends_on:
+      postgres: {condition: service_healthy}
+      minio: {condition: service_healthy}
+      runtime-api: {condition: service_healthy}
+    stop_grace_period: 45s
+    healthcheck:
+      test: [CMD, tkos-memory-worker-health]
+      interval: 10s
+      timeout: 5s
+      retries: 18
+      start_period: 15s
+    networks: [data-internal, egress]
+
+secrets:
+  minio-app-access-key:
+    file: ./private/minio-app-access-key
+  minio-app-secret-key:
+    file: ./private/minio-app-secret-key
+
+networks:
+  data-internal: {internal: true}
+  egress: {}
+
+volumes:
+  postgres-data: {}
+  minio-data: {}

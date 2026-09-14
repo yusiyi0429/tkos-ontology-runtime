@@ -1,0 +1,32 @@
+{
+  "schema_version": "tkos.offline-images/1",
+  "release": "v0.2.1",
+  "components": {
+    "postgres_pgvector": {
+      "repository": "pgvector/pgvector",
+      "index_digest": "sha256:7ae6051efd0e60444282c27c7e141af07f322ce033300e727a49c3dd11075e38",
+      "platforms": {
+        "amd64": "sha256:f193b9c848deb27b0e892f85ed07b53fd83ccb1feb634ba415b1cdc44411bedc",
+        "arm64": "sha256:f1152484f5b882c4a9b4d08e9160fb91625f89804ef3e84b42372535034cdca6"
+      }
+    },
+    "minio_server": {
+      "repository": "quay.io/minio/minio",
+      "upstream_release": "RELEASE.2025-04-22T22-12-26Z",
+      "index_digest": "sha256:a1ea29fa28355559ef137d71fc570e508a214ec84ff8083e39bc5428980b015e",
+      "platforms": {
+        "amd64": "sha256:3f97c5651cb6662b880c787a232b6b34fec8d8922e08d661b25d241a21164bb",
+        "arm64": "sha256:54d3d6a0a58fb25b4e9943d1db3828d3b4de44666f911381b4fda57175488194"
+      }
+    },
+    "minio_client": {
+      "repository": "quay.io/minio/mc",
+      "upstream_release": "RELEASE.2025-04-16T18-13-26Z",
+      "index_digest": "sha256:aead63c77f9db9107f1696fb08ecb0faeda23729cde94b0f663edf4fe09728e3",
+      "platforms": {
+        "amd64": "sha256:2582c2f48b1e31545143ba5285c67d7b38c8b8f6912142d0630686dc7aaac28b",
+        "arm64": "sha256:d798ef4fe8f417b814a8968682c1e172cdfabe59da81b39e4d9cc108a355b271"
+      }
+    }
+  }
+}

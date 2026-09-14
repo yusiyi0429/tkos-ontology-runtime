@@ -120,7 +120,7 @@ python3 acceptance/runtime/infra.py up
 
 ## 部署与来源
 
-首个版本发布说明见 [v0.2.0 Release 指南](docs/releases/v0.2.0.md)，包含 Linux amd64 API／Worker 镜像、离线加载、版本校验及初始化边界。镜像中的 Method 控制面输入位于 `/opt/tkos/docs/`；发布版本与生产切换分别验收。
+离线发布说明见 [v0.2.1 Release 指南](docs/releases/v0.2.1.md)。AMD64 与 ARM64 分包均包含 Runtime API、Worker、PostgreSQL 17＋pgvector、MinIO Server 和 MinIO Client 五类镜像；Clark 与宿主机 Nginx 不在包内。镜像中的 Method 控制面输入位于 `/opt/tkos/docs/`；发布版本与生产切换分别验收。v0.2.0 只包含 AMD64 API／Worker，已由 v0.2.1 替代。
 
 代码可构建 API/Worker 镜像，远程试点还需要环境初始化和部署验收，见 [部署边界](docs/deployment.md)。根目录没有可直接投产的 Compose；历史 Memory 模板仅保留在 `deploy/legacy-memory/`。
 

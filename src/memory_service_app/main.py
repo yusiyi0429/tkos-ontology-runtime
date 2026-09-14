@@ -14,7 +14,7 @@ from memory_service_app import narrative
 
 app = FastAPI(
     title="TKOS Memory Service",
-    version="0.2.0",
+    version="0.2.1",
     description=(
         "Standalone governed Memory Service with a native API and a temporary "
         "Clark GraphKnowledge compatibility façade."

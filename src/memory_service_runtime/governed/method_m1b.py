@@ -90,6 +90,10 @@ def _units(e: Any, strategy_ref: dict[str, Any], *, current: bool = True) -> set
             _, revision = e.ref(strategy_ref, types={"Strategy"}, effective=True, current=False)
     else:
         _, revision = e.ref(strategy_ref, types={"Strategy"}, current=False)
+    if current and getattr(e, "contract_version", None) == "tkos.method/0.3":
+        from .method_v03 import current_architecture
+        _, architecture = current_architecture(e, strategy_ref)
+        return {unit["unit_id"] for unit in architecture['payload']['units']}
     return {unit["unit_id"] for unit in _payload(revision)["map"]["units"]}
 
 
@@ -134,7 +138,10 @@ def _period_review(e: Any, payload: dict[str, Any]) -> None:
 
 
 def _ltco(e: Any, payload: dict[str, Any]) -> None:
-    LTCOPayload.model_validate(payload)
+    getattr(e, "payload_models", {"LTCO": LTCOPayload})["LTCO"].model_validate(payload)
+    if getattr(e, "contract_version", None) == "tkos.method/0.3":
+        from .method_v03 import target_architecture
+        target_architecture(e, "LTCO" if "outcomes" in payload else "PCO", payload)
     unit_ids = _units(e, payload["strategy_ref"])
     if not {item["unit_id"] for item in payload["outcomes"]}.issubset(unit_ids):
         _fail("INVALID_REQUEST", "LTCO outcomes cite units absent from the exact Strategy map.")
@@ -146,7 +153,10 @@ def _ltco(e: Any, payload: dict[str, Any]) -> None:
 
 
 def _pco(e: Any, payload: dict[str, Any]) -> None:
-    PCOPayload.model_validate(payload)
+    getattr(e, "payload_models", {"PCO": PCOPayload})["PCO"].model_validate(payload)
+    if getattr(e, "contract_version", None) == "tkos.method/0.3":
+        from .method_v03 import target_architecture
+        target_architecture(e, "LTCO" if "outcomes" in payload else "PCO", payload)
     unit_ids = _units(e, payload["strategy_ref"])
     _, ltco = e.ref(payload["ltco_ref"], types={"LTCO"}, effective=True, current=False)
     if not _same_ref(_payload(ltco)["strategy_ref"], payload["strategy_ref"]):
@@ -165,11 +175,14 @@ def _pco(e: Any, payload: dict[str, Any]) -> None:
 
 def _mission(e: Any, payload: dict[str, Any], *, pco_payload: dict[str, Any] | None = None,
              pco_ref: dict[str, Any] | None = None, historical: bool = False, validate_people: bool = True) -> None:
-    MissionPayload.model_validate(payload)
+    getattr(e, "payload_models", {"Mission": MissionPayload})["Mission"].model_validate(payload)
     if pco_payload is None:
         pco_head, pco_revision = e.ref(payload["pco_ref"], types={"PCO"}, current=not historical)
         pco_payload = _payload(pco_revision)
         pco_ref = e.exact_ref(pco_head, pco_revision)
+    if getattr(e, "contract_version", None) == "tkos.method/0.3":
+        from .method_v03 import target_architecture
+        target_architecture(e, "Mission", payload, pco_payload=pco_payload, historical=historical)
     if not _same_ref(payload["pco_ref"], pco_ref):
         _fail("INVALID_REQUEST", "Mission does not cite the required exact PCO version.")
     outcome_ids = {item["outcome_id"] for item in pco_payload["unit_outcomes"]}
@@ -227,12 +240,13 @@ def _target_set(e: Any, refs: list[dict[str, Any]], *, locked_window: str | None
     pco_head, pco_revision = pcos[0]
     pco_ref = e.exact_ref(pco_head, pco_revision)
     for _, revision in missions:
-        _mission(e, _payload(revision), pco_payload=_payload(pco_revision), pco_ref=pco_ref, validate_people=validate_people)
+        _mission(e, _payload(revision), pco_payload=_payload(pco_revision), pco_ref=pco_ref, validate_people=validate_people,
+                 historical=getattr(e, "contract_version", None) == "tkos.method/0.3" and e.kind in {"m1b_resolve_window", "m1b_reopen_window", "m1b_reopen_candidates"})
     return pcos[0], missions
 
 
 def _open_window(e: Any, payload: dict[str, Any]) -> None:
-    ReviewWindowPayload.model_validate(payload)
+    getattr(e, "payload_models", {"ReviewWindow": ReviewWindowPayload})["ReviewWindow"].model_validate(payload)
     _units(e, payload["strategy_ref"])
     _participants(e, payload["participants"])
     pco, missions = _target_set(e, payload["target_refs"])
@@ -326,7 +340,9 @@ def _reopen(e: Any, *, candidate: bool) -> None:
         "participants": e.params.get("participants") or old_payload["participants"],
         "previous_window_ref": e.exact_ref(old_head, old_rev),
     }
-    ReviewWindowPayload.model_validate(payload)
+    if getattr(e, "contract_version", None) in {"tkos.method/0.2", "tkos.method/0.3"}:
+        payload["feedback_deadline"] = e.params["feedback_deadline"]
+    getattr(e, "payload_models", {"ReviewWindow": ReviewWindowPayload})["ReviewWindow"].model_validate(payload)
     _units(e, payload["strategy_ref"])
     _, ltco = e.ref(payload["ltco_ref"], types={"LTCO"}, effective=True, current=False)
     if not _same_ref(_payload(ltco)["strategy_ref"], payload["strategy_ref"]):
@@ -337,7 +353,7 @@ def _reopen(e: Any, *, candidate: bool) -> None:
 
 def collect(e: Any) -> None:
     """Pure admission and dependency collection, shared by prepare and execute."""
-    M1B_ACTION_PARAMS[e.kind].model_validate(e.params)
+    getattr(e, "action_params", M1B_ACTION_PARAMS)[e.kind].model_validate(e.params)
     e._m1b = {}
     _actor_roles(e)
     kind, params = e.kind, e.params

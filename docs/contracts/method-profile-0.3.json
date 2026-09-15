@@ -1,0 +1,17 @@
+{
+  "profile_core_schema_version": "tkos.method-profile/0.3",
+  "profile_id": "urn:tkos:method:m1a-m1b",
+  "revision": "0.3.0",
+  "display_name": "Anchor and Agent intake 2026-09-15",
+  "record_origin": "synthetic",
+  "experimental": true,
+  "corporate_approved": false,
+  "m1a_source_revision": 21,
+  "m1b_source_revision": 837,
+  "action_contract_ref": {
+    "contract_id": "tkos.method",
+    "revision": "0.3",
+    "content_sha256": "17f0896993ac91bf232aa8d60de618ccec9b61b1d81fa68f815414943574381d"
+  },
+  "canonical_hash": "c29044dcace33e33030f634485d0d471b41925fe2a648874e7f8488a710f4087"
+}

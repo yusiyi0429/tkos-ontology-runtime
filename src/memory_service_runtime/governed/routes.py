@@ -18,6 +18,7 @@ from psycopg.types.json import Jsonb
 from memory_service_runtime.governed import db, evidence, protocol, readers, service, workbench
 from memory_service_runtime.governed.errors import GovernedError
 from memory_service_runtime.governed.models import ActionRequest
+from .a2_models import ObjectRef
 
 
 router = APIRouter(prefix="/v1", tags=["governed-runtime"])
@@ -34,7 +35,7 @@ class ContextRequest(BaseModel):
     object_ids: list[uuid.UUID] = Field(min_length=1, max_length=100)
     valid_at: AwareDatetime
     known_at: AwareDatetime
-    contract_version: Literal["tkos.method/0.1"] | None = None
+    contract_version: Literal["tkos.method/0.1", "tkos.method/0.2", "tkos.method/0.3"] | None = None
     stage: str | None = Field(default=None, min_length=1, max_length=200)
     purpose: str | None = Field(default=None, min_length=1, max_length=500)
     include_drafts: StrictBool = False
@@ -137,17 +138,51 @@ def context_create(body: ContextRequest, token: Annotated[str, Depends(bearer)])
         if body.contract_version:
             from . import method_readers
             return method_readers.context_pack(conn, ctx, [str(oid) for oid in body.object_ids], body.valid_at, body.known_at,
-                                               body.stage, body.purpose, body.include_drafts)
+                                               body.stage, body.purpose, body.include_drafts, body.contract_version)
         return readers.context_pack(conn, ctx, [str(oid) for oid in body.object_ids], body.valid_at, body.known_at)
 
 
 Limit = Annotated[int, Query(ge=1, le=100)]
+
+
+
+class ResearchContextRequest(ContextRequest):
+    contract_version: Literal["tkos.method/0.2", "tkos.method/0.3"] = "tkos.method/0.2"
+    stage: Literal["research"] = "research"
+    purpose: Literal["research"] = "research"
+    run_ref: ObjectRef
+
+
+@router.post("/method/research-context-packs")
+def research_context_create(body: ResearchContextRequest, response: Response,
+                            token: Annotated[str, Depends(bearer)]):
+    from . import method_readers
+    with db.transaction(token) as (conn, ctx):
+        result = method_readers.context_pack(conn, ctx, [str(oid) for oid in body.object_ids],
+            body.valid_at, body.known_at, body.stage, body.purpose, body.include_drafts,
+            body.contract_version, research_run=body.run_ref.model_dump(mode="json"))
+    response.headers["Cache-Control"] = "no-store"
+    return result
+
+
+@router.get("/method/research-context-packs/{snapshot_id}")
+def research_context_get(snapshot_id: uuid.UUID, response: Response,
+                         token: Annotated[str, Depends(bearer)]):
+    from . import method_readers
+    with db.transaction(token) as (conn, ctx):
+        row = conn.execute("SELECT * FROM gov_context_snapshots WHERE scope_id=%s AND snapshot_id=%s",
+                           (ctx.scope_id, str(snapshot_id))).fetchone()
+        if row is None:
+            raise GovernedError("NOT_FOUND", status=404)
+        result = method_readers.snapshot(conn, ctx, row, research=True)
+    response.headers["Cache-Control"] = "no-store"
+    return result
 Cursor = Annotated[str | None, Query(max_length=workbench.MAX_CURSOR_LENGTH)]
 
 
 @router.get("/object-types")
 def object_types_list(request: Request, response: Response, token: Annotated[str, Depends(bearer)],
-                      contract_version: Literal["tkos.method/0.1"] | None = None):
+                      contract_version: Literal["tkos.method/0.1", "tkos.method/0.2", "tkos.method/0.3"] | None = None):
     workbench.strict_query(request.query_params, {"contract_version"})
     with db.transaction(token) as (conn, ctx):
         result = workbench.object_types(conn, ctx, contract_version) if contract_version else workbench.object_types(conn, ctx)
@@ -294,13 +329,13 @@ def evidence_download(object_id: uuid.UUID, revision_id: uuid.UUID, token: Annot
 def install_errors(app):
     @app.exception_handler(GovernedError)
     async def governed_error(_request: Request, exc: GovernedError):
-        return JSONResponse(status_code=exc.status, content={"error": {"code": exc.code, "message": exc.message}})
+        return JSONResponse(status_code=exc.status, content={"error": {"code": exc.code, "message": exc.message}}, headers={"Cache-Control": "no-store"})
 
     # Keep compatibility routes' existing validation format unchanged.
     @app.exception_handler(RequestValidationError)
     async def validation_error(request: Request, exc: RequestValidationError):
-        if request.url.path.startswith(("/v1/actions", "/v1/objects", "/v1/action-receipts", "/v1/evidence-assets", "/v1/context-packs", "/v1/object-types", "/v1/domains", "/v1/method-profiles", "/v1/context-graph/narrative")):
-            return JSONResponse(status_code=422, content={"error": {"code": "INVALID_REQUEST", "message": "Request does not match the governed API schema"}})
+        if request.url.path.startswith(("/v1/actions", "/v1/objects", "/v1/action-receipts", "/v1/evidence-assets", "/v1/context-packs", "/v1/object-types", "/v1/domains", "/v1/method", "/v1/context-graph/narrative", "/v1/identity", "/v1/workspaces", "/v1/workspace-scenes")):
+            return JSONResponse(status_code=422, content={"error": {"code": "INVALID_REQUEST", "message": "Request does not match the governed API schema"}}, headers={"Cache-Control": "no-store"})
         from fastapi.exception_handlers import request_validation_exception_handler
         return await request_validation_exception_handler(request, exc)
 
@@ -311,7 +346,8 @@ def method_list(collection: str, request: Request, response: Response,
                 after: uuid.UUID | None = None, limit: Limit = 50):
     from . import method_readers
     kinds = {"review-windows": "ReviewWindow", "candidate-sets": "CandidateSet", "business-facts": "BusinessFact",
-             "period-reviews": "PeriodReview", "strategies": "Strategy", "strategic-issues": "StrategicIssue", "runs": "MethodRun"}
+             "period-reviews": "PeriodReview", "strategies": "Strategy", "strategic-issues": "StrategicIssue", "runs": "MethodRun",
+             "signals": "Signal", "potential-issues": "PotentialIssue", "research-briefs": "ResearchBrief"}
     if collection not in kinds:
         raise GovernedError("NOT_FOUND")
     workbench.strict_query(request.query_params, {"domain_id", "after", "limit"})
@@ -347,5 +383,23 @@ def method_mission_handoff(object_id: uuid.UUID, response: Response, token: Anno
     from . import method_readers
     with db.transaction(token) as (conn, ctx):
         result = method_readers.handoff(conn, ctx, str(object_id))
+    response.headers["Cache-Control"] = "no-store"
+    return result
+
+
+@router.get("/method/pcos/{object_id}/review-materials")
+def pco_review_materials(object_id: uuid.UUID, response: Response, token: Annotated[str, Depends(bearer)]):
+    from . import lifecycle_readers
+    with db.transaction(token) as (conn, ctx):
+        result = lifecycle_readers.review_materials(conn, ctx, str(object_id))
+    response.headers["Cache-Control"] = "no-store"
+    return result
+
+
+@router.get("/method/anchors/{object_id}")
+def anchor_read(object_id: uuid.UUID, response: Response, token: Annotated[str, Depends(bearer)]):
+    from . import method_v03_readers
+    with db.transaction(token) as (conn, ctx):
+        result = method_v03_readers.read(conn, ctx, str(object_id))
     response.headers["Cache-Control"] = "no-store"
     return result

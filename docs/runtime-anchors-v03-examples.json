@@ -1,0 +1,33 @@
+{
+  "usage": "Replace placeholders using authorized reads; prepare then persist and commit the identical completed envelope.",
+  "confirm_state": {
+    "action_type": "method_confirm_state",
+    "contract_version": "tkos.method/0.3",
+    "target": {
+      "object_id": "<state-object-id>",
+      "revision_id": "<recommendation-revision-id>",
+      "expected_version": 1
+    },
+    "expected_versions": [],
+    "idempotency_key": "<persisted-unique-request-key>",
+    "reason": "Confirm observed operating state",
+    "params": {
+      "reason": "Evidence checked at the stated observation time"
+    }
+  },
+  "initiate_or_associate_params": {
+    "reason": "Same core question based on authorized Context",
+    "existing_issue_ref": {
+      "object_id": "<issue-id>",
+      "revision_id": "<revision-id>",
+      "content_hash": "<hash>"
+    }
+  },
+  "read_paths": [
+    "/v1/identity",
+    "/v1/workspaces/dri?collection=operating-states",
+    "/v1/workspaces/ceo?collection=architectures",
+    "/v1/method/anchors/<object-id>"
+  ],
+  "failure_and_recovery_cases": "acceptance/anchors_v03/extended.py and run.py"
+}

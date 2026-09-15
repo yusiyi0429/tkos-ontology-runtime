@@ -110,8 +110,10 @@ def install_profile(conn: psycopg.Connection, args: argparse.Namespace) -> dict[
     if contract_sha != core.action_contract_ref.content_sha256:
         _fail("PROFILE_CONTENT_CONFLICT",
               "action_contract_ref.content_sha256 does not match the supplied contract file bytes.")
-    from . import method_profile
-    pinned_sha = (method_profile.CONTRACT_SHA256 if core.profile_core_schema_version == method_profile.SCHEMA_VERSION
+    from . import method_profile, method_v02_profile, method_v03_profile
+    pinned_sha = (method_v03_profile.CONTRACT_SHA256 if core.profile_core_schema_version == method_v03_profile.SCHEMA_VERSION
+                  else method_v02_profile.CONTRACT_SHA256 if core.profile_core_schema_version == method_v02_profile.SCHEMA_VERSION
+                  else method_profile.CONTRACT_SHA256 if core.profile_core_schema_version == method_profile.SCHEMA_VERSION
                   else profile.CONTRACT_A_MAIN_CONTRACT_SHA256)
     if core.action_contract_ref.content_sha256 != pinned_sha:
         _fail("PROFILE_CONTENT_CONFLICT",
@@ -258,6 +260,26 @@ def freeze_writes(conn: psycopg.Connection, args: argparse.Namespace) -> dict[st
     current = protocol.current_registry(conn, scope_id, args.protocol_id)
     if current is None:
         _fail("PROTOCOL_NOT_SUPPORTED", "No registry entry exists for this protocol in the scope.")
+    # A protocol-wide kill switch must freeze every installed Method version.
+    # Append revocations; never let the per-version reader revive an older row.
+    if args.protocol_id == "tkos.method":
+        versions = conn.execute("""SELECT DISTINCT ON (contract_version) * FROM gov_protocol_support_registry
+            WHERE scope_id=%s AND protocol_id=%s ORDER BY contract_version,registry_seq DESC""",
+            (scope_id, args.protocol_id)).fetchall()
+        seq = int(current["registry_seq"])
+        for row in versions:
+            seq += 1
+            content = {**row["content"], "can_write": False, "can_create": False, "evidence_upload": False,
+                       "notes": f"Writes frozen by control plane: {args.reason}"}
+            validated = protocol.RegistryContent.model_validate(content)
+            conn.execute("""INSERT INTO gov_protocol_support_registry
+                (scope_id,protocol_id,contract_version,registry_seq,content,recorded_by) VALUES(%s,%s,%s,%s,%s,%s)""",
+                (scope_id,args.protocol_id,row["contract_version"],seq,Jsonb(validated.model_dump(mode="json")),args.actor))
+            _audit(conn, scope_id, "freeze_writes", {"protocol_id": args.protocol_id,
+                "contract_version": row["contract_version"], "registry_seq": seq, "reason": args.reason}, args.actor)
+        return {"frozen": True, "scope_id": scope_id, "protocol_id": args.protocol_id,
+                "contract_version": current["contract_version"], "registry_seq": seq,
+                "versions": [r["contract_version"] for r in versions]}
     content = dict(current["content"])
     content.update({"can_write": False, "can_create": False, "evidence_upload": False,
                     "notes": f"Writes frozen by control plane: {args.reason}"})

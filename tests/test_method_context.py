@@ -18,7 +18,7 @@ class ContextFixture:
         self.denied = set()
         monkeypatch.setattr(readers.access, "head_access", self.head_access)
         monkeypatch.setattr(readers.access, "revision", self.revision)
-        monkeypatch.setattr(readers.protocol, "require_read_support", lambda *args: {"protocol_id": "tkos.method"})
+        monkeypatch.setattr(readers.protocol, "require_read_support", lambda *args: {"protocol_id": "tkos.method", "contract_version": "tkos.method/0.1"})
         monkeypatch.setattr(readers.db, "_assignments", lambda *args: [{"role": "PERSONAL_AGENT"}])
         monkeypatch.setattr(readers, "_historical_state", lambda conn, ctx, oid, rid, *args: self.states.get((oid, rid)))
         monkeypatch.setattr(readers, "_activation_at", lambda conn, ctx, oid, rid, *args: self.activations.get((oid, rid)))

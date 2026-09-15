@@ -45,7 +45,7 @@ REGISTRATION_TYPES = ("ProtocolSentinel",)
 # is limited to the two source types; the rest are derived by A2 handlers and
 # can only be observed via authorized reads.
 A2_TYPES = A2_OBJECT_TYPE_NAMES
-from .method_models import METHOD_OBJECT_TYPES
+from .method_v03_models import OBJECT_TYPES as METHOD_OBJECT_TYPES
 KNOWN_TYPES = frozenset([*GENERIC_TYPES, *DEDICATED_TYPES, *REGISTRATION_TYPES, *A2_TYPES, *METHOD_OBJECT_TYPES])
 
 _VERSIONING_NOTE = (
@@ -275,12 +275,13 @@ def _page(fetch: Callable[[Any, int], list[Any]], keep: Callable[[Any], bool],
 
 
 def object_types(conn: Any, ctx: Any, contract_version: str | None = None) -> dict[str, Any]:
-    if contract_version == "tkos.method/0.1":
-        from .method_models import METHOD_PAYLOAD_MODELS
-        return {"schema_version": "method-read/0.1", "contract_version": contract_version,
+    if contract_version in {"tkos.method/0.1", "tkos.method/0.2", "tkos.method/0.3"}:
+        from .method_models import registry
+        _, _, payloads = registry(contract_version)
+        return {"schema_version": "method-read/" + contract_version.rsplit("/", 1)[1], "contract_version": contract_version,
                 "items": [{"object_type": kind, "creation_mode": "typed_method_action",
                            "payload_schema": model.model_json_schema(), "versioning": _VERSIONING_NOTE}
-                          for kind, model in METHOD_PAYLOAD_MODELS.items()]}
+                          for kind, model in payloads.items()]}
     return {"schema_version": SCHEMA_VERSION, "items": catalog_items()}
 
 

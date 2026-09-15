@@ -173,7 +173,7 @@ def head_access(conn, ctx, object_id):
             raise
     if not is_method_object(conn, ctx, oid):
         raise GovernedError("NOT_FOUND")
-    allowed = research_grants(conn, ctx, head)
+    allowed = research_grants(conn, ctx, head) | anchor_grants(conn, ctx, head)
     windows = conn.execute(
         """SELECT o.object_id,r.revision_id,r.payload FROM gov_objects o
         JOIN gov_object_revisions r ON (r.scope_id,r.object_id,r.revision_id)=(o.scope_id,o.object_id,o.latest_revision_id)
@@ -233,3 +233,93 @@ def revision(conn, ctx, object_id, revision_id):
     if allowed is not None and str(revision_id) not in allowed:
         raise GovernedError("NOT_FOUND")
     return raw_revision(conn, ctx, value["object_id"], db._uuid(revision_id))
+
+
+def state_subject_assignment(conn, ctx, subject):
+    """Resolve a State's exact responsibility without turning it into a domain grant."""
+    head = conn.execute('SELECT object_type,effective_revision_id FROM gov_objects WHERE scope_id=%s AND object_id=%s', (ctx.scope_id,subject['object_id'])).fetchone()
+    if not head or head['object_type'] not in {'Mission','LTCO','PCO'} or not head['effective_revision_id']:
+        raise GovernedError('FORBIDDEN')
+    revision = raw_revision(conn,ctx,subject['object_id'],str(head['effective_revision_id']))
+    payload = revision['payload']
+    if head['object_type']=='PCO' and subject.get('outcome_id'):
+        owner = next((o['dri_principal_id'] for o in payload['unit_outcomes'] if o['outcome_id']==subject['outcome_id']),None)
+        role = 'DOMAIN_DRI'
+    elif head['object_type'] in {'Mission','LTCO'}:
+        owner = payload['owner_principal_id']
+        role = 'CEO' if head['object_type']=='LTCO' else None
+    else:
+        raise GovernedError('FORBIDDEN')  # Company-wide access remains explicit.
+    if owner != ctx.principal_id or ctx.principal_type != 'human':
+        raise GovernedError('FORBIDDEN')
+    for row in db._assignments(conn,ctx):
+        if role is None or row['role']==role:
+            return assignment(conn,ctx,row['assignment_id'],owner,'human')
+    raise GovernedError('FORBIDDEN')
+
+
+def anchor_participant(conn,ctx,head):
+    if protocol.current_binding(conn,ctx.scope_id,head['object_id'])['contract_version'] != 'tkos.method/0.3':
+        raise GovernedError('FORBIDDEN')
+    payload=raw_revision(conn,ctx,head['object_id'],head['latest_revision_id'])['payload']
+    if head['object_type']=='StrategicArchitecture':
+        domains={u['domain_id'] for u in payload['units']}
+        for row in db._assignments(conn,ctx):
+            if ctx.principal_type=='human' and row['role']=='DOMAIN_DRI' and row['domain_id'] in domains:
+                return assignment(conn,ctx,row['assignment_id'],ctx.principal_id,'human')
+        raise GovernedError('FORBIDDEN')
+    if head['object_type']=='OperatingState':
+        return state_subject_assignment(conn,ctx,payload['subject_ref'])
+    if head['object_type']=='OperatingProblem':
+        return assignment(conn,ctx,payload['responsible_assignment_id'],ctx.principal_id,'human')
+    raise GovernedError('FORBIDDEN')
+
+
+def anchor_grants(conn,ctx,head):
+    allowed=set()
+    if head['object_type']=='OperatingProblem':
+        try:
+            anchor_participant(conn,ctx,head)
+            rows=conn.execute('SELECT revision_id FROM gov_object_revisions WHERE scope_id=%s AND object_id=%s',(ctx.scope_id,head['object_id'])).fetchall()
+            allowed.update(str(r['revision_id']) for r in rows)
+        except GovernedError:
+            pass
+    architectures=conn.execute("SELECT o.* FROM gov_objects o WHERE o.scope_id=%s AND o.object_type='StrategicArchitecture'",(ctx.scope_id,)).fetchall()
+    for architecture in db.jsonable(architectures):
+        try:
+            anchor_participant(conn,ctx,architecture)
+        except GovernedError:
+            continue
+        versions=conn.execute('SELECT revision_id,payload FROM gov_object_revisions WHERE scope_id=%s AND object_id=%s',(ctx.scope_id,architecture['object_id'])).fetchall()
+        for revision in db.jsonable(versions):
+            if architecture['object_id']==head['object_id']:
+                allowed.add(revision['revision_id'])
+            ref=revision['payload']['strategy_ref']
+            if ref['object_id']==head['object_id']:
+                allowed.add(ref['revision_id'])
+    problems=conn.execute("SELECT r.payload FROM gov_objects o JOIN gov_object_revisions r ON (o.scope_id,o.object_id,o.latest_revision_id)=(r.scope_id,r.object_id,r.revision_id) WHERE o.scope_id=%s AND o.object_type='OperatingProblem'",(ctx.scope_id,)).fetchall()
+    for row in db.jsonable(problems):
+        try:
+            assignment(conn,ctx,row['payload']['responsible_assignment_id'],ctx.principal_id,'human')
+        except GovernedError:
+            continue
+        source=row['payload']['state_ref']
+        state=raw_revision(conn,ctx,source['object_id'],source['revision_id'])['payload']
+        materials=[source,state['subject_ref'],*state['baseline_refs'],*state['evidence_refs'],*row['payload']['evidence_refs']]
+        for ref in materials:
+            if ref['object_id']==head['object_id']:
+                allowed.add(ref['revision_id'])
+    rows=conn.execute("SELECT r.object_id,r.revision_id,r.payload FROM gov_objects o JOIN gov_object_revisions r ON (o.scope_id,o.object_id)=(r.scope_id,r.object_id) WHERE o.scope_id=%s AND o.object_type='OperatingState'",(ctx.scope_id,)).fetchall()
+    for row in db.jsonable(rows):
+        try:
+            state_subject_assignment(conn,ctx,row['payload']['subject_ref'])
+        except GovernedError:
+            continue
+        if row['object_id']==head['object_id']:
+            allowed.add(row['revision_id'])
+        # Exact materials shared with the accountable reviewer, never recursive grants.
+        refs=[row['payload']['subject_ref'],*row['payload']['baseline_refs'],*row['payload']['evidence_refs']]
+        for ref in refs:
+            if ref['object_id']==head['object_id']:
+                allowed.add(ref['revision_id'])
+    return allowed

@@ -4,24 +4,37 @@ TKOS 企业本体与记忆系统的治理运行内核。PostgreSQL 保存权威�
 
 当前支持 M1A 战略研究与更新、M1B 经营目标核对与定稿，并保留 Contract-A 的协议治理、公司组合与 DRI–IC 执行交接，以及既有 v0.2 交付能力。不同协议分别保留对象含义、角色和生效规则。
 
-本分支另提供 Clark 现有月度核对、周进展和会议工作面的 Runtime 场景接口：当前身份、聚合读取、字段定位、本人核对与确认、来源材料、会议发布及分流记录。新增 `tkos.workspace/0.1` 保持 Method 正式生效规则不变。见 [伙伴接入契约](docs/clark-workspace-integration.md)、[场景 OpenAPI](docs/runtime-workspace-openapi.json) 和 [本地验收报告](docs/runtime-workspace-acceptance.md)。Runtime 接口已通过本地验收；Clark 由伙伴维护，接线、浏览器与真实模型验收分别待完成，本扩展尚未发布。
+Runtime 提供 Clark 现有月度核对、周进展和会议工作面的 Runtime 场景接口：当前身份、聚合读取、字段定位、本人核对与确认、来源材料、会议发布及分流记录。新增 `tkos.workspace/0.1` 保持 Method 正式生效规则不变。见 [伙伴接入契约](docs/clark-workspace-integration.md)、[场景 OpenAPI](docs/runtime-workspace-openapi.json) 和 [本地验收报告](docs/runtime-workspace-acceptance.md)。Runtime 接口已通过本地验收；Clark 由伙伴维护，接线、浏览器与真实模型验收分别待完成，本扩展尚未发布。
 
-本分支新增 `tkos.method/0.3` Anchor 与 CEO Agent 立项能力：整体版本化 Architecture、Operating State、Problem 及原子移交。见 [伙伴接口包](docs/runtime-anchors-v03-integration.md) 和 [隔离验收](docs/runtime-anchors-v03-acceptance.md)。该增量尚未发布或部署。
+已合并的 `tkos.method/0.3` 提供 Anchor 与 CEO Agent 立项能力：整体版本化 Architecture、Operating State、Problem 及原子移交。见 [伙伴接口包](docs/runtime-anchors-v03-integration.md) 和 [隔离验收](docs/runtime-anchors-v03-acceptance.md)。该增量尚未发布或部署。
 
 ## 当前交付状态
 
-M1A＋M1B 已通过本地独立 API 验收，并通过 [PR #3](https://github.com/yusiyi0429/tkos-ontology-runtime/pull/3) 合并到 `main`。合并提交为 `a13e033`；本次合并不代表已部署。
+最新 Runtime 增量已通过 [PR #4](https://github.com/yusiyi0429/tkos-ontology-runtime/pull/4) 合并至 `main`，合并提交 `3bda9bf`。包含 Clark 场景接口、Method 0.2 生命周期与 Method 0.3 Anchor。已发布 Release 仍为 `v0.2.1`；本次源码增量尚未发布新版本或部署到运行容器。
 
 | 验证范围 | 结果 |
 | --- | --- |
-| M1A＋M1B 实际 HTTP／数据库／证据存储 | **18/18 组、98/98 项检查、8/8 环境门槛**；967 次真实 HTTP 请求 |
-| 同一源码 Python 回归 | **669 passed、1 skipped** |
-| 旧协议兼容 | A1 现有协议／模型／序列化回归 71 项；A2 独立矩阵 **66/66**；A3 **55/55** |
-| 历史保留与构建 | 旧对象、回执重放及原始证据保持一致；离线 sdist／wheel 构建及源码一致性校验通过 |
+| Method 0.3 实际 HTTP／PostgreSQL／MinIO 增量 | **35/35**：Architecture、State、Problem、Agent 立项、原子移交、权限与恢复、M1B 回归 |
+| Method 0.2 独立回归 | **22/22**：生命周期、关窗竞争、候选原子性与旧版共存 |
+| Python 回归 | **699 passed、1 既有 skipped**；legacy 集成另 **14 passed** |
+| 迁移与构建 | 空库迁移至 0025 及重复执行 **1 passed**；wheel／sdist 构建通过 |
+| Workbench 模块回归 | **61 passed**；不代表 Clark 浏览器验收 |
+| 伙伴接线／Clark 浏览器／真实模型 | **尚未验证／尚未验证／未运行** |
 
-验收使用隔离数据库、合成身份和受控 Agent 输出。Clark 新流程页面、生产身份、生产历史迁移及部署后续分别安排；专业研究质量与实际经营效果需真实案例验证。跳过项及 A1 回归范围见[完整验收报告](docs/runtime-method-acceptance-report.md)，机器结果见[验收摘要](docs/acceptance/method-summary.json)与[兼容摘要](docs/acceptance/method-compatibility-summary.json)。
+验收使用隔离数据库、独立合成身份和受控 Agent 输入。详见 [0.3 验收报告](docs/runtime-anchors-v03-acceptance.md)、[机器检查清单](docs/acceptance/anchors-v03-summary.json) 和 [复跑入口](acceptance/anchors_v03/README.md)。企业身份、历史对象跨版本接续、生产迁移与部署另行安排。
 
-## M1A＋M1B：战略研究与经营目标定稿
+原 Method 0.1 的 [PR #3](https://github.com/yusiyi0429/tkos-ontology-runtime/pull/3) 验收作为历史基线保留：98/98 项、8/8 环境门槛及旧协议兼容，见 [原验收报告](docs/runtime-method-acceptance-report.md)。历史验收结果不计作本轮重新执行。
+
+## Method 0.3：Anchor 与 Agent 立项
+
+- **Architecture**：整体独立版本化，Battlefield／Capability 为稳定 ID 定义项；相关 DRI／Agent 提出、CEO 确认，Strategy 同步变化时原子确认一致版本。目标明确引用结构，历史依据保留。
+- **Operating State**：覆盖 Mission、LTCO、PCO 及 Outcome，保存推荐、确认、人工修正、观察时点、基准与证据。正式状态由对应当前责任人确认，Mission Owner 不必兼任 DRI。
+- **Problem → M1A**：复盘发现与经营问题进入统一候选池；CEO Agent 立项或关联已有议题，成功后原 Problem 原子移交并停止原跟踪。CEO 本人随后独立指派研究；立项不授予战略确认权。
+- **版本与效力**：新对象显式绑定 `tkos.method/0.3`，0.1／0.2 保留原规则与回执。周复盘确认、会议发布等场景记录不自动产生战略更新、目标生效或执行授权。
+
+伙伴从 [0.3 接口包](docs/runtime-anchors-v03-integration.md)、[冻结契约](docs/contracts/tkos-method-0.3.md)、[OpenAPI](docs/runtime-anchors-v03-openapi.json) 和 [请求模板](docs/runtime-anchors-v03-examples.json) 接线；0.2 生命周期对照见 [接入说明](docs/runtime-lifecycle-v02-integration.md)。Clark 页面、BFF、模型调用与 Agent 编排由伙伴维护，本仓库提供 Runtime 能力与验收材料。
+
+## Method 0.1 基线：战略研究与经营目标定稿
 
 独立协议 `tkos.method/0.1` 采用 M1A L4 revision 21、M1B L5 revision 837，提供完整底座 API：
 
@@ -65,7 +78,7 @@ WorkItem 固定承诺版本、指定 DRI、指定验收人及标准。Deliverabl
 
 ## 接口与代码
 
-当前完整 API 快照见 [OpenAPI](docs/runtime-method-openapi.json)，运行中服务可读取 `/openapi.json`。Method 的角色、状态和调用顺序见 [API 指南](docs/runtime-method-api.md)，49 个动作的严格参数见[动作 schema](docs/runtime-method-actions.json)，Clark 适配与 prepare／commit 样例见[接入契约](docs/method-clark-contract.md)。
+当前源码 API 快照见 [0.3 OpenAPI](docs/runtime-anchors-v03-openapi.json)，61 个 Method 0.3 动作的注册信息见 [注册表](docs/runtime-method-registry-0.3.json)。运行中服务的实际版本以其 `/openapi.json` 为准。原 Method 0.1 的 [API 指南](docs/runtime-method-api.md)、[49 个动作 schema](docs/runtime-method-actions.json) 和 [接入契约](docs/method-clark-contract.md) 保留用于对应版本，不作为 0.3 的权限规则。
 
 既有 v0.2 的 [OpenAPI 快照](contracts/openapi.json)、[Runtime 契约](docs/runtime-independent-contract.md)和[实现说明](docs/runtime-implementation-notes.md)作为对应版本文档保留。
 
@@ -76,6 +89,7 @@ WorkItem 固定承诺版本、指定 DRI、指定验收人及标准。Deliverabl
 | `src/memory_service_app/` | FastAPI、迁移与配置 |
 | `src/memory_service/` | 原有 Memory 核心与数据库迁移 |
 | `src/adapter/` | 保留的 Clark 只读兼容接口 |
+| `acceptance/anchors_v03/`、`acceptance/lifecycle_v02/`、`acceptance/workspace_scenes/` | 0.3 Anchor、0.2 生命周期和 Clark 场景接口隔离验收 |
 | `acceptance/method_independent/` | M1A＋M1B 完整 API、权限、并发、恢复与历史兼容验收 |
 | `acceptance/composition_a2_independent/`、`acceptance/execution_a3_independent/` | A2 公司组合与 A3 执行交接独立验收 |
 | `acceptance/runtime/` | 既有 v0.2 HTTP、数据库、S3、故障和恢复验收 |
@@ -92,7 +106,9 @@ Python 包名 `tkos-memory-service`、模块名和 CLI 保持兼容。Clark 应�
 
 ## 本地独立验收
 
-需要 Python 3.12+、uv、Docker Engine 与 Compose。M1A＋M1B 请按 [Method 独立验收说明](acceptance/method_independent/README.md)执行：保留环境基线 → 创建隔离库 → 捕获真实旧历史 → 应用 0021 并验证重放 → 旧能力回归 → 完整 Method HTTP 场景及历史复核。只有 98 条检查与 8 个环境门槛全部通过，报告才设 `method_api_accepted: true`。API 使用普通应用数据库角色，控制面与迁移使用独立身份。
+需要 Python 3.12+、uv、Docker Engine 与 Compose。当前 0.3 增量先按 [Anchor 隔离验收说明](acceptance/anchors_v03/README.md) 创建新库并运行当前源码 API；若进入容器联调，须重新构建镜像并记录源码、镜像和契约版本。
+
+原 M1A＋M1B 基线请按 [Method 独立验收说明](acceptance/method_independent/README.md)执行：保留环境基线 → 创建隔离库 → 捕获真实旧历史 → 应用 0021 并验证重放 → 旧能力回归 → 完整 Method HTTP 场景及历史复核。只有 98 条检查与 8 个环境门槛全部通过，报告才设 `method_api_accepted: true`。API 使用普通应用数据库角色，控制面与迁移使用独立身份。
 
 以下命令用于**既有 v0.2 验收**，不能替代 Method／A2／A3 独立矩阵。先按 [v0.2 验收说明](acceptance/runtime/README.md)缓存固定镜像，再在本仓库目录执行：
 

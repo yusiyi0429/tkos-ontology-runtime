@@ -7,8 +7,6 @@ from pydantic import ValidationError
 from . import db, protocol, evidence, checkpoints, method_access as access
 from .errors import GovernedError
 from .service import ActionExecution
-from .method_models import METHOD_ACTION_PARAMS, METHOD_ACTION_TARGETS, METHOD_PAYLOAD_MODELS
-from .method_profile import CONTRACT_VERSION
 
 
 def fail(code="INVALID_STATE", message=""):
@@ -22,16 +20,21 @@ def exact_ref(head, revision):
 class MethodExecution(ActionExecution):
     @classmethod
     def handles_request(cls, conn, ctx, request):
-        return request.action_type in METHOD_ACTION_PARAMS
+        from .method_v03_models import ACTION_PARAMS
+        from .method_v02_models import ACTION_PARAMS as OLD_PARAMS
+        return request.action_type in ACTION_PARAMS or request.action_type in OLD_PARAMS
 
     def authorize(self):
-        self.params = METHOD_ACTION_PARAMS[self.kind].model_validate(self.params).model_dump(mode="json", exclude_none=True)
+        from .method_models import registry
+        self.contract_version = self.request.contract_version
+        self.action_params, self.action_targets, self.payload_models = registry(self.contract_version)
+        self.params = self.action_params[self.kind].model_validate(self.params).model_dump(mode="json", exclude_none=True)
         self.required_assignments = set()
         self.method_assignment_specs = {}
         self.method_evidence = {}
         self.run_ids = set()
         self.method_scoped_domain = None
-        self.protocol_context = CONTRACT_VERSION
+        self.protocol_context = self.contract_version
         if self.request.target:
             self.target = self.head(self.request.target.object_id)
             self.domain_id = self.target["domain_id"]
@@ -53,14 +56,31 @@ class MethodExecution(ActionExecution):
                     self.method_scoped_domain = member["domain_id"]
                     self.action_assignments = db.authorize_domain(self.conn, self.ctx, member["domain_id"], self.kind)
             else:
-                self.action_assignments = db.authorize_domain(self.conn, self.ctx, self.domain_id, self.kind)
+                try:
+                    self.action_assignments = db.authorize_domain(self.conn, self.ctx, self.domain_id, self.kind)
+                except GovernedError as exc:
+                    if exc.code != "FORBIDDEN" or self.contract_version != "tkos.method/0.3" or self.kind not in {"method_confirm_state", "method_revise_problem", "method_close_problem", "method_revise_architecture"}:
+                        raise
+                    member = access.anchor_participant(self.conn, self.ctx, self.target)
+                    self.method_scoped_domain = member['domain_id']
+                    self.action_assignments = db.authorize_domain(self.conn,self.ctx,member['domain_id'],self.kind)
         else:
             self.domain_id = self.params["domain_id"]
-            self.action_assignments = db.authorize_domain(self.conn, self.ctx, self.domain_id, self.kind)
+            try:
+                self.action_assignments = db.authorize_domain(self.conn, self.ctx, self.domain_id, self.kind)
+            except GovernedError as exc:
+                if exc.code != "FORBIDDEN" or self.contract_version != "tkos.method/0.3" or self.kind != "method_propose_state":
+                    raise
+                member = access.state_subject_assignment(self.conn,self.ctx,self.params['payload']['subject_ref'])
+                self.method_scoped_domain = member['domain_id']
+                self.action_assignments = db.authorize_domain(self.conn,self.ctx,member['domain_id'],self.kind)
             # Root creates are resolved by the domain's server-side policy.
             create_type = {
                 "method_open_run": "MethodRun", "m1a_record_signal": "Signal",
+                "method_propose_architecture": "StrategicArchitecture",
+                "method_propose_state": "OperatingState", "method_open_problem": "OperatingProblem",
                 "m1a_open_potential_issue": "PotentialIssue", "m1b_record_fact": "BusinessFact",
+                "m1a_create_direct_issue": "StrategicIssue",
                 "m1b_generate_review": "PeriodReview", "m1b_advise_ltco": "LTCOReviewAdvice",
                 "m1b_propose_ltco": "LTCO", "m1b_draft_pco": "PCO",
                 "m1b_draft_mission": "Mission", "m1b_open_window": "ReviewWindow",
@@ -96,7 +116,7 @@ class MethodExecution(ActionExecution):
             reference = reference.model_dump(mode="json")
         head = self.head(reference["object_id"])
         revision = self.revision(head["object_id"], reference["revision_id"])
-        protocol.gate_dependency(self.conn, self.ctx.scope_id, head["object_id"], CONTRACT_VERSION)
+        protocol.gate_dependency(self.conn, self.ctx.scope_id, head["object_id"], self.contract_version)
         if types is not None and head["object_type"] not in types:
             fail("INVALID_REQUEST", "Reference has the wrong business type.")
         if reference.get("payload_hash") != revision["payload_hash"]:
@@ -114,7 +134,7 @@ class MethodExecution(ActionExecution):
 
     def add_dependency(self, object_id):
         head = self.head(object_id)
-        protocol.gate_dependency(self.conn, self.ctx.scope_id, head["object_id"], CONTRACT_VERSION)
+        protocol.gate_dependency(self.conn, self.ctx.scope_id, head["object_id"], self.contract_version)
         if not self.target or head["object_id"] != self.target["object_id"]:
             self.dependencies.add(head["object_id"])
         return head
@@ -186,23 +206,26 @@ class MethodExecution(ActionExecution):
 
     def checked_payload(self, object_type, payload):
         try:
-            return METHOD_PAYLOAD_MODELS[object_type].model_validate(payload).model_dump(mode="json", exclude_none=True)
+            return self.payload_models[object_type].model_validate(payload).model_dump(mode="json", exclude_none=True)
         except (KeyError, ValueError, TypeError) as exc:
             raise GovernedError("INVALID_REQUEST", "Payload does not satisfy this Method type.", status=422) from exc
 
     def create(self, object_type, payload, domain_id=None, status="draft"):
         domain_id = domain_id or self.domain_id
-        if not (self.method_scoped_domain and domain_id == self.domain_id and self.target and self.target["object_type"] == "StrategicIssue"):
+        scoped = self.method_scoped_domain and domain_id == self.domain_id and (
+            (self.target and self.target["object_type"] == "StrategicIssue") or
+            (self.contract_version == "tkos.method/0.3" and self.kind in {"method_propose_state", "method_confirm_state"}))
+        if not scoped:
             db.authorize_domain(self.conn, self.ctx, domain_id, self.kind)
         payload = self.checked_payload(object_type, payload)
         if self.target and domain_id == self.domain_id:
             source = protocol.current_binding(self.conn, self.ctx.scope_id, self.target["object_id"])
             fields = {key: source[key] for key in ("protocol_id", "contract_version", "profile_id", "profile_revision", "profile_canonical_hash", "record_origin")}
-            registry = protocol._check_registry(self.conn, self.ctx.scope_id, "tkos.method", CONTRACT_VERSION)
+            registry = protocol._check_registry(self.conn, self.ctx.scope_id, "tkos.method", self.contract_version)
             if not registry.can_create or not registry.can_write or object_type not in registry.object_types:
                 fail("PROTOCOL_WRITE_DISABLED")
         else:
-            fields = protocol.resolve_creation(self.conn, self.ctx.scope_id, domain_id, object_type, CONTRACT_VERSION, action_type=self.kind)
+            fields = protocol.resolve_creation(self.conn, self.ctx.scope_id, domain_id, object_type, self.contract_version, action_type=self.kind)
         oid = str(uuid4())
         head = db.jsonable(self.conn.execute("INSERT INTO gov_objects(scope_id,object_id,domain_id,object_type,lifecycle_status) VALUES(%s,%s,%s,%s,%s) RETURNING *",
             (self.ctx.scope_id, oid, domain_id, object_type, status)).fetchone())
@@ -271,6 +294,11 @@ class MethodExecution(ActionExecution):
         self.conn.execute("""INSERT INTO gov_method_strategy_heads(scope_id,domain_id,object_id,revision_id,action_id) VALUES(%s,%s,%s,%s,%s)
             ON CONFLICT(scope_id,domain_id) DO UPDATE SET object_id=EXCLUDED.object_id,revision_id=EXCLUDED.revision_id,action_id=EXCLUDED.action_id""",
             (self.ctx.scope_id, head["domain_id"], head["object_id"], revision["revision_id"], self.action_id))
+        if self.contract_version == "tkos.method/0.3":
+            from .method_v03 import activate_architecture
+            change = next(c for c in self._m1a['proposal']['changes'] if c['scope'] == 'company')
+            previous = self.state(head).get('architecture_ref')
+            activate_architecture(self, exact_ref(head, revision), change['architecture'], source_proposal_ref, previous)
         if target_ref:
             targets = self.conn.execute("""SELECT o.object_id,r.revision_id,r.payload FROM gov_objects o
                 JOIN gov_object_revisions r ON (r.scope_id,r.object_id,r.revision_id)=(o.scope_id,o.object_id,o.effective_revision_id)
@@ -293,7 +321,13 @@ class MethodExecution(ActionExecution):
         checkpoints.checkpoint(name, {"action_type": self.kind, "receipt_id": self.action_id})
 
     def collect_dependencies(self):
-        if self.kind.startswith("m1a_"):
+        if self.contract_version == "tkos.method/0.3":
+            from . import method_v03
+            method_v03.collect(self)
+        elif self.contract_version == "tkos.method/0.2" and self.kind.startswith(("m1a_", "m1b_")):
+            from . import method_v02
+            method_v02.collect(self)
+        elif self.kind.startswith("m1a_"):
             from . import method_m1a
             method_m1a.collect(self)
         elif self.kind.startswith("m1b_"):
@@ -322,6 +356,12 @@ class MethodExecution(ActionExecution):
         # External bytes verified after all auth/CAS checks and before any business write.
         for head, revision in self.method_evidence.values():
             evidence.fetch_payload(revision["payload"], scope_id=self.ctx.scope_id, domain_id=head["domain_id"])
+        if self.contract_version == "tkos.method/0.3":
+            from . import method_v03
+            return method_v03.run(self)
+        if self.contract_version == "tkos.method/0.2" and self.kind.startswith(("m1a_", "m1b_")):
+            from . import method_v02
+            return method_v02.run(self)
         if self.kind.startswith("m1a_"):
             from . import method_m1a
             return method_m1a.run(self)
@@ -332,7 +372,7 @@ class MethodExecution(ActionExecution):
 
     def _enqueue_effects(self, result, versions):
         # No dispatch authority is inferred from Strategy/Mission confirmation.
-        result["contract_version"] = CONTRACT_VERSION
+        result["contract_version"] = self.contract_version
         for run_id in sorted(self.run_ids):
             self.conn.execute("""INSERT INTO gov_method_run_attempts(scope_id,run_id,step_key,outcome,target_object_id,principal_id,note,action_id)
                 VALUES(%s,%s,%s,'succeeded',%s,%s,%s,%s)""",
@@ -340,6 +380,9 @@ class MethodExecution(ActionExecution):
         result["run_ids"] = sorted(self.run_ids)
 
     def recheck_final_barrier(self):
+        if self.contract_version in {"tkos.method/0.2", "tkos.method/0.3"}:
+            from .method_v02 import deadline_check
+            deadline_check(self)
         for aid, args in self.method_assignment_specs.items():
             access.assignment(self.conn, self.ctx, aid, *args)
         # Recheck exact policy-derived authority, including scoped window grants.

@@ -111,6 +111,10 @@ def _changes(e: Any, proposal: dict) -> None:
         else:
             _, strategy = e.ref(payload["strategy_ref"], types={"Strategy"}, effective=True)
             resulting_map = strategy["payload"]["map"]
+            if getattr(e, "contract_version", None) == "tkos.method/0.3":
+                from .method_v03 import current_architecture
+                _, architecture = current_architecture(e, payload["strategy_ref"])
+                resulting_map = architecture['payload']
             if company_change and _same(company_change.get("target_ref"), payload["strategy_ref"]):
                 resulting_map = company_change["payload"]["map"]
             if payload["unit_id"] not in {u["unit_id"] for u in resulting_map["units"]}:
@@ -120,7 +124,7 @@ def _changes(e: Any, proposal: dict) -> None:
 def collect(e: Any) -> None:
     """Check the whole action, including authority and exact source versions."""
     action = e.kind
-    p = M1A_ACTION_PARAMS[action].model_validate(e.params).model_dump(mode="json", exclude_none=True)
+    p = getattr(e, "action_params", M1A_ACTION_PARAMS)[action].model_validate(e.params).model_dump(mode="json", exclude_none=True)
     state = deepcopy(e.state(e.target)) if e.target else {}
     prepared: dict[str, Any] = {"params": p, "state": state}
     e._m1a = prepared
@@ -278,7 +282,7 @@ def collect(e: Any) -> None:
 
 
 def _artifact(e: Any, state: dict, key: str, object_type: str, payload: dict) -> dict:
-    payload = M1A_PAYLOAD_MODELS[object_type].model_validate(payload).model_dump(mode="json", exclude_none=True)
+    payload = getattr(e, "payload_models", M1A_PAYLOAD_MODELS)[object_type].model_validate(payload).model_dump(mode="json", exclude_none=True)
     if state.get(key):
         head, _ = e.ref(state[key], types={object_type})
         head, revision = e.revise(head, payload)

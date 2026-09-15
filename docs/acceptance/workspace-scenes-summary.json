@@ -1,0 +1,116 @@
+{
+  "baseline": {
+    "runtime": "1fb3226225a787d0c9c5bc7410727696f0539d18",
+    "release": "v0.2.1",
+    "clark": "ea686a9c9ee724378a496ffe888cca9d9ff82511"
+  },
+  "scope": "Runtime scene APIs for existing Clark interactions; no Clark code changes",
+  "runtime_scene_api_accepted": true,
+  "checks": [
+    "identity_personal_no_store",
+    "identity_cannot_choose_actor",
+    "missing_presentation_not_filled_from_sample",
+    "feedback_deadline_separate_no_implicit_close",
+    "DRI_cannot_assume_domain_coagent_authority",
+    "comment_anchor_exact_field",
+    "opinion_history_and_effective_count",
+    "cannot_anchor_another_person_comment",
+    "cross_domain_list_no_counts_or_cursor",
+    "comment_vs_close_CAS",
+    "coagent_context_uses_own_identity_and_complete_roots",
+    "consolidation_cannot_omit_frozen_opinions",
+    "diff_ack_does_not_confirm_candidate",
+    "candidate_differences_have_exact_versions",
+    "agent_cannot_ack_for_human",
+    "coagent_cannot_confirm_candidate_for_CEO",
+    "formal_mission_handoff_no_execution_authority",
+    "business_fact_correction_keeps_original",
+    "period_review_regeneration_is_analysis_without_approval",
+    "material_sources_do_not_expand_read_grants",
+    "weekly_exact_personal_confirmation",
+    "withdraw_answer_invalidates_current_ack",
+    "old_weekly_material_cannot_be_confirmed",
+    "refresh_is_request_not_fake_source_read",
+    "weekly_material_can_reference_formal_fact_and_analysis_versions",
+    "hidden_new_material_does_not_fall_back_to_old",
+    "meeting_rejects_fabricated_quote",
+    "one_meeting_publication_no_formal_mission_effect",
+    "routing_does_not_claim_delivery",
+    "DRI_aggregate_contains_meeting_state",
+    "authorized_CEO_reads_published_judgment_and_routing",
+    "meeting_membership_does_not_expand_source_permission",
+    "publication_withdrawal_preserves_history_without_reviving_old_draft",
+    "concurrent_duplicate_click_same_receipt",
+    "idempotency_key_cannot_change_request",
+    "scene_stream_CAS",
+    "event_receipt_transaction_rollback",
+    "actual_HTTP_response_loss_after_commit",
+    "restart_preserves_material_publication_history",
+    "lost_result_original_envelope_retry",
+    "receipt_recovery_endpoint",
+    "reopen_retains_ack_as_history_not_current_confirmation",
+    "revocation_blocks_scene_receipt_and_replay",
+    "database_every_event_has_receipt_no_external_effect",
+    "database_no_execution_objects",
+    "database_candidate_members_have_exact_persisted_versions",
+    "new_table_RLS_hides_scope_without_session_context",
+    "application_cannot_rewrite_or_delete_scene_history",
+    "production_source_unchanged_during_acceptance"
+  ],
+  "checks_passed": 49,
+  "http_requests": 257,
+  "partner_connected": false,
+  "clark_browser_accepted": false,
+  "real_model_accepted": false,
+  "released": false,
+  "deployed": false,
+  "source_manifest_sha256": "7fbad9566af2ab2f23265a2ec8cc5f64aedacf3377995a135225dc3380129e8c",
+  "logged_http_requests": 257,
+  "additional_response_loss_proxy_requests": 1,
+  "regression": {
+    "results": {
+      "python": {
+        "exit_code": 0,
+        "total": 677,
+        "skipped": 1,
+        "failures": 0
+      },
+      "narrative": {
+        "exit_code": 0,
+        "total": 14,
+        "skipped": 0,
+        "failures": 0
+      },
+      "workbench": {
+        "exit_code": 0
+      },
+      "build": {
+        "exit_code": 0
+      }
+    },
+    "passed": true,
+    "excluded": {
+      "tests/test_migrations.py": "requires a separate CREATEDB administrator; new scene migration and repeat verified by bootstrap"
+    }
+  },
+  "workbench_tests_passed": 61,
+  "migration": {
+    "applied": [
+      "0021_method_foundation.sql",
+      "0022_workspace_scenes.sql"
+    ],
+    "repeat_applied": [],
+    "database": "fresh isolated acceptance database",
+    "business_seed": "authorized HTTP Method actions"
+  },
+  "source_files": 132,
+  "openapi_sha256": "d08e1bbff30e269735ab96a46fab9955cdea6f40ab43920f02733a899bc9aa34",
+  "boundaries": {
+    "partner_wiring": "pending",
+    "clark_browser": "pending",
+    "real_model": "pending_partner_execution",
+    "full_historic_method_environment_matrix": "not_rerun",
+    "enterprise_sso": "out_of_scope",
+    "remote_deployment": "out_of_scope"
+  }
+}

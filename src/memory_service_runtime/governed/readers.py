@@ -138,6 +138,9 @@ def revision(conn, ctx, object_id: str, revision_id: str) -> dict:
 
 
 def authorize_receipt(conn, ctx, receipt: dict):
+    if receipt["action_type"].startswith("workspace."):
+        from . import workspace_service
+        return workspace_service.authorize_receipt(conn, ctx, receipt)
     from . import method_readers
     if method_readers.is_receipt(receipt):
         return method_readers.authorize_receipt(conn, ctx, receipt)
@@ -282,7 +285,7 @@ def context_snapshot(conn, ctx, snapshot_id: str) -> dict:
     if row is None:
         raise GovernedError("NOT_FOUND", "Context snapshot was not found", status=404)
     from . import method_readers
-    if any(item.get("context_request", {}).get("contract_version") == "tkos.method/0.1" for item in row["selected"] + row["excluded"]):
+    if any(item.get("context_request", {}).get("contract_version") in {"tkos.method/0.1", "tkos.method/0.2", "tkos.method/0.3"} for item in row["selected"] + row["excluded"]):
         return method_readers.snapshot(conn, ctx, row)
     for item in row["selected"]:
         db.object_row(conn, ctx, item["object_id"])

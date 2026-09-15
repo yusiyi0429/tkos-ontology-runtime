@@ -10,3 +10,16 @@ METHOD_PAYLOAD_MODELS = {**METHOD_COMMON_PAYLOADS, **M1A_PAYLOAD_MODELS, **M1B_P
 METHOD_OBJECT_TYPES = frozenset(METHOD_PAYLOAD_MODELS) | {"EvidenceAsset"}
 MethodActionType = Literal[tuple(METHOD_ACTION_PARAMS)]
 MethodActionParams = Union[tuple(METHOD_ACTION_PARAMS.values())]
+
+
+def registry(version):
+    if version == "tkos.method/0.3":
+        from . import method_v03_models as v03
+        return v03.ACTION_PARAMS, v03.ACTION_TARGETS, v03.PAYLOAD_MODELS
+    if version == "tkos.method/0.2":
+        from . import method_v02_models as v02
+        return v02.ACTION_PARAMS, v02.ACTION_TARGETS, v02.PAYLOAD_MODELS
+    if version != "tkos.method/0.1":
+        from .errors import GovernedError
+        raise GovernedError("PROTOCOL_NOT_SUPPORTED")
+    return METHOD_ACTION_PARAMS, METHOD_ACTION_TARGETS, METHOD_PAYLOAD_MODELS

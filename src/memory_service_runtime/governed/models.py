@@ -460,9 +460,11 @@ ActionParams = Union[CreateObjectParams, ProposeRevisionParams, AcceptCommitment
 
 from .a2_models import ObjectRef as MethodRunRef
 from .method_models import METHOD_ACTION_PARAMS, METHOD_ACTION_TARGETS, MethodActionType, MethodActionParams
+from .method_v02_models import ACTION_PARAMS as METHOD_V02_PARAMS, ACTION_TARGETS as METHOD_V02_TARGETS
+from .method_v03_models import ACTION_PARAMS as METHOD_V03_PARAMS, ACTION_TARGETS as METHOD_V03_TARGETS
 ACTION_PARAMS.update(METHOD_ACTION_PARAMS)
-ActionType = Union[ActionType, MethodActionType]
-ActionParams = Union[ActionParams, MethodActionParams]
+ActionType = Union[ActionType, MethodActionType, Literal[tuple(METHOD_V02_PARAMS)], Literal[tuple(METHOD_V03_PARAMS)]]
+ActionParams = Union[ActionParams, MethodActionParams, Union[tuple(METHOD_V02_PARAMS.values())], Union[tuple(METHOD_V03_PARAMS.values())]]
 
 _PARAM_ADAPTERS: dict[str, "TypeAdapter[Any]"] = {}
 
@@ -504,7 +506,13 @@ class ActionRequest(StrictModel):
     def select_params(cls, data: Any) -> Any:
         if isinstance(data, dict) and isinstance(data.get("action_type"), str):
             action_type = data["action_type"]
-            if action_type in ACTION_PARAMS:
+            if data.get("contract_version") == "tkos.method/0.3" and action_type in METHOD_V03_PARAMS:
+                data = dict(data)
+                data["params"] = METHOD_V03_PARAMS[action_type].model_validate(data.get("params"))
+            elif data.get("contract_version") == "tkos.method/0.2" and action_type in METHOD_V02_PARAMS:
+                data = dict(data)
+                data["params"] = METHOD_V02_PARAMS[action_type].model_validate(data.get("params"))
+            elif action_type in ACTION_PARAMS:
                 data = dict(data)
                 data["params"] = _validate_action_params(action_type, data.get("params"))
         return data
@@ -514,12 +522,15 @@ class ActionRequest(StrictModel):
         # A2 actions: open_formation_round has target=None; the other five
         # A2 action names target an A2-bound object. None of them support
         # the legacy create_object / revoke_assignment null-target exception.
-        if self.action_type in METHOD_ACTION_TARGETS:
-            needs_target = bool(METHOD_ACTION_TARGETS[self.action_type])
+        if self.action_type in METHOD_V02_TARGETS or self.action_type in METHOD_V03_TARGETS:
+            targets = METHOD_V03_TARGETS if self.contract_version == "tkos.method/0.3" else (METHOD_V02_TARGETS if self.contract_version == "tkos.method/0.2" else METHOD_ACTION_TARGETS)
+            if self.action_type not in targets:
+                raise ValueError("action is not supported by this Method version")
+            needs_target = bool(targets[self.action_type])
             if needs_target != (self.target is not None):
                 raise ValueError("Method action target does not match its typed contract")
-            if self.contract_version != "tkos.method/0.1":
-                raise ValueError("Method actions require explicit tkos.method/0.1")
+            if self.contract_version not in {"tkos.method/0.1", "tkos.method/0.2", "tkos.method/0.3"}:
+                raise ValueError("Method actions require an explicit supported contract")
         elif self.action_type == "open_formation_round":
             if self.target is not None:
                 raise ValueError("open_formation_round must carry target=None")
@@ -534,7 +545,7 @@ class ActionRequest(StrictModel):
             raise ValueError("target must be null only for create_object/revoke_assignment")
         if self.action_type == "method_open_run" and (self.run_ref is not None or self.step_key is not None):
             raise ValueError("A Method run is an independent root")
-        if self.action_type not in METHOD_ACTION_TARGETS and (self.run_ref is not None or self.step_key is not None):
+        if self.action_type not in METHOD_V02_TARGETS and (self.run_ref is not None or self.step_key is not None):
             raise ValueError("Run association belongs only to tkos.method/0.1")
         if self.idempotency_key != self.idempotency_key.strip():
             raise ValueError("idempotency_key cannot have surrounding whitespace")

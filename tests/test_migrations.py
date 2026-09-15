@@ -46,6 +46,10 @@ def test_packaged_migrations_replay_from_empty_database() -> None:
             "0019_company_composition.sql",
             "0020_execution_handover.sql",
             "0021_method_foundation.sql",
+            "0022_workspace_scenes.sql",
+            "0023_method_lifecycle_v02.sql",
+            "0024_method_v02_binding_gate.sql",
+            "0025_method_anchors_v03.sql",
         ]
         assert migrate(test_url) == expected
         assert migrate(test_url) == []
@@ -90,6 +94,8 @@ def test_packaged_migrations_replay_from_empty_database() -> None:
             "gov_work_receipts",
             "gov_a3_delivery_acceptances",
             "gov_a3_outcome_assessments",
+            "gov_method_state_keys",
+            "gov_method_problem_keys",
         } <= tables
     finally:
         with psycopg.connect(admin_url, autocommit=True) as admin:

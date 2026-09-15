@@ -4,6 +4,10 @@ TKOS 企业本体与记忆系统的治理运行内核。PostgreSQL 保存权威�
 
 当前支持 M1A 战略研究与更新、M1B 经营目标核对与定稿，并保留 Contract-A 的协议治理、公司组合与 DRI–IC 执行交接，以及既有 v0.2 交付能力。不同协议分别保留对象含义、角色和生效规则。
 
+本分支另提供 Clark 现有月度核对、周进展和会议工作面的 Runtime 场景接口：当前身份、聚合读取、字段定位、本人核对与确认、来源材料、会议发布及分流记录。新增 `tkos.workspace/0.1` 保持 Method 正式生效规则不变。见 [伙伴接入契约](docs/clark-workspace-integration.md)、[场景 OpenAPI](docs/runtime-workspace-openapi.json) 和 [本地验收报告](docs/runtime-workspace-acceptance.md)。Runtime 接口已通过本地验收；Clark 由伙伴维护，接线、浏览器与真实模型验收分别待完成，本扩展尚未发布。
+
+本分支新增 `tkos.method/0.3` Anchor 与 CEO Agent 立项能力：整体版本化 Architecture、Operating State、Problem 及原子移交。见 [伙伴接口包](docs/runtime-anchors-v03-integration.md) 和 [隔离验收](docs/runtime-anchors-v03-acceptance.md)。该增量尚未发布或部署。
+
 ## 当前交付状态
 
 M1A＋M1B 已通过本地独立 API 验收，并通过 [PR #3](https://github.com/yusiyi0429/tkos-ontology-runtime/pull/3) 合并到 `main`。合并提交为 `a13e033`；本次合并不代表已部署。

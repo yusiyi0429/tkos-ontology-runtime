@@ -8,8 +8,8 @@ from .errors import GovernedError
 from .method_profile import CONTRACT_VERSION
 from .method_models import METHOD_ACTION_PARAMS
 
-ANALYSIS_TYPES = {"ResearchMemo", "ResearchReport", "PeriodReview", "LTCOReviewAdvice", "StrategyUpdateProposal"}
-FORMAL_TYPES = {"Strategy", "StrategicJudgment", "LTCO", "PCO", "Mission", "StrategicAgreement"}
+ANALYSIS_TYPES = {"ResearchMemo", "ResearchReport", "ResearchBrief", "PeriodReview", "LTCOReviewAdvice", "StrategyUpdateProposal"}
+FORMAL_TYPES = {"StrategicArchitecture", "OperatingState", "Strategy", "StrategicJudgment", "LTCO", "PCO", "Mission", "StrategicAgreement"}
 
 
 def refs(value):
@@ -59,7 +59,9 @@ def revision(conn, ctx, object_id, revision_id):
 
 
 def is_receipt(row):
-    return row.get("action_type") in METHOD_ACTION_PARAMS
+    from .method_v03_models import ACTION_PARAMS
+    from .method_v02_models import ACTION_PARAMS as OLD_PARAMS
+    return row.get("action_type") in ACTION_PARAMS or row.get("action_type") in OLD_PARAMS
 
 
 def authorize_receipt(conn, ctx, row, *, replay=False):
@@ -165,7 +167,7 @@ def handoff(conn, ctx, object_id):
     if value["object_type"] != "Mission" or value["method_state"].get("phase") != "confirmed" or not value["effective_revision"]:
         raise GovernedError("INVALID_STATE", "Only an explicitly confirmed Method Mission has a downstream handoff projection.")
     revision = value["effective_revision"]
-    return {"contract_version": CONTRACT_VERSION, "mission_ref": {"object_id": object_id, "revision_id": revision["revision_id"], "payload_hash": revision["payload_hash"]},
+    return {"contract_version": value["protocol"]["contract_version"], "mission_ref": {"object_id": object_id, "revision_id": revision["revision_id"], "payload_hash": revision["payload_hash"]},
             "definition": revision["payload"], "confirmation_record_id": value["method_state"].get("confirmation_record_id"),
             "execution_authority": None, "required_next_contract": "Explicit M2 DRI/IC/acceptor assignments, exact Mission baseline, execution and acceptance grants.",
             "delivery_accepted": None, "outcome_achieved": None, "mf_closed": None}
@@ -265,14 +267,30 @@ def _state_references(state, keys):
                 yield reference["object_id"], reference["revision_id"]
 
 
-def context_pack(conn, ctx, object_ids, valid_at, known_at, stage, purpose, include_drafts=False):
+def context_pack(conn, ctx, object_ids, valid_at, known_at, stage, purpose, include_drafts=False,
+                 contract_version=CONTRACT_VERSION, *, research_run=None):
+    if contract_version in {"tkos.method/0.2", "tkos.method/0.3"}:
+        if stage not in CONTEXT_STAGE_KEYS or purpose not in CONTEXT_PURPOSES | {"dialogue", "research"}:
+            raise GovernedError("INVALID_REQUEST", "Unknown lifecycle Context stage or purpose.", status=422)
+        if purpose == "research" and research_run is None:
+            raise GovernedError("FORBIDDEN", "Use the authorized research Context endpoint.")
+        if research_run is not None:
+            research_gate(conn, ctx, research_run, object_ids, contract_version)
     selected, excluded, seen = [], [], set()
     selected_stage, selected_purpose, state_keys, selection_notes = _context_selection(stage, purpose)
-    context = {"contract_version": CONTRACT_VERSION, "stage": stage, "purpose": purpose,
+    if contract_version in {"tkos.method/0.2", "tkos.method/0.3"}:
+        selected_purpose, selection_notes = purpose, []
+        if stage in {"general", "research", "meeting", "confirmation"}:
+            state_keys = state_keys | {"brief_ref"}
+    if contract_version == "tkos.method/0.3":
+        state_keys = state_keys | {"architecture_ref", "canonical_ref", "recommendation_ref", "source_refs", "issue_ref"}
+    context = {"contract_version": contract_version, "stage": stage, "purpose": purpose,
                "actor_id": ctx.principal_id, "actor_type": ctx.principal_type,
                "roles": sorted({a["role"] for a in db._assignments(conn, ctx)}), "include_drafts": include_drafts,
                "selection_stage": selected_stage, "selection_purpose": selected_purpose,
                "selection_notes": selection_notes}
+    if research_run is not None:
+        context.update(research_run_ref=research_run, research_root_ids=object_ids)
     queue = [(oid, None, True) for oid in object_ids]
     while queue:
         oid, rid, explicit = queue.pop(0)
@@ -285,8 +303,11 @@ def context_pack(conn, ctx, object_ids, valid_at, known_at, stage, purpose, incl
         try:
             head, allowed = access.head_access(conn, ctx, oid)
             metadata = protocol.require_read_support(conn, ctx.scope_id, oid)
-            if metadata["protocol_id"] != "tkos.method":
+            if metadata["protocol_id"] != "tkos.method" or metadata["contract_version"] != contract_version:
                 excluded.append({"object_id": oid if explicit else None, "reason": "different_protocol", "context_request": context})
+                continue
+            if contract_version in {"tkos.method/0.2", "tkos.method/0.3"} and head["object_type"] == "Signal" and research_run is None:
+                excluded.append({"object_id": oid if explicit else None, "reason": "signal_not_for_dialogue", "context_request": context})
                 continue
             if rid is None:
                 if head["object_type"] in FORMAL_TYPES and not include_drafts:
@@ -349,7 +370,54 @@ def context_pack(conn, ctx, object_ids, valid_at, known_at, stage, purpose, incl
                        "selected": selected, "excluded": excluded, "context_request": context, "recorded_at": row["recorded_at"]})
 
 
-def snapshot(conn, ctx, row):
+def research_gate(conn, ctx, run_ref, roots, contract_version="tkos.method/0.2"):
+    if ctx.principal_type != "agent":
+        raise GovernedError("FORBIDDEN", "Research Context requires the Agent's own identity.")
+    head = access.head(conn, ctx, run_ref["object_id"])
+    revision = access.revision(conn, ctx, head["object_id"], run_ref["revision_id"])
+    protocol.gate_dependency(conn, ctx.scope_id, head["object_id"], contract_version)
+    if head["object_type"] != "MethodRun" or revision["payload_hash"] != run_ref["payload_hash"]:
+        raise GovernedError("INVALID_REQUEST", "An exact MethodRun reference is required.")
+    assignments = db.authorize_domain(conn, ctx, head["domain_id"], "method_record_attempt")
+    if not any(a["role"] in {"CEO_AGENT", "CO_AGENT", "PERSONAL_AGENT"} for a in assignments):
+        raise GovernedError("FORBIDDEN")
+    if contract_version == "tkos.method/0.3" and any(a['role']=='CEO_AGENT' for a in assignments):
+        bindings=conn.execute('SELECT owner_principal_id FROM gov_method_agent_bindings WHERE scope_id=%s AND agent_principal_id=%s',(ctx.scope_id,ctx.principal_id)).fetchall()
+        owners=set()
+        for binding in db.jsonable(bindings):
+            try:
+                agent=access.personal_agent(conn,ctx,ctx.principal_id,binding['owner_principal_id'])
+                if agent['domain_id'] != head['domain_id']:
+                    continue
+                people=conn.execute("SELECT assignment_id FROM gov_role_assignments WHERE scope_id=%s AND principal_id=%s AND domain_id=%s AND role='CEO'",(ctx.scope_id,binding['owner_principal_id'],head['domain_id'])).fetchall()
+                for person in people:
+                    access.assignment(conn,ctx,str(person['assignment_id']),binding['owner_principal_id'],'human',head['domain_id'])
+                    owners.add(binding['owner_principal_id'])
+            except GovernedError:
+                continue
+        if len(owners)!=1:
+            raise GovernedError('FORBIDDEN','Intake Context requires the current CEO identity binding.')
+    run = conn.execute("SELECT phase FROM gov_method_runs WHERE scope_id=%s AND run_id=%s",
+                       (ctx.scope_id, head["object_id"])).fetchone()
+    if not run or run["phase"] != "running":
+        raise GovernedError("INVALID_STATE", "Research run is not running.")
+    for oid in roots:
+        access.head(conn, ctx, oid)
+        member = conn.execute("SELECT 1 FROM gov_method_run_members WHERE scope_id=%s AND run_id=%s AND object_id=%s",
+                              (ctx.scope_id, head["object_id"], oid)).fetchone()
+        if not member:
+            raise GovernedError("FORBIDDEN", "Research roots must be attached by the run owner.")
+
+
+def snapshot(conn, ctx, row, *, research=False):
+    context = next((item.get("context_request") for item in row["selected"] + row["excluded"] if item.get("context_request")), {})
+    if context.get("contract_version") in {"tkos.method/0.2", "tkos.method/0.3"}:
+        if context.get("purpose") == "research":
+            if not research or context.get("actor_id") != ctx.principal_id:
+                raise GovernedError("FORBIDDEN", "Research snapshots are not dialogue Context.")
+            research_gate(conn, ctx, context["research_run_ref"], context["research_root_ids"], context["contract_version"])
+        elif any(i["object_type"] == "Signal" for i in row["selected"]):
+            raise GovernedError("FORBIDDEN", "This historical snapshot is not valid dialogue Context.")
     for item in row["selected"]:
         revision = access.revision(conn, ctx, item["object_id"], item["revision_id"])
         if revision["payload_hash"] != item["payload_hash"]:

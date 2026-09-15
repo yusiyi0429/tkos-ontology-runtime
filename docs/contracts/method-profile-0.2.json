@@ -1,0 +1,17 @@
+{
+  "profile_core_schema_version": "tkos.method-profile/0.2",
+  "profile_id": "urn:tkos:method:m1a-m1b",
+  "revision": "0.2.0",
+  "display_name": "Lifecycle alignment 2026-09-15",
+  "record_origin": "synthetic",
+  "experimental": true,
+  "corporate_approved": false,
+  "m1a_source_revision": 21,
+  "m1b_source_revision": 837,
+  "action_contract_ref": {
+    "contract_id": "tkos.method",
+    "revision": "0.2",
+    "content_sha256": "82568bdff37c711207a1a010ae553f72b2f036122b1f88a3b92aec286f9fbbf3"
+  },
+  "canonical_hash": "6f3892135859b77d9c2bd18e24b27aca2b556ace11fb0fa0abe8b0f77d180b12"
+}

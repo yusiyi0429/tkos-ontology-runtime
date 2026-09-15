@@ -44,6 +44,8 @@ SUPPORTED_PROTOCOL_CONTRACTS = frozenset(
     {
         (profile.LEGACY_PROTOCOL_ID, profile.LEGACY_CONTRACT_VERSION),
         ("tkos.method", "tkos.method/0.1"),
+        ("tkos.method", "tkos.method/0.2"),
+        ("tkos.method", "tkos.method/0.3"),
         (profile.CONTRACT_A_PROTOCOL_ID, profile.CONTRACT_A_CONTRACT_VERSION),
     }
 )
@@ -71,7 +73,15 @@ def installed_profile(conn: Any, scope_id: str, profile_id: str, revision: str) 
     return db.jsonable(row) if row is not None else None
 
 
-def current_registry(conn: Any, scope_id: str, protocol_id: str) -> dict[str, Any] | None:
+def current_registry(conn: Any, scope_id: str, protocol_id: str, contract_version: str | None = None) -> dict[str, Any] | None:
+    if protocol_id == "tkos.method" and contract_version is not None:
+        row = conn.execute(
+            """SELECT * FROM gov_protocol_support_registry
+               WHERE scope_id=%s AND protocol_id=%s AND contract_version=%s
+               ORDER BY registry_seq DESC, recorded_at DESC, registry_row_id DESC LIMIT 1""",
+            (scope_id, protocol_id, contract_version),
+        ).fetchone()
+        return db.jsonable(row) if row is not None else None
     row = conn.execute(
         """SELECT * FROM gov_protocol_support_registry
            WHERE scope_id=%s AND protocol_id=%s
@@ -166,7 +176,7 @@ def _check_registry(conn: Any, scope_id: str, protocol_id: str,
     (protocol_id, contract_version) pair compiled into this runtime."""
     if (protocol_id, contract_version) not in SUPPORTED_PROTOCOL_CONTRACTS:
         _fail("PROTOCOL_NOT_SUPPORTED")
-    row = current_registry(conn, scope_id, protocol_id)
+    row = current_registry(conn, scope_id, protocol_id, contract_version)
     if row is None or row["contract_version"] != contract_version:
         _fail("PROTOCOL_NOT_SUPPORTED")
     return _registry_content(row)
@@ -242,7 +252,8 @@ def gate_target_action(conn: Any, scope_id: str, target_object_id: str,
     registry = _check_registry(conn, scope_id, binding["protocol_id"], binding["contract_version"])
     _check_binding_profile(conn, scope_id, binding)
     if binding["protocol_id"] == "tkos.method":
-        from .method_models import METHOD_ACTION_TARGETS
+        from .method_models import registry as method_registry
+        _, METHOD_ACTION_TARGETS, _ = method_registry(binding["contract_version"])
         if declared != binding["contract_version"]:
             _fail("PROTOCOL_BINDING_CONFLICT")
         target = conn.execute("SELECT object_type FROM gov_objects WHERE scope_id=%s AND object_id=%s",
@@ -360,7 +371,9 @@ def resolve_creation(conn: Any, scope_id: str, domain_id: str, object_type: str,
     if (policy.default_protocol, policy.default_contract_version) not in SUPPORTED_PROTOCOL_CONTRACTS:
         _fail("PROTOCOL_NOT_SUPPORTED")
     if policy.default_protocol == "tkos.method":
-        from .method_models import METHOD_ACTION_PARAMS, METHOD_OBJECT_TYPES
+        from .method_models import registry as method_registry
+        METHOD_ACTION_PARAMS, _, payloads = method_registry(policy.default_contract_version)
+        METHOD_OBJECT_TYPES = frozenset(payloads) | {"EvidenceAsset"}
         if not for_evidence and declared != policy.default_contract_version:
             _fail("PROTOCOL_BINDING_CONFLICT")
         registry = _check_registry(conn, scope_id, policy.default_protocol, policy.default_contract_version)
@@ -560,6 +573,10 @@ def _binding_interpretation(installed: dict[str, Any] | None,
         return "read_unsupported", ("The current support registry does not grant read interpretation "
                                     "for this protocol/contract version; no legacy meaning is attached.")
     if binding["protocol_id"] == "tkos.method":
+        if binding["contract_version"] == "tkos.method/0.3":
+            return "method_v0_3", "Anchor 0.3; versioned Architecture, canonical State and Agent initiation."
+        if binding["contract_version"] == "tkos.method/0.2":
+            return "method_v0_2", "Lifecycle 0.2; explicit human confirmation, research context and review deadlines."
         return "method_v0_1", "M1A L4 r21 and M1B L5 r837; separate analysis, decisions, and execution authority."
     if binding["protocol_id"] == profile.LEGACY_PROTOCOL_ID:
         return "legacy_v0_2", "Legacy v0.2 semantics; dri_assignment fields keep their original MISSION_DRI meaning."
@@ -653,7 +670,7 @@ def read_metadata(conn: Any, scope_id: str, object_id: str) -> dict[str, Any]:
     if binding is None:
         return _metadata_dict(None, None, None)
     installed = installed_profile(conn, scope_id, binding["profile_id"], binding["profile_revision"])
-    registry_row = current_registry(conn, scope_id, binding["protocol_id"])
+    registry_row = current_registry(conn, scope_id, binding["protocol_id"], binding["contract_version"])
     status, note = _binding_interpretation_with_conn(conn, installed, registry_row, binding)
     return _metadata_dict(binding, status, note)
 
@@ -681,10 +698,11 @@ def list_metadata(conn: Any, scope_id: str, object_ids: list[str]) -> dict[str, 
         pkey = (binding["profile_id"], binding["profile_revision"])
         if pkey not in profiles:
             profiles[pkey] = installed_profile(conn, scope_id, *pkey)
-        if binding["protocol_id"] not in registries:
-            registries[binding["protocol_id"]] = current_registry(conn, scope_id, binding["protocol_id"])
+        rkey = (binding["protocol_id"], binding["contract_version"])
+        if rkey not in registries:
+            registries[rkey] = current_registry(conn, scope_id, *rkey)
         status, note = _binding_interpretation_with_conn(conn, profiles[pkey],
-                                                          registries[binding["protocol_id"]], binding)
+                                                          registries[rkey], binding)
         result[oid] = _metadata_dict(binding, status, note)
     return result
 
@@ -702,7 +720,7 @@ def require_read_support(conn: Any, scope_id: str, object_id: str) -> dict[str, 
     # Legacy v0.2 and the existing A1 readonly label remain accepted verbatim.
     if metadata["registration_status"] != "registered" or metadata["interpretation_status"] not in (
             "legacy_v0_2", "contract_a_metadata_read_only", "contract_a_v0_1",
-            "contract_a_a3_execution", "method_v0_1"):
+            "contract_a_a3_execution", "method_v0_1", "method_v0_2", "method_v0_3"):
         _fail("PROTOCOL_NOT_SUPPORTED",
               "The object's protocol registration does not support read interpretation.")
     return metadata

@@ -12,7 +12,7 @@ Runtime 提供 Clark 现有月度核对、周进展和会议工作面的 Runtime
 
 当前功能 Release 为 **[v0.3.0](https://github.com/yusiyi0429/tkos-ontology-runtime/releases/tag/v0.3.0)**，包含 Clark 场景接口、Method 0.2 生命周期、Method 0.3 Anchor，以及经 [PR #6](https://github.com/yusiyi0429/tkos-ontology-runtime/pull/6) 合并的只读看板、本体地图与业务关系图。
 
-本次交付 wheel、源码包和 SHA256 校验和，详见[发布说明](docs/releases/v0.3.0.md)。**完整双架构离线镜像包仍为 v0.2.1**，不包含本轮新增能力。本机原 API/Worker 仍运行 `eccc346` 镜像，新界面为 58806 源码预览；尚未部署新版容器或远程生产环境。
+本次交付 wheel、源码包、**amd64/arm64 完整五镜像离线包**及 SHA256 校验和，详见[发布说明](docs/releases/v0.3.0.md)和[离线验收](docs/releases/v0.3.0-offline-acceptance.md)。两架构均通过业务/看板 58 项、本体接口/数据库 46 项检查；amd64 使用 Docker 仿真验收。本机原 API/Worker 仍运行 `eccc346` 镜像，新界面为 58806 源码预览；尚未部署新版容器或远程生产环境。
 
 | 验证范围 | 结果 |
 | --- | --- |

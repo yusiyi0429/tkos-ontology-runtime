@@ -1,8 +1,8 @@
 # 看板本机部署与升级准备（阶段说明）
 
 本文件只准备**本机五容器**环境（Clark、Runtime API、Runtime Worker、PostgreSQL、
-MinIO）的构建与升级步骤。计划由监督方在评审后执行；本阶段未替换容器、未升级数据库、
-未改动 Clark 端口/配置或数据卷。实际执行以当前 `deploy/offline-release/` 脚本的
+MinIO）的构建与升级步骤。2026-09-16 已由 Codex 评审后执行 API/Worker 切换及 0023–0025 升级，
+记录见[验收报告](runtime-dashboard-acceptance.md)。Clark 端口/配置及 PostgreSQL/MinIO 数据卷保持不变。复跑以当前 `deploy/offline-release/` 脚本的
 `--help` 为准。
 
 ## 1. 构建可发布产物
@@ -117,4 +117,4 @@ facade 每个请求重新读取该文件并重新认证；文件缺失、mode �
 
 - 不改 Clark 镜像、访问码、数据卷或真实模型配置；不新增常驻容器。
 - 不把 token 写入镜像、HTML/JS、日志或公开文档。
-- 浏览器人工验收、业务同事理解度与真实模型收拢由监督方另行执行。
+- Runtime 只读浏览器验收已完成；业务同事理解度、Clark 页面与真实模型收拢仍须分别验证。

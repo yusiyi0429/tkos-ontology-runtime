@@ -140,8 +140,8 @@ viewer 不可用会立即清空受保护内容并阻止所有在途响应回填�
 | Node 前端回归 | `56 passed` | 错误映射、URL 状态、轮询/取消/授权清空、列表与详情语义、同屏依据分组 |
 | 0.3 隔离 HTTP/PG/MinIO 验收 | `58/58` | 合法动作建立完整链路；含历史依据、精确旧引用、确认来源、类型化 downstream、权限与只读 oracle |
 | 当前 0.1 数据只读验收 | `49/49` | 真实 0.1 数据（隔离 clone）：Strategy→LTCO/PCO、LTCO→PCO、PCO→Mission、任命解析、前后表计数一致 |
-| 浏览器人工验收 | 未运行 | 由监督方独立执行 |
-| 部署/发布 | 未执行 | 本阶段仅准备构建与升级材料，容器与数据未改变 |
+| Runtime 浏览器只读场景 | 通过 | Codex 在真实浏览器读取 0.1 副本、独立 0.3 场景及新运行容器，见[验收报告](runtime-dashboard-acceptance.md) |
+| 本机部署/发布 | 本机通过，未发布新版 | API/Worker 重建为 `dashboard-20260916-eccc346`；现有业务行保留，五容器健康；远程生产未部署 |
 
 复跑入口：[acceptance/dashboard_0_3/README.md](../acceptance/dashboard_0_3/README.md)、
 [acceptance/dashboard_0_1/README.md](../acceptance/dashboard_0_1/README.md)。
@@ -152,4 +152,4 @@ viewer 不可用会立即清空受保护内容并阻止所有在途响应回填�
 - 无正式登录/模拟身份切换；viewer 由部署方固定配置。
 - 无人员目录；只显示被授权对象引用到的负责人最小投影。
 - 无全局总数、无隐藏数量、无样例回退、无模型调用、无汇总推断。
-- 不声称浏览器可读性/业务同事理解度已验收；不声称已部署或已发布。
+- 业务同事理解度、Clark 浏览器闭环与真实模型不由本轮 Runtime 看板检查代替；未发布新版，未做远程生产部署。

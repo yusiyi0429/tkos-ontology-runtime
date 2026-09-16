@@ -1,0 +1,71 @@
+{
+  "date": "2026-09-16",
+  "source_ref": "eccc346bb394243063c982555b8d48a05454406d",
+  "branch": "codex/runtime-business-dashboard",
+  "implementation_agent": "Pi CLI 0.85.1",
+  "independent_reviewer": "Codex",
+  "dashboard_contract": "tkos.dashboard/0.1",
+  "supported_method_versions": [
+    "0.1",
+    "0.2",
+    "0.3"
+  ],
+  "live_data_method_version": "0.1",
+  "validation": {
+    "dashboard_python_passed": 76,
+    "dashboard_frontend_passed": 56,
+    "existing_python_passed": 700,
+    "legacy_integration_passed": 14,
+    "existing_python_skipped": 1,
+    "existing_workbench_node_passed": 61,
+    "anchor_regression_passed": 35,
+    "dashboard_v03_independent_passed": 58,
+    "current_v01_readonly_passed": 49,
+    "scope_browser_tables_unchanged": 45,
+    "asset_source_staleness_rejected": true,
+    "asset_archive_tamper_rejected": true
+  },
+  "runtime_interface_acceptance": "passed",
+  "runtime_browser_read_acceptance": "passed",
+  "local_container_deployment": "passed",
+  "clark_integration": "not_tested",
+  "clark_browser": "not_tested",
+  "real_business_model": "not_run_not_required_for_dashboard",
+  "business_colleague_readability": "not_tested",
+  "published_release": "v0.2.1 unchanged",
+  "dashboard_url": "http://127.0.0.1:58802/dashboard/",
+  "image_tag": "dashboard-20260916-eccc346",
+  "images": {
+    "runtime": {
+      "id": "sha256:47696cca87aef97478eb2893555cbafaba131c1f1107ee98e94736eeb8569352",
+      "architecture": "arm64",
+      "source_ref": "eccc346bb394243063c982555b8d48a05454406d"
+    },
+    "worker": {
+      "id": "sha256:20d10bce20bf62614e33d8e3154c8db1e88128fe6e9b58747311d3dd640d6918",
+      "architecture": "arm64",
+      "source_ref": "eccc346bb394243063c982555b8d48a05454406d"
+    }
+  },
+  "packages": {
+    "tkos_memory_service-0.2.1.tar.gz": "84ea2e68a788b7f0c69d23bbe66edd83a5dbfe23892e6e58b1a34b612ef42ef1",
+    "tkos_memory_service-0.2.1-py3-none-any.whl": "0bc2ff23500c314f647622cfd58828942dfc921f6ebbc8b27ae322321271390b"
+  },
+  "migration_applied": [
+    "0023_method_lifecycle_v02.sql",
+    "0024_method_v02_binding_gate.sql",
+    "0025_method_anchors_v03.sql"
+  ],
+  "migration_replay": [],
+  "live_preexisting_tables_compared": 45,
+  "live_changed_existing_tables": [
+    "runtime_worker_heartbeats"
+  ],
+  "live_business_unchanged": true,
+  "preserved_containers": [
+    "PostgreSQL",
+    "MinIO",
+    "Clark"
+  ],
+  "persistent_container_count": 5
+}

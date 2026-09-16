@@ -145,6 +145,7 @@ def main() -> None:
         "schema_version": "tkos.offline-bundle/1",
         "release": args.release,
         "source_ref": args.source_ref,
+        "deployment_source_ref": run(["git", "rev-parse", "HEAD"], cwd=HERE),
         "os": "linux",
         "architecture": args.arch,
         "component_count": len(COMPONENTS),

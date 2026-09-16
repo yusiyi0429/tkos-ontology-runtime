@@ -65,3 +65,14 @@ def test_compose_uses_exactly_the_five_release_images() -> None:
     assert {line.split("=", 1)[0] for line in env.splitlines() if line and not line.startswith("#")} >= keys
     assert all(f"${{{key}}}" in compose for key in keys)
     assert "clark" not in compose.lower()
+
+
+def test_snapshot_bucket_initialization_sets_default_retention() -> None:
+    import yaml
+    compose = yaml.safe_load((RELEASE / "compose.yaml").read_text())
+    init = compose["services"]["minio-init"]
+    assert init["environment"]["MINIO_RETENTION_DAYS"] == "${MINIO_RETENTION_DAYS:-30}"
+    command = init["command"][0]
+    assert 'mc retention set --default GOVERNANCE "$${MINIO_RETENTION_DAYS}d" "local/$$MINIO_SNAPSHOT_BUCKET"' in command
+    assert command.index("--with-lock") < command.index("mc retention set")
+    assert "MINIO_RETENTION_DAYS=30" in (RELEASE / ".env.example").read_text()

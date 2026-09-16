@@ -4,13 +4,15 @@ TKOS 企业本体与记忆系统的治理运行内核。PostgreSQL 保存权威�
 
 当前支持 M1A 战略研究与更新、M1B 经营目标核对与定稿，并保留 Contract-A 的协议治理、公司组合与 DRI–IC 执行交接，以及既有 v0.2 交付能力。不同协议分别保留对象含义、角色和生效规则。
 
-Runtime 提供 Clark 现有月度核对、周进展和会议工作面的 Runtime 场景接口：当前身份、聚合读取、字段定位、本人核对与确认、来源材料、会议发布及分流记录。新增 `tkos.workspace/0.1` 保持 Method 正式生效规则不变。见 [伙伴接入契约](docs/clark-workspace-integration.md)、[场景 OpenAPI](docs/runtime-workspace-openapi.json) 和 [本地验收报告](docs/runtime-workspace-acceptance.md)。Runtime 接口已通过本地验收；Clark 由伙伴维护，接线、浏览器与真实模型验收分别待完成，本扩展尚未发布。
+Runtime 提供 Clark 现有月度核对、周进展和会议工作面的 Runtime 场景接口：当前身份、聚合读取、字段定位、本人核对与确认、来源材料、会议发布及分流记录。新增 `tkos.workspace/0.1` 保持 Method 正式生效规则不变。见 [伙伴接入契约](docs/clark-workspace-integration.md)、[场景 OpenAPI](docs/runtime-workspace-openapi.json) 和 [本地验收报告](docs/runtime-workspace-acceptance.md)。Runtime 接口已通过本地验收；Clark 由伙伴维护，接线、浏览器与真实模型验收分别待完成，本扩展纳入 v0.3.0。
 
-已合并的 `tkos.method/0.3` 提供 Anchor 与 CEO Agent 立项能力：整体版本化 Architecture、Operating State、Problem 及原子移交。见 [伙伴接口包](docs/runtime-anchors-v03-integration.md) 和 [隔离验收](docs/runtime-anchors-v03-acceptance.md)。该增量尚未发布新版；本机 API/Worker 已随看板镜像更新，旧对象仍保留原协议绑定。
+已合并的 `tkos.method/0.3` 提供 Anchor 与 CEO Agent 立项能力：整体版本化 Architecture、Operating State、Problem 及原子移交。见 [伙伴接口包](docs/runtime-anchors-v03-integration.md) 和 [隔离验收](docs/runtime-anchors-v03-acceptance.md)。该增量纳入 v0.3.0；本机 API/Worker 已随看板镜像更新，旧对象仍保留原协议绑定。
 
 ## 当前交付状态
 
-Method 0.3 增量已通过 [PR #4](https://github.com/yusiyi0429/tkos-ontology-runtime/pull/4) 合并至 `main`，合并提交 `3bda9bf`。包含 Clark 场景接口、Method 0.2 生命周期与 Method 0.3 Anchor。已发布 Release 仍为 `v0.2.1`；本机 API/Worker 已按看板分支源码 `eccc346` 重建；未发布新版本，未部署到远程生产环境。看板尚在独立分支，未合并主分支。
+当前功能 Release 为 **[v0.3.0](https://github.com/yusiyi0429/tkos-ontology-runtime/releases/tag/v0.3.0)**，包含 Clark 场景接口、Method 0.2 生命周期、Method 0.3 Anchor，以及经 [PR #6](https://github.com/yusiyi0429/tkos-ontology-runtime/pull/6) 合并的只读看板、本体地图与业务关系图。
+
+本次交付 wheel、源码包和 SHA256 校验和，详见[发布说明](docs/releases/v0.3.0.md)。**完整双架构离线镜像包仍为 v0.2.1**，不包含本轮新增能力。本机原 API/Worker 仍运行 `eccc346` 镜像，新界面为 58806 源码预览；尚未部署新版容器或远程生产环境。
 
 | 验证范围 | 结果 |
 | --- | --- |
@@ -33,12 +35,12 @@ Method 0.3 增量已通过 [PR #4](https://github.com/yusiyi0429/tkos-ontology-r
 浏览器不接触任何凭据。浏览不产生业务、回执、复盘、Context 快照或任务写入。
 
 - 本体可视化增量：默认“本体地图”，按五个业务区域展开类型；可切换 0.1/0.2/0.3 规则，沿“类型说明 → 实际记录 → 业务关系图”查看精确版本和引用。详见[设计与交互](docs/runtime-ontology-views-design.md)、[本轮独立验收](docs/runtime-ontology-views-acceptance.md)。原有本机容器仍是此前版本。
-- 新版本地验收：前端 **94**、后端 **101**、新增本体 HTTP/SQL **46**、0.3 场景 **58**、0.1 副本 **53** 项通过；真实浏览器、只读数据库核对和 wheel/sdist 资源校验通过。[本轮源码预览](http://127.0.0.1:58806/dashboard/)使用隔离合成数据，尚未发布或部署新版容器。
+- 新版本地验收：前端 **94**、后端 **101**、新增本体 HTTP/SQL **46**、0.3 场景 **58**、0.1 副本 **53** 项通过；真实浏览器、只读数据库核对和 wheel/sdist 资源校验通过。[本轮源码预览](http://127.0.0.1:58806/dashboard/)使用隔离合成数据，已纳入 v0.3.0，尚未部署新版容器。
 - 契约与运行：[看板读取契约](docs/runtime-dashboard.md)、[字段来源映射](docs/runtime-dashboard-field-mapping.md)、[实际 OpenAPI](docs/runtime-dashboard-openapi.json)。
 - 构建：`./scripts/build_dashboard.sh`（只接受 `npm ci` + typecheck + vitest + vite build + 构建清单）；`uv build` 的 Hatch hook 与 Dockerfile 都会按清单校验资源，源码改动未重建会使打包失败；`scripts/verify_dashboard_assets.py --archive` 逐文件 hash 校验 wheel/sdist。
 - 原列表看板验收基线：0.3 隔离 HTTP/PG/MinIO **58/58**（[复跑](acceptance/dashboard_0_3/README.md)）、真实 0.1 数据只读 **49/49**（[复跑](acceptance/dashboard_0_1/README.md)）、Python dashboard 回归 76、Node 前端回归 56。
 - 原容器访问：[Runtime 经营看板](http://127.0.0.1:58802/dashboard/)。API/Worker 已按 `eccc346` 重建，保留现有 0.1 数据、Clark 及 PostgreSQL/MinIO 数据卷；当前仍为五容器。
-- 原列表看板独立浏览器与本机部署通过，见[验收报告与截图](docs/runtime-dashboard-acceptance.md)；[复跑与回滚](docs/runtime-dashboard-deployment.md)。业务同事理解度、Clark 接线/浏览器及真实模型另行验证；本增量尚未发布。旧的 `workbench/` 四页原型与 `/docs` 保留不变。
+- 原列表看板独立浏览器与本机部署通过，见[验收报告与截图](docs/runtime-dashboard-acceptance.md)；[复跑与回滚](docs/runtime-dashboard-deployment.md)。业务同事理解度、Clark 接线/浏览器及真实模型另行验证；本增量已纳入 v0.3.0。旧的 `workbench/` 四页原型与 `/docs` 保留不变。
 
 ## Method 0.3：Anchor 与 Agent 立项
 

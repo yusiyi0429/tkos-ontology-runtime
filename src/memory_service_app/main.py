@@ -17,7 +17,7 @@ from memory_service_runtime.governed.workspace_routes import router as workspace
 
 app = FastAPI(
     title="TKOS Memory Service",
-    version="0.2.1",
+    version="0.3.0",
     description=(
         "Standalone governed Memory Service with a native API and a temporary "
         "Clark GraphKnowledge compatibility façade."

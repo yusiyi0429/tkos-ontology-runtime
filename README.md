@@ -25,6 +25,19 @@ Runtime 提供 Clark 现有月度核对、周进展和会议工作面的 Runtime
 
 原 Method 0.1 的 [PR #3](https://github.com/yusiyi0429/tkos-ontology-runtime/pull/3) 验收作为历史基线保留：98/98 项、8/8 环境门槛及旧协议兼容，见 [原验收报告](docs/runtime-method-acceptance-report.md)。历史验收结果不计作本轮重新执行。
 
+## Runtime 经营看板：`tkos.dashboard/0.1`
+
+面向业务读者的本机只读看板（React + TypeScript + Vite + Tailwind + 官方 shadcn/ui，编译进 wheel），
+按 `当前正式 Strategy → Architecture → LTCO/PCO → Mission → 经营状态/事实/复盘/问题` 的类型化精确引用层级展示。
+默认关闭；启用后由 FastAPI 提供 `/dashboard/` 静态资源与显式 GET 只读 `/dashboard/api` facade，
+浏览器不接触任何凭据。浏览不产生业务、回执、复盘、Context 快照或任务写入。
+
+- 契约与运行：[看板读取契约](docs/runtime-dashboard.md)、[字段来源映射](docs/runtime-dashboard-field-mapping.md)、[实际 OpenAPI](docs/runtime-dashboard-openapi.json)。
+- 构建：`./scripts/build_dashboard.sh`（只接受 `npm ci` + typecheck + vitest + vite build + 构建清单）；`uv build` 的 Hatch hook 与 Dockerfile 都会按清单校验资源，源码改动未重建会使打包失败；`scripts/verify_dashboard_assets.py --archive` 逐文件 hash 校验 wheel/sdist。
+- 验收：0.3 隔离 HTTP/PG/MinIO **58/58**（[复跑](acceptance/dashboard_0_3/README.md)）、真实 0.1 数据只读 **49/49**（[复跑](acceptance/dashboard_0_1/README.md)）、Python dashboard 回归 76、Node 前端回归 56。
+- 升级准备：[本机部署与升级说明](docs/runtime-dashboard-deployment.md)（仅准备文件/步骤；未部署、未改运行库）。
+- 未验证：浏览器人工验收、业务同事理解度与真实模型；本增量尚未发布。旧的 `workbench/` 四页原型与 `/docs` 保留不变。
+
 ## Method 0.3：Anchor 与 Agent 立项
 
 - **Architecture**：整体独立版本化，Battlefield／Capability 为稳定 ID 定义项；相关 DRI／Agent 提出、CEO 确认，Strategy 同步变化时原子确认一致版本。目标明确引用结构，历史依据保留。

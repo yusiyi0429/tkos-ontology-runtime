@@ -9,8 +9,10 @@ from adapter.routes_entities import router as clark_entities_router
 from adapter.routes_health import router as clark_health_router
 from adapter.routes_static import router as clark_static_router
 from memory_service_app.routes_native import router as native_router
+from memory_service_runtime.governed.dashboard_routes import router as dashboard_router
 from memory_service_runtime.governed.routes import install_errors, router as governed_router
 from memory_service_app import narrative
+from memory_service_app.dashboard import mount_dashboard
 from memory_service_runtime.governed.workspace_routes import router as workspace_router
 
 app = FastAPI(
@@ -24,9 +26,11 @@ app = FastAPI(
 
 app.include_router(native_router)
 app.include_router(governed_router)
+app.include_router(dashboard_router)
 app.include_router(workspace_router)
 app.include_router(narrative.router)
 install_errors(app)
+mount_dashboard(app)
 
 
 @app.middleware("http")

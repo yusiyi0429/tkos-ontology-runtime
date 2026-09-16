@@ -11,10 +11,16 @@
 !docs/
 !docs/contracts/
 !docs/contracts/method-profile.json
+!docs/contracts/method-profile-0.2.json
+!docs/contracts/method-profile-0.3.json
 !docs/contracts/tkos-method-0.1.md
+!docs/contracts/tkos-method-0.2.md
+!docs/contracts/tkos-method-0.3.md
 !docs/runtime-a2-registry.json
 !docs/runtime-a3-registry.json
 !docs/runtime-method-registry.json
+!docs/runtime-method-registry-0.2.json
+!docs/runtime-method-registry-0.3.json
 **/__pycache__/
 **/*.pyc
 **/.env

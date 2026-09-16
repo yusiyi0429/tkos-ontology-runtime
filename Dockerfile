@@ -28,9 +28,32 @@ RUN useradd --create-home --uid 10001 memory-service
 RUN --mount=type=bind,from=builder,source=/wheels,target=/wheels \
     python -m pip install --no-cache-dir --no-index --find-links=/wheels "tkos-memory-service[s3]==$VERSION"
 
+# Fail the image build (not the first page load) when the installed wheel does
+# not carry the compiled dashboard assets or their build manifest hashes.
+RUN python - <<'PY'
+import hashlib, json
+from pathlib import Path
+import memory_service_app
+dist = Path(memory_service_app.__file__).parent / "dashboard_dist"
+manifest = json.loads((dist / "asset-manifest.json").read_text(encoding="utf-8"))
+assert manifest.get("schema_version") == "tkos.dashboard-assets/1", "unsupported asset manifest"
+outputs = {item["path"]: item for item in manifest["outputs"]}
+for name, item in outputs.items():
+    path = dist / name
+    assert path.is_file(), f"dashboard asset missing: {name}"
+    digest = hashlib.sha256(path.read_bytes()).hexdigest()
+    assert digest == item["sha256"], f"dashboard asset hash mismatch: {name}"
+assert (dist / "index.html").is_file(), "dashboard index missing from wheel"
+assert any(name.endswith(".js") for name in outputs), "dashboard js missing from wheel"
+assert any(name.endswith(".css") for name in outputs), "dashboard css missing from wheel"
+PY
+
 # Installation is explicit; startup never seeds identities or runs migrations.
-COPY docs/contracts/method-profile.json docs/contracts/tkos-method-0.1.md /opt/tkos/docs/contracts/
-COPY docs/runtime-a2-registry.json docs/runtime-a3-registry.json docs/runtime-method-registry.json /opt/tkos/docs/
+COPY docs/contracts/method-profile.json docs/contracts/method-profile-0.2.json docs/contracts/method-profile-0.3.json \
+     docs/contracts/tkos-method-0.1.md docs/contracts/tkos-method-0.2.md docs/contracts/tkos-method-0.3.md \
+     /opt/tkos/docs/contracts/
+COPY docs/runtime-a2-registry.json docs/runtime-a3-registry.json docs/runtime-method-registry.json \
+     docs/runtime-method-registry-0.2.json docs/runtime-method-registry-0.3.json /opt/tkos/docs/
 
 USER memory-service
 WORKDIR /home/memory-service

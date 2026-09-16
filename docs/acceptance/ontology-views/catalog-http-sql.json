@@ -1,0 +1,193 @@
+{
+  "scope": "ontology-catalog-independent-http-sql",
+  "passed": 46,
+  "failed": 0,
+  "checks": [
+    {
+      "name": "catalog_current_authority_and_no_store",
+      "passed": true
+    },
+    {
+      "name": "registry_exact_tkos.method/0.1",
+      "passed": true
+    },
+    {
+      "name": "registry_exact_tkos.method/0.2",
+      "passed": true
+    },
+    {
+      "name": "registry_exact_tkos.method/0.3",
+      "passed": true
+    },
+    {
+      "name": "embedded_definitions_not_registered",
+      "passed": true
+    },
+    {
+      "name": "readable_pagination_BusinessFact",
+      "passed": true
+    },
+    {
+      "name": "readable_pagination_CandidateSet",
+      "passed": true
+    },
+    {
+      "name": "readable_pagination_EvidenceAsset",
+      "passed": true
+    },
+    {
+      "name": "readable_pagination_LTCO",
+      "passed": true
+    },
+    {
+      "name": "readable_pagination_LTCOReviewAdvice",
+      "passed": true
+    },
+    {
+      "name": "readable_pagination_MeetingMinutes",
+      "passed": true
+    },
+    {
+      "name": "readable_pagination_MeetingRound",
+      "passed": true
+    },
+    {
+      "name": "readable_pagination_MethodRun",
+      "passed": true
+    },
+    {
+      "name": "readable_pagination_Mission",
+      "passed": true
+    },
+    {
+      "name": "readable_pagination_OperatingProblem",
+      "passed": true
+    },
+    {
+      "name": "readable_pagination_OperatingState",
+      "passed": true
+    },
+    {
+      "name": "readable_pagination_PCO",
+      "passed": true
+    },
+    {
+      "name": "readable_pagination_PeriodReview",
+      "passed": true
+    },
+    {
+      "name": "readable_pagination_PotentialIssue",
+      "passed": true
+    },
+    {
+      "name": "readable_pagination_ResearchBrief",
+      "passed": true
+    },
+    {
+      "name": "readable_pagination_ResearchMemo",
+      "passed": true
+    },
+    {
+      "name": "readable_pagination_ResearchPlan",
+      "passed": true
+    },
+    {
+      "name": "readable_pagination_ResearchReport",
+      "passed": true
+    },
+    {
+      "name": "readable_pagination_ReviewWindow",
+      "passed": true
+    },
+    {
+      "name": "readable_pagination_Signal",
+      "passed": true
+    },
+    {
+      "name": "readable_pagination_StrategicAgreement",
+      "passed": true
+    },
+    {
+      "name": "readable_pagination_StrategicArchitecture",
+      "passed": true
+    },
+    {
+      "name": "readable_pagination_StrategicIssue",
+      "passed": true
+    },
+    {
+      "name": "readable_pagination_StrategicJudgment",
+      "passed": true
+    },
+    {
+      "name": "readable_pagination_Strategy",
+      "passed": true
+    },
+    {
+      "name": "readable_pagination_StrategyUpdateProposal",
+      "passed": true
+    },
+    {
+      "name": "catalog_version_number_matches_selected_revision",
+      "passed": true
+    },
+    {
+      "name": "confirmed_agreement_remains_formal",
+      "passed": true
+    },
+    {
+      "name": "strategic_issue_expands_real_research_refs",
+      "passed": true
+    },
+    {
+      "name": "reject_unregistered_Battlefield",
+      "passed": true
+    },
+    {
+      "name": "reject_unregistered_Capability",
+      "passed": true
+    },
+    {
+      "name": "reject_unregistered_Outcome",
+      "passed": true
+    },
+    {
+      "name": "reject_unregistered_NotRegistered",
+      "passed": true
+    },
+    {
+      "name": "reject_limit_0",
+      "passed": true
+    },
+    {
+      "name": "reject_limit_101",
+      "passed": true
+    },
+    {
+      "name": "direct_catalog_requires_authentication",
+      "passed": true
+    },
+    {
+      "name": "outsider_has_no_records_or_hidden_counts",
+      "passed": true
+    },
+    {
+      "name": "cursor_cannot_change_type",
+      "passed": true
+    },
+    {
+      "name": "cursor_cannot_change_identity",
+      "passed": true
+    },
+    {
+      "name": "catalog_exposes_no_write",
+      "passed": true
+    },
+    {
+      "name": "database_unchanged_by_all_reads",
+      "passed": true
+    }
+  ],
+  "browser_accepted": false,
+  "deployed": false
+}

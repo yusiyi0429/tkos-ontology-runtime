@@ -30,6 +30,17 @@ class Settings(BaseSettings):
     memory_embedding_dim: int = 2048
     db_connect_timeout: int = 5
 
+    # Local read-only business dashboard.  Off by default; enabling it never
+    # changes the existing /v1 authorization.  The viewer token file is a
+    # private file read on every facade request (never served to the browser).
+    tkos_dashboard_enabled: bool = False
+    tkos_dashboard_viewer_token_file: str = ""
+    tkos_dashboard_env_label: str = "synthetic"
+    tkos_dashboard_synthetic: bool = True
+    tkos_dashboard_allowed_hosts: str = "127.0.0.1:58802,localhost:58802"
+    tkos_dashboard_allowed_origins: str = "http://127.0.0.1:58802,http://localhost:58802"
+    tkos_dashboard_assets_dir: str = ""
+
     @model_validator(mode="after")
     def _normalise_and_validate(self) -> "Settings":
         self.memory_tenant = self.memory_tenant.strip()
@@ -40,6 +51,11 @@ class Settings(BaseSettings):
         self.memory_embedding_api_key = self.memory_embedding_api_key.strip()
         self.memory_embedding_base_url = self.memory_embedding_base_url.strip()
         self.memory_embedding_model = self.memory_embedding_model.strip()
+        self.tkos_dashboard_viewer_token_file = self.tkos_dashboard_viewer_token_file.strip()
+        self.tkos_dashboard_env_label = self.tkos_dashboard_env_label.strip() or "synthetic"
+        self.tkos_dashboard_allowed_hosts = self.tkos_dashboard_allowed_hosts.strip()
+        self.tkos_dashboard_allowed_origins = self.tkos_dashboard_allowed_origins.strip()
+        self.tkos_dashboard_assets_dir = self.tkos_dashboard_assets_dir.strip()
 
         if not self.memory_tenant or not self.memory_org:
             raise ValueError("MEMORY_TENANT 和 MEMORY_ORG 不能为空：不能使用空 scope")

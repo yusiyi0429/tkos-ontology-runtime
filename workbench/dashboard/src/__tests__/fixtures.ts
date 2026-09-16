@@ -1,0 +1,191 @@
+import type { CatalogObjectItem, CatalogObjectsPage, Detail, ObjectListItem, ObjectsPage,
+              OntologyCatalog, Overview } from "@/lib/types"
+
+export function overview(overrides: Partial<Overview> = {}): Overview {
+  return {
+    schema_version: "tkos.dashboard/0.1",
+    read_at: "2026-09-16T02:00:00+00:00",
+    environment: { label: "synthetic", synthetic: true },
+    viewer: { scope_id: "s", principal_id: "p-ceo", principal_type: "human",
+              display_name: "合成 CEO", auth_epoch: 1, assignments: [] },
+    strategy_choices: [{ strategy_id: "s1", revision_id: "s1r1", payload_hash: "a".repeat(64),
+                         domain_id: "d1", domain_name: "公司", title: "战略一",
+                         contract_version: "tkos.method/0.3", record_origin: "synthetic",
+                         head_recorded_at: "2026-09-16T01:00:00+00:00" }],
+    selected_strategy_id: "s1",
+    selection_required: false,
+    groups: [
+      { group: "strategy", available: true, reason: null, historical_available: false, unattached_available: false },
+      { group: "architecture", available: true, reason: null, historical_available: false, unattached_available: false },
+      { group: "ltco", available: true, reason: null, historical_available: true, unattached_available: false },
+      { group: "pco", available: true, reason: null, historical_available: true, unattached_available: false },
+      { group: "mission", available: true, reason: null, historical_available: true, unattached_available: false },
+      { group: "operating", available: true, reason: null, historical_available: false, unattached_available: true },
+    ],
+    historical_basis: { available: true, reason: null, groups: ["mission"], items: [] },
+    refresh_interval_seconds: 5,
+    note: "",
+    ...overrides,
+  }
+}
+
+export function missionItem(id = "m1", overrides: Partial<ObjectListItem> = {}): ObjectListItem {
+  return {
+    object_id: id,
+    object_type: "Mission",
+    domain_id: "d1",
+    domain_name: "公司",
+    title: `任务 ${id}`,
+    lifecycle_status: "confirmed",
+    object_version: 2,
+    latest_revision_id: `${id}-r2`,
+    effective_revision_id: `${id}-r2`,
+    created_at: "2026-09-16T01:00:00+00:00",
+    basis: { status: "current", reason: null, selected_strategy_ref: { object_id: "s1", revision_id: "s1r1" },
+             strategy_ref: { object_id: "s1", revision_id: "s1r1" }, impact_linked: false, basis_revision: "effective" },
+    basis_revision_id: `${id}-r2`,
+    formal_state: { status: "confirmed", formal: true },
+    owner: { relation: "mission_owner", outcome_id: null,
+             principal: { principal_id: "p1", display_name: "责任人甲", principal_type: "human", active: true },
+             assignment: null, assignment_id: null,
+             appointment: { status: "current", reason: null, assignments: [] } },
+    dri: [],
+    period: { start: "2026-09-01T00:00:00+00:00", end: "2026-10-01T00:00:00+00:00" },
+    period_source: "pco_ref",
+    period_status: { status: "available", reason: null },
+    deadline: "2026-10-01T00:00:00+00:00",
+    ...overrides,
+  } as ObjectListItem
+}
+
+export function objectsPage(items: ReturnType<typeof missionItem>[], overrides = {}): ObjectsPage {
+  return {
+    schema_version: "tkos.dashboard/0.1",
+    read_at: "2026-09-16T02:00:00+00:00",
+    strategy: null,
+    group: "mission",
+    basis: "current",
+    items,
+    next_cursor: null,
+    loaded_count: items.length,
+    has_more: false,
+    ...overrides,
+  } as ObjectsPage
+}
+
+export function detail(overrides: Partial<Detail> = {}): Detail {
+  return {
+    schema_version: "tkos.dashboard/0.1",
+    read_at: "2026-09-16T02:00:00+00:00",
+    environment: { label: "synthetic", synthetic: true },
+    viewer: null,
+    object: { object_id: "m1", object_type: "Mission", domain_id: "d1", domain_name: "公司",
+              lifecycle_status: "confirmed", object_version: 2, created_at: "2026-09-16T01:00:00+00:00",
+              latest_revision_id: "m1-r2", effective_revision_id: "m1-r2" },
+    protocol: { contract_version: "tkos.method/0.3", interpretation_status: "method_v0_3",
+                registration_status: "registered" },
+    selected_revision: { revision_id: "m1-r2", object_version: 2, payload_hash: "b".repeat(64),
+                         recorded_at: "2026-09-16T01:30:00+00:00", is_latest: true, is_effective: true,
+                         selection: "effective" },
+    content: { title: "任务 m1" },
+    business: {
+      title: "任务 m1", statement: null, summary: "摘要", boundary: "无执行授权",
+      deliverable: "证据报告", acceptance_criteria: ["原始来源"], period: null,
+      period_view: { status: "available", source: "pco_ref",
+                     value: { start: "2026-09-01T00:00:00+00:00", end: "2026-10-01T00:00:00+00:00" } },
+      deadline: { kind: "hard", value: "2026-10-01T00:00:00+00:00" },
+      outcomes: [], units: [],
+      supports: [{ outcome_id: "o1", outcome_ref: { object_id: "p1", revision_id: "p1-r1" },
+                   contribution: "收集证据", outcome: { outcome_id: "o1", title: "试点证据", criteria: ["三例"] },
+                   outcome_status: { status: "available", reason: null } }],
+      core_question: null, why_material: null, level: null, rag: null, as_of: null, data_gaps: [],
+      findings: [], learnings: [], implications: [], observations: [], recommendation: null,
+      metric: null, value: null, unit: null, correction: null,
+      subject_outcome: { status: "missing", reason: "no_outcome_recorded" },
+      raw: { title: "任务 m1" },
+    },
+    responsibility: { entries: [], owner: { status: "missing", reason: "owner_not_recorded" },
+                      dri: [], note: "" },
+    basis: { status: "current", reason: null, selected_strategy_ref: { object_id: "s1", revision_id: "s1r1" },
+             strategy_ref: { object_id: "s1", revision_id: "s1r1" }, impact_linked: false,
+             basis_revision: "effective" },
+    context_note: null,
+    relations: { own_basis_refs: [], support_refs: [], upstream_refs: [],
+                 downstream: { items: [], next_cursor: null, has_more: false, limit: 25, bounded: 100 } },
+    formal_state: { status: "confirmed", formal: true, note: "确认内容在后续建议改变阶段后仍是正式。" },
+    content_confirmation: { records: [], confirmed_for_selected_revision: false, note: "" },
+    candidates: { same_object_only: true,
+                  latest: { revision_id: "m1-r2", payload_hash: "b".repeat(64),
+                            recorded_at: "2026-09-16T01:30:00+00:00", object_version: 2, is_selected: true },
+                  effective: { revision_id: "m1-r2", payload_hash: "b".repeat(64),
+                               recorded_at: "2026-09-16T01:30:00+00:00", object_version: 2, is_selected: true } },
+    history: { items: [{ revision_id: "m1-r1", object_version: 1, payload_hash: "c".repeat(64),
+                         recorded_at: "2026-09-16T01:00:00+00:00", is_latest: false, is_effective: false },
+                       { revision_id: "m1-r2", object_version: 2, payload_hash: "b".repeat(64),
+                         recorded_at: "2026-09-16T01:30:00+00:00", is_latest: true, is_effective: true }],
+               next_cursor: null },
+    evidence: { items: [] },
+    receipts: { items: [], next_cursor: null },
+    missing: [],
+    ...overrides,
+  } as Detail
+}
+
+const ALL_TYPES_V03 = [
+  "Strategy", "StrategicArchitecture", "StrategicAgreement", "StrategicJudgment",
+  "StrategyUpdateProposal", "LTCO", "PCO", "Mission", "LTCOReviewAdvice",
+  "ReviewWindow", "CandidateSet", "OperatingState", "BusinessFact", "PeriodReview",
+  "OperatingProblem", "Signal", "PotentialIssue", "StrategicIssue", "ResearchBrief",
+  "ResearchMemo", "ResearchPlan", "ResearchReport", "MeetingMinutes", "MeetingRound",
+  "EvidenceAsset", "MethodRun",
+]
+
+export function ontologyCatalog(overrides: Partial<OntologyCatalog> = {}): OntologyCatalog {
+  const v02 = ALL_TYPES_V03.filter((type) =>
+    !["StrategicArchitecture", "OperatingState", "OperatingProblem"].includes(type))
+  const v01 = v02.filter((type) => type !== "ResearchBrief")
+  return {
+    schema_version: "tkos.dashboard/0.1",
+    read_at: "2026-09-16T02:00:00+00:00",
+    versions: [
+      { contract_version: "tkos.method/0.3", object_types: [...ALL_TYPES_V03] },
+      { contract_version: "tkos.method/0.2", object_types: v02 },
+      { contract_version: "tkos.method/0.1", object_types: v01 },
+    ],
+    types: Object.fromEntries(ALL_TYPES_V03.map((type) => [type, { group: null, listable: true }])),
+    note: "",
+    ...overrides,
+  }
+}
+
+export function catalogItem(id = "m1", overrides: Partial<CatalogObjectItem> = {}): CatalogObjectItem {
+  return {
+    object_id: id,
+    object_type: "Mission",
+    domain_id: "d1",
+    domain_name: "公司",
+    title: `任务 ${id}`,
+    lifecycle_status: "confirmed",
+    object_version: 2,
+    latest_revision_id: `${id}-r2`,
+    effective_revision_id: `${id}-r2`,
+    created_at: "2026-09-16T01:00:00+00:00",
+    basis_revision_id: `${id}-r2`,
+    contract_version: "tkos.method/0.3",
+    formal_state: { status: "confirmed", formal: true },
+    ...overrides,
+  }
+}
+
+export function catalogPage(items: CatalogObjectItem[], overrides = {}): CatalogObjectsPage {
+  return {
+    schema_version: "tkos.dashboard/0.1",
+    read_at: "2026-09-16T02:00:00+00:00",
+    object_type: "Mission",
+    items,
+    next_cursor: null,
+    loaded_count: items.length,
+    has_more: false,
+    ...overrides,
+  } as CatalogObjectsPage
+}

@@ -32,11 +32,13 @@ Method 0.3 增量已通过 [PR #4](https://github.com/yusiyi0429/tkos-ontology-r
 默认关闭；启用后由 FastAPI 提供 `/dashboard/` 静态资源与显式 GET 只读 `/dashboard/api` facade，
 浏览器不接触任何凭据。浏览不产生业务、回执、复盘、Context 快照或任务写入。
 
+- 本体可视化增量：默认“本体地图”，按五个业务区域展开类型；可切换 0.1/0.2/0.3 规则，沿“类型说明 → 实际记录 → 业务关系图”查看精确版本和引用。详见[设计与交互](docs/runtime-ontology-views-design.md)、[本轮独立验收](docs/runtime-ontology-views-acceptance.md)。原有本机容器仍是此前版本。
+- 新版本地验收：前端 **94**、后端 **101**、新增本体 HTTP/SQL **46**、0.3 场景 **58**、0.1 副本 **53** 项通过；真实浏览器、只读数据库核对和 wheel/sdist 资源校验通过。[本轮源码预览](http://127.0.0.1:58806/dashboard/)使用隔离合成数据，尚未发布或部署新版容器。
 - 契约与运行：[看板读取契约](docs/runtime-dashboard.md)、[字段来源映射](docs/runtime-dashboard-field-mapping.md)、[实际 OpenAPI](docs/runtime-dashboard-openapi.json)。
 - 构建：`./scripts/build_dashboard.sh`（只接受 `npm ci` + typecheck + vitest + vite build + 构建清单）；`uv build` 的 Hatch hook 与 Dockerfile 都会按清单校验资源，源码改动未重建会使打包失败；`scripts/verify_dashboard_assets.py --archive` 逐文件 hash 校验 wheel/sdist。
-- 验收：0.3 隔离 HTTP/PG/MinIO **58/58**（[复跑](acceptance/dashboard_0_3/README.md)）、真实 0.1 数据只读 **49/49**（[复跑](acceptance/dashboard_0_1/README.md)）、Python dashboard 回归 76、Node 前端回归 56。
-- 本机访问：[Runtime 经营看板](http://127.0.0.1:58802/dashboard/)。API/Worker 已按 `eccc346` 重建，保留现有 0.1 数据、Clark 及 PostgreSQL/MinIO 数据卷；当前仍为五容器。
-- 独立浏览器与本机部署通过，见[验收报告与截图](docs/runtime-dashboard-acceptance.md)；[复跑与回滚](docs/runtime-dashboard-deployment.md)。业务同事理解度、Clark 接线/浏览器及真实模型另行验证；本增量尚未发布。旧的 `workbench/` 四页原型与 `/docs` 保留不变。
+- 原列表看板验收基线：0.3 隔离 HTTP/PG/MinIO **58/58**（[复跑](acceptance/dashboard_0_3/README.md)）、真实 0.1 数据只读 **49/49**（[复跑](acceptance/dashboard_0_1/README.md)）、Python dashboard 回归 76、Node 前端回归 56。
+- 原容器访问：[Runtime 经营看板](http://127.0.0.1:58802/dashboard/)。API/Worker 已按 `eccc346` 重建，保留现有 0.1 数据、Clark 及 PostgreSQL/MinIO 数据卷；当前仍为五容器。
+- 原列表看板独立浏览器与本机部署通过，见[验收报告与截图](docs/runtime-dashboard-acceptance.md)；[复跑与回滚](docs/runtime-dashboard-deployment.md)。业务同事理解度、Clark 接线/浏览器及真实模型另行验证；本增量尚未发布。旧的 `workbench/` 四页原型与 `/docs` 保留不变。
 
 ## Method 0.3：Anchor 与 Agent 立项
 

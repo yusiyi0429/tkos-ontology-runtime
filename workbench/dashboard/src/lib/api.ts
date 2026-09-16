@@ -96,3 +96,14 @@ export const fetchObjectReceipts = (objectId: string, cursor: string | null, sig
 export function evidenceUrl(objectId: string, revisionId: string): string {
   return `${API_BASE}/evidence-assets/${encodeURIComponent(objectId)}/revisions/${encodeURIComponent(revisionId)}`
 }
+
+export const fetchOntologyCatalog = (signal?: AbortSignal) =>
+  getJson<import("@/lib/types").OntologyCatalog>("/ontology/catalog", signal)
+
+export const fetchCatalogObjects = (objectType: string, cursor: string | null,
+                                    signal?: AbortSignal) => {
+  const params = new URLSearchParams({ object_type: objectType, limit: "25" })
+  if (cursor) params.set("cursor", cursor)
+  return getJson<import("@/lib/types").CatalogObjectsPage>(
+    `/catalog/objects?${params.toString()}`, signal)
+}

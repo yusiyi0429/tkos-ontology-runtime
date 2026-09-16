@@ -3,7 +3,11 @@ import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 import { relativeToNow } from "@/lib/format"
+import { RULES_VERSION_LABELS, VIEW_LABELS } from "@/lib/labels"
+import { RULES_VERSIONS } from "@/lib/ontology"
 import type { Overview } from "@/lib/types"
+
+const VIEW_ORDER = ["map", "graph", "list"]
 
 export interface TopBarProps {
   overview: Overview | null
@@ -11,9 +15,14 @@ export interface TopBarProps {
   onStrategyChange: (strategyId: string) => void
   onRefresh: () => void
   refreshing: boolean
+  view: string
+  onViewChange: (view: string) => void
+  rules: string
+  onRulesChange: (rules: string) => void
 }
 
-export function TopBar({ overview, strategyId, onStrategyChange, onRefresh, refreshing }: TopBarProps) {
+export function TopBar({ overview, strategyId, onStrategyChange, onRefresh, refreshing,
+                         view, onViewChange, rules, onRulesChange }: TopBarProps) {
   const choices = overview?.strategy_choices ?? []
   const selected = choices.find((choice) => choice.strategy_id === strategyId) ?? choices[0] ?? null
   return (
@@ -22,6 +31,34 @@ export function TopBar({ overview, strategyId, onStrategyChange, onRefresh, refr
         <h1 className="text-sm font-semibold tracking-tight">Runtime 经营看板</h1>
         <span className="text-[11px] text-muted-foreground">本机只读</span>
       </div>
+      <nav className="flex items-center gap-1" aria-label="视图切换" data-testid="view-tabs">
+        {VIEW_ORDER.map((name) => (
+          <button key={name} type="button" data-testid={`view-tab-${name}`}
+                  aria-current={view === name ? "page" : undefined}
+                  onClick={() => onViewChange(name)}
+                  className={`rounded-md px-2.5 py-1 text-[12px] transition-colors ${
+                    view === name
+                      ? "bg-foreground text-background"
+                      : "text-muted-foreground hover:bg-muted"}`}>
+            {VIEW_LABELS[name]}
+          </button>
+        ))}
+      </nav>
+      {view === "map" ? (
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-muted-foreground">业务规则版本</span>
+          <Select value={rules} onValueChange={onRulesChange}>
+            <SelectTrigger size="sm" className="w-32" data-testid="rules-select">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {RULES_VERSIONS.map((version) => (
+                <SelectItem key={version} value={version}>{RULES_VERSION_LABELS[version]}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      ) : null}
       <span className="flex items-center gap-1.5">
         <Badge variant="secondary" data-testid="environment-label" className="rounded-sm">
           {overview?.environment?.label || "环境未标注"}
@@ -62,7 +99,7 @@ export function TopBar({ overview, strategyId, onStrategyChange, onRefresh, refr
           </Select>
         </div>
       ) : (
-        <span className="text-xs text-amber-700" data-testid="no-strategy">当前身份没有可读的正式战略</span>
+        <span className="text-xs text-muted-foreground" data-testid="no-strategy">{overview ? "当前身份没有可读的正式战略" : "正在读取当前身份与战略…"}</span>
       )}
       <div className="ml-auto flex items-center gap-2 text-[11px] text-muted-foreground">
         <span data-testid="updated-at">更新：{relativeToNow(overview?.read_at ?? null) || "未读取"}</span>

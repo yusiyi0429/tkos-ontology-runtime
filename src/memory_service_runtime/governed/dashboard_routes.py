@@ -98,6 +98,18 @@ def read_evidence(token: str, object_id: str, revision_id: str) -> Response:
     return routes.evidence_download(uuid.UUID(object_id), uuid.UUID(revision_id), token)
 
 
+def read_ontology_catalog(token: str) -> dict:
+    with db.transaction(token) as (conn, ctx):
+        return dashboard.ontology_catalog(conn, ctx)
+
+
+def read_catalog_objects(token: str, *, object_type: str, domain_id: str | None = None,
+                         limit: int = dashboard.DEFAULT_LIMIT, cursor: str | None = None) -> dict:
+    with db.transaction(token) as (conn, ctx):
+        return dashboard.catalog_objects(conn, ctx, object_type=object_type,
+                                         domain_id=domain_id, limit=limit, cursor=cursor)
+
+
 def _iso(value: datetime | None) -> str | None:
     return value.isoformat() if value is not None else None
 
@@ -202,6 +214,30 @@ def downstream_route(request: Request, response: Response, object_id: uuid.UUID,
     return result
 
 
+@router.get("/ontology/catalog")
+def ontology_catalog_route(request: Request, response: Response,
+                           token: Annotated[str, Depends(bearer)]):
+    strict_query(request.query_params, set())
+    result = read_ontology_catalog(token)
+    response.headers["Cache-Control"] = "no-store"
+    return result
+
+
+@router.get("/catalog/objects")
+def catalog_objects_route(request: Request, response: Response,
+                          token: Annotated[str, Depends(bearer)],
+                          object_type: Annotated[str, Query(min_length=1, max_length=64)],
+                          domain_id: Annotated[uuid.UUID | None, Query()] = None,
+                          limit: Limit = dashboard.DEFAULT_LIMIT,
+                          cursor: Annotated[str | None, Query(max_length=workbench.MAX_CURSOR_LENGTH)] = None):
+    strict_query(request.query_params, {"object_type", "domain_id", "limit", "cursor"})
+    result = read_catalog_objects(token, object_type=object_type,
+                                  domain_id=str(domain_id) if domain_id else None,
+                                  limit=limit, cursor=cursor)
+    response.headers["Cache-Control"] = "no-store"
+    return result
+
+
 @router.get("/action-receipts/{receipt_id}")
 def receipt_route(request: Request, response: Response, receipt_id: uuid.UUID,
                   token: Annotated[str, Depends(bearer)]):
@@ -220,4 +256,4 @@ def evidence_route(request: Request, response: Response, object_id: uuid.UUID,
 
 __all__ = ["router", "read_overview", "read_objects", "read_detail", "read_revisions",
            "read_revision", "read_receipt", "read_reviews", "read_evidence", "read_downstream",
-           "read_object_receipts"]
+           "read_object_receipts", "read_ontology_catalog", "read_catalog_objects"]

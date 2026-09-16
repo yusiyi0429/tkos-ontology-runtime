@@ -59,10 +59,13 @@ GROUPS = tuple(GROUP_TYPES)
 BASES = ("current", "historical", "unattached", "all")
 
 # Human confirmation review kinds.  These are records, not a permission claim.
+# ``agent_issue_initiation`` (0.3) is deliberately absent: it is the bound CEO
+# Agent's formal initiation act, not a human confirmation.
 CONFIRMATION_REVIEW_KINDS = frozenset({
     "strategy_update_confirmation", "ltco_confirmation", "candidate_set_confirmation",
     "architecture_confirmation", "state_confirmation", "problem_closure",
     "strategic_agreement_confirmation", "meeting_minutes_confirmation",
+    "strategic_issue_confirmation", "brief_sufficiency",
 })
 
 # Reference errors that degrade to an explicit unavailable relationship.
@@ -70,18 +73,39 @@ CONFIRMATION_REVIEW_KINDS = frozenset({
 _UNAVAILABLE_CODES = frozenset({"NOT_FOUND", "FORBIDDEN", "PROTOCOL_NOT_SUPPORTED"})
 
 # Typed inbound (downstream) reference fields.  Only these recorded top-level
-# fields are searched; no free JSON scan and no name/unit inference.
+# fields are searched; no free JSON scan and no name/unit inference.  The map
+# covers every registered Method payload model so the full type directory —
+# not just the six navigation groups — has usable recorded adjacency.
 DOWNSTREAM_FIELDS: dict[str, tuple[str, ...]] = {
-    "StrategicArchitecture": ("strategy_ref",),
-    "LTCO": ("strategy_ref", "architecture_ref"),
+    "Strategy": ("source_agreement_ref", "source_proposal_ref"),
+    "StrategicArchitecture": ("strategy_ref", "source_proposal_ref"),
+    "StrategicJudgment": ("strategy_ref", "source_agreement_ref", "source_proposal_ref"),
+    "LTCO": ("strategy_ref", "architecture_ref", "advice_ref"),
     "PCO": ("strategy_ref", "ltco_ref", "architecture_ref"),
     "Mission": ("pco_ref", "architecture_ref"),
-    "OperatingState": ("subject_ref",),
-    "OperatingProblem": ("state_ref",),
-    "BusinessFact": ("subject_ref", "corrects_ref"),
+    "OperatingState": ("subject_ref", "baseline_refs", "evidence_refs"),
+    "OperatingProblem": ("state_ref", "evidence_refs"),
+    "BusinessFact": ("subject_ref", "corrects_ref", "source_ref"),
     "PeriodReview": ("state_refs", "target_refs", "fact_refs"),
+    "LTCOReviewAdvice": ("period_review_ref", "strategy_ref", "ltco_ref"),
+    "ReviewWindow": ("strategy_ref", "ltco_ref", "target_refs", "previous_window_ref"),
+    "CandidateSet": ("window_ref", "strategy_ref", "ltco_ref", "target_refs"),
+    "Signal": ("source_refs",),
+    "PotentialIssue": ("signal_refs", "source_refs"),
+    "StrategicIssue": ("potential_issue_ref", "direct_source_refs", "source_refs"),
+    "ResearchMemo": ("issue_ref", "source_refs"),
+    "ResearchPlan": ("issue_ref", "memo_ref"),
+    "ResearchReport": ("issue_ref", "plan_ref", "evidence_refs"),
+    "ResearchBrief": ("issue_ref", "source_refs"),
+    "MeetingRound": ("issue_ref", "report_ref", "brief_ref", "material_refs"),
+    "MeetingMinutes": ("issue_ref", "meeting_ref", "source_refs"),
+    "StrategicAgreement": ("issue_ref", "meeting_ref", "minutes_ref"),
+    "StrategyUpdateProposal": ("issue_ref", "agreement_ref"),
 }
-DOWNSTREAM_ARRAY_FIELDS = frozenset({"state_refs", "target_refs", "fact_refs"})
+DOWNSTREAM_ARRAY_FIELDS = frozenset({
+    "state_refs", "target_refs", "fact_refs", "source_refs", "signal_refs",
+    "direct_source_refs", "evidence_refs", "baseline_refs", "material_refs",
+})
 DOWNSTREAM_LIMIT = 25
 DOWNSTREAM_MAX_LIMIT = 100
 
@@ -873,6 +897,24 @@ def _covering_confirmations(conn: Any, ctx: Any, head: dict[str, Any],
             consider(row, covered_refs=covered if isinstance(covered, list) else None,
                      source=key)
 
+    # 0.1 records the strategic-issue confirmation against the source
+    # PotentialIssue, whose state then points at the exact issue revision it
+    # created; that pointer — not the target alone — decides coverage.
+    potential_ref = payload.get("potential_issue_ref")
+    if isinstance(potential_ref, dict) and potential_ref.get("object_id"):
+        potential_state = _method_state(conn, ctx, potential_ref["object_id"])
+        created = potential_state.get("strategic_issue_ref")
+        rows = _review_rows(conn, ctx,
+                            "SELECT * FROM gov_method_reviews WHERE scope_id=%s"
+                            " AND target_object_id=%s AND target_revision_id=%s"
+                            " ORDER BY recorded_at, record_id",
+                            [ctx.scope_id, str(potential_ref["object_id"]),
+                             str(potential_ref["revision_id"])])
+        for row in rows:
+            consider(row,
+                     covered_refs=[created] if isinstance(created, dict) else None,
+                     source="potential_issue_ref")
+
     return sorted(records.values(), key=lambda item: (str(item["recorded_at"]), str(item["record_id"])))
 
 
@@ -881,14 +923,26 @@ def _formal_state(conn: Any, ctx: Any, head: dict[str, Any], revision: dict[str,
     """Formal state for the *selected exact revision*.
 
     Confirmed content stays confirmed when a later proposal changes the mutable
-    ``phase``; historical content never borrows another revision's confirmation
-    or the current Problem disposition.
+    ``phase``; historical content never borrows another revision's confirmation,
+    the current Problem disposition, or the object's current lifecycle phase.
+    ``formal`` (the revision carries business efficacy now) and
+    ``human_approved`` (a human confirmation covers this exact content) are
+    projected separately.
     """
     kind = head["object_type"]
     state = _method_state(conn, ctx, head["object_id"])
     selected = _ref(head["object_id"], revision["revision_id"], revision["payload_hash"])
     effective = (head["effective_revision_id"] is not None
                  and str(head["effective_revision_id"]) == str(revision["revision_id"]))
+    current = (head["latest_revision_id"] is not None
+               and str(head["latest_revision_id"]) == str(revision["revision_id"]))
+
+    def recorded_status() -> str:
+        # Only the current revision may show the object's mutable phase.
+        if current:
+            return state.get("phase") or "not_recorded"
+        return "historical"
+
     confirmed_by_record = next((record for record in confirmations
                                 if record["covers_selected_revision"] and record["human_confirmation"]),
                                None)
@@ -896,24 +950,24 @@ def _formal_state(conn: Any, ctx: Any, head: dict[str, Any], revision: dict[str,
         row = conn.execute("SELECT object_id, revision_id FROM gov_method_strategy_heads"
                            " WHERE scope_id=%s AND domain_id=%s",
                            (ctx.scope_id, str(head["domain_id"]))).fetchone()
-        current = bool(row and _same_ref(_ref(row["object_id"], row["revision_id"]), selected))
-        return {"status": "effective" if current else "superseded",
-                "formal": current, "authority": "gov_method_strategy_heads",
-                "applies_to_ref": selected if current else None,
+        active = bool(row and _same_ref(_ref(row["object_id"], row["revision_id"]), selected))
+        return {"status": "effective" if active else "superseded",
+                "formal": active, "authority": "gov_method_strategy_heads",
+                "applies_to_ref": selected if active else None,
                 "current_ref": _ref(row["object_id"], row["revision_id"]) if row else None,
                 "content_confirmation": confirmed_by_record,
                 "lifecycle_status": head["lifecycle_status"],
                 "note": "Content confirmation stays separate from the effective Strategy pointer."}
     if kind == "StrategicArchitecture":
         formal = bool(effective and confirmed_by_record)
-        return {"status": "confirmed" if formal else (state.get("phase") or "not_recorded"),
+        return {"status": "confirmed" if formal else recorded_status(),
                 "formal": formal, "authority": "method_confirm_architecture",
                 "applies_to_ref": selected if formal else None,
                 "content_confirmation": confirmed_by_record,
                 "lifecycle_status": head["lifecycle_status"]}
     if kind in {"LTCO", "PCO", "Mission"}:
         formal = bool(effective and confirmed_by_record)
-        return {"status": "confirmed" if formal else (state.get("phase") or "not_recorded"),
+        return {"status": "confirmed" if formal else recorded_status(),
                 "formal": formal,
                 "authority": "m1b_confirm_ltco" if kind == "LTCO" else "m1b_confirm_candidates",
                 "applies_to_ref": selected if formal else None,
@@ -932,7 +986,7 @@ def _formal_state(conn: Any, ctx: Any, head: dict[str, Any], revision: dict[str,
         elif recommendation:
             status = "recommendation"
         else:
-            status = state.get("phase") or "not_recorded"
+            status = recorded_status()
         return {"status": status, "formal": matches, "authority": "method_confirm_state",
                 "applies_to_ref": canonical if matches else None,
                 "canonical_ref": canonical, "recommendation_ref": state.get("recommendation_ref"),
@@ -952,7 +1006,7 @@ def _formal_state(conn: Any, ctx: Any, head: dict[str, Any], revision: dict[str,
                     "note": "A closed disposition belongs to this exact revision; it is not current tracking.",
                     "lifecycle_status": head["lifecycle_status"]}
         tracking = effective and bool(state.get("tracking")) and state.get("phase") == "open"
-        return {"status": "open" if tracking else "historical" if not effective else (state.get("phase") or "not_recorded"),
+        return {"status": "open" if tracking else "historical" if not effective else recorded_status(),
                 "formal": tracking, "authority": "method_open_problem/method_close_problem",
                 "applies_to_ref": selected if tracking else None,
                 "tracking": tracking, "issue_ref": state.get("issue_ref"),
@@ -971,8 +1025,98 @@ def _formal_state(conn: Any, ctx: Any, head: dict[str, Any], revision: dict[str,
                 "human_approved": False, "applies_to_ref": None,
                 "effective_pointer": _ref(head["object_id"], revision["revision_id"]) if effective else None,
                 "lifecycle_status": head["lifecycle_status"]}
-    return {"status": "not_recorded", "formal": False, "authority": None,
-            "applies_to_ref": None, "lifecycle_status": head["lifecycle_status"]}
+    if kind in {"StrategicAgreement", "MeetingMinutes", "CandidateSet"}:
+        # Types outside the six navigation groups still have real human
+        # confirmation acts; a covered, effective exact revision is confirmed
+        # and must never be reported as unrecorded.
+        formal = bool(effective and confirmed_by_record)
+        return {"status": "confirmed" if formal else recorded_status(),
+                "formal": formal,
+                "human_approved": bool(confirmed_by_record),
+                "authority": {"StrategicAgreement": "m1a_confirm_agreement",
+                              "MeetingMinutes": "m1a_confirm_minutes",
+                              "CandidateSet": "m1b_confirm_candidates"}[kind],
+                "applies_to_ref": selected if formal else None,
+                "confirmation_record_id": (confirmed_by_record or {}).get("record_id"),
+                "content_confirmation": confirmed_by_record,
+                "lifecycle_status": head["lifecycle_status"]}
+    if kind == "StrategicIssue":
+        # 0.1/0.2: a human CEO confirmation act; 0.3: formal initiation by the
+        # bound CEO Agent (``agent_issue_initiation``).  Both make the issue
+        # formal; only the human act is a human approval.
+        human_record = next((record for record in confirmations
+                             if record["kind"] == "strategic_issue_confirmation"
+                             and record["covers_selected_revision"]), None)
+        agent_record = next((record for record in confirmations
+                             if record["kind"] == "agent_issue_initiation"
+                             and record["covers_selected_revision"]), None)
+        record = human_record or agent_record
+        formal = bool(effective and record)
+        if formal:
+            status = "confirmed"
+        elif record is not None:
+            status = "superseded_confirmed"
+        else:
+            status = recorded_status()
+        return {"status": status, "formal": formal,
+                "human_approved": bool(human_record),
+                "initiation": ("human" if human_record else "agent" if agent_record else None),
+                "authority": "m1a_confirm_strategic_issue",
+                "applies_to_ref": selected if formal else None,
+                "confirmation_record_id": (record or {}).get("record_id"),
+                "content_confirmation": record or confirmed_by_record,
+                "lifecycle_status": head["lifecycle_status"]}
+    if kind == "ResearchBrief":
+        # CEO sufficiency confirmation (0.2+) is recorded against the brief
+        # itself; an effective covered revision is confirmed.
+        brief_record = next((record for record in confirmations
+                             if record["kind"] == "brief_sufficiency"
+                             and record["covers_selected_revision"]), None)
+        formal = bool(effective and brief_record)
+        if formal:
+            status = "confirmed"
+        elif brief_record is not None:
+            status = "superseded_confirmed"
+        else:
+            status = recorded_status()
+        return {"status": status, "formal": formal,
+                "human_approved": bool(brief_record),
+                "authority": "m1a_confirm_brief",
+                "applies_to_ref": selected if formal else None,
+                "confirmation_record_id": (brief_record or {}).get("record_id"),
+                "content_confirmation": brief_record or confirmed_by_record,
+                "lifecycle_status": head["lifecycle_status"]}
+    if kind == "StrategicJudgment":
+        # Takes effect through the CEO's strategy-update confirmation; the
+        # record sits on the proposal and covers this revision via
+        # ``changed_refs`` (followed by ``_covering_confirmations``).
+        formal = bool(effective and confirmed_by_record)
+        if formal:
+            status = "confirmed"
+        elif confirmed_by_record is not None:
+            status = "superseded_confirmed"
+        else:
+            status = recorded_status()
+        return {"status": status, "formal": formal,
+                "human_approved": bool(confirmed_by_record),
+                "authority": "m1a_confirm_update",
+                "applies_to_ref": selected if formal else None,
+                "confirmation_record_id": (confirmed_by_record or {}).get("record_id"),
+                "content_confirmation": confirmed_by_record,
+                "lifecycle_status": head["lifecycle_status"]}
+    # Remaining registered types (signals, potential issues, research material,
+    # meeting rounds, review windows, runs, evidence, ...): the dashboard does
+    # not project a separate formal efficacy for them.  The selected revision's
+    # own recorded lifecycle phase is shown as-is — a historical revision never
+    # borrows the object's current phase — and it is never presented as a human
+    # approval.  A confirmation record that covers the revision is still
+    # surfaced, not hidden.
+    return {"status": recorded_status(), "formal": False,
+            "authority": None, "human_approved": bool(confirmed_by_record),
+            "applies_to_ref": None,
+            "content_confirmation": confirmed_by_record,
+            "note": "No separate formal-efficacy projection for this type; the recorded lifecycle phase is not an approval.",
+            "lifecycle_status": head["lifecycle_status"]}
 
 
 def _outcome_from_revision(conn: Any, ctx: Any, ref: Any, outcome_id: Any) -> tuple[Any, str | None]:
@@ -1264,6 +1408,151 @@ def objects(conn: Any, ctx: Any, *, group: str, strategy_id: str | None = None,
         "items": items, "next_cursor": next_cursor,
         "loaded_count": len(items), "has_more": more,
         "selection_required": False,
+        "note": "loaded_count is this response only; it is not a global total.",
+    })
+
+
+# --------------------------------------------------------------------------
+# Ontology catalog (registered type directory + per-type record listing)
+# --------------------------------------------------------------------------
+
+# Business rule versions whose registered object types the ontology map shows.
+# The directory comes from the compiled registries, never from current data.
+ONTOLOGY_CONTRACT_VERSIONS = ("tkos.method/0.1", "tkos.method/0.2", "tkos.method/0.3")
+
+
+def _registered_object_types(version: str) -> frozenset[str]:
+    from . import method_models
+    _params, _targets, payload_models = method_models.registry(version)
+    return frozenset(payload_models) | {"EvidenceAsset"}
+
+
+def _all_registered_object_types() -> frozenset[str]:
+    result: set[str] = set()
+    for version in ONTOLOGY_CONTRACT_VERSIONS:
+        result |= _registered_object_types(version)
+    return frozenset(result)
+
+
+def ontology_catalog(conn: Any, ctx: Any) -> dict[str, Any]:
+    """Registered Method object-type directory per business rule version.
+
+    This is the *concept* directory: a type with no readable records still
+    appears.  ``group`` names the classic navigation group when the type is
+    part of it; ``listable`` records that the catalog listing below can page
+    the type under current authority.  Definition items that live inside
+    another object (Battlefield/Capability/Outcome) are not object types and
+    are never invented as entries here.
+    """
+    versions = []
+    for version in ONTOLOGY_CONTRACT_VERSIONS:
+        versions.append({"contract_version": version,
+                         "object_types": sorted(_registered_object_types(version))})
+    readers = {}
+    for name in sorted(_all_registered_object_types()):
+        group = next((group for group, types in GROUP_TYPES.items() if name in types), None)
+        readers[name] = {"group": group, "listable": True}
+    return db.jsonable({
+        "schema_version": SCHEMA_VERSION, "read_at": _read_at(conn),
+        "versions": versions, "types": readers,
+        "note": ("Registered object types come from the compiled Method registries; "
+                 "presence is not evidence of readable records, and an empty record "
+                 "list only means none were read under the current identity."),
+    })
+
+
+def _catalog_cursor_key(cursor: str | None, ctx: Any, filters: dict[str, Any]) -> Any:
+    raw = workbench.decode_cursor(cursor, "dashboard-catalog", ctx, filters)
+    if raw is None:
+        return None
+    if (not isinstance(raw, list) or len(raw) != 2 or not isinstance(raw[0], str)
+            or not isinstance(raw[1], str)):
+        raise workbench._invalid_cursor()
+    try:
+        parsed = datetime.fromisoformat(raw[0].replace("Z", "+00:00"))
+        uuid.UUID(raw[1])
+    except (ValueError, TypeError, AttributeError):
+        raise workbench._invalid_cursor() from None
+    if parsed.tzinfo is None:
+        raise workbench._invalid_cursor()
+    return [parsed, raw[1]]
+
+
+def _catalog_item(conn: Any, ctx: Any, head: dict[str, Any], revision: dict[str, Any]) -> dict[str, Any]:
+    payload = revision["payload"] if isinstance(revision["payload"], dict) else {}
+    metadata = protocol.read_metadata(conn, ctx.scope_id, head["object_id"])
+    confirmations = _covering_confirmations(conn, ctx, head, revision)
+    return db.jsonable({
+        "object_id": head["object_id"], "object_type": head["object_type"],
+        "domain_id": head["domain_id"], "domain_name": _domain_name(conn, ctx, head["domain_id"]),
+        "title": _payload_title(payload), "summary": payload.get("summary"),
+        "lifecycle_status": head["lifecycle_status"],
+        # The displayed content comes from the selected (effective, else
+        # latest) revision; its version number must come from that same
+        # revision, never from the head pointer.
+        "object_version": revision["object_version"],
+        "latest_revision_id": head["latest_revision_id"],
+        "effective_revision_id": head["effective_revision_id"],
+        "created_at": head["created_at"],
+        "basis_revision_id": revision["revision_id"],
+        "contract_version": metadata.get("contract_version"),
+        "formal_state": _formal_state(conn, ctx, head, revision, confirmations),
+    })
+
+
+def catalog_objects(conn: Any, ctx: Any, *, object_type: str, domain_id: str | None = None,
+                    limit: int = DEFAULT_LIMIT, cursor: str | None = None) -> dict[str, Any]:
+    """Keyset-paged readable records of one *registered* object type.
+
+    Any type the compiled registries know is listable here under current
+    authority; an unregistered name is a 422, never an empty page.  Unreadable
+    objects stay hidden without a count, and ``loaded_count`` is this page only.
+    """
+    if object_type not in _all_registered_object_types():
+        raise _invalid("Unknown or unregistered object type.")
+    if domain_id:
+        workbench._readable_domain(conn, ctx, domain_id)
+    filters = {"object_type": object_type, "domain_id": domain_id}
+    key = _catalog_cursor_key(cursor, ctx, filters)
+    found: list[tuple[dict[str, Any], list[Any]]] = []
+    current = key
+    while len(found) <= limit:
+        need = limit + 1 - len(found)
+        batch = _iter_candidates(conn, ctx, (object_type,), current, need, domain_id)
+        if not batch:
+            break
+        for row in batch:
+            current = [row["created_at"], str(row["object_id"])]
+            try:
+                head, allowed = _visible_head(conn, ctx, str(row["object_id"]))
+            except GovernedError as exc:
+                if exc.code in _UNAVAILABLE_CODES:
+                    continue  # unreadable candidates stay hidden without any count
+                raise
+            pointer = head["effective_revision_id"] or head["latest_revision_id"]
+            if pointer is None:
+                continue
+            try:
+                revision = _visible_revision(conn, ctx, head["object_id"], str(pointer), allowed)
+            except GovernedError as exc:
+                if exc.code in _UNAVAILABLE_CODES:
+                    continue
+                raise
+            found.append((_catalog_item(conn, ctx, head, revision), current))
+        if len(batch) < need:
+            break
+    more = len(found) > limit
+    items = [item for item, _key in found[:limit]]
+    next_cursor = None
+    if more and len(found) > limit:
+        emitted_key = found[limit - 1][1]
+        next_cursor = workbench.encode_cursor("dashboard-catalog", ctx, filters,
+                                              [db.jsonable(emitted_key[0]), str(emitted_key[1])])
+    return db.jsonable({
+        "schema_version": SCHEMA_VERSION, "read_at": _read_at(conn),
+        "object_type": object_type,
+        "items": items, "next_cursor": next_cursor,
+        "loaded_count": len(items), "has_more": more,
         "note": "loaded_count is this response only; it is not a global total.",
     })
 
@@ -1744,6 +2033,8 @@ def detail(conn: Any, ctx: Any, object_id: str, *, revision_id: str | None = Non
 __all__ = [
     "SCHEMA_VERSION", "DEFAULT_LIMIT", "MAX_LIMIT", "GROUPS", "BASES", "GROUP_TYPES",
     "OPERATING_TYPES", "DOWNSTREAM_LIMIT", "DOWNSTREAM_MAX_LIMIT",
+    "ONTOLOGY_CONTRACT_VERSIONS",
     "strategy_choices", "select_strategy", "overview", "objects", "detail",
     "group_availability", "historical_basis", "downstream", "authorized_ref",
+    "ontology_catalog", "catalog_objects",
 ]

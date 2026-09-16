@@ -1,6 +1,7 @@
 /** URL state: the selected strategy/object/version/filters survive reload. */
 
 export interface ViewState {
+  view: string
   strategy: string | null
   object: string | null
   rev: string | null
@@ -11,9 +12,12 @@ export interface ViewState {
   periodFrom: string | null
   periodTo: string | null
   owner: string | null
+  rules: string
+  otype: string | null
 }
 
 export const DEFAULT_VIEW: ViewState = {
+  view: "map",
   strategy: null,
   object: null,
   rev: null,
@@ -24,9 +28,12 @@ export const DEFAULT_VIEW: ViewState = {
   periodFrom: null,
   periodTo: null,
   owner: null,
+  rules: "0.3",
+  otype: null,
 }
 
 const KEYS: Array<[keyof ViewState, string]> = [
+  ["view", "view"],
   ["strategy", "strategy"],
   ["object", "object"],
   ["rev", "rev"],
@@ -37,6 +44,8 @@ const KEYS: Array<[keyof ViewState, string]> = [
   ["periodFrom", "period_from"],
   ["periodTo", "period_to"],
   ["owner", "owner"],
+  ["rules", "rules"],
+  ["otype", "otype"],
 ]
 
 export function parseView(search: string): ViewState {

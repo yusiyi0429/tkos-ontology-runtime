@@ -1,4 +1,5 @@
-import type { Detail, ObjectListItem, ObjectsPage, Overview } from "@/lib/types"
+import type { CatalogObjectItem, CatalogObjectsPage, Detail, ObjectListItem, ObjectsPage,
+              OntologyCatalog, Overview } from "@/lib/types"
 
 export function overview(overrides: Partial<Overview> = {}): Overview {
   return {
@@ -128,4 +129,63 @@ export function detail(overrides: Partial<Detail> = {}): Detail {
     missing: [],
     ...overrides,
   } as Detail
+}
+
+const ALL_TYPES_V03 = [
+  "Strategy", "StrategicArchitecture", "StrategicAgreement", "StrategicJudgment",
+  "StrategyUpdateProposal", "LTCO", "PCO", "Mission", "LTCOReviewAdvice",
+  "ReviewWindow", "CandidateSet", "OperatingState", "BusinessFact", "PeriodReview",
+  "OperatingProblem", "Signal", "PotentialIssue", "StrategicIssue", "ResearchBrief",
+  "ResearchMemo", "ResearchPlan", "ResearchReport", "MeetingMinutes", "MeetingRound",
+  "EvidenceAsset", "MethodRun",
+]
+
+export function ontologyCatalog(overrides: Partial<OntologyCatalog> = {}): OntologyCatalog {
+  const v02 = ALL_TYPES_V03.filter((type) =>
+    !["StrategicArchitecture", "OperatingState", "OperatingProblem"].includes(type))
+  const v01 = v02.filter((type) => type !== "ResearchBrief")
+  return {
+    schema_version: "tkos.dashboard/0.1",
+    read_at: "2026-09-16T02:00:00+00:00",
+    versions: [
+      { contract_version: "tkos.method/0.3", object_types: [...ALL_TYPES_V03] },
+      { contract_version: "tkos.method/0.2", object_types: v02 },
+      { contract_version: "tkos.method/0.1", object_types: v01 },
+    ],
+    types: Object.fromEntries(ALL_TYPES_V03.map((type) => [type, { group: null, listable: true }])),
+    note: "",
+    ...overrides,
+  }
+}
+
+export function catalogItem(id = "m1", overrides: Partial<CatalogObjectItem> = {}): CatalogObjectItem {
+  return {
+    object_id: id,
+    object_type: "Mission",
+    domain_id: "d1",
+    domain_name: "公司",
+    title: `任务 ${id}`,
+    lifecycle_status: "confirmed",
+    object_version: 2,
+    latest_revision_id: `${id}-r2`,
+    effective_revision_id: `${id}-r2`,
+    created_at: "2026-09-16T01:00:00+00:00",
+    basis_revision_id: `${id}-r2`,
+    contract_version: "tkos.method/0.3",
+    formal_state: { status: "confirmed", formal: true },
+    ...overrides,
+  }
+}
+
+export function catalogPage(items: CatalogObjectItem[], overrides = {}): CatalogObjectsPage {
+  return {
+    schema_version: "tkos.dashboard/0.1",
+    read_at: "2026-09-16T02:00:00+00:00",
+    object_type: "Mission",
+    items,
+    next_cursor: null,
+    loaded_count: items.length,
+    has_more: false,
+    ...overrides,
+  } as CatalogObjectsPage
 }

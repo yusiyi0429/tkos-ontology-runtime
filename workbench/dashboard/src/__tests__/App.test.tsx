@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import { afterEach, describe, expect, it, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { App } from "@/App"
 import { detail, missionItem, objectsPage, overview } from "@/__tests__/fixtures"
 
@@ -20,6 +20,12 @@ function denial(): Response {
   return jsonResponse({ error: { code: "FORBIDDEN",
                                  message: "Current authority does not permit this operation." } }, 403)
 }
+
+// The legacy list/detail flows pinned by this file run in the list view; the
+// ontology map is the default view and is covered by OntologyViews.test.tsx.
+beforeEach(() => {
+  window.history.replaceState(null, "", "/dashboard/?view=list")
+})
 
 afterEach(() => {
   vi.unstubAllGlobals()

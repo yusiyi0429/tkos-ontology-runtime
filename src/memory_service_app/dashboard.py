@@ -290,6 +290,39 @@ def downstream(request: Request, object_id: uuid.UUID,
     return _read(reads.read_downstream, token, str(object_id), str(revision_id), limit=limit, cursor=cursor)
 
 
+@api.get("/ontology/catalog")
+def ontology_catalog(request: Request):
+    invalid = _validate(request, set())
+    if invalid:
+        return invalid
+    blocked = _guard(request)
+    if blocked:
+        return blocked
+    token, error = _token_or_error()
+    if error:
+        return error
+    return _read(reads.read_ontology_catalog, token)
+
+
+@api.get("/catalog/objects")
+def catalog_objects(request: Request,
+                    object_type: Annotated[str, Query(min_length=1, max_length=64)],
+                    domain_id: Annotated[uuid.UUID | None, Query()] = None,
+                    limit: Annotated[int, Query(ge=1, le=100)] = 25,
+                    cursor: Annotated[str | None, Query(max_length=MAX_CURSOR_LENGTH)] = None):
+    invalid = _validate(request, {"object_type", "domain_id", "limit", "cursor"})
+    if invalid:
+        return invalid
+    blocked = _guard(request)
+    if blocked:
+        return blocked
+    token, error = _token_or_error()
+    if error:
+        return error
+    return _read(reads.read_catalog_objects, token, object_type=object_type,
+                 domain_id=str(domain_id) if domain_id else None, limit=limit, cursor=cursor)
+
+
 @api.get("/action-receipts/{receipt_id}")
 def receipt(request: Request, receipt_id: uuid.UUID):
     invalid = _validate(request, set())

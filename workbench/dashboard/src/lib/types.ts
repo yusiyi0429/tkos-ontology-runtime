@@ -321,3 +321,41 @@ export interface HistoryRevision {
   is_latest: boolean
   is_effective: boolean
 }
+
+/** Registered-type directory per business rule version (ontology map). */
+export interface OntologyCatalog {
+  schema_version: string
+  read_at: string
+  versions: Array<{ contract_version: string; object_types: string[] }>
+  types: Record<string, { group: string | null; listable: boolean }>
+  note: string
+}
+
+/** One readable record of a registered type (catalog listing). */
+export interface CatalogObjectItem {
+  object_id: string
+  object_type: string
+  domain_id: string
+  domain_name: string | null
+  title: string | null
+  summary?: string | null
+  lifecycle_status: string
+  object_version: number
+  latest_revision_id: string | null
+  effective_revision_id: string | null
+  created_at: string
+  basis_revision_id: string
+  contract_version: string | null
+  formal_state: FormalState
+}
+
+export interface CatalogObjectsPage {
+  schema_version: string
+  read_at: string
+  object_type: string
+  items: CatalogObjectItem[]
+  next_cursor: string | null
+  loaded_count: number
+  has_more: boolean
+  note?: string
+}

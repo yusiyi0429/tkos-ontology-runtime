@@ -9,6 +9,7 @@ from __future__ import annotations
 import pytest
 
 from memory_service_runtime.governed import dashboard
+from memory_service_runtime.governed.db import AuthContext
 from memory_service_runtime.governed.errors import GovernedError
 from memory_service_runtime.governed.workbench import encode_cursor
 
@@ -821,3 +822,413 @@ def test_owner_filter_matches_responsibility_but_not_participants():
     participants = dashboard._list_responsibility([
         {"relation": "participant", "assignment_id": None, "principal": {"principal_id": uid(5)}}])
     assert participants == []
+
+
+# --------------------------------------------------------------------------
+# ontology catalog (registered type directory + per-type record listing)
+# --------------------------------------------------------------------------
+
+def test_ontology_catalog_lists_every_registered_type_per_rule_version(monkeypatch):
+    monkeypatch.setattr(dashboard, "_read_at", lambda conn: "now")
+    catalog = dashboard.ontology_catalog(None, CTX)
+    versions = {entry["contract_version"]: set(entry["object_types"])
+                for entry in catalog["versions"]}
+    assert set(versions) == {"tkos.method/0.1", "tkos.method/0.2", "tkos.method/0.3"}
+    base = versions["tkos.method/0.1"]
+    assert {"Strategy", "LTCO", "PCO", "Mission", "Signal", "PotentialIssue",
+            "StrategicIssue", "StrategicAgreement", "StrategicJudgment",
+            "StrategyUpdateProposal", "ReviewWindow", "CandidateSet", "BusinessFact",
+            "PeriodReview", "MeetingMinutes", "MeetingRound", "MethodRun",
+            "LTCOReviewAdvice", "ResearchMemo", "ResearchPlan", "ResearchReport",
+            "EvidenceAsset"} <= base
+    # Version differences must stay exact: no 0.2/0.3 types leak into 0.1.
+    assert "ResearchBrief" not in base
+    assert "StrategicArchitecture" not in base
+    assert "OperatingState" not in base
+    assert "OperatingProblem" not in base
+    assert "ResearchBrief" in versions["tkos.method/0.2"]
+    assert "StrategicArchitecture" not in versions["tkos.method/0.2"]
+    assert {"StrategicArchitecture", "OperatingState", "OperatingProblem",
+            "ResearchBrief"} <= versions["tkos.method/0.3"]
+    # Every registered type is addressable in the reader directory.
+    for entry in catalog["versions"]:
+        for name in entry["object_types"]:
+            assert catalog["types"][name]["listable"] is True
+    assert catalog["schema_version"] == dashboard.SCHEMA_VERSION
+
+
+def test_ontology_catalog_marks_navigation_groups_without_inventing_embedded_objects(monkeypatch):
+    monkeypatch.setattr(dashboard, "_read_at", lambda conn: "now")
+    catalog = dashboard.ontology_catalog(None, CTX)
+    readers = catalog["types"]
+    assert readers["Strategy"]["group"] == "strategy"
+    assert readers["StrategicArchitecture"]["group"] == "architecture"
+    assert readers["Mission"]["group"] == "mission"
+    for name in ("OperatingState", "BusinessFact", "PeriodReview", "OperatingProblem"):
+        assert readers[name]["group"] == "operating"
+    # Registered types outside the six navigation groups stay explicitly group-less.
+    for name in ("Signal", "PotentialIssue", "StrategicIssue", "ResearchBrief",
+                 "MeetingMinutes", "MethodRun", "EvidenceAsset", "CandidateSet"):
+        assert readers[name]["group"] is None
+    # Definition items embedded in another object are never invented as types.
+    for name in ("Battlefield", "Capability", "Outcome"):
+        assert name not in readers
+        for entry in catalog["versions"]:
+            assert name not in entry["object_types"]
+
+
+def test_catalog_objects_rejects_an_unregistered_type():
+    with pytest.raises(GovernedError) as exc:
+        dashboard.catalog_objects(None, CTX, object_type="Battlefield")
+    assert exc.value.status == 422
+    assert exc.value.code == "INVALID_REQUEST"
+    with pytest.raises(GovernedError):
+        dashboard.catalog_objects(None, CTX, object_type="WorkItem")
+
+
+class CatalogConn:
+    def execute(self, sql, params=()):
+        if "clock_timestamp()" in sql:
+            return Result([{"now": ts(9)}])
+        raise AssertionError(f"unexpected SQL: {sql}")
+
+
+def _catalog_env(monkeypatch, objects):
+    """objects: list of (object_id, object_type, hidden) in ascending id order."""
+    ordered = [{"object_id": oid, "domain_id": uid(1), "object_type": otype,
+                "lifecycle_status": "active", "object_version": 1,
+                "latest_revision_id": uid(900 + index), "effective_revision_id": None,
+                "created_at": ts(1)}
+               for index, (oid, otype, _hidden) in enumerate(objects)]
+    hidden = {str(oid) for oid, _otype, is_hidden in objects if is_hidden}
+
+    def iter_candidates(conn, ctx, types, after, need, domain_id):
+        rows = [row for row in ordered if row["object_type"] in types]
+        if domain_id is not None:
+            rows = [row for row in rows if str(row["domain_id"]) == str(domain_id)]
+        if after is not None:
+            rows = [row for row in rows
+                    if (row["created_at"], str(row["object_id"])) > (after[0], str(after[1]))]
+        return rows[:need]
+
+    def visible(conn, ctx, oid):
+        if str(oid) in hidden:
+            raise GovernedError("NOT_FOUND")
+        row = next(row for row in ordered if str(row["object_id"]) == str(oid))
+        return row, None
+
+    monkeypatch.setattr(dashboard, "_iter_candidates", iter_candidates)
+    monkeypatch.setattr(dashboard, "_visible_head", visible)
+    monkeypatch.setattr(dashboard, "_visible_revision",
+                        lambda c, x, o, r, a: revision(o, r, {"title": "t"}))
+    monkeypatch.setattr(dashboard, "_covering_confirmations", lambda c, x, h, r: [])
+    monkeypatch.setattr(dashboard, "_formal_state",
+                        lambda c, x, h, r, conf: {"status": "recorded", "formal": True})
+    monkeypatch.setattr(dashboard, "_domain_name", lambda conn, ctx, domain_id: None)
+    monkeypatch.setattr(dashboard, "_read_at", lambda conn: "now")
+
+
+def test_catalog_objects_pages_each_readable_record_exactly_once(monkeypatch):
+    a, b, c = uid(1), uid(2), uid(3)
+    _catalog_env(monkeypatch, [(a, "Signal", False), (b, "Signal", True), (c, "Signal", False)])
+    monkeypatch.setattr(dashboard.protocol, "read_metadata",
+                        lambda conn, scope_id, oid: {"contract_version": "tkos.method/0.3"})
+    conn = CatalogConn()
+    seen: list[str] = []
+    cursor = None
+    for _ in range(10):
+        page = dashboard.catalog_objects(conn, CTX, object_type="Signal", limit=1, cursor=cursor)
+        seen.extend(item["object_id"] for item in page["items"])
+        assert page["loaded_count"] == len(page["items"])
+        cursor = page["next_cursor"]
+        if cursor is None:
+            break
+    # The hidden middle record never appears and no total is exposed.
+    assert seen == [a, c]
+    assert "total" not in page
+    assert "not a global total" in page["note"]
+
+
+def test_catalog_cursor_binds_object_type_and_identity(monkeypatch):
+    _catalog_env(monkeypatch, [(uid(1), "Signal", False), (uid(2), "Signal", False)])
+    monkeypatch.setattr(dashboard.protocol, "read_metadata",
+                        lambda conn, scope_id, oid: {"contract_version": "tkos.method/0.3"})
+    conn = CatalogConn()
+    page = dashboard.catalog_objects(conn, CTX, object_type="Signal", limit=1)
+    assert page["has_more"] is True
+    with pytest.raises(GovernedError) as exc:
+        dashboard.catalog_objects(conn, CTX, object_type="PotentialIssue", limit=1,
+                                  cursor=page["next_cursor"])
+    assert exc.value.status == 422
+    other = AuthContext(scope_id=uid(2000), tenant_id="t", company_id="c",
+                        principal_id=uid(2001), principal_type="human", auth_epoch=1,
+                        assignments=[])
+    with pytest.raises(GovernedError):
+        dashboard.catalog_objects(conn, other, object_type="Signal", limit=1,
+                                  cursor=page["next_cursor"])
+
+
+def test_catalog_items_carry_contract_version_and_real_formal_state(monkeypatch):
+    real_formal_state = dashboard._formal_state
+    fact_oid, fact_rid = uid(10), uid(900)
+    review_oid = uid(11)
+    _catalog_env(monkeypatch, [(fact_oid, "BusinessFact", False),
+                               (review_oid, "PeriodReview", False)])
+    monkeypatch.setattr(dashboard, "_formal_state", real_formal_state)
+    monkeypatch.setattr(dashboard, "_visible_revision",
+                        lambda c, x, o, r, a: revision(o, r, {"metric": "cash"}))
+    versions = {fact_oid: "tkos.method/0.1", review_oid: "tkos.method/0.2"}
+    monkeypatch.setattr(dashboard.protocol, "read_metadata",
+                        lambda conn, scope_id, oid: {"contract_version": versions[str(oid)]})
+
+    class StateConn(CatalogConn):
+        def execute(self, sql, params=()):
+            if "gov_method_state" in sql:
+                return Result([])
+            return super().execute(sql, params)
+
+    monkeypatch.setattr(dashboard, "_domain_name", lambda conn, ctx, domain_id: None)
+    page = dashboard.catalog_objects(StateConn(), CTX, object_type="BusinessFact")
+    item = page["items"][0]
+    assert item["contract_version"] == "tkos.method/0.1"
+    assert item["formal_state"]["status"] == "recorded"
+    assert item["formal_state"]["formal"] is True
+    assert item["basis_revision_id"] == fact_rid
+    assert item["title"] == "cash"
+
+    review_page = dashboard.catalog_objects(StateConn(), CTX, object_type="PeriodReview")
+    formal = review_page["items"][0]["formal_state"]
+    # An Agent analysis product is never presented as human-approved.
+    assert formal["authority"] == "agent_analysis"
+    assert formal["human_approved"] is False
+    assert formal["formal"] is False
+    assert review_page["items"][0]["contract_version"] == "tkos.method/0.2"
+
+
+def test_catalog_objects_checks_domain_readability(monkeypatch):
+    _catalog_env(monkeypatch, [(uid(1), "Signal", False)])
+
+    def denied(conn, ctx, domain_id):
+        raise GovernedError("FORBIDDEN")
+
+    monkeypatch.setattr(dashboard.workbench, "_readable_domain", denied)
+    with pytest.raises(GovernedError) as exc:
+        dashboard.catalog_objects(CatalogConn(), CTX, object_type="Signal", domain_id=uid(9))
+    assert exc.value.code == "FORBIDDEN"
+
+
+# --------------------------------------------------------------------------
+# review fixes R1-R3: version identity, full-directory formal state, adjacency
+# --------------------------------------------------------------------------
+
+def test_catalog_item_version_comes_from_the_selected_revision(monkeypatch):
+    # Head moved to object_version 4 while the effective revision is v3: the
+    # catalog entry must report the content version it actually read (R1).
+    fact_oid, fact_rid = uid(10), uid(900)
+    _catalog_env(monkeypatch, [(fact_oid, "BusinessFact", False)])
+    monkeypatch.setattr(dashboard, "_visible_head", lambda c, x, oid: (
+        {**head(oid, "BusinessFact", latest=uid(901), effective=fact_rid, version=4)}, None))
+    monkeypatch.setattr(dashboard, "_visible_revision",
+                        lambda c, x, o, r, a: revision(o, r, {"metric": "cash"}, version=3))
+    monkeypatch.setattr(dashboard.protocol, "read_metadata",
+                        lambda conn, scope_id, oid: {"contract_version": "tkos.method/0.1"})
+    item = dashboard.catalog_objects(CatalogConn(), CTX, object_type="BusinessFact")["items"][0]
+    assert item["object_version"] == 3
+    assert item["basis_revision_id"] == fact_rid
+
+
+class _StateOnlyConn(CatalogConn):
+    def __init__(self, state=None):
+        self._state = state or {}
+
+    def execute(self, sql, params=()):
+        if "gov_method_state" in sql:
+            return Result([{"state": self._state}] if self._state else [])
+        return super().execute(sql, params)
+
+
+def _typed_confirmation(kind, oid, rid, *, human=True):
+    return {"record_id": uid(700), "kind": kind, "principal_id": uid(1001),
+            "recorded_at": ts(4), "target_ref": {"object_id": oid, "revision_id": rid},
+            "covered_refs": [], "covers_selected_revision": True,
+            "applies_to_selected_revision": True, "human_confirmation": human,
+            "source": "object_local", "content": {}, "receipt": None}
+
+
+def test_formal_state_confirms_agreement_minutes_and_candidate_set():
+    # R2: types outside the six navigation groups have real confirmation acts.
+    for kind, review_kind, authority in (
+            ("StrategicAgreement", "strategic_agreement_confirmation", "m1a_confirm_agreement"),
+            ("MeetingMinutes", "meeting_minutes_confirmation", "m1a_confirm_minutes"),
+            ("CandidateSet", "candidate_set_confirmation", "m1b_confirm_candidates")):
+        oid, rid = uid(30), uid(31)
+        head_value = head(oid, kind, latest=rid, effective=rid)
+        rev = revision(oid, rid, {"title": "t"})
+        formal = dashboard._formal_state(_StateOnlyConn(), CTX, head_value, rev,
+                                         [_typed_confirmation(review_kind, oid, rid)])
+        assert formal["status"] == "confirmed", kind
+        assert formal["formal"] is True
+        assert formal["human_approved"] is True
+        assert formal["authority"] == authority
+        assert formal["applies_to_ref"]["revision_id"] == rid
+        # A candidate revision of the same object is not confirmed.
+        candidate = revision(oid, uid(32), {"title": "t2"})
+        formal_candidate = dashboard._formal_state(
+            _StateOnlyConn(), CTX, head_value, candidate, [])
+        assert formal_candidate["formal"] is False
+
+
+def test_formal_state_strategic_issue_separates_human_and_agent_initiation():
+    oid, rid = uid(50), uid(51)
+    head_value = head(oid, "StrategicIssue", latest=rid, effective=rid)
+    rev = revision(oid, rid, {"title": "i"})
+    # 0.1/0.2: human CEO confirmation.
+    formal = dashboard._formal_state(_StateOnlyConn(), CTX, head_value, rev,
+                                     [_typed_confirmation("strategic_issue_confirmation", oid, rid)])
+    assert formal["status"] == "confirmed"
+    assert formal["formal"] is True
+    assert formal["human_approved"] is True
+    assert formal["initiation"] == "human"
+    # 0.3: the bound CEO Agent's initiation is formal but not a human approval.
+    formal = dashboard._formal_state(_StateOnlyConn(), CTX, head_value, rev,
+                                     [_typed_confirmation("agent_issue_initiation", oid, rid,
+                                                          human=False)])
+    assert formal["status"] == "confirmed"
+    assert formal["formal"] is True
+    assert formal["human_approved"] is False
+    assert formal["initiation"] == "agent"
+    # A superseded confirmed revision keeps its approval but loses efficacy.
+    older = revision(oid, uid(52), {"title": "i0"})
+    formal = dashboard._formal_state(_StateOnlyConn(), CTX, head_value, older,
+                                     [_typed_confirmation("strategic_issue_confirmation", oid, uid(52))])
+    assert formal["status"] == "superseded_confirmed"
+    assert formal["formal"] is False
+    assert formal["human_approved"] is True
+
+
+def test_formal_state_research_brief_and_judgment_confirmation():
+    oid, rid = uid(60), uid(61)
+    head_value = head(oid, "ResearchBrief", latest=rid, effective=rid)
+    formal = dashboard._formal_state(_StateOnlyConn(), CTX, head_value,
+                                     revision(oid, rid, {"title": "b"}),
+                                     [_typed_confirmation("brief_sufficiency", oid, rid)])
+    assert formal["status"] == "confirmed"
+    assert formal["authority"] == "m1a_confirm_brief"
+    assert formal["human_approved"] is True
+    head_value = head(oid, "StrategicJudgment", latest=rid, effective=rid)
+    formal = dashboard._formal_state(_StateOnlyConn(), CTX, head_value,
+                                     revision(oid, rid, {"title": "j"}),
+                                     [_typed_confirmation("strategy_update_confirmation", oid, rid)])
+    assert formal["status"] == "confirmed"
+    assert formal["authority"] == "m1a_confirm_update"
+    assert formal["formal"] is True
+
+
+def test_formal_state_historical_revision_never_borrows_current_phase():
+    # A historical selected revision must not show the object's current phase.
+    oid, rid, newer = uid(70), uid(71), uid(72)
+    head_value = head(oid, "Signal", latest=newer, effective=newer)
+    formal = dashboard._formal_state(_StateOnlyConn({"phase": "active"}), CTX,
+                                     head_value, revision(oid, rid, {"title": "s"}), [])
+    assert formal["status"] == "historical"
+    assert formal["formal"] is False
+    assert formal["human_approved"] is False
+    # The fallback never claims a type has no confirmation act; it projects
+    # no separate formal efficacy and still surfaces a covering record.
+    formal = dashboard._formal_state(_StateOnlyConn({"phase": "active"}), CTX,
+                                     head_value, revision(oid, newer, {"title": "s2"}),
+                                     [_typed_confirmation("signal_disposition", oid, newer,
+                                                          human=False)])
+    assert formal["status"] == "active"
+    assert "no human confirmation act" not in (formal["note"] or "").lower()
+
+
+def test_formal_state_without_confirmation_act_never_claims_approval():
+    oid, rid = uid(40), uid(41)
+    head_value = head(oid, "Signal", latest=rid, effective=rid)
+    rev = revision(oid, rid, {"title": "s"})
+    formal = dashboard._formal_state(_StateOnlyConn({"phase": "active"}), CTX,
+                                     head_value, rev, [])
+    assert formal["status"] == "active"  # recorded lifecycle phase, not guessed
+    assert formal["formal"] is False
+    assert formal["human_approved"] is False
+    # A covering confirmation record is surfaced even without a dedicated act.
+    with_record = dashboard._formal_state(_StateOnlyConn(), CTX, head_value, rev,
+                                          [_typed_confirmation("strategic_agreement_confirmation", oid, rid)])
+    assert with_record["content_confirmation"]["record_id"] == uid(700)
+    assert with_record["formal"] is False
+
+
+# --------------------------------------------------------------------------
+# R3: downstream adjacency covers every registered payload model
+# --------------------------------------------------------------------------
+
+def _detected_ref_fields(model) -> set[str]:
+    import typing
+    from pydantic import BaseModel
+
+    def mentions(annotation) -> bool:
+        # Ref models differ across modules (a2_models.ObjectRef,
+        # method_m1b_models.ExactRef) but share the exact-ref structure.
+        if isinstance(annotation, type) and issubclass(annotation, BaseModel):
+            fields = getattr(annotation, "model_fields", {})
+            if {"object_id", "revision_id", "payload_hash"} <= set(fields):
+                return True
+        return any(mentions(arg) for arg in typing.get_args(annotation))
+
+    return {name for name, field in model.model_fields.items() if mentions(field.annotation)}
+
+
+def test_downstream_fields_cover_every_registered_payload_reference():
+    from memory_service_runtime.governed import method_models
+    detected_by_type: dict[str, set[str]] = {}
+    for version in dashboard.ONTOLOGY_CONTRACT_VERSIONS:
+        _params, _targets, payload_models = method_models.registry(version)
+        for object_type, model in payload_models.items():
+            detected = _detected_ref_fields(model)
+            detected_by_type.setdefault(object_type, set()).update(detected)
+            listed = set(dashboard.DOWNSTREAM_FIELDS.get(object_type, ()))
+            missing = detected - listed
+            assert not missing, f"{version} {object_type}: unlisted ref fields {missing}"
+    # DOWNSTREAM_FIELDS is shared across versions: a field is stale only when
+    # no registered version of that type detects it.  Action-recorded payload
+    # refs that are not declared model fields stay listed deliberately.
+    action_recorded = {("Strategy", "source_agreement_ref"),
+                       ("Strategy", "source_proposal_ref"),
+                       ("StrategicArchitecture", "source_proposal_ref"),
+                       ("StrategicJudgment", "source_agreement_ref"),
+                       ("StrategicJudgment", "source_proposal_ref")}
+    for object_type, listed_fields in dashboard.DOWNSTREAM_FIELDS.items():
+        detected = detected_by_type.get(object_type, set())
+        stale = set(listed_fields) - detected
+        stale -= {field for (t, field) in action_recorded if t == object_type}
+        assert not stale, f"{object_type}: stale fields {stale}"
+    # MethodRun and EvidenceAsset record no payload references: they must not
+    # gain invented adjacency.
+    assert "MethodRun" not in dashboard.DOWNSTREAM_FIELDS
+    assert "EvidenceAsset" not in dashboard.DOWNSTREAM_FIELDS
+    for fields in dashboard.DOWNSTREAM_FIELDS.values():
+        for field in fields:
+            if field.endswith("_refs"):
+                assert field in dashboard.DOWNSTREAM_ARRAY_FIELDS, field
+
+
+def test_downstream_sql_searches_research_chain_fields():
+    captured = []
+
+    class SqlConn:
+        def execute(self, sql, params=()):
+            captured.append((sql, list(params)))
+            return Result([])
+
+    dashboard._downstream_unions(SqlConn(), CTX, {"object_id": uid(1), "revision_id": uid(2)},
+                                 None, 5)
+    sql, params = captured[0]
+    for field in ("issue_ref", "memo_ref", "plan_ref", "minutes_ref", "window_ref",
+                  "potential_issue_ref", "signal_refs", "source_refs", "material_refs",
+                  "period_review_ref", "previous_window_ref", "agreement_ref"):
+        assert field in sql, field
+    # Type names are bound parameters, never interpolated into the SQL text.
+    for kind in ("StrategicIssue", "ResearchPlan", "ResearchReport", "MeetingMinutes",
+                 "StrategicAgreement", "CandidateSet", "ReviewWindow", "PotentialIssue"):
+        assert kind in params, kind

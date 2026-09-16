@@ -9,7 +9,7 @@ describe("URL view state", () => {
                                  basis: "historical", objectType: "Mission", domain: "d1",
                                  periodFrom: "2026-09-01", periodTo: "2026-09-30", owner: "p1" })
     expect(serializeView(view)).toContain("rev=r1")
-    expect(serializeView({ ...DEFAULT_VIEW })).toBe("?group=strategy&basis=all")
+    expect(serializeView({ ...DEFAULT_VIEW })).toBe("?view=map&group=strategy&basis=all&rules=0.3")
   })
 
   it("drops a pinned historical revision when the object or strategy changes", () => {

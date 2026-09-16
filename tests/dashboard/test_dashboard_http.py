@@ -21,6 +21,8 @@ ENDPOINTS = [
     f"/v1/dashboard/objects/{uid(10)}/reviews",
     f"/v1/dashboard/action-receipts/{uid(12)}",
     f"/v1/dashboard/evidence-assets/{uid(10)}/revisions/{uid(11)}",
+    "/v1/dashboard/ontology/catalog",
+    "/v1/dashboard/catalog/objects?object_type=Signal",
 ]
 
 
@@ -49,7 +51,8 @@ def patched_reads(monkeypatch):
         return reader
 
     for name in ("read_overview", "read_objects", "read_detail", "read_revisions",
-                 "read_revision", "read_receipt", "read_reviews", "read_evidence"):
+                 "read_revision", "read_receipt", "read_reviews", "read_evidence",
+                 "read_ontology_catalog", "read_catalog_objects"):
         monkeypatch.setattr(dashboard_routes, name, make(name))
     return calls
 
@@ -85,6 +88,24 @@ def test_detail_parses_optional_selection(patched_reads):
     assert kwargs["strategy_id"] == uid(12)
 
 
+def test_ontology_catalog_is_forwarded_with_no_store(patched_reads):
+    response = get(app, "/v1/dashboard/ontology/catalog", headers=auth())
+    assert response.status_code == 200
+    assert response.headers["cache-control"] == "no-store"
+    assert response.json()["reader"] == "read_ontology_catalog"
+    assert patched_reads["read_ontology_catalog"]["token"] == TOKEN
+
+
+def test_catalog_objects_query_is_parsed_and_forwarded(patched_reads):
+    response = get(app, f"/v1/dashboard/catalog/objects?object_type=Signal&limit=7"
+                        f"&domain_id={uid(50)}", headers=auth())
+    assert response.status_code == 200
+    kwargs = patched_reads["read_catalog_objects"]["kwargs"]
+    assert kwargs["object_type"] == "Signal"
+    assert kwargs["limit"] == 7
+    assert kwargs["domain_id"] == uid(50)
+
+
 @pytest.mark.parametrize("path", [
     "/v1/dashboard/overview?verbose=1",
     "/v1/dashboard/overview?strategy_id=1&strategy_id=2",
@@ -100,6 +121,13 @@ def test_detail_parses_optional_selection(patched_reads):
     f"/v1/dashboard/objects/{uid(10)}?cursor=x",
     f"/v1/dashboard/objects/{uid(10)}/revisions?cursor={'A' * 5000}",
     f"/v1/dashboard/objects/{uid(10)}/revisions/{uid(11)}?extra=1",
+    "/v1/dashboard/ontology/catalog?verbose=1",
+    "/v1/dashboard/catalog/objects",
+    "/v1/dashboard/catalog/objects?object_type=",
+    "/v1/dashboard/catalog/objects?object_type=Signal&object_type=Mission",
+    "/v1/dashboard/catalog/objects?object_type=Signal&limit=0",
+    "/v1/dashboard/catalog/objects?object_type=Signal&domain_id=not-a-uuid",
+    "/v1/dashboard/catalog/objects?object_type=Signal&verbose=1",
 ])
 def test_strict_query_validation_is_invalid_request(path, patched_reads):
     response = get(app, path, headers=auth())

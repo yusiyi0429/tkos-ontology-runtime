@@ -46,7 +46,7 @@ def calls(monkeypatch):
 
     for name in ("read_overview", "read_objects", "read_detail", "read_revisions",
                  "read_revision", "read_receipt", "read_reviews", "read_evidence",
-                 "read_downstream"):
+                 "read_downstream", "read_ontology_catalog", "read_catalog_objects"):
         monkeypatch.setattr(facade.reads, name, reader(name))
     return recorded
 
@@ -151,6 +151,21 @@ def test_downstream_route_requires_an_exact_revision(monkeypatch, calls, token_f
     response = fetch(app, f"/dashboard/api/v1/objects/{object_id}/downstream?revision_id={revision_id}")
     assert response.status_code == 200
     assert calls["read_downstream"]["args"] == (object_id, revision_id)
+
+
+def test_catalog_reads_are_explicit_token_injected_gets(monkeypatch, calls, token_file):
+    app = build(monkeypatch, tkos_dashboard_viewer_token_file=str(token_file))
+    response = fetch(app, "/dashboard/api/v1/ontology/catalog")
+    assert response.status_code == 200
+    assert calls["read_ontology_catalog"]["token"] == token_file.read_text()
+    assert "token" not in response.text
+    assert fetch(app, "/dashboard/api/v1/catalog/objects").status_code == 422
+    assert fetch(app, "/dashboard/api/v1/catalog/objects?object_type=Signal&verbose=1").status_code == 422
+    response = fetch(app, "/dashboard/api/v1/catalog/objects?object_type=Signal&limit=3")
+    assert response.status_code == 200
+    assert calls["read_catalog_objects"]["kwargs"] == {"object_type": "Signal", "domain_id": None,
+                                                       "limit": 3, "cursor": None}
+    assert calls["read_catalog_objects"]["token"] == token_file.read_text()
 
 
 def test_missing_compiled_assets_fail_readably(monkeypatch, calls, token_file, tmp_path):

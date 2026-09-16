@@ -423,6 +423,7 @@ export interface DetailPaneProps {
   receiptsError?: unknown
   onLoadMoreReceipts?: () => void
   onAccessDenied?: () => void
+  onShowTypeRules?: (objectType: string, contractVersion: unknown) => void
 }
 
 export function DetailPane({ detail, loading, error, onOpenObject, onSelectRevision,
@@ -432,7 +433,7 @@ export function DetailPane({ detail, loading, error, onOpenObject, onSelectRevis
                             historyLoading = false, historyError = null, onLoadMoreHistory,
                             receiptsMore = [], receiptsHasMore = false, receiptsLoading = false,
                             receiptsError = null, onLoadMoreReceipts,
-                            onAccessDenied }: DetailPaneProps) {
+                            onAccessDenied, onShowTypeRules }: DetailPaneProps) {
   if (!detail && loading) {
     return <div className="space-y-2 p-4" data-testid="detail-skeleton"><Skeleton className="h-8 w-2/3" />
       <Skeleton className="h-24 w-full" /><Skeleton className="h-24 w-full" /></div>
@@ -477,6 +478,13 @@ export function DetailPane({ detail, loading, error, onOpenObject, onSelectRevis
             第 {String(detail.selected_revision.object_version)} 版
             {detail.selected_revision.selection === "requested" ? "（指定/历史版本）" : ""}
           </span>
+          {onShowTypeRules ? (
+            <Button size="xs" variant="outline" className="ml-auto" data-testid="show-type-rules"
+                    onClick={() => onShowTypeRules(detail.object.object_type,
+                                                   detail.protocol.contract_version)}>
+              查看该类型业务规则
+            </Button>
+          ) : null}
         </div>
         <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
           <span>正式状态：{formalBusinessText(detail.object.object_type, detail.formal_state.status,

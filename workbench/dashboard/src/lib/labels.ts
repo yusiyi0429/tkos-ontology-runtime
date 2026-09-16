@@ -35,6 +35,28 @@ export const TYPE_LABELS: Record<string, string> = {
   StrategicIssue: "战略议题",
   PotentialIssue: "候选议题",
   StrategicAgreement: "战略协议",
+  Signal: "信号",
+  ResearchBrief: "研究简报",
+  ResearchMemo: "研究备忘",
+  ResearchPlan: "研究计划",
+  ResearchReport: "研究报告",
+  MeetingMinutes: "会议纪要",
+  MeetingRound: "会议轮次",
+  MethodRun: "方法运行",
+  LTCOReviewAdvice: "LTCO 审视建议",
+  StrategyUpdateProposal: "战略更新提案",
+}
+
+export const VIEW_LABELS: Record<string, string> = {
+  map: "本体地图",
+  graph: "业务关系图",
+  list: "列表",
+}
+
+export const RULES_VERSION_LABELS: Record<string, string> = {
+  "0.1": "业务规则 0.1",
+  "0.2": "业务规则 0.2",
+  "0.3": "业务规则 0.3",
 }
 
 export const BASIS_LABELS: Record<string, string> = {
@@ -159,6 +181,12 @@ export const REFERENCE_FIELD_LABELS: Record<string, string> = {
   outcome_ref: "Outcome",
   window_ref: "核对窗口",
   previous_window_ref: "上一核对窗口",
+  issue_ref: "所属战略议题", potential_issue_ref: "来源候选议题",
+  memo_ref: "研究澄清依据", plan_ref: "研究计划依据", report_ref: "研究报告依据",
+  brief_ref: "研究简报依据", meeting_ref: "所属会议", minutes_ref: "会议纪要依据",
+  agreement_ref: "战略共识依据", source_agreement_ref: "战略共识来源",
+  source_proposal_ref: "更新提案来源", advice_ref: "目标审视建议",
+  period_review_ref: "周期复盘依据", direct_source_refs: "直接来源", signal_refs: "来源信号",
 }
 
 export function referenceLabel(path: string): string {

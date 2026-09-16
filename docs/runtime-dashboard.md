@@ -10,6 +10,20 @@
   快照或任务写入（隔离验收有数据库前后表计数 oracle）。
 - 浏览器不接触任何凭据：facade 用私有 viewer token 文件在服务端重新认证。
 
+## 本体地图与业务关系图
+
+看板默认进入本体地图：五个业务区域按需展开对象类型，右侧用业务语言说明定义、关系、
+生命周期、责任主体和正式效力。目录来自 Runtime 冻结注册规则，尚无可见记录的类型仍然显示。
+规则可切换 0.1、0.2、0.3；实际对象的说明使用其自身绑定版本。
+
+“查看实际数据”先读取该类型的授权记录，选择后进入业务关系图。图中节点绑定对象与
+精确版本，连线只取已记录引用；必要的旧版依据保留。既有列表和详情继续提供窄屏及
+非图形阅读入口。概念地图、实际记录、业务内容是否正式与经营状态分别表达。
+
+设计见 [完整交互决定](runtime-ontology-views-design.md)，新增接口独立复跑见
+[ontology_views](../acceptance/ontology_views/README.md)，新版状态与截图见
+[本体视图验收](runtime-ontology-views-acceptance.md)。原有 58802 容器的部署记录仅代表此前版本。
+
 ## 页面层级与语义
 
 导航是**类型化关系层级**，不是执行进度条：
@@ -46,6 +60,8 @@ OperatingState / BusinessFact / PeriodReview / OperatingProblem
 
 | 接口 | 说明 |
 | --- | --- |
+| `GET /v1/dashboard/ontology/catalog` | 三个规则版本的完整注册类型目录，不含业务记录或实例数量 |
+| `GET /v1/dashboard/catalog/objects` | 任一注册类型的授权记录分页，内容版本、协议绑定与正式效力 |
 | `GET /v1/dashboard/overview` | 当前 viewer、可读正式 Strategy 选择、分组可用性、历史依据提示 |
 | `GET /v1/dashboard/objects` | 分组 + 战略 + 筛选 + keyset 分页列表（默认 25，最大 100） |
 | `GET /v1/dashboard/objects/{id}` | 所选精确版本详情：业务内容、责任、类型化关系、正式状态、候选、历史、证据、回执 |
@@ -61,6 +77,13 @@ OperatingState / BusinessFact / PeriodReview / OperatingProblem
 `domain_id`、`period_from`、`period_to`、`owner_id`、`scope_id`、`limit`、`cursor`。
 cursor 是不透明书签，绑定 endpoint、身份、scope、分组、basis、所选 Strategy
 **及其 revision** 与全部筛选；越权或跨参数复用一律 422。
+
+`catalog/objects` 参数：`object_type`（必填注册类型）、`domain_id`、
+`limit`（1–100）、`cursor`。返回 `items`、`loaded_count`、`has_more` 与 `next_cursor`；
+`loaded_count` 仅为本页数量，不是全库总数。记录优先采用生效内容版本，否则使用最新版本；
+`object_version` 与 `basis_revision_id` 指向同一份内容。目录游标绑定当前身份及筛选，
+跨类型或身份复用返回 422；未授权记录不计数。Battlefield、Capability、Outcome 是定义项，
+不能作为独立类型查询。读取失败不应在页面转换为空列表。
 
 `200` 响应包含 `schema_version`、`read_at`、可用性与精确引用；错误统一
 `{error:{code,message}}`，不包含 SQL、凭据或内部细节。

@@ -1,19 +1,27 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { AuthLostPanel, ErrorBanner, PendingUpdateBanner, StaleBanner } from "@/components/Banners"
+import { BusinessGraph } from "@/components/BusinessGraph"
+import { CatalogRecords } from "@/components/CatalogRecords"
 import { DetailPane } from "@/components/DetailPane"
 import { FilterBar } from "@/components/FilterBar"
 import { ObjectList } from "@/components/ObjectList"
+import { OntologyMap } from "@/components/OntologyMap"
 import { SideNav } from "@/components/SideNav"
 import { TopBar } from "@/components/TopBar"
+import { TypeInfoCard } from "@/components/TypeInfoCard"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
-import { fetchDetail, fetchDownstream, fetchObjectReceipts, fetchObjects, fetchOverview,
-         fetchRevisions, objectPath } from "@/lib/api"
+import { fetchDetail, fetchDownstream, fetchObjectReceipts, fetchObjects, fetchOntologyCatalog,
+         fetchOverview, fetchRevisions, objectPath } from "@/lib/api"
 import { isAbort, isAccessDenial } from "@/lib/errors"
 import { useLiveResource } from "@/lib/live"
-import { GROUP_LABELS } from "@/lib/labels"
+import { GROUP_LABELS, RULES_VERSION_LABELS } from "@/lib/labels"
+import { RULES_VERSIONS, rulesOfContractVersion, type RulesVersion } from "@/lib/ontology"
 import { DEFAULT_VIEW, mergeView, parseView, serializeView, type ViewState } from "@/lib/urlState"
-import type { ObjectListItem, ObjectsPage } from "@/lib/types"
+import type { CatalogObjectItem, ObjectListItem, ObjectsPage } from "@/lib/types"
+
+const VIEW_NAMES = ["map", "graph", "list"]
 
 function useMediaQuery(query: string): boolean {
   const [matches, setMatches] = useState(() =>
@@ -82,6 +90,17 @@ export function App() {
   const historyAbortRef = useRef<AbortController | null>(null)
   const receiptsAbortRef = useRef<AbortController | null>(null)
   const desktop = useMediaQuery("(min-width: 1024px)")
+  const activeView = VIEW_NAMES.includes(view.view) ? view.view : "map"
+  const rulesValid = (RULES_VERSIONS as string[]).includes(view.rules)
+  const [recordsFor, setRecordsFor] = useState<string | null>(null)
+  const [rulesNotice, setRulesNotice] = useState(false)
+  // Map/graph subtrees stay mounted once visited so pan/zoom/expansions and
+  // reading position survive plain view switches (F3); they only reset on
+  // identity/authorization/strategy boundaries.
+  const [visitedViews, setVisitedViews] = useState<ReadonlySet<string>>(() => new Set([activeView]))
+  useEffect(() => {
+    setVisitedViews((current) => current.has(activeView) ? current : new Set(current).add(activeView))
+  }, [activeView])
 
   const resetObjectLoaders = useCallback(() => {
     loadMoreEpoch.current += 1
@@ -153,10 +172,36 @@ export function App() {
     }
   }, [overview.data, view.strategy, navigate, accessLost])
 
+  const catalog = useLiveResource({
+    key: `ontology-catalog#${generation}`,
+    fetcher: (_key, signal) => fetchOntologyCatalog(signal),
+    identity: (data) => data.versions.map(
+      (entry) => `${entry.contract_version}:${entry.object_types.join(",")}`).join("|"),
+    enabled: !accessLost && visitedViews.has("map"),
+    onAccessDenied,
+  })
+
+  // A type selection is scoped to its rule version: after switching versions or
+  // loading a directory where the type is not registered, clear the selection
+  // instead of showing it under rules it does not belong to.
+  useEffect(() => {
+    const data = catalog.data
+    if (!data || !view.otype || !rulesValid) return
+    const entry = data.versions.find(
+      (version) => rulesOfContractVersion(version.contract_version) === view.rules)
+    if (entry && !entry.object_types.includes(view.otype)) {
+      navigate({ otype: null }, true)
+    }
+  }, [catalog.data, view.rules, view.otype, rulesValid, navigate])
+
+  const shownType = rulesValid && catalog.data?.versions.some((version) =>
+    rulesOfContractVersion(version.contract_version) === view.rules
+    && version.object_types.includes(view.otype ?? "")) ? view.otype : null
+
   const strategyId = view.strategy ?? overview.data?.selected_strategy_id ?? null
   const authEpochRef = useRef<string | null>(null)
 
-  const objectsKey = accessLost || !strategyId ? null : objectPath({
+  const objectsKey = accessLost || !strategyId || activeView !== "list" ? null : objectPath({
     group: view.group,
     basis: view.basis,
     strategyId,
@@ -379,18 +424,45 @@ export function App() {
     navigate({ group, basis, object: null, rev: null, objectType: null })
   }, [navigate])
 
+  const selectType = useCallback((type: string) => {
+    setRecordsFor(null)
+    navigate({ otype: type })
+  }, [navigate])
+
+  // Formal-first: open the effective revision when one is recorded; otherwise
+  // the backend-selected content version.  The revision stays pinned in the URL.
+  const openCatalogRecord = useCallback((item: CatalogObjectItem) => {
+    navigate({ view: "graph", object: item.object_id,
+               rev: item.effective_revision_id ?? item.basis_revision_id ?? item.latest_revision_id })
+  }, [navigate])
+
+  // Rule lookup for a real object always follows its recorded contract version;
+  // an unrecognized version is surfaced, never silently mapped to the latest.
+  const showTypeRules = useCallback((objectType: string, contractVersion: unknown) => {
+    const rules = typeof contractVersion === "string"
+      ? rulesOfContractVersion(contractVersion) : null
+    if (!rules) {
+      setRulesNotice(true)
+      return
+    }
+    setRulesNotice(false)
+    navigate({ view: "map", rules, otype: objectType, object: null, rev: null })
+  }, [navigate])
+
   const acceptAll = useCallback(() => {
     overview.acceptPending()
     objects.acceptPending()
     detail.acceptPending()
-  }, [overview, objects, detail])
+    catalog.acceptPending()
+  }, [overview, objects, detail, catalog])
   const dismissAll = useCallback(() => {
     overview.dismissPending()
     objects.dismissPending()
     detail.dismissPending()
-  }, [overview, objects, detail])
+    catalog.dismissPending()
+  }, [overview, objects, detail, catalog])
 
-  const pending = Boolean(overview.pending || objects.pending || detail.pending)
+  const pending = Boolean(overview.pending || objects.pending || detail.pending || catalog.pending)
   const groupEntry = overview.data?.groups.find((entry) => entry.group === view.group)
 
   const detailMoreEdges = downstreamMore
@@ -422,17 +494,180 @@ export function App() {
                 receiptsLoading={receiptsLoading}
                 receiptsError={receiptsError}
                 onLoadMoreReceipts={() => void loadMoreReceipts()}
-                onAccessDenied={onAccessDenied} />
+                onAccessDenied={onAccessDenied}
+                onShowTypeRules={showTypeRules} />
   )
 
   return (
     <div className="flex h-screen min-h-0 flex-col bg-background text-foreground">
       <TopBar overview={overview.data} strategyId={strategyId}
               onStrategyChange={(next) => navigate({ strategy: next, object: null, rev: null })}
-              onRefresh={() => { overview.refresh(); objects.refresh(); detail.refresh() }}
-              refreshing={overview.loading || objects.loading || detail.loading} />
-      {objects.stale || detail.stale ? <StaleBanner updatedAt={objects.updatedAt ?? detail.updatedAt} /> : null}
+              onRefresh={() => { overview.refresh(); objects.refresh(); detail.refresh(); catalog.refresh() }}
+              refreshing={overview.loading || objects.loading || detail.loading || catalog.loading}
+              view={activeView}
+              onViewChange={(next) => navigate({ view: next })}
+              rules={rulesValid ? view.rules : "0.3"}
+              onRulesChange={(next) => navigate({ rules: next })} />
+      {objects.stale || detail.stale || catalog.stale
+        ? <StaleBanner updatedAt={objects.updatedAt ?? detail.updatedAt ?? catalog.updatedAt} /> : null}
       {pending ? <PendingUpdateBanner onAccept={acceptAll} onDismiss={dismissAll} /> : null}
+      {rulesNotice ? (
+        <Alert variant="destructive" data-testid="rules-notice">
+          <AlertTitle>该对象绑定的业务规则版本未被识别</AlertTitle>
+          <AlertDescription className="flex items-center gap-2">
+            未套用最新规则；请在本体地图手动选择业务规则版本查看。
+            <Button size="xs" variant="outline" onClick={() => setRulesNotice(false)}>知道了</Button>
+          </AlertDescription>
+        </Alert>
+      ) : null}
+      {activeView !== "list" ? (
+        <div className="flex min-h-0 flex-1">
+          {visitedViews.has("map") ? (
+            <main className={activeView === "map" ? "flex min-w-0 flex-1" : "hidden"}
+                  aria-hidden={activeView !== "map"}>
+              <section className="min-w-0 flex-1">
+                {accessLost ? <AuthLostPanel /> : !rulesValid ? (
+                  <div className="p-4" data-testid="rules-invalid">
+                    <Alert>
+                      <AlertTitle>未知的业务规则版本</AlertTitle>
+                      <AlertDescription className="flex flex-wrap items-center gap-2">
+                        请选择一个有效的版本：
+                        {RULES_VERSIONS.map((version) => (
+                          <Button key={version} size="xs" variant="outline"
+                                  onClick={() => navigate({ rules: version })}>
+                            {RULES_VERSION_LABELS[version]}
+                          </Button>
+                        ))}
+                      </AlertDescription>
+                    </Alert>
+                  </div>
+                ) : (
+                  <OntologyMap rules={view.rules as RulesVersion}
+                               catalog={catalog.data} loading={catalog.loading}
+                               error={catalog.error} selectedType={shownType}
+                               onSelectType={selectType} />
+                )}
+              </section>
+              {desktop && shownType ? (
+                <aside className="flex w-[400px] shrink-0 flex-col border-l border-border">
+                  {shownType ? (
+                    <>
+                      <div className="min-h-0 flex-1">
+                        <TypeInfoCard type={shownType}
+                                      rules={view.rules as RulesVersion}
+                                      catalog={catalog.data}
+                                      onSelectType={selectType}
+                                      onViewData={(type) => setRecordsFor(type)}
+                                      onClose={() => navigate({ otype: null })} />
+                      </div>
+                      {recordsFor === shownType ? (
+                        <div className="max-h-[45%] min-h-0 overflow-auto border-t border-border"
+                             data-testid="type-records">
+                          <div className="border-b border-border bg-muted/40 px-3 py-1.5 text-[11px] text-muted-foreground">
+                            实际记录（当前身份授权范围）
+                          </div>
+                          <CatalogRecords key={`${shownType}#${generation}`}
+                                          objectType={shownType}
+                                          onOpenRecord={openCatalogRecord}
+                                          onAccessDenied={onAccessDenied} />
+                        </div>
+                      ) : null}
+                    </>
+                  ) : (
+                    <div className="p-6 text-sm text-muted-foreground" data-testid="type-empty">
+                      在地图中选择一个对象类型，查看其业务说明与实际数据入口。
+                    </div>
+                  )}
+                </aside>
+              ) : (
+                <Sheet open={activeView === "map" && Boolean(shownType)}
+                       onOpenChange={(open) => { if (!open) navigate({ otype: null }) }}>
+                  <SheetContent side="right" showCloseButton={false}
+                                className="flex w-full max-w-none flex-col p-0 data-[side=right]:w-full data-[side=right]:max-w-none sm:max-w-xl">
+                    <SheetHeader className="sr-only"><SheetTitle>类型说明</SheetTitle></SheetHeader>
+                    {shownType ? (
+                      <>
+                        <div className="min-h-0 flex-1">
+                          <TypeInfoCard type={shownType}
+                                        rules={view.rules as RulesVersion}
+                                        catalog={catalog.data}
+                                        onSelectType={selectType}
+                                        onViewData={(type) => setRecordsFor(type)}
+                                        onClose={() => navigate({ otype: null })} />
+                        </div>
+                        {recordsFor === shownType ? (
+                          <div className="max-h-[45%] min-h-0 overflow-auto border-t border-border">
+                            <CatalogRecords key={`${shownType}#${generation}`}
+                                            objectType={shownType}
+                                            onOpenRecord={openCatalogRecord}
+                                            onAccessDenied={onAccessDenied} />
+                          </div>
+                        ) : null}
+                      </>
+                    ) : null}
+                  </SheetContent>
+                </Sheet>
+              )}
+            </main>
+          ) : null}
+          {visitedViews.has("graph") ? (
+            <main className={activeView === "graph" ? "flex min-w-0 flex-1" : "hidden"}
+                  aria-hidden={activeView !== "graph"}>
+              <section className="min-w-0 flex-1">
+                {accessLost ? <AuthLostPanel /> : (
+                  <BusinessGraph
+                    strategyId={strategyId}
+                    entryFocus={view.object
+                      ? { objectId: view.object, revisionId: view.rev, label: view.object }
+                      : (() => {
+                          const choice = overview.data?.strategy_choices.find(
+                            (entry) => entry.strategy_id === strategyId)
+                          return choice
+                            ? { objectId: choice.strategy_id, revisionId: choice.revision_id,
+                                label: choice.title ?? "当前战略" }
+                            : null
+                        })()}
+                    entryKey={`graph#${strategyId ?? ""}#${generation}`}
+                    active={activeView === "graph" && !accessLost}
+                    selectedObject={view.object}
+                    selectedRevision={view.rev}
+                    onOpenObject={openObject}
+                    onAccessDenied={onAccessDenied} />
+                )}
+              </section>
+              {desktop && view.object ? (
+                <section className="w-[420px] shrink-0 border-l border-border bg-muted/30">
+                  <div className="h-full min-h-0 overflow-hidden bg-background">
+                    <ErrorBanner error={detail.error} updatedAt={detail.updatedAt} />
+                    {view.object ? detailBody : (
+                      <div className="p-6 text-sm text-muted-foreground" data-testid="graph-detail-empty">
+                        点击关系图中的对象名称查看其正式内容、依据与确认证据。
+                      </div>
+                    )}
+                  </div>
+                </section>
+              ) : (
+                <Sheet open={activeView === "graph" && !desktop && Boolean(view.object)}
+                       onOpenChange={(open) => { if (!open) navigate({ object: null, rev: null }) }}>
+                  <SheetContent side="right" showCloseButton={false}
+                                className="flex w-full max-w-none flex-col p-0 data-[side=right]:w-full data-[side=right]:max-w-none sm:max-w-2xl">
+                    <SheetHeader className="flex flex-row items-center justify-between gap-2 border-b border-border px-4 py-2.5">
+                      <SheetTitle className="text-[13px]">对象详情</SheetTitle>
+                      <SheetClose asChild>
+                        <Button size="xs" variant="outline">关闭详情</Button>
+                      </SheetClose>
+                    </SheetHeader>
+                    <div className="min-h-0 flex-1 overflow-hidden">
+                      <ErrorBanner error={detail.error} updatedAt={detail.updatedAt} />
+                      {detailBody}
+                    </div>
+                  </SheetContent>
+                </Sheet>
+              )}
+            </main>
+          ) : null}
+        </div>
+      ) : (
       <div className="flex min-h-0 flex-1">
         {desktop ? (
           <aside className="w-60 shrink-0 border-r border-border">
@@ -507,6 +742,7 @@ export function App() {
           )}
         </main>
       </div>
+      )}
     </div>
   )
 }

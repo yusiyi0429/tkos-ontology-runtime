@@ -223,7 +223,7 @@ def monthly(conn, ctx, window_id):
             reason = "current_role_not_permitted"
         phases = {"m1b_comment": {"open"}, "m1b_withdraw_comment": {"open"}, "m1b_close_window": {"open"},
                   "m1b_resolve_window": {"closed"}, "m1b_confirm_candidates": {"resolved"},
-                  "m1b_reopen_window": {"closed", "resolved"}, "m1b_reopen_candidates": {"resolved"}}
+                  "m1b_reopen_window": {"open", "closed"}, "m1b_reopen_candidates": {"resolved"}}
         if not reason and state.get("phase") not in phases[action]:
             reason = "window_state_not_permitted"
         if not reason and deadline_passed and action in {"m1b_comment", "m1b_withdraw_comment"}:

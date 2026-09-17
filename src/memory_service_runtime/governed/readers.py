@@ -6,7 +6,7 @@ import uuid
 
 from psycopg.types.json import Jsonb
 
-from memory_service_runtime.governed import db, delivery, protocol
+from memory_service_runtime.governed import db, delivery, protocol, workspace_v02_guard
 from memory_service_runtime.governed.errors import GovernedError
 
 
@@ -39,6 +39,10 @@ def _delegate_a2_reader(name: str, conn, ctx, *args, **kwargs):
 
 
 def object_state(conn, ctx, object_id: str) -> dict:
+    # A linked tkos.workspace/0.2 source artifact is private to its scene even
+    # when a domain read grant exists for its EvidenceAsset domain. Unlinked
+    # objects pass through unchanged.
+    workspace_v02_guard.enforce_object(conn, ctx, object_id)
     from . import method_access, method_readers
     if method_access.is_method_object(conn, ctx, object_id):
         return method_readers.object_state(conn, ctx, object_id)
@@ -122,6 +126,15 @@ def feedback_state(conn, ctx, obj: dict) -> dict:
 
 
 def revision(conn, ctx, object_id: str, revision_id: str) -> dict:
+    # An active exact-version source share is itself the authorization for the
+    # shared revision; otherwise the fence keeps normal behavior unchanged.
+    shared = workspace_v02_guard.shared_revision(conn, ctx, object_id, revision_id)
+    if shared is not None:
+        _, revision = shared
+        result = db.jsonable(revision)
+        result["protocol"] = protocol.read_metadata(conn, ctx.scope_id, object_id)
+        return result
+    workspace_v02_guard.enforce_object(conn, ctx, object_id, revision_id)
     from . import method_access, method_readers
     if method_access.is_method_object(conn, ctx, object_id):
         return method_readers.revision(conn, ctx, object_id, revision_id)
@@ -138,6 +151,9 @@ def revision(conn, ctx, object_id: str, revision_id: str) -> dict:
 
 
 def authorize_receipt(conn, ctx, receipt: dict):
+    if receipt["action_type"].startswith("workspace_v02."):
+        from . import workspace_v02_service
+        return workspace_v02_service.authorize_receipt(conn, ctx, receipt)
     if receipt["action_type"].startswith("workspace."):
         from . import workspace_service
         return workspace_service.authorize_receipt(conn, ctx, receipt)
@@ -186,6 +202,8 @@ def action_receipt(conn, ctx, receipt_id: str) -> dict:
     if receipt is None:
         raise GovernedError("NOT_FOUND", "Receipt was not found", status=404)
     authorize_receipt(conn, ctx, receipt)
+    # A stored receipt must not become a bypass around a revoked source fence.
+    workspace_v02_guard.enforce_receipt(conn, ctx, receipt)
     tasks = []
     if receipt["effect_task_ids"]:
         tasks = conn.execute(
@@ -270,6 +288,10 @@ def context_pack(conn, ctx, object_ids: list[str], valid_at: datetime, known_at:
             selection["delivery_review"] = review
             selection["delivery_status"] = review["verification_result"] if review else "submitted"
         selected.append(db.jsonable(selection))
+    # Linked 0.2 source artifacts lose generic Context eligibility as soon as
+    # their exact-version grant or source status no longer permits the caller.
+    selected, excluded = workspace_v02_guard.filter_context_items(
+        conn, ctx, selected, excluded, explicit=True)
     snapshot_id = str(uuid.uuid4())
     stored = conn.execute(
         "INSERT INTO gov_context_snapshots(snapshot_id,scope_id,principal_id,valid_at,known_at,selected,excluded) VALUES(%s,%s,%s,%s,%s,%s,%s) RETURNING recorded_at",
@@ -284,6 +306,9 @@ def context_snapshot(conn, ctx, snapshot_id: str) -> dict:
                        (ctx.scope_id, snapshot_id)).fetchone()
     if row is None:
         raise GovernedError("NOT_FOUND", "Context snapshot was not found", status=404)
+    # Frozen content is re-filtered against the current source fence before any
+    # stored payload is returned to this reader.
+    row = workspace_v02_guard.filter_snapshot(conn, ctx, row)
     from . import method_readers
     if any(item.get("context_request", {}).get("contract_version") in {"tkos.method/0.1", "tkos.method/0.2", "tkos.method/0.3"} for item in row["selected"] + row["excluded"]):
         return method_readers.snapshot(conn, ctx, row)

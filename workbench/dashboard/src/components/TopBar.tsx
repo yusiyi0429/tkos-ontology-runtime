@@ -7,9 +7,10 @@ import { RULES_VERSION_LABELS, VIEW_LABELS } from "@/lib/labels"
 import { RULES_VERSIONS } from "@/lib/ontology"
 import type { Overview } from "@/lib/types"
 
-const VIEW_ORDER = ["map", "graph", "list"]
+const VIEW_ORDER = ["map", "definitions", "graph"]
 
 export interface TopBarProps {
+  embedded?: boolean
   overview: Overview | null
   strategyId: string | null
   onStrategyChange: (strategyId: string) => void
@@ -22,12 +23,12 @@ export interface TopBarProps {
 }
 
 export function TopBar({ overview, strategyId, onStrategyChange, onRefresh, refreshing,
-                         view, onViewChange, rules, onRulesChange }: TopBarProps) {
+                         view, onViewChange, rules, onRulesChange, embedded = false }: TopBarProps) {
   const choices = overview?.strategy_choices ?? []
   const selected = choices.find((choice) => choice.strategy_id === strategyId) ?? choices[0] ?? null
   return (
     <header className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-border bg-card px-4 py-2.5">
-      <div className="flex items-baseline gap-2">
+      {!embedded && <><div className="flex items-baseline gap-2">
         <h1 className="text-sm font-semibold tracking-tight">Runtime 经营看板</h1>
         <span className="text-[11px] text-muted-foreground">本机只读</span>
       </div>
@@ -43,7 +44,7 @@ export function TopBar({ overview, strategyId, onStrategyChange, onRefresh, refr
             {VIEW_LABELS[name]}
           </button>
         ))}
-      </nav>
+      </nav></>}
       {view === "map" ? (
         <div className="flex items-center gap-2">
           <span className="text-xs text-muted-foreground">业务规则版本</span>
@@ -53,7 +54,9 @@ export function TopBar({ overview, strategyId, onStrategyChange, onRefresh, refr
             </SelectTrigger>
             <SelectContent>
               {RULES_VERSIONS.map((version) => (
-                <SelectItem key={version} value={version}>{RULES_VERSION_LABELS[version]}</SelectItem>
+                <SelectItem key={version} value={version}>
+                  {RULES_VERSION_LABELS[version] ?? `业务规则 ${version}`}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>

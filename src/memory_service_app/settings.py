@@ -33,6 +33,9 @@ class Settings(BaseSettings):
     # Local read-only business dashboard.  Off by default; enabling it never
     # changes the existing /v1 authorization.  The viewer token file is a
     # private file read on every facade request (never served to the browser).
+    tkos_governance_workbench_enabled: bool = False
+    tkos_governance_accounts_file: str = ""
+    tkos_governance_commands_dir: str = ""
     tkos_dashboard_enabled: bool = False
     tkos_dashboard_viewer_token_file: str = ""
     tkos_dashboard_env_label: str = "synthetic"

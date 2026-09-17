@@ -20,9 +20,11 @@ def exact_ref(head, revision):
 class MethodExecution(ActionExecution):
     @classmethod
     def handles_request(cls, conn, ctx, request):
+        from .method_v04_models import ACTION_PARAMS as V04_PARAMS
         from .method_v03_models import ACTION_PARAMS
         from .method_v02_models import ACTION_PARAMS as OLD_PARAMS
-        return request.action_type in ACTION_PARAMS or request.action_type in OLD_PARAMS
+        return (request.action_type in V04_PARAMS or request.action_type in ACTION_PARAMS
+                or request.action_type in OLD_PARAMS)
 
     def authorize(self):
         from .method_models import registry
@@ -42,11 +44,12 @@ class MethodExecution(ActionExecution):
             protocol.gate_target_action(self.conn, self.ctx.scope_id, self.target["object_id"], self.kind, self.request.contract_version)
             if self.target["latest_revision_id"] != self.target_revision["revision_id"]:
                 fail("STALE_DEPENDENCY", "The target content changed; read it again.")
-            if self.kind in {"m1b_comment", "m1b_withdraw_comment", "m1b_assist_review"}:
+            if self.kind in {"m1b_comment", "m1b_withdraw_comment", "m1b_assist_review"} or (
+                    self.kind == "m1b_replace_comment" and self.contract_version == "tkos.method/0.4"):
                 member = access.window_participant(self.conn, self.ctx, self.target_revision["payload"])
                 self.validate_assignment(member["assignment_id"], self.ctx.principal_id, self.ctx.principal_type)
                 self.action_assignments = db.authorize_domain(self.conn, self.ctx, member["domain_id"], self.kind)
-            elif self.target["object_type"] == "StrategicIssue" and self.kind.startswith("m1a_"):
+            elif self.target["object_type"] == "StrategicIssue" and self.kind.startswith("m1a_") and self.contract_version != "tkos.method/0.4":
                 try:
                     self.action_assignments = db.authorize_domain(self.conn, self.ctx, self.domain_id, self.kind)
                 except GovernedError as exc:
@@ -59,21 +62,40 @@ class MethodExecution(ActionExecution):
                 try:
                     self.action_assignments = db.authorize_domain(self.conn, self.ctx, self.domain_id, self.kind)
                 except GovernedError as exc:
-                    if exc.code != "FORBIDDEN" or self.contract_version != "tkos.method/0.3" or self.kind not in {"method_confirm_state", "method_revise_problem", "method_close_problem", "method_revise_architecture"}:
+                    if exc.code != "FORBIDDEN":
                         raise
-                    member = access.anchor_participant(self.conn, self.ctx, self.target)
-                    self.method_scoped_domain = member['domain_id']
-                    self.action_assignments = db.authorize_domain(self.conn,self.ctx,member['domain_id'],self.kind)
+                    if self.contract_version == "tkos.method/0.4":
+                        from .method_v04 import V04_SCOPED_ACTIONS
+                        if self.kind not in V04_SCOPED_ACTIONS:
+                            raise
+                        from . import method_v04
+                        member = method_v04.scoped_assignment(self.conn, self.ctx, self.kind,
+                                                              self.target, self.target_revision)
+                        self.method_scoped_domain = member["domain_id"]
+                        self.action_assignments = db.authorize_domain(self.conn, self.ctx, member["domain_id"], self.kind)
+                    elif self.contract_version != "tkos.method/0.3" or self.kind not in {"method_confirm_state", "method_revise_problem", "method_close_problem", "method_revise_architecture"}:
+                        raise
+                    else:
+                        member = access.anchor_participant(self.conn, self.ctx, self.target)
+                        self.method_scoped_domain = member['domain_id']
+                        self.action_assignments = db.authorize_domain(self.conn,self.ctx,member['domain_id'],self.kind)
         else:
             self.domain_id = self.params["domain_id"]
             try:
                 self.action_assignments = db.authorize_domain(self.conn, self.ctx, self.domain_id, self.kind)
             except GovernedError as exc:
-                if exc.code != "FORBIDDEN" or self.contract_version != "tkos.method/0.3" or self.kind != "method_propose_state":
+                if exc.code != "FORBIDDEN":
                     raise
-                member = access.state_subject_assignment(self.conn,self.ctx,self.params['payload']['subject_ref'])
-                self.method_scoped_domain = member['domain_id']
-                self.action_assignments = db.authorize_domain(self.conn,self.ctx,member['domain_id'],self.kind)
+                if self.contract_version == "tkos.method/0.4" and self.kind == "method_propose_state":
+                    member = access.state_subject_assignment(self.conn, self.ctx, self.params['payload']['subject_ref'])
+                    self.method_scoped_domain = member['domain_id']
+                    self.action_assignments = db.authorize_domain(self.conn, self.ctx, member['domain_id'], self.kind)
+                elif self.contract_version != "tkos.method/0.3" or self.kind != "method_propose_state":
+                    raise
+                else:
+                    member = access.state_subject_assignment(self.conn,self.ctx,self.params['payload']['subject_ref'])
+                    self.method_scoped_domain = member['domain_id']
+                    self.action_assignments = db.authorize_domain(self.conn,self.ctx,member['domain_id'],self.kind)
             # Root creates are resolved by the domain's server-side policy.
             create_type = {
                 "method_open_run": "MethodRun", "m1a_record_signal": "Signal",
@@ -84,6 +106,7 @@ class MethodExecution(ActionExecution):
                 "m1b_generate_review": "PeriodReview", "m1b_advise_ltco": "LTCOReviewAdvice",
                 "m1b_propose_ltco": "LTCO", "m1b_draft_pco": "PCO",
                 "m1b_draft_mission": "Mission", "m1b_open_window": "ReviewWindow",
+                "m1a_create_issue": "StrategicIssue",
             }.get(self.kind)
             if create_type is None:
                 fail("ACTION_NOT_SUPPORTED_FOR_PROTOCOL")
@@ -214,7 +237,7 @@ class MethodExecution(ActionExecution):
         domain_id = domain_id or self.domain_id
         scoped = self.method_scoped_domain and domain_id == self.domain_id and (
             (self.target and self.target["object_type"] == "StrategicIssue") or
-            (self.contract_version == "tkos.method/0.3" and self.kind in {"method_propose_state", "method_confirm_state"}))
+            (self.contract_version in {"tkos.method/0.3", "tkos.method/0.4"} and self.kind in {"method_propose_state", "method_confirm_state"}))
         if not scoped:
             db.authorize_domain(self.conn, self.ctx, domain_id, self.kind)
         payload = self.checked_payload(object_type, payload)
@@ -321,7 +344,10 @@ class MethodExecution(ActionExecution):
         checkpoints.checkpoint(name, {"action_type": self.kind, "receipt_id": self.action_id})
 
     def collect_dependencies(self):
-        if self.contract_version == "tkos.method/0.3":
+        if self.contract_version == "tkos.method/0.4":
+            from . import method_v04
+            method_v04.collect(self)
+        elif self.contract_version == "tkos.method/0.3":
             from . import method_v03
             method_v03.collect(self)
         elif self.contract_version == "tkos.method/0.2" and self.kind.startswith(("m1a_", "m1b_")):
@@ -356,6 +382,9 @@ class MethodExecution(ActionExecution):
         # External bytes verified after all auth/CAS checks and before any business write.
         for head, revision in self.method_evidence.values():
             evidence.fetch_payload(revision["payload"], scope_id=self.ctx.scope_id, domain_id=head["domain_id"])
+        if self.contract_version == "tkos.method/0.4":
+            from . import method_v04
+            return method_v04.run(self)
         if self.contract_version == "tkos.method/0.3":
             from . import method_v03
             return method_v03.run(self)
@@ -386,7 +415,8 @@ class MethodExecution(ActionExecution):
         for aid, args in self.method_assignment_specs.items():
             access.assignment(self.conn, self.ctx, aid, *args)
         # Recheck exact policy-derived authority, including scoped window grants.
-        if self.kind in {"m1b_comment", "m1b_withdraw_comment", "m1b_assist_review"}:
+        if self.kind in {"m1b_comment", "m1b_withdraw_comment", "m1b_assist_review"} or (
+                self.kind == "m1b_replace_comment" and self.contract_version == "tkos.method/0.4"):
             row = access.window_participant(self.conn, self.ctx, self.target_revision["payload"])
             db.authorize_domain(self.conn, self.ctx, row["domain_id"], self.kind)
         else:

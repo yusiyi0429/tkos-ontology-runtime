@@ -46,6 +46,7 @@ SUPPORTED_PROTOCOL_CONTRACTS = frozenset(
         ("tkos.method", "tkos.method/0.1"),
         ("tkos.method", "tkos.method/0.2"),
         ("tkos.method", "tkos.method/0.3"),
+        ("tkos.method", "tkos.method/0.4"),
         (profile.CONTRACT_A_PROTOCOL_ID, profile.CONTRACT_A_CONTRACT_VERSION),
     }
 )
@@ -573,6 +574,9 @@ def _binding_interpretation(installed: dict[str, Any] | None,
         return "read_unsupported", ("The current support registry does not grant read interpretation "
                                     "for this protocol/contract version; no legacy meaning is attached.")
     if binding["protocol_id"] == "tkos.method":
+        if binding["contract_version"] == "tkos.method/0.4":
+            return "method_v0_4", ("Method 0.4; formal human Agreement, paired Strategy/Architecture, "
+                                    "complete candidate-set commitment and canonical State.")
         if binding["contract_version"] == "tkos.method/0.3":
             return "method_v0_3", "Anchor 0.3; versioned Architecture, canonical State and Agent initiation."
         if binding["contract_version"] == "tkos.method/0.2":
@@ -720,7 +724,7 @@ def require_read_support(conn: Any, scope_id: str, object_id: str) -> dict[str, 
     # Legacy v0.2 and the existing A1 readonly label remain accepted verbatim.
     if metadata["registration_status"] != "registered" or metadata["interpretation_status"] not in (
             "legacy_v0_2", "contract_a_metadata_read_only", "contract_a_v0_1",
-            "contract_a_a3_execution", "method_v0_1", "method_v0_2", "method_v0_3"):
+            "contract_a_a3_execution", "method_v0_1", "method_v0_2", "method_v0_3", "method_v0_4"):
         _fail("PROTOCOL_NOT_SUPPORTED",
               "The object's protocol registration does not support read interpretation.")
     return metadata

@@ -347,6 +347,9 @@ export interface CatalogObjectItem {
   basis_revision_id: string
   contract_version: string | null
   formal_state: FormalState
+  /** Authorized Owner/DRI projection from the selected revision; participants
+   *  are not responsibility relations and are absent by construction. */
+  responsibility?: ResponsibilityEntry[]
 }
 
 export interface CatalogObjectsPage {
@@ -358,4 +361,85 @@ export interface CatalogObjectsPage {
   loaded_count: number
   has_more: boolean
   note?: string
+}
+
+/** One Method→Runtime inventory entry (read-only working-document mapping). */
+export interface MethodMapEntry {
+  id: string
+  business_category: string
+  ssot_name: string
+  business_name: string
+  business_maturity: string
+  purpose: string
+  definition: string
+  definition_source: { document: string; index: number }
+  source_ref: {
+    source_id: string
+    table_id?: string | null
+    table_name?: string | null
+    record_ref: string
+    source_locator?: string
+  }
+  runtime_correspondence: string
+  runtime_object_types: string[]
+  runtime_support_assessment: string
+  calibration_conclusion: string
+  gap: string
+  next_step: string
+  instance_verification: string
+  review_status: string
+  planned_contracts: string[]
+  runtime_support: {
+    assessment: string
+    compiled: string
+    compiled_contract_versions: string[]
+    scope_enabled_contract_versions: string[]
+    links: MethodMapLink[]
+  }
+  runtime_links: MethodMapLink[]
+  authorized_read_availability: {
+    status: string
+    by_object_type?: Record<string, string>
+    note: string
+  }
+}
+
+export interface MethodMapLink {
+  object_type: string
+  contract_versions: string[]
+  catalog_path: string
+}
+
+/** Documented contracts are listed separately from compiled/scope-enabled support. */
+export interface MethodMap {
+  schema_version: string
+  read_at: string
+  source_snapshot: {
+    checked_date: string
+    scope: string
+    snapshot_sha256: string
+    entry_count: number
+    sources: Array<Record<string, unknown>>
+    note: string
+  }
+  method_definition_map: {
+    role: string
+    documented_contracts: Array<{ contract_version: string; support_status: string }>
+    note: string
+  }
+  runtime_implementation: {
+    compiled_contract_versions: string[]
+    scope_enabled_contract_versions: string[]
+    scope_registered_contract_versions: string[]
+    documented_contract_states: Record<string, string>
+    note: string
+  }
+  availability: { mode: string; queried_object_types: number; note: string }
+  inventory_counts: {
+    by_business_category: Record<string, number>
+    by_runtime_support_assessment: Record<string, number>
+    note: string
+  }
+  entries: MethodMapEntry[]
+  notes: string[]
 }

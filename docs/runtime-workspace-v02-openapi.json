@@ -1,0 +1,3759 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "TKOS Memory Service — tkos.workspace/0.2 partner surface",
+    "description": "Standalone governed Memory Service with a native API and a temporary Clark GraphKnowledge compatibility façade.",
+    "version": "0.3.0"
+  },
+  "paths": {
+    "/v1/identity": {
+      "get": {
+        "tags": [
+          "workspace-scenes"
+        ],
+        "summary": "Identity",
+        "operationId": "identity_v1_identity_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdentityView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspace-scenes/events": {
+      "post": {
+        "tags": [
+          "workspace-scenes"
+        ],
+        "summary": "Write",
+        "operationId": "write_v1_workspace_scenes_events_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/WorkspaceCommand"
+                  },
+                  {
+                    "$ref": "#/components/schemas/SourceSceneCommand"
+                  }
+                ],
+                "discriminator": {
+                  "propertyName": "contract_version",
+                  "mapping": {
+                    "tkos.workspace/0.1": "#/components/schemas/WorkspaceCommand",
+                    "tkos.workspace/0.2": "#/components/schemas/SourceSceneCommand"
+                  }
+                },
+                "title": "Command"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/SceneReceipt"
+                    },
+                    {
+                      "$ref": "#/components/schemas/SourceSceneReceipt"
+                    }
+                  ],
+                  "title": "Response Write V1 Workspace Scenes Events Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspace-sources": {
+      "get": {
+        "tags": [
+          "workspace-scenes"
+        ],
+        "summary": "List Source Scenes",
+        "operationId": "list_source_scenes_v1_workspace_sources_get",
+        "parameters": [
+          {
+            "name": "scene_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "meeting",
+                    "document",
+                    "selected_conversation"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Scene Type"
+            }
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "After"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 25,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SourceSceneList"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspace-sources/{scene_id}": {
+      "get": {
+        "tags": [
+          "workspace-scenes"
+        ],
+        "summary": "Read Source Scene",
+        "operationId": "read_source_scene_v1_workspace_sources__scene_id__get",
+        "parameters": [
+          {
+            "name": "scene_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Scene Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SourceSceneView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspace-sources/contexts": {
+      "post": {
+        "tags": [
+          "workspace-scenes"
+        ],
+        "summary": "Create Source Context",
+        "operationId": "create_source_context_v1_workspace_sources_contexts_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SourceContextCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SourceContextView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspace-sources/contexts/{context_id}": {
+      "get": {
+        "tags": [
+          "workspace-scenes"
+        ],
+        "summary": "Read Source Context",
+        "operationId": "read_source_context_v1_workspace_sources_contexts__context_id__get",
+        "parameters": [
+          {
+            "name": "context_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Context Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SourceContextView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/action-receipts/{receipt_id}": {
+      "get": {
+        "tags": [
+          "governed-runtime"
+        ],
+        "summary": "Receipt Get",
+        "operationId": "receipt_get_v1_action_receipts__receipt_id__get",
+        "parameters": [
+          {
+            "name": "receipt_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Receipt Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/objects/{object_id}": {
+      "get": {
+        "tags": [
+          "governed-runtime"
+        ],
+        "summary": "Object Get",
+        "operationId": "object_get_v1_objects__object_id__get",
+        "parameters": [
+          {
+            "name": "object_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Object Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/objects/{object_id}/revisions/{revision_id}": {
+      "get": {
+        "tags": [
+          "governed-runtime"
+        ],
+        "summary": "Revision Get",
+        "operationId": "revision_get_v1_objects__object_id__revisions__revision_id__get",
+        "parameters": [
+          {
+            "name": "object_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Object Id"
+            }
+          },
+          {
+            "name": "revision_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Revision Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/evidence-assets": {
+      "post": {
+        "tags": [
+          "governed-runtime"
+        ],
+        "summary": "Evidence Create",
+        "operationId": "evidence_create_v1_evidence_assets_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EvidenceRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/evidence-assets/{object_id}/revisions/{revision_id}": {
+      "get": {
+        "tags": [
+          "governed-runtime"
+        ],
+        "summary": "Evidence Download",
+        "operationId": "evidence_download_v1_evidence_assets__object_id__revisions__revision_id__get",
+        "parameters": [
+          {
+            "name": "object_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Object Id"
+            }
+          },
+          {
+            "name": "revision_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Revision Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/context-packs": {
+      "post": {
+        "tags": [
+          "governed-runtime"
+        ],
+        "summary": "Context Create",
+        "operationId": "context_create_v1_context_packs_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContextRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/context-packs/{snapshot_id}": {
+      "get": {
+        "tags": [
+          "governed-runtime"
+        ],
+        "summary": "Snapshot Get",
+        "operationId": "snapshot_get_v1_context_packs__snapshot_id__get",
+        "parameters": [
+          {
+            "name": "snapshot_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Snapshot Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AgentBinding": {
+        "properties": {
+          "agent_principal_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Agent Principal Id"
+          },
+          "owner_principal_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Owner Principal Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "agent_principal_id",
+          "owner_principal_id"
+        ],
+        "title": "AgentBinding"
+      },
+      "AgentRun": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "agent_run",
+            "title": "Kind"
+          },
+          "agent_principal_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Agent Principal Id"
+          },
+          "purpose": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Purpose"
+          },
+          "model": {
+            "$ref": "#/components/schemas/ModelSpec"
+          },
+          "input_refs": {
+            "items": {
+              "$ref": "#/components/schemas/SourceVersionRef"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Input Refs"
+          },
+          "context_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Context Id"
+          },
+          "external_run_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200,
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Run Id"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "succeeded",
+              "failed",
+              "unknown"
+            ],
+            "title": "Status"
+          },
+          "started_at": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?(Z|[+-]\\d{2}:\\d{2})$",
+            "format": "date-time",
+            "title": "Started At"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?(Z|[+-]\\d{2}:\\d{2})$",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "output_refs": {
+            "items": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "title": "Output Refs",
+            "default": []
+          },
+          "draft_event_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Draft Event Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "agent_principal_id",
+          "purpose",
+          "model",
+          "input_refs",
+          "context_id",
+          "status",
+          "started_at"
+        ],
+        "title": "AgentRun"
+      },
+      "CeoJudgment": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Text"
+          },
+          "quote": {
+            "$ref": "#/components/schemas/Quote"
+          },
+          "why_ceo": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Why Ceo"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "company_direction",
+              "resource_allocation",
+              "external_commitment",
+              "major_risk",
+              "mission_boundary"
+            ],
+            "title": "Category"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "text",
+          "quote",
+          "why_ceo",
+          "category"
+        ],
+        "title": "CeoJudgment"
+      },
+      "Citation": {
+        "properties": {
+          "source_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Source Id"
+          },
+          "version_event_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Version Event Id"
+          },
+          "payload_hash": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Payload Hash"
+          },
+          "segment_index": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Segment Index"
+          },
+          "quote": {
+            "type": "string",
+            "maxLength": 4000,
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Quote"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "source_id",
+          "version_event_id",
+          "payload_hash",
+          "segment_index",
+          "quote"
+        ],
+        "title": "Citation"
+      },
+      "CommentAnchor": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "comment_anchor",
+            "title": "Kind"
+          },
+          "review_record_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Review Record Id"
+          },
+          "target_ref": {
+            "$ref": "#/components/schemas/ExactRef-Output"
+          },
+          "field_path": {
+            "type": "string",
+            "maxLength": 500,
+            "pattern": "^(?:/(?:[^~/]|~[01])*)+$",
+            "title": "Field Path"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "review_record_id",
+          "target_ref",
+          "field_path"
+        ],
+        "title": "CommentAnchor"
+      },
+      "ContextRequest": {
+        "properties": {
+          "object_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Object Ids"
+          },
+          "valid_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Valid At"
+          },
+          "known_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Known At"
+          },
+          "contract_version": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "tkos.method/0.1",
+                  "tkos.method/0.2",
+                  "tkos.method/0.3",
+                  "tkos.method/0.4"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contract Version"
+          },
+          "stage": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stage"
+          },
+          "purpose": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Purpose"
+          },
+          "include_drafts": {
+            "type": "boolean",
+            "title": "Include Drafts",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "object_ids",
+          "valid_at",
+          "known_at"
+        ],
+        "title": "ContextRequest"
+      },
+      "Create": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "create",
+            "title": "Kind"
+          },
+          "scene_type": {
+            "type": "string",
+            "enum": [
+              "monthly",
+              "weekly",
+              "meeting"
+            ],
+            "title": "Scene Type"
+          },
+          "anchor_ref": {
+            "$ref": "#/components/schemas/ExactRef-Output"
+          },
+          "external_id": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "External Id"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Title"
+          },
+          "owner_assignment_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Owner Assignment Id"
+          },
+          "participant_assignment_ids": {
+            "items": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "title": "Participant Assignment Ids",
+            "default": []
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "scene_type",
+          "anchor_ref",
+          "external_id",
+          "title",
+          "owner_assignment_id"
+        ],
+        "title": "Create"
+      },
+      "DiffResponse": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "diff_response",
+            "title": "Kind"
+          },
+          "candidate_ref": {
+            "$ref": "#/components/schemas/ExactRef-Output"
+          },
+          "response": {
+            "type": "string",
+            "enum": [
+              "reviewed",
+              "commented"
+            ],
+            "title": "Response"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "candidate_ref",
+          "response"
+        ],
+        "title": "DiffResponse"
+      },
+      "DraftDecision": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "draft_decision",
+            "title": "Kind"
+          },
+          "draft_event_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Draft Event Id"
+          },
+          "item_index": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Item Index"
+          },
+          "decision": {
+            "type": "string",
+            "enum": [
+              "accepted",
+              "rejected",
+              "noted"
+            ],
+            "title": "Decision"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "draft_event_id",
+          "item_index",
+          "decision"
+        ],
+        "title": "DraftDecision"
+      },
+      "DraftItem": {
+        "properties": {
+          "item_kind": {
+            "type": "string",
+            "enum": [
+              "fact",
+              "request",
+              "suggestion",
+              "accepted"
+            ],
+            "title": "Item Kind"
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Text"
+          },
+          "citations": {
+            "items": {
+              "$ref": "#/components/schemas/Citation"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Citations"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "item_kind",
+          "text",
+          "citations"
+        ],
+        "title": "DraftItem"
+      },
+      "EvidenceRef": {
+        "properties": {
+          "object_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Object Id"
+          },
+          "revision_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Revision Id"
+          },
+          "payload_hash": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Payload Hash"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "object_id",
+          "revision_id",
+          "payload_hash"
+        ],
+        "title": "EvidenceRef",
+        "description": "Exact EvidenceAsset revision under its active domain protocol.\n\nDeliberately protocol-neutral: any registered 0.3+ (or later) EvidenceAsset\nis accepted. The Runtime never converts it into a Method object."
+      },
+      "EvidenceRequest": {
+        "properties": {
+          "domain_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Domain Id"
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Title"
+          },
+          "content_base64": {
+            "type": "string",
+            "maxLength": 2796204,
+            "minLength": 1,
+            "title": "Content Base64"
+          },
+          "media_type": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 3,
+            "pattern": "^[A-Za-z0-9!#$&^_.+-]+/[A-Za-z0-9!#$&^_.+-]+$",
+            "title": "Media Type",
+            "default": "application/octet-stream"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "domain_id",
+          "title",
+          "content_base64"
+        ],
+        "title": "EvidenceRequest"
+      },
+      "ExactRef-Output": {
+        "properties": {
+          "object_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Object Id"
+          },
+          "revision_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Revision Id"
+          },
+          "payload_hash": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Payload Hash"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "object_id",
+          "revision_id",
+          "payload_hash"
+        ],
+        "title": "ExactRef"
+      },
+      "FollowupDraft": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "followup_draft",
+            "title": "Kind"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Title"
+          },
+          "run_event_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Event Id"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/DraftItem"
+            },
+            "type": "array",
+            "maxItems": 50,
+            "minItems": 1,
+            "title": "Items"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "title",
+          "items"
+        ],
+        "title": "FollowupDraft"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "IdentityView": {
+        "properties": {
+          "scope_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Scope Id"
+          },
+          "tenant_id": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Tenant Id"
+          },
+          "company_id": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Company Id"
+          },
+          "principal_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Principal Id"
+          },
+          "principal_type": {
+            "type": "string",
+            "enum": [
+              "human",
+              "agent"
+            ],
+            "title": "Principal Type"
+          },
+          "display_name": {
+            "type": "string",
+            "title": "Display Name"
+          },
+          "auth_epoch": {
+            "type": "integer",
+            "title": "Auth Epoch"
+          },
+          "assignments": {
+            "items": {
+              "additionalProperties": {
+                "$ref": "#/components/schemas/JsonValue"
+              },
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Assignments"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "scope_id",
+          "tenant_id",
+          "company_id",
+          "principal_id",
+          "principal_type",
+          "display_name",
+          "auth_epoch",
+          "assignments"
+        ],
+        "title": "IdentityView"
+      },
+      "JsonValue": {},
+      "MeetingAction": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Text"
+          },
+          "quote": {
+            "$ref": "#/components/schemas/Quote"
+          },
+          "owner_assignment_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner Assignment Id"
+          },
+          "due": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?(Z|[+-]\\d{2}:\\d{2})$",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "text",
+          "quote"
+        ],
+        "title": "MeetingAction"
+      },
+      "MeetingFinish": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "meeting_finish",
+            "title": "Kind"
+          },
+          "extract_requested": {
+            "type": "boolean",
+            "title": "Extract Requested"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "extract_requested"
+        ],
+        "title": "MeetingFinish"
+      },
+      "MeetingItem": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Text"
+          },
+          "quote": {
+            "$ref": "#/components/schemas/Quote"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "text",
+          "quote"
+        ],
+        "title": "MeetingItem"
+      },
+      "MeetingMaterial": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "meeting_material",
+            "title": "Kind"
+          },
+          "transcript_ref": {
+            "$ref": "#/components/schemas/ExactRef-Output"
+          },
+          "transcript": {
+            "items": {
+              "$ref": "#/components/schemas/TranscriptLine"
+            },
+            "type": "array",
+            "maxItems": 1000,
+            "minItems": 1,
+            "title": "Transcript"
+          },
+          "source_refs": {
+            "items": {
+              "$ref": "#/components/schemas/ExactRef-Output"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "title": "Source Refs",
+            "default": []
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "transcript_ref",
+          "transcript"
+        ],
+        "title": "MeetingMaterial"
+      },
+      "MeetingPublish": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "meeting_publish",
+            "title": "Kind"
+          },
+          "material_event_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Material Event Id"
+          },
+          "summary": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Summary"
+          },
+          "decisions": {
+            "items": {
+              "$ref": "#/components/schemas/MeetingItem"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "title": "Decisions"
+          },
+          "actions": {
+            "items": {
+              "$ref": "#/components/schemas/MeetingAction"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "title": "Actions"
+          },
+          "open_questions": {
+            "items": {
+              "$ref": "#/components/schemas/MeetingItem"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "title": "Open Questions"
+          },
+          "ceo_judgments": {
+            "items": {
+              "$ref": "#/components/schemas/CeoJudgment"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "title": "Ceo Judgments"
+          },
+          "routes": {
+            "items": {
+              "$ref": "#/components/schemas/Route"
+            },
+            "type": "array",
+            "maxItems": 200,
+            "title": "Routes"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "material_event_id",
+          "summary",
+          "decisions",
+          "actions",
+          "open_questions",
+          "ceo_judgments",
+          "routes"
+        ],
+        "title": "MeetingPublish"
+      },
+      "MeetingStart": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "meeting_start",
+            "title": "Kind"
+          },
+          "recording_requested": {
+            "type": "boolean",
+            "title": "Recording Requested"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "recording_requested"
+        ],
+        "title": "MeetingStart"
+      },
+      "Milestone": {
+        "properties": {
+          "due": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?(Z|[+-]\\d{2}:\\d{2})$",
+            "format": "date-time",
+            "title": "Due"
+          },
+          "label": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Label"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "verified",
+              "current",
+              "later"
+            ],
+            "title": "State"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "due",
+          "label",
+          "state"
+        ],
+        "title": "Milestone"
+      },
+      "ModelSpec": {
+        "properties": {
+          "provider": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Provider"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Name"
+          },
+          "version": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Version"
+          },
+          "parameters": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/JsonValue"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parameters"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "provider",
+          "name",
+          "version"
+        ],
+        "title": "ModelSpec"
+      },
+      "MonthlyMaterial": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "monthly_material",
+            "title": "Kind"
+          },
+          "target_ref": {
+            "$ref": "#/components/schemas/ExactRef-Output"
+          },
+          "source_refs": {
+            "items": {
+              "$ref": "#/components/schemas/ExactRef-Output"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Source Refs"
+          },
+          "priority": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "P0",
+                  "P1"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Priority"
+          },
+          "why": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Why"
+          },
+          "milestones": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/Milestone"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Milestones"
+          },
+          "dependencies": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "pattern": "\\S"
+                },
+                "type": "array",
+                "maxItems": 100
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dependencies"
+          },
+          "feedback_deadline": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?(Z|[+-]\\d{2}:\\d{2})$",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Feedback Deadline"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "target_ref",
+          "source_refs"
+        ],
+        "title": "MonthlyMaterial"
+      },
+      "Period": {
+        "properties": {
+          "start": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?(Z|[+-]\\d{2}:\\d{2})$",
+            "format": "date-time",
+            "title": "Start"
+          },
+          "end": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?(Z|[+-]\\d{2}:\\d{2})$",
+            "format": "date-time",
+            "title": "End"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "start",
+          "end"
+        ],
+        "title": "Period"
+      },
+      "PreRead": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "read",
+              "request_supplement",
+              "bring_to_meeting"
+            ],
+            "title": "Kind"
+          },
+          "subject_ref": {
+            "$ref": "#/components/schemas/ExactRef-Output"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "subject_ref"
+        ],
+        "title": "PreRead"
+      },
+      "ProgressSource": {
+        "properties": {
+          "source_id": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Source Id"
+          },
+          "label": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Label"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "read",
+              "stale",
+              "unavailable"
+            ],
+            "title": "State"
+          },
+          "observed_at": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?(Z|[+-]\\d{2}:\\d{2})$",
+            "format": "date-time",
+            "title": "Observed At"
+          },
+          "evidence_ref": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ExactRef-Output"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "source_id",
+          "label",
+          "state",
+          "observed_at"
+        ],
+        "title": "ProgressSource"
+      },
+      "Question": {
+        "properties": {
+          "question_id": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Question Id"
+          },
+          "prompt": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Prompt"
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "question_id",
+          "prompt",
+          "reason"
+        ],
+        "title": "Question"
+      },
+      "Quote": {
+        "properties": {
+          "line_index": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Line Index"
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Text"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "line_index",
+          "text"
+        ],
+        "title": "Quote"
+      },
+      "RefreshSources": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "refresh_sources",
+            "title": "Kind"
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "reason"
+        ],
+        "title": "RefreshSources"
+      },
+      "Route": {
+        "properties": {
+          "item_kind": {
+            "type": "string",
+            "enum": [
+              "action",
+              "ceo_judgment"
+            ],
+            "title": "Item Kind"
+          },
+          "item_index": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Item Index"
+          },
+          "recipient_assignment_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Recipient Assignment Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "item_kind",
+          "item_index",
+          "recipient_assignment_id"
+        ],
+        "title": "Route"
+      },
+      "SceneCreate": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "scene_create",
+            "title": "Kind"
+          },
+          "scene_type": {
+            "type": "string",
+            "enum": [
+              "meeting",
+              "document",
+              "selected_conversation"
+            ],
+            "title": "Scene Type"
+          },
+          "external_id": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "External Id"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Title"
+          },
+          "owner_principal_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Owner Principal Id"
+          },
+          "participant_principal_ids": {
+            "items": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "title": "Participant Principal Ids",
+            "default": []
+          },
+          "agent_bindings": {
+            "items": {
+              "$ref": "#/components/schemas/AgentBinding"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "title": "Agent Bindings",
+            "default": []
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "scene_type",
+          "external_id",
+          "title",
+          "owner_principal_id"
+        ],
+        "title": "SceneCreate"
+      },
+      "SceneReceipt": {
+        "properties": {
+          "receipt_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Receipt Id"
+          },
+          "action_type": {
+            "type": "string",
+            "title": "Action Type"
+          },
+          "actor_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Actor Id"
+          },
+          "auth_epoch": {
+            "type": "integer",
+            "title": "Auth Epoch"
+          },
+          "status": {
+            "type": "string",
+            "const": "committed",
+            "title": "Status"
+          },
+          "result": {
+            "$ref": "#/components/schemas/SceneResult"
+          },
+          "object_versions": {
+            "items": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "type": "array",
+            "title": "Object Versions"
+          },
+          "effect_task_ids": {
+            "items": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "type": "array",
+            "title": "Effect Task Ids"
+          },
+          "recorded_at": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?(Z|[+-]\\d{2}:\\d{2})$",
+            "format": "date-time",
+            "title": "Recorded At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "receipt_id",
+          "action_type",
+          "actor_id",
+          "auth_epoch",
+          "status",
+          "result",
+          "object_versions",
+          "effect_task_ids",
+          "recorded_at"
+        ],
+        "title": "SceneReceipt"
+      },
+      "SceneResult": {
+        "properties": {
+          "contract_version": {
+            "type": "string",
+            "const": "tkos.workspace/0.1",
+            "title": "Contract Version"
+          },
+          "scene_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Scene Id"
+          },
+          "event_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Event Id"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "payload_hash": {
+            "type": "string",
+            "title": "Payload Hash"
+          },
+          "formal_effect": {
+            "type": "string",
+            "const": "none",
+            "title": "Formal Effect"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "contract_version",
+          "scene_id",
+          "event_id",
+          "version",
+          "payload_hash",
+          "formal_effect"
+        ],
+        "title": "SceneResult"
+      },
+      "Segment": {
+        "properties": {
+          "speaker": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200,
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Speaker"
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 8000,
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Text"
+          },
+          "occurred_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?(Z|[+-]\\d{2}:\\d{2})$",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Occurred At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "Segment"
+      },
+      "SourceAdd": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "source_add",
+            "title": "Kind"
+          },
+          "system": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "System"
+          },
+          "external_id": {
+            "type": "string",
+            "maxLength": 300,
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "External Id"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Title"
+          },
+          "media_type": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Media Type"
+          },
+          "acquired_at": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?(Z|[+-]\\d{2}:\\d{2})$",
+            "format": "date-time",
+            "title": "Acquired At"
+          },
+          "origin_label": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Origin Label"
+          },
+          "source_revision": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200,
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Revision"
+          },
+          "sensitivity": {
+            "type": "string",
+            "const": "private",
+            "title": "Sensitivity",
+            "default": "private"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "system",
+          "external_id",
+          "title",
+          "media_type",
+          "acquired_at"
+        ],
+        "title": "SourceAdd"
+      },
+      "SourceContextCreate": {
+        "properties": {
+          "contract_version": {
+            "type": "string",
+            "const": "tkos.workspace/0.2",
+            "title": "Contract Version"
+          },
+          "scene_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Scene Id"
+          },
+          "idempotency_key": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 16,
+            "pattern": "\\S",
+            "title": "Idempotency Key"
+          },
+          "purpose": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Purpose"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/SourceContextItem"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Items"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "contract_version",
+          "scene_id",
+          "idempotency_key",
+          "purpose",
+          "items"
+        ],
+        "title": "SourceContextCreate"
+      },
+      "SourceContextItem": {
+        "properties": {
+          "source_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Source Id"
+          },
+          "version_event_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Version Event Id"
+          },
+          "payload_hash": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Payload Hash"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "source_id",
+          "version_event_id",
+          "payload_hash"
+        ],
+        "title": "SourceContextItem"
+      },
+      "SourceContextView": {
+        "properties": {
+          "contract_version": {
+            "type": "string",
+            "const": "tkos.workspace/0.2",
+            "title": "Contract Version"
+          },
+          "context_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Context Id"
+          },
+          "scene_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Scene Id"
+          },
+          "purpose": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Purpose"
+          },
+          "created_by_principal_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Created By Principal Id"
+          },
+          "recorded_at": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?(Z|[+-]\\d{2}:\\d{2})$",
+            "format": "date-time",
+            "title": "Recorded At"
+          },
+          "complete": {
+            "type": "boolean",
+            "title": "Complete"
+          },
+          "withheld": {
+            "type": "boolean",
+            "title": "Withheld",
+            "default": false
+          },
+          "items": {
+            "items": {
+              "additionalProperties": {
+                "$ref": "#/components/schemas/JsonValue"
+              },
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "contract_version",
+          "context_id",
+          "scene_id",
+          "created_by_principal_id",
+          "recorded_at",
+          "complete",
+          "items"
+        ],
+        "title": "SourceContextView"
+      },
+      "SourceCorrect": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "source_correct",
+            "title": "Kind"
+          },
+          "source_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Source Id"
+          },
+          "corrects_event_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Corrects Event Id"
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Reason"
+          },
+          "fingerprint": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Fingerprint"
+          },
+          "media_type": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Media Type"
+          },
+          "acquired_at": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?(Z|[+-]\\d{2}:\\d{2})$",
+            "format": "date-time",
+            "title": "Acquired At"
+          },
+          "origin_label": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Origin Label"
+          },
+          "segments": {
+            "items": {
+              "$ref": "#/components/schemas/Segment"
+            },
+            "type": "array",
+            "maxItems": 2000,
+            "minItems": 1,
+            "title": "Segments"
+          },
+          "evidence_ref": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EvidenceRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "source_id",
+          "corrects_event_id",
+          "reason",
+          "fingerprint",
+          "media_type",
+          "acquired_at",
+          "segments"
+        ],
+        "title": "SourceCorrect"
+      },
+      "SourceSceneCommand": {
+        "properties": {
+          "contract_version": {
+            "type": "string",
+            "const": "tkos.workspace/0.2",
+            "title": "Contract Version"
+          },
+          "scene_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Scene Id"
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Expected Version"
+          },
+          "idempotency_key": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 16,
+            "pattern": "\\S",
+            "title": "Idempotency Key"
+          },
+          "event": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/SceneCreate"
+              },
+              {
+                "$ref": "#/components/schemas/SourceAdd"
+              },
+              {
+                "$ref": "#/components/schemas/SourceVersion"
+              },
+              {
+                "$ref": "#/components/schemas/SourceCorrect"
+              },
+              {
+                "$ref": "#/components/schemas/SourceWithdraw"
+              },
+              {
+                "$ref": "#/components/schemas/SourceShare"
+              },
+              {
+                "$ref": "#/components/schemas/SourceUnshare"
+              },
+              {
+                "$ref": "#/components/schemas/AgentRun"
+              },
+              {
+                "$ref": "#/components/schemas/FollowupDraft"
+              },
+              {
+                "$ref": "#/components/schemas/DraftDecision"
+              }
+            ],
+            "title": "Event",
+            "discriminator": {
+              "propertyName": "kind",
+              "mapping": {
+                "agent_run": "#/components/schemas/AgentRun",
+                "draft_decision": "#/components/schemas/DraftDecision",
+                "followup_draft": "#/components/schemas/FollowupDraft",
+                "scene_create": "#/components/schemas/SceneCreate",
+                "source_add": "#/components/schemas/SourceAdd",
+                "source_correct": "#/components/schemas/SourceCorrect",
+                "source_share": "#/components/schemas/SourceShare",
+                "source_unshare": "#/components/schemas/SourceUnshare",
+                "source_version": "#/components/schemas/SourceVersion",
+                "source_withdraw": "#/components/schemas/SourceWithdraw"
+              }
+            }
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "contract_version",
+          "scene_id",
+          "expected_version",
+          "idempotency_key",
+          "event"
+        ],
+        "title": "SourceSceneCommand"
+      },
+      "SourceSceneList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/SourceSceneSummary"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "next_after": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next After"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "items",
+          "next_after"
+        ],
+        "title": "SourceSceneList"
+      },
+      "SourceSceneReceipt": {
+        "properties": {
+          "receipt_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Receipt Id"
+          },
+          "action_type": {
+            "type": "string",
+            "title": "Action Type"
+          },
+          "actor_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Actor Id"
+          },
+          "auth_epoch": {
+            "type": "integer",
+            "title": "Auth Epoch"
+          },
+          "status": {
+            "type": "string",
+            "const": "committed",
+            "title": "Status"
+          },
+          "result": {
+            "$ref": "#/components/schemas/SourceSceneResult"
+          },
+          "object_versions": {
+            "items": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "type": "array",
+            "title": "Object Versions"
+          },
+          "effect_task_ids": {
+            "items": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "type": "array",
+            "title": "Effect Task Ids"
+          },
+          "recorded_at": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?(Z|[+-]\\d{2}:\\d{2})$",
+            "format": "date-time",
+            "title": "Recorded At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "receipt_id",
+          "action_type",
+          "actor_id",
+          "auth_epoch",
+          "status",
+          "result",
+          "object_versions",
+          "effect_task_ids",
+          "recorded_at"
+        ],
+        "title": "SourceSceneReceipt"
+      },
+      "SourceSceneResult": {
+        "properties": {
+          "contract_version": {
+            "type": "string",
+            "const": "tkos.workspace/0.2",
+            "title": "Contract Version"
+          },
+          "scene_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Scene Id"
+          },
+          "event_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Event Id"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "payload_hash": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Payload Hash"
+          },
+          "source_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Id"
+          },
+          "evidence_linked": {
+            "type": "boolean",
+            "title": "Evidence Linked",
+            "default": false
+          },
+          "formal_effect": {
+            "type": "string",
+            "const": "none",
+            "title": "Formal Effect"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "contract_version",
+          "scene_id",
+          "event_id",
+          "version",
+          "kind",
+          "payload_hash",
+          "formal_effect"
+        ],
+        "title": "SourceSceneResult"
+      },
+      "SourceSceneSummary": {
+        "properties": {
+          "scene_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Scene Id"
+          },
+          "scene_type": {
+            "type": "string",
+            "title": "Scene Type"
+          },
+          "external_id": {
+            "type": "string",
+            "title": "External Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "owner_principal_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Owner Principal Id"
+          },
+          "participant_principal_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Participant Principal Ids"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "created_at": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?(Z|[+-]\\d{2}:\\d{2})$",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "scene_id",
+          "scene_type",
+          "external_id",
+          "title",
+          "owner_principal_id",
+          "participant_principal_ids",
+          "version",
+          "created_at"
+        ],
+        "title": "SourceSceneSummary"
+      },
+      "SourceSceneView": {
+        "properties": {
+          "contract_version": {
+            "type": "string",
+            "const": "tkos.workspace/0.2",
+            "title": "Contract Version"
+          },
+          "scene_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Scene Id"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "scene": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "type": "object",
+            "title": "Scene"
+          },
+          "sources": {
+            "items": {
+              "additionalProperties": {
+                "$ref": "#/components/schemas/JsonValue"
+              },
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Sources"
+          },
+          "runs": {
+            "items": {
+              "additionalProperties": {
+                "$ref": "#/components/schemas/JsonValue"
+              },
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Runs"
+          },
+          "drafts": {
+            "items": {
+              "additionalProperties": {
+                "$ref": "#/components/schemas/JsonValue"
+              },
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Drafts"
+          },
+          "decisions": {
+            "items": {
+              "additionalProperties": {
+                "$ref": "#/components/schemas/JsonValue"
+              },
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Decisions"
+          },
+          "operations": {
+            "items": {
+              "additionalProperties": {
+                "$ref": "#/components/schemas/JsonValue"
+              },
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Operations"
+          },
+          "formal_effect": {
+            "type": "string",
+            "const": "none",
+            "title": "Formal Effect"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "contract_version",
+          "scene_id",
+          "version",
+          "scene",
+          "sources",
+          "runs",
+          "drafts",
+          "decisions",
+          "operations",
+          "formal_effect"
+        ],
+        "title": "SourceSceneView"
+      },
+      "SourceShare": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "source_share",
+            "title": "Kind"
+          },
+          "source_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Source Id"
+          },
+          "version_event_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Version Event Id"
+          },
+          "payload_hash": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Payload Hash"
+          },
+          "share_to_principal_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Share To Principal Id"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "source_id",
+          "version_event_id",
+          "payload_hash",
+          "share_to_principal_id"
+        ],
+        "title": "SourceShare"
+      },
+      "SourceUnshare": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "source_unshare",
+            "title": "Kind"
+          },
+          "share_event_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Share Event Id"
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "share_event_id",
+          "reason"
+        ],
+        "title": "SourceUnshare"
+      },
+      "SourceVersion": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "source_version",
+            "title": "Kind"
+          },
+          "source_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Source Id"
+          },
+          "fingerprint": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Fingerprint"
+          },
+          "media_type": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Media Type"
+          },
+          "acquired_at": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?(Z|[+-]\\d{2}:\\d{2})$",
+            "format": "date-time",
+            "title": "Acquired At"
+          },
+          "origin_label": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Origin Label"
+          },
+          "segments": {
+            "items": {
+              "$ref": "#/components/schemas/Segment"
+            },
+            "type": "array",
+            "maxItems": 2000,
+            "minItems": 1,
+            "title": "Segments"
+          },
+          "evidence_ref": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EvidenceRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "source_id",
+          "fingerprint",
+          "media_type",
+          "acquired_at",
+          "segments"
+        ],
+        "title": "SourceVersion"
+      },
+      "SourceVersionRef": {
+        "properties": {
+          "source_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Source Id"
+          },
+          "version_event_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Version Event Id"
+          },
+          "payload_hash": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Payload Hash"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "source_id",
+          "version_event_id",
+          "payload_hash"
+        ],
+        "title": "SourceVersionRef"
+      },
+      "SourceWithdraw": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "source_withdraw",
+            "title": "Kind"
+          },
+          "source_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Source Id"
+          },
+          "version_event_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version Event Id"
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "source_id",
+          "reason"
+        ],
+        "title": "SourceWithdraw"
+      },
+      "TranscriptLine": {
+        "properties": {
+          "speaker": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Speaker"
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Text"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "speaker",
+          "text"
+        ],
+        "title": "TranscriptLine"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "WeeklyAnswer": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "weekly_answer",
+            "title": "Kind"
+          },
+          "material_event_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Material Event Id"
+          },
+          "question_id": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Question Id"
+          },
+          "answer": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Answer"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "material_event_id",
+          "question_id",
+          "answer"
+        ],
+        "title": "WeeklyAnswer"
+      },
+      "WeeklyConfirm": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "weekly_confirm",
+            "title": "Kind"
+          },
+          "material_event_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Material Event Id"
+          },
+          "answer_event_ids": {
+            "items": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "title": "Answer Event Ids"
+          },
+          "signal": {
+            "type": "string",
+            "enum": [
+              "green",
+              "yellow",
+              "red"
+            ],
+            "title": "Signal"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "material_event_id",
+          "answer_event_ids",
+          "signal"
+        ],
+        "title": "WeeklyConfirm"
+      },
+      "WeeklyMaterial": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "weekly_material",
+            "title": "Kind"
+          },
+          "period": {
+            "$ref": "#/components/schemas/Period"
+          },
+          "headline": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Headline"
+          },
+          "caveat": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "\\S"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Caveat"
+          },
+          "advances": {
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "\\S"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "title": "Advances"
+          },
+          "problems": {
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "\\S"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "title": "Problems"
+          },
+          "implications": {
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "\\S"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "title": "Implications"
+          },
+          "handling": {
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "\\S"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "title": "Handling"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/ProgressSource"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "title": "Sources"
+          },
+          "questions": {
+            "items": {
+              "$ref": "#/components/schemas/Question"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "title": "Questions"
+          },
+          "fact_refs": {
+            "items": {
+              "$ref": "#/components/schemas/ExactRef-Output"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "title": "Fact Refs",
+            "default": []
+          },
+          "period_review_refs": {
+            "items": {
+              "$ref": "#/components/schemas/ExactRef-Output"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "title": "Period Review Refs",
+            "default": []
+          },
+          "source_refs": {
+            "items": {
+              "$ref": "#/components/schemas/ExactRef-Output"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Source Refs"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "period",
+          "headline",
+          "advances",
+          "problems",
+          "implications",
+          "handling",
+          "sources",
+          "questions",
+          "source_refs"
+        ],
+        "title": "WeeklyMaterial"
+      },
+      "Withdraw": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "withdraw",
+            "title": "Kind"
+          },
+          "event_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Event Id"
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "event_id",
+          "reason"
+        ],
+        "title": "Withdraw"
+      },
+      "WorkspaceCommand": {
+        "properties": {
+          "contract_version": {
+            "type": "string",
+            "const": "tkos.workspace/0.1",
+            "title": "Contract Version"
+          },
+          "scene_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Scene Id"
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Expected Version"
+          },
+          "idempotency_key": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 16,
+            "pattern": "\\S",
+            "title": "Idempotency Key"
+          },
+          "event": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Create"
+              },
+              {
+                "$ref": "#/components/schemas/CommentAnchor"
+              },
+              {
+                "$ref": "#/components/schemas/DiffResponse"
+              },
+              {
+                "$ref": "#/components/schemas/MonthlyMaterial"
+              },
+              {
+                "$ref": "#/components/schemas/WeeklyMaterial"
+              },
+              {
+                "$ref": "#/components/schemas/RefreshSources"
+              },
+              {
+                "$ref": "#/components/schemas/WeeklyAnswer"
+              },
+              {
+                "$ref": "#/components/schemas/WeeklyConfirm"
+              },
+              {
+                "$ref": "#/components/schemas/PreRead"
+              },
+              {
+                "$ref": "#/components/schemas/MeetingStart"
+              },
+              {
+                "$ref": "#/components/schemas/MeetingFinish"
+              },
+              {
+                "$ref": "#/components/schemas/MeetingMaterial"
+              },
+              {
+                "$ref": "#/components/schemas/MeetingPublish"
+              },
+              {
+                "$ref": "#/components/schemas/Withdraw"
+              }
+            ],
+            "title": "Event",
+            "discriminator": {
+              "propertyName": "kind",
+              "mapping": {
+                "bring_to_meeting": "#/components/schemas/PreRead",
+                "comment_anchor": "#/components/schemas/CommentAnchor",
+                "create": "#/components/schemas/Create",
+                "diff_response": "#/components/schemas/DiffResponse",
+                "meeting_finish": "#/components/schemas/MeetingFinish",
+                "meeting_material": "#/components/schemas/MeetingMaterial",
+                "meeting_publish": "#/components/schemas/MeetingPublish",
+                "meeting_start": "#/components/schemas/MeetingStart",
+                "monthly_material": "#/components/schemas/MonthlyMaterial",
+                "read": "#/components/schemas/PreRead",
+                "refresh_sources": "#/components/schemas/RefreshSources",
+                "request_supplement": "#/components/schemas/PreRead",
+                "weekly_answer": "#/components/schemas/WeeklyAnswer",
+                "weekly_confirm": "#/components/schemas/WeeklyConfirm",
+                "weekly_material": "#/components/schemas/WeeklyMaterial",
+                "withdraw": "#/components/schemas/Withdraw"
+              }
+            }
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "contract_version",
+          "scene_id",
+          "expected_version",
+          "idempotency_key",
+          "event"
+        ],
+        "title": "WorkspaceCommand"
+      }
+    }
+  }
+}

@@ -1,0 +1,125 @@
+{
+  "checked_date": "2026-09-17",
+  "scope": "read-only Method working-source snapshot; not enterprise acceptance",
+  "inventory": [
+    {
+      "source_id": "B01",
+      "table_id": "tbl2GmOoJEGuAOwR",
+      "name": "00_说明",
+      "rows_read": 16,
+      "business_entries": null,
+      "has_more": false,
+      "ndjson_sha256": "1ac4014cf51a99fe75a86a27510122c7259e89cf0da7b103faa337f1f552e7b9"
+    },
+    {
+      "source_id": "B01",
+      "table_id": "tbl34cyKc0YOdCMM",
+      "name": "01_总览",
+      "rows_read": 10,
+      "business_entries": null,
+      "has_more": false,
+      "ndjson_sha256": "157a7d54929116d37ba9f08280551989c274e33b4ddadd7b3601796d022d27de"
+    },
+    {
+      "source_id": "B01",
+      "table_id": "tbl7EEJUYN3dqpTt",
+      "name": "02_Anchor",
+      "rows_read": 13,
+      "business_entries": 10,
+      "has_more": false,
+      "ndjson_sha256": "cc023e43a2a794ba5b5bb4ad4f788503600feb3a10cbfb50842303ef20b51ea3"
+    },
+    {
+      "source_id": "B01",
+      "table_id": "tbl3A3TLpW6UrLTh",
+      "name": "03_Reference",
+      "rows_read": 11,
+      "business_entries": 8,
+      "has_more": false,
+      "ndjson_sha256": "fca3e639e428e49127bbbd64a0cbb2934fcc7e2ff825128e16a230817a458a34"
+    },
+    {
+      "source_id": "B01",
+      "table_id": "tbl4YtIVcTnP29MO",
+      "name": "04_Business Artifact",
+      "rows_read": 14,
+      "business_entries": 11,
+      "has_more": false,
+      "ndjson_sha256": "ab69cba5c83046ac6c45979bd27b5e99445781a6df73c140326f2f19ad7014aa"
+    },
+    {
+      "source_id": "B01",
+      "table_id": "tbl7myMbBr1y3hYZ",
+      "name": "05_Evidence_Runtime",
+      "rows_read": 18,
+      "business_entries": 15,
+      "has_more": false,
+      "ndjson_sha256": "7f5e4fbcd00e0a718deae2578fe526b87b51b879ea3f3d57203effa3c4e8a140"
+    }
+  ],
+  "documents": [
+    {
+      "source_id": "B02",
+      "url": "https://tokenking.feishu.cn/docx/GrirdQM1do4TCUxiQtacFdexndd",
+      "revision_id": 3,
+      "read_scope": "全文；Working Standard",
+      "content_sha256": "6d694368c3fd08d1c448f7e9c9fee54e4429db4e181ee7cad569467ee984c8b0"
+    },
+    {
+      "source_id": "B03",
+      "url": "https://tokenking.feishu.cn/docx/JyLZdJXX0o87L4xcz3OcfLB0nth",
+      "revision_id": 7,
+      "read_scope": "全文；模板示例不直接作为新Gate",
+      "content_sha256": "9c5c88ef1f43dbb9bab3a9c54742d4bef7cbb588358d9bb996a367050706fd33"
+    },
+    {
+      "source_id": "B04",
+      "url": "https://tokenking.feishu.cn/docx/VxTZdxm7GoIBG9xlFUOcQQmYn1d",
+      "revision_id": 3,
+      "read_scope": "全文；高管研讨稿 / L3 Working Version",
+      "content_sha256": "817cb873b64c9a9384dc5a3c32eb7ebbfa46b98c0ad842904234e10a2fd86eda"
+    },
+    {
+      "source_id": "B05",
+      "url": "https://tokenking.feishu.cn/docx/XFL0dfSpYo45KBxpGUgcI8yxnPb",
+      "revision_id": 2,
+      "read_scope": "全文；高管研讨稿 / L3 Working Version",
+      "content_sha256": "52e783a73eff6079463dd3e13ecf626d4f0bc2b4d11591ab296332f9783ec82d"
+    },
+    {
+      "source_id": "B06",
+      "url": "https://tokenking.feishu.cn/docx/OEtldxrc1oCJeUxdZi5co9Ocnzb",
+      "revision_id": 3,
+      "read_scope": "目录及规则关键词片段；此hash对应片段，非完整文档",
+      "content_sha256": "4a837f8736e938955e177401bbb3109d9314501c2720234e30dbed5ba26e5132"
+    },
+    {
+      "source_id": "B07",
+      "url": "https://tokenking.feishu.cn/docx/OsDadxJY3ob4m3xdR6JceJUnnhf",
+      "revision_id": 2,
+      "read_scope": "全文；Standalone Working Method；含旧立项规则",
+      "content_sha256": "6f359a7cf846f25bb58da073e25e57117216a646946f7776b368f47a9867bf0c"
+    },
+    {
+      "source_id": "B08",
+      "url": "https://tokenking.feishu.cn/docx/F7kBdro6poRWJJxCb2OcxoYanyg",
+      "revision_id": 11,
+      "read_scope": "全文；M1A旧主链由B04/B01校准",
+      "content_sha256": "4a93e3a341718b0eac386681d92e01f423f58a54e55abdb73dbac60d58e5d23c"
+    },
+    {
+      "source_id": "B09",
+      "url": "https://tokenking.feishu.cn/docx/JKqodVMK7orVouxQnFhcCoL1nmb",
+      "revision_id": 2,
+      "read_scope": "全文；已在Archive，仅作历史对照",
+      "content_sha256": "df79335c70c7150ff597f89f4487df4bb4625ea050c0d9b2ba499fd40e54a33b"
+    },
+    {
+      "source_id": "B10",
+      "url": "https://tokenking.feishu.cn/docx/PxWNdgTPFo2Z4oxpWYrcy9AEndf",
+      "revision_id": 9,
+      "read_scope": "DRI/Method等关键词片段；进度计划不是完成证据",
+      "content_sha256": "2a105a0bbb723005651c6dd362468294cffedb14c5fff4e42c09b6adccfb6437"
+    }
+  ]
+}

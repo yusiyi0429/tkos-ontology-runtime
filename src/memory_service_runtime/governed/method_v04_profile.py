@@ -1,0 +1,38 @@
+"""Method 0.4 formal human-governance contract identity, independent of 0.1-0.3."""
+from typing import Literal
+from pydantic import BaseModel, ConfigDict
+from . import canon, method_profile
+
+PROTOCOL_ID = "tkos.method"
+CONTRACT_VERSION = "tkos.method/0.4"
+SCHEMA_VERSION = "tkos.method-profile/0.4"
+CONTRACT_SHA256 = "984c3e09dc9771e29e26aea858d19bb4639bb3d93dc4df12841130ef4f8e44aa"
+
+
+class ContractRef(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    contract_id: Literal["tkos.method"] = "tkos.method"
+    revision: Literal["0.4"] = "0.4"
+    content_sha256: Literal[CONTRACT_SHA256] = CONTRACT_SHA256
+
+
+class Profile(method_profile.MethodProfileCore):
+    profile_core_schema_version: Literal[SCHEMA_VERSION]
+    revision: Literal["0.4.0"]
+    display_name: Literal["Method 0.4 formal human governance 2026-09-17"]
+    action_contract_ref: ContractRef
+
+
+def validate(data):
+    value = Profile.model_validate(data)
+    if value.canonical_hash != canon.digest_excluding(value.model_dump(mode="json"), frozenset({"canonical_hash"})):
+        raise ValueError("Method profile canonical_hash mismatch")
+    return value
+
+
+def content():
+    value = {**method_profile.content(), "profile_core_schema_version": SCHEMA_VERSION,
+             "revision": "0.4.0", "display_name": "Method 0.4 formal human governance 2026-09-17",
+             "action_contract_ref": ContractRef().model_dump(mode="json")}
+    value["canonical_hash"] = canon.digest_excluding(value, frozenset({"canonical_hash"}))
+    return value

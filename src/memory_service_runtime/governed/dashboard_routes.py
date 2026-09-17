@@ -17,7 +17,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Query, Request, Response
 from pydantic import AwareDatetime
 
-from . import dashboard, db, method_readers, readers, workbench, workspace_readers
+from . import dashboard, db, method_map, method_readers, readers, workbench, workspace_readers
 from .errors import GovernedError
 from .routes import bearer
 from .workbench import strict_query
@@ -101,6 +101,14 @@ def read_evidence(token: str, object_id: str, revision_id: str) -> Response:
 def read_ontology_catalog(token: str) -> dict:
     with db.transaction(token) as (conn, ctx):
         return dashboard.ontology_catalog(conn, ctx)
+
+
+def read_method_map(token: str, *, availability: str = "none") -> dict:
+    """Read-only Method→Runtime map; it adds no action and no business write."""
+    with db.transaction(token) as (conn, ctx):
+        if not ctx.assignments:
+            raise GovernedError("FORBIDDEN", "No current read assignment", status=403)
+        return method_map.build(conn, ctx, availability=availability)
 
 
 def read_catalog_objects(token: str, *, object_type: str, domain_id: str | None = None,
@@ -214,6 +222,16 @@ def downstream_route(request: Request, response: Response, object_id: uuid.UUID,
     return result
 
 
+@router.get("/ontology/method-map")
+def ontology_method_map_route(request: Request, response: Response,
+                              token: Annotated[str, Depends(bearer)],
+                              availability: Annotated[str, Query(max_length=16)] = "none"):
+    strict_query(request.query_params, {"availability"})
+    result = read_method_map(token, availability=availability)
+    response.headers["Cache-Control"] = "no-store"
+    return result
+
+
 @router.get("/ontology/catalog")
 def ontology_catalog_route(request: Request, response: Response,
                            token: Annotated[str, Depends(bearer)]):
@@ -256,4 +274,5 @@ def evidence_route(request: Request, response: Response, object_id: uuid.UUID,
 
 __all__ = ["router", "read_overview", "read_objects", "read_detail", "read_revisions",
            "read_revision", "read_receipt", "read_reviews", "read_evidence", "read_downstream",
-           "read_object_receipts", "read_ontology_catalog", "read_catalog_objects"]
+           "read_object_receipts", "read_ontology_catalog", "read_method_map",
+           "read_catalog_objects"]

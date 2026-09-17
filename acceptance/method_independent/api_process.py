@@ -9,6 +9,7 @@ def main():
     server.CHECKPOINTS.update({
         'after_first_member_activation', 'after_a3_submission_write', 'after_a3_review_write',
         'after_method_strategy_write', 'after_method_candidate_write', 'after_method_problem_transfer',
+        'after_method_pair_strategy_write', 'after_method_problem_transfer_link',
         'workspace_before_receipt',
     })
     from acceptance.protocol_a1_independent.api_process import main as start

@@ -162,3 +162,7 @@ python3 acceptance/runtime/infra.py up
 代码可构建 API/Worker 镜像，远程试点还需要环境初始化和部署验收，见 [部署边界](docs/deployment.md)。根目录没有可直接投产的 Compose；历史 Memory 模板仅保留在 `deploy/legacy-memory/`。
 
 本仓库以独立源代码快照初始化，来源及基线见 [SOURCE_PROVENANCE.md](SOURCE_PROVENANCE.md)。
+
+### 本机 M1B 治理工作台（开发分支）
+
+个人身份办理评论、替代/撤回、差异核对、CEO 整组确认及重开，查看正式 Mission 和提交回执。默认关闭；保留本体地图、业务关系图和只读模式。详见 [启用与分工](docs/runtime-governance-workbench.md)及[隔离验收入口](acceptance/governance_workbench/README.md)。本轮不代表 Clark 接线、真实模型或远程部署完成。

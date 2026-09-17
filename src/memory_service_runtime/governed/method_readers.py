@@ -59,9 +59,11 @@ def revision(conn, ctx, object_id, revision_id):
 
 
 def is_receipt(row):
+    from .method_v04_models import ACTION_PARAMS as V04_PARAMS
     from .method_v03_models import ACTION_PARAMS
     from .method_v02_models import ACTION_PARAMS as OLD_PARAMS
-    return row.get("action_type") in ACTION_PARAMS or row.get("action_type") in OLD_PARAMS
+    return (row.get("action_type") in ACTION_PARAMS or row.get("action_type") in OLD_PARAMS
+            or row.get("action_type") in V04_PARAMS)
 
 
 def authorize_receipt(conn, ctx, row, *, replay=False):
@@ -85,12 +87,22 @@ def authorize_receipt(conn, ctx, row, *, replay=False):
         domain = row["result"].get("domain_id")
         if target:
             head = access.head(conn, ctx, target)
-            if head["object_type"] == "ReviewWindow" and row["action_type"] in {"m1b_comment", "m1b_withdraw_comment", "m1b_assist_review"}:
+            if head["object_type"] == "ReviewWindow" and row["action_type"] in {"m1b_comment", "m1b_withdraw_comment", "m1b_assist_review", "m1b_replace_comment"}:
                 payload = access.raw_revision(conn, ctx, target, head["latest_revision_id"])["payload"]
                 domain = access.window_participant(conn, ctx, payload)["domain_id"]
             elif head["object_type"] == "StrategicIssue":
                 state = conn.execute("SELECT state FROM gov_method_state WHERE scope_id=%s AND object_id=%s", (ctx.scope_id, target)).fetchone()
-                if state:
+                binding = protocol.current_binding(conn, ctx.scope_id, target)
+                if binding is not None and binding["contract_version"] == "tkos.method/0.4":
+                    # 0.4 direct issue initiation has no research assignment gate;
+                    # replay still requires a current role in the issue's own domain.
+                    domain = head["domain_id"]
+                    if state:
+                        try:
+                            domain = access.research_participant(conn, ctx, state["state"])["domain_id"]
+                        except GovernedError:
+                            pass
+                elif state:
                     domain = access.research_participant(conn, ctx, state["state"])["domain_id"]
         db.authorize_domain(conn, ctx, domain, row["action_type"])
 
@@ -269,7 +281,7 @@ def _state_references(state, keys):
 
 def context_pack(conn, ctx, object_ids, valid_at, known_at, stage, purpose, include_drafts=False,
                  contract_version=CONTRACT_VERSION, *, research_run=None):
-    if contract_version in {"tkos.method/0.2", "tkos.method/0.3"}:
+    if contract_version in {"tkos.method/0.2", "tkos.method/0.3", "tkos.method/0.4"}:
         if stage not in CONTEXT_STAGE_KEYS or purpose not in CONTEXT_PURPOSES | {"dialogue", "research"}:
             raise GovernedError("INVALID_REQUEST", "Unknown lifecycle Context stage or purpose.", status=422)
         if purpose == "research" and research_run is None:
@@ -278,12 +290,14 @@ def context_pack(conn, ctx, object_ids, valid_at, known_at, stage, purpose, incl
             research_gate(conn, ctx, research_run, object_ids, contract_version)
     selected, excluded, seen = [], [], set()
     selected_stage, selected_purpose, state_keys, selection_notes = _context_selection(stage, purpose)
-    if contract_version in {"tkos.method/0.2", "tkos.method/0.3"}:
+    if contract_version in {"tkos.method/0.2", "tkos.method/0.3", "tkos.method/0.4"}:
         selected_purpose, selection_notes = purpose, []
         if stage in {"general", "research", "meeting", "confirmation"}:
             state_keys = state_keys | {"brief_ref"}
-    if contract_version == "tkos.method/0.3":
+    if contract_version in {"tkos.method/0.3", "tkos.method/0.4"}:
         state_keys = state_keys | {"architecture_ref", "canonical_ref", "recommendation_ref", "source_refs", "issue_ref"}
+    if contract_version == "tkos.method/0.4":
+        state_keys = state_keys | {"participants", "strategy_ref", "transferred_problems"}
     context = {"contract_version": contract_version, "stage": stage, "purpose": purpose,
                "actor_id": ctx.principal_id, "actor_type": ctx.principal_type,
                "roles": sorted({a["role"] for a in db._assignments(conn, ctx)}), "include_drafts": include_drafts,
@@ -306,7 +320,7 @@ def context_pack(conn, ctx, object_ids, valid_at, known_at, stage, purpose, incl
             if metadata["protocol_id"] != "tkos.method" or metadata["contract_version"] != contract_version:
                 excluded.append({"object_id": oid if explicit else None, "reason": "different_protocol", "context_request": context})
                 continue
-            if contract_version in {"tkos.method/0.2", "tkos.method/0.3"} and head["object_type"] == "Signal" and research_run is None:
+            if contract_version in {"tkos.method/0.2", "tkos.method/0.3", "tkos.method/0.4"} and head["object_type"] == "Signal" and research_run is None:
                 excluded.append({"object_id": oid if explicit else None, "reason": "signal_not_for_dialogue", "context_request": context})
                 continue
             if rid is None:
@@ -381,7 +395,7 @@ def research_gate(conn, ctx, run_ref, roots, contract_version="tkos.method/0.2")
     assignments = db.authorize_domain(conn, ctx, head["domain_id"], "method_record_attempt")
     if not any(a["role"] in {"CEO_AGENT", "CO_AGENT", "PERSONAL_AGENT"} for a in assignments):
         raise GovernedError("FORBIDDEN")
-    if contract_version == "tkos.method/0.3" and any(a['role']=='CEO_AGENT' for a in assignments):
+    if contract_version in {"tkos.method/0.3", "tkos.method/0.4"} and any(a['role']=='CEO_AGENT' for a in assignments):
         bindings=conn.execute('SELECT owner_principal_id FROM gov_method_agent_bindings WHERE scope_id=%s AND agent_principal_id=%s',(ctx.scope_id,ctx.principal_id)).fetchall()
         owners=set()
         for binding in db.jsonable(bindings):
@@ -411,7 +425,7 @@ def research_gate(conn, ctx, run_ref, roots, contract_version="tkos.method/0.2")
 
 def snapshot(conn, ctx, row, *, research=False):
     context = next((item.get("context_request") for item in row["selected"] + row["excluded"] if item.get("context_request")), {})
-    if context.get("contract_version") in {"tkos.method/0.2", "tkos.method/0.3"}:
+    if context.get("contract_version") in {"tkos.method/0.2", "tkos.method/0.3", "tkos.method/0.4"}:
         if context.get("purpose") == "research":
             if not research or context.get("actor_id") != ctx.principal_id:
                 raise GovernedError("FORBIDDEN", "Research snapshots are not dialogue Context.")

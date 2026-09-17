@@ -28,6 +28,8 @@ app.include_router(native_router)
 app.include_router(governed_router)
 app.include_router(dashboard_router)
 app.include_router(workspace_router)
+from memory_service_runtime.governed.governance import router as governance_router
+app.include_router(governance_router)
 app.include_router(narrative.router)
 install_errors(app)
 mount_dashboard(app)

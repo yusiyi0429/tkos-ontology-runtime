@@ -6,6 +6,8 @@
 """
 from __future__ import annotations
 
+from typing import Any
+
 import pytest
 
 from memory_service_runtime.governed import dashboard
@@ -172,6 +174,200 @@ def test_mission_keeps_the_exact_pco_revision_after_pco_head_moves(monkeypatch):
     assert basis["status"] == "historical"
     assert basis["strategy_ref"]["revision_id"] == strategy_old["revision_id"]
     assert basis["basis_revision"] == "exact_ref"
+
+
+# --------------------------------------------------------------------------
+# Mission basis follows the parent-PCO field of its registered contract
+# --------------------------------------------------------------------------
+
+def _registered_version(monkeypatch, version, calls=None):
+    """Registration metadata is explicit; Mission basis must read it, not guess."""
+    def metadata(conn, scope_id, object_id):
+        if calls is not None:
+            calls.append(str(object_id))
+        return {"contract_version": version}
+
+    monkeypatch.setattr(dashboard.protocol, "read_metadata", metadata)
+
+
+def test_v04_mission_basis_follows_the_exact_parent_pco_ref(monkeypatch):
+    """A registered 0.4 Mission reaches the exact PCO revision it recorded via
+    ``parent_pco_ref`` even after the PCO head moved to a newer revision."""
+    mission_oid, mission_rid = uid(20), uid(21)
+    pco_oid, pco_v1, pco_v2 = uid(30), uid(31), uid(32)
+    metadata_calls: list[str] = []
+    _registered_version(monkeypatch, "tkos.method/0.4", metadata_calls)
+    payload = {"title": "M", "parent_pco_ref": _ref(pco_oid, pco_v1)}
+    mission_rev = revision(mission_oid, mission_rid, payload)
+    recorded = _ref(SELECTED["strategy_id"], SELECTED["revision_id"], "f")  # SELECTED hash is "f"*64
+    loads: list[Any] = []
+
+    def load(conn, ctx, ref):
+        loads.append(ref)
+        if ref is None:
+            return None
+        if str(ref["object_id"]) == pco_oid and str(ref["revision_id"]) == pco_v1:
+            return (head(pco_oid, "PCO", latest=pco_v2, effective=pco_v2),
+                    revision(pco_oid, pco_v1, {"title": "PCO v1", "strategy_ref": recorded}))
+        raise AssertionError(ref)
+
+    monkeypatch.setattr(dashboard, "_load_ref", load)
+    basis = dashboard._basis_of_revision(
+        None, CTX, head(mission_oid, "Mission", latest=mission_rid, effective=mission_rid),
+        mission_rev, SELECTED, visited=frozenset(), impact_linked=False)
+    assert [str(ref["revision_id"]) for ref in loads] == [pco_v1]  # exact recorded ref only
+    assert metadata_calls == [mission_oid]  # the Mission's own registration names the field
+    assert basis["status"] == "current"
+    assert basis["strategy_ref"] == recorded
+    assert basis["basis_revision"] == "exact_ref"
+
+
+def test_v04_mission_basis_keeps_the_historical_parent_after_new_head(monkeypatch):
+    mission_oid, mission_rid = uid(40), uid(41)
+    pco_oid, pco_v1, pco_v2 = uid(50), uid(51), uid(52)
+    old_strategy = _ref(uid(60), uid(61))
+    _registered_version(monkeypatch, "tkos.method/0.4")
+    mission_rev = revision(mission_oid, mission_rid,
+                           {"title": "M", "parent_pco_ref": _ref(pco_oid, pco_v1)})
+    seen: list[tuple[str, str]] = []
+
+    def load(conn, ctx, ref):
+        seen.append((str(ref["object_id"]), str(ref["revision_id"])))
+        if str(ref["object_id"]) == pco_oid and str(ref["revision_id"]) == pco_v1:
+            return (head(pco_oid, "PCO", latest=pco_v2, effective=pco_v2),
+                    revision(pco_oid, pco_v1, {"title": "PCO v1", "strategy_ref": old_strategy}))
+        if str(ref["object_id"]) == str(old_strategy["object_id"]):
+            return (head(str(old_strategy["object_id"]), "Strategy",
+                         latest=str(old_strategy["revision_id"]),
+                         effective=str(old_strategy["revision_id"])),
+                    revision(str(old_strategy["object_id"]), str(old_strategy["revision_id"]),
+                             {"title": "old"}))
+        raise AssertionError(ref)
+
+    monkeypatch.setattr(dashboard, "_load_ref", load)
+    basis = dashboard._basis_of_revision(
+        None, CTX, head(mission_oid, "Mission", latest=mission_rid, effective=mission_rid),
+        mission_rev, SELECTED, visited=frozenset(), impact_linked=False)
+    assert seen == [(pco_oid, pco_v1),
+                    (str(old_strategy["object_id"]), str(old_strategy["revision_id"]))]
+    assert pco_v2 not in [rid for _oid, rid in seen]
+    assert basis["status"] == "historical"
+    assert basis["reason"] == "recorded_other_strategy"
+    assert basis["strategy_ref"]["revision_id"] == old_strategy["revision_id"]
+    assert basis["basis_revision"] == "exact_ref"
+
+
+def test_v04_mission_basis_is_unavailable_when_parent_pco_is_not_readable(monkeypatch):
+    """Current authority decides: a recorded but denied parent PCO yields an
+    explicit unavailable basis with no PCO content or Strategy lineage leak."""
+    mission_oid, mission_rid = uid(70), uid(71)
+    pco_oid, pco_v1 = uid(80), uid(81)
+    _registered_version(monkeypatch, "tkos.method/0.4")
+    parent = _ref(pco_oid, pco_v1)
+    mission_rev = revision(mission_oid, mission_rid, {"title": "M", "parent_pco_ref": parent})
+    monkeypatch.setattr(dashboard, "_load_ref", lambda conn, ctx, ref: None)
+    basis = dashboard._basis_of_revision(
+        None, CTX, head(mission_oid, "Mission", latest=mission_rid, effective=mission_rid),
+        mission_rev, SELECTED, visited=frozenset(), impact_linked=False)
+    assert basis["status"] == "unavailable"
+    assert basis["reason"] == "referenced_revision_unavailable"
+    assert basis["strategy_ref"] == parent
+
+
+def test_v03_mission_basis_still_follows_the_exact_pco_ref(monkeypatch):
+    """0.1-0.3 regression: the legacy ``pco_ref`` keeps its exact traversal."""
+    mission_oid, mission_rid = uid(90), uid(91)
+    pco_oid, pco_v1 = uid(100), uid(101)
+    _registered_version(monkeypatch, "tkos.method/0.3")
+    recorded = _ref(SELECTED["strategy_id"], SELECTED["revision_id"], "f")  # SELECTED hash is "f"*64
+    mission_rev = revision(mission_oid, mission_rid,
+                           {"title": "M", "pco_ref": _ref(pco_oid, pco_v1)})
+    monkeypatch.setattr(dashboard, "_load_ref", lambda conn, ctx, ref: (
+        (head(pco_oid, "PCO", latest=pco_v1, effective=pco_v1),
+         revision(pco_oid, pco_v1, {"title": "PCO v1", "strategy_ref": recorded}))
+        if ref is not None and str(ref["object_id"]) == pco_oid else None))
+    basis = dashboard._basis_of_revision(
+        None, CTX, head(mission_oid, "Mission", latest=mission_rid, effective=mission_rid),
+        mission_rev, SELECTED, visited=frozenset(), impact_linked=False)
+    assert basis["status"] == "current"
+    assert basis["strategy_ref"] == recorded
+    assert basis["basis_revision"] == "effective"
+
+
+def test_mission_basis_never_falls_back_across_registered_contracts(monkeypatch):
+    """The explicit registration version picks the field: a payload carrying the
+    other contract's key is never read through it, and an unknown version is
+    unavailable instead of guessed as legacy."""
+    mission_oid, mission_rid = uid(110), uid(111)
+    pco_oid, pco_v1 = uid(120), uid(121)
+    parent = _ref(pco_oid, pco_v1)
+    readable = (head(pco_oid, "PCO", latest=pco_v1, effective=pco_v1),
+                revision(pco_oid, pco_v1, {"title": "PCO v1"}))
+    monkeypatch.setattr(dashboard, "_load_ref",
+                        lambda conn, ctx, ref: readable if ref is not None else None)
+
+    # A 0.4 Mission records parent_pco_ref: a bare legacy pco_ref is ignored.
+    _registered_version(monkeypatch, "tkos.method/0.4")
+    basis = dashboard._basis_of_revision(
+        None, CTX, head(mission_oid, "Mission", latest=mission_rid, effective=mission_rid),
+        revision(mission_oid, mission_rid, {"title": "M", "pco_ref": parent}),
+        SELECTED, visited=frozenset(), impact_linked=False)
+    assert (basis["status"], basis["reason"]) == ("unavailable", "referenced_revision_unavailable")
+
+    # A 0.3 Mission records pco_ref: a bare parent_pco_ref is ignored.
+    _registered_version(monkeypatch, "tkos.method/0.3")
+    basis = dashboard._basis_of_revision(
+        None, CTX, head(mission_oid, "Mission", latest=mission_rid, effective=mission_rid),
+        revision(mission_oid, mission_rid, {"title": "M", "parent_pco_ref": parent}),
+        SELECTED, visited=frozenset(), impact_linked=False)
+    assert (basis["status"], basis["reason"]) == ("unavailable", "referenced_revision_unavailable")
+
+    # An unknown or unregistered version is explicit and resolves no field at all.
+    for version in ("tkos.method/0.5", None):
+        calls: list[Any] = []
+        monkeypatch.setattr(dashboard, "_load_ref",
+                            lambda conn, ctx, ref: calls.append(ref) or readable)
+        _registered_version(monkeypatch, version)
+        basis = dashboard._basis_of_revision(
+            None, CTX, head(mission_oid, "Mission", latest=mission_rid, effective=mission_rid),
+            revision(mission_oid, mission_rid,
+                     {"title": "M", "pco_ref": parent, "parent_pco_ref": parent}),
+            SELECTED, visited=frozenset(), impact_linked=False)
+        assert (basis["status"], basis["reason"]) == (
+            "unavailable", "mission_contract_version_unsupported")
+        assert calls == []
+
+
+def test_v04_mission_list_basis_uses_the_registered_parent_field(monkeypatch):
+    """The list projection groups an activated 0.4 Mission by its exact parent
+    PCO basis instead of hiding it as unavailable."""
+    mission_oid, mission_rid = uid(150), uid(151)
+    pco_oid, pco_v1 = uid(160), uid(161)
+    _registered_version(monkeypatch, "tkos.method/0.4")
+    recorded = _ref(SELECTED["strategy_id"], SELECTED["revision_id"], "f")  # SELECTED hash is "f"*64
+    mission_head = head(mission_oid, "Mission", latest=mission_rid, effective=mission_rid)
+    mission_payload = {"title": "M", "parent_pco_ref": _ref(pco_oid, pco_v1)}
+    monkeypatch.setattr(dashboard, "_iter_candidates",
+                        lambda conn, ctx, types, after, need, domain_id: [
+                            {**mission_head, "created_at": ts(1)}][:need])
+    monkeypatch.setattr(dashboard, "_visible_head", lambda conn, ctx, oid: (mission_head, None))
+    monkeypatch.setattr(dashboard, "_visible_revision",
+                        lambda conn, ctx, oid, rid, allowed:
+                        revision(mission_oid, mission_rid, mission_payload))
+    monkeypatch.setattr(dashboard, "select_strategy", lambda conn, ctx, sid: SELECTED)
+    monkeypatch.setattr(dashboard, "_covering_confirmations", lambda c, x, h, r: [])
+    monkeypatch.setattr(dashboard, "_read_at", lambda conn: "now")
+    monkeypatch.setattr(dashboard, "_list_item",
+                        lambda conn, ctx, h, s, r, b, conf:
+                        {"object_id": h["object_id"], "object_type": h["object_type"],
+                         "basis": b})
+    monkeypatch.setattr(dashboard, "_load_ref", lambda conn, ctx, ref: (
+        (head(pco_oid, "PCO", latest=pco_v1, effective=pco_v1),
+         revision(pco_oid, pco_v1, {"title": "PCO v1", "strategy_ref": recorded}))
+        if ref is not None else None))
+    page = dashboard.objects(RefConn(), CTX, group="mission", basis="current")
+    assert [item["object_id"] for item in page["items"]] == [mission_oid]
+    assert page["items"][0]["basis"]["status"] == "current"
 
 
 def test_cycle_in_exact_references_is_bounded(monkeypatch):
@@ -374,6 +570,290 @@ def test_confirmation_follows_confirmed_candidate_ref_and_covers_member_revision
     assert record["human_confirmation"] is True
     formal = dashboard._formal_state(conn, CTX, selected, revision(oid, rid, {}), confirmations)
     assert formal["formal"] is True
+
+
+def test_v04_candidate_set_activation_covers_member_revision_from_responsibilities(monkeypatch):
+    """0.4 activates a whole CandidateSet: the members' exact revision is the
+    ``responsibilities`` entry of the activation record, followed through the
+    member state's ``confirmation_record_id`` (no confirmed_candidate_ref)."""
+    oid, rid = uid(440), uid(441)
+    candidate_oid, candidate_rid = uid(450), uid(451)
+    record_id = uid(460)
+    member_ref = {"object_id": oid, "revision_id": rid, "payload_hash": "a" * 64}
+    row = {"record_id": record_id, "kind": "candidate_set_activation",
+           "principal_id": uid(1001), "recorded_at": ts(7),
+           "target_object_id": candidate_oid, "target_revision_id": candidate_rid,
+           "content": {"statement": "The CEO activates the exact set.", "notes": [],
+                       "responsibilities": [member_ref]},
+           "action_id": None}
+    conn = ProvenanceConn({"phase": "confirmed",
+                           "candidate_ref": {"object_id": candidate_oid,
+                                             "revision_id": candidate_rid},
+                           "confirmation_record_id": record_id}, [row])
+    monkeypatch.setattr(dashboard.method_readers, "review_records", lambda c, x, o: {"items": []})
+    monkeypatch.setattr(dashboard, "_load_ref", lambda c, x, ref: (
+        head(str(ref["object_id"]), "CandidateSet", latest=str(ref["revision_id"]),
+             effective=str(ref["revision_id"])),
+        revision(str(ref["object_id"]), str(ref["revision_id"]), {"title": "Candidate"}))
+        if str(ref["object_id"]) == candidate_oid else None)
+    selected = head(oid, "Mission", latest=rid, effective=rid)
+    confirmations = dashboard._covering_confirmations(conn, CTX, selected, revision(oid, rid, {}))
+    assert len(confirmations) == 1
+    record = confirmations[0]
+    assert record["source"] == "confirmation_record"
+    assert record["kind"] == "candidate_set_activation"
+    assert record["covers_selected_revision"] is True
+    assert record["human_confirmation"] is True
+    formal = dashboard._formal_state(conn, CTX, selected, revision(oid, rid, {}), confirmations)
+    assert formal["formal"] is True
+    assert formal["status"] == "confirmed"
+    assert formal["authority"] == "m1b_activate_candidates"
+    assert formal["confirmation_record_id"] == record_id
+    assert formal["applies_to_ref"]["object_id"] == oid
+    assert formal["applies_to_ref"]["revision_id"] == rid
+
+
+def test_v04_candidate_set_activation_never_covers_another_revision(monkeypatch):
+    oid, rid, other = uid(470), uid(471), uid(472)
+    candidate_oid, candidate_rid = uid(480), uid(481)
+    record_id = uid(490)
+    row = {"record_id": record_id, "kind": "candidate_set_activation",
+           "principal_id": uid(1001), "recorded_at": ts(7),
+           "target_object_id": candidate_oid, "target_revision_id": candidate_rid,
+           "content": {"statement": "The CEO activates the exact set.", "notes": [],
+                       "responsibilities": [{"object_id": oid, "revision_id": other,
+                                              "payload_hash": "a" * 64}]},
+           "action_id": None}
+    conn = ProvenanceConn({"phase": "confirmed",
+                           "candidate_ref": {"object_id": candidate_oid,
+                                             "revision_id": candidate_rid},
+                           "confirmation_record_id": record_id}, [row])
+    monkeypatch.setattr(dashboard.method_readers, "review_records", lambda c, x, o: {"items": []})
+    monkeypatch.setattr(dashboard, "_load_ref", lambda c, x, ref: (
+        head(str(ref["object_id"]), "CandidateSet", latest=str(ref["revision_id"]),
+             effective=str(ref["revision_id"])),
+        revision(str(ref["object_id"]), str(ref["revision_id"]), {"title": "Candidate"}))
+        if str(ref["object_id"]) == candidate_oid else None)
+    selected = head(oid, "Mission", latest=rid, effective=rid)
+    confirmations = dashboard._covering_confirmations(conn, CTX, selected, revision(oid, rid, {}))
+    assert [record["covers_selected_revision"] for record in confirmations] == [False]
+    # The recorded phase is shown as-is, but a different revision's activation
+    # never makes this exact revision formal.
+    formal = dashboard._formal_state(conn, CTX, selected, revision(oid, rid, {}), confirmations)
+    assert formal["status"] == "confirmed"
+    assert formal["formal"] is False
+    assert formal["confirmation_record_id"] is None
+
+
+def test_v04_candidate_set_activation_is_omitted_without_readable_candidate_set(monkeypatch):
+    oid, rid = uid(500), uid(501)
+    candidate_oid, candidate_rid = uid(510), uid(511)
+    record_id = uid(520)
+    row = {"record_id": record_id, "kind": "candidate_set_activation",
+           "principal_id": uid(1001), "recorded_at": ts(7),
+           "target_object_id": candidate_oid, "target_revision_id": candidate_rid,
+           "content": {"statement": "s", "notes": [],
+                       "responsibilities": [{"object_id": oid, "revision_id": rid,
+                                              "payload_hash": "a" * 64}]},
+           "action_id": None}
+    conn = ProvenanceConn({"phase": "confirmed", "confirmation_record_id": record_id}, [row])
+    monkeypatch.setattr(dashboard.method_readers, "review_records", lambda c, x, o: {"items": []})
+    monkeypatch.setattr(dashboard, "_load_ref", lambda c, x, ref: None)
+    selected = head(oid, "Mission", latest=rid, effective=rid)
+    # No authorized exact target means a uniform omission: the record content is
+    # never presented and the member is not made formal.
+    assert dashboard._covering_confirmations(conn, CTX, selected, revision(oid, rid, {})) == []
+
+
+def test_v04_responsibilities_field_does_not_widen_legacy_confirmation_kinds(monkeypatch):
+    """A 0.1-0.3 ``candidate_set_confirmation`` only covers the exact refs in
+    ``target_refs``; the 0.4-only ``responsibilities`` field is not generic."""
+    oid, rid = uid(530), uid(531)
+    candidate_oid, candidate_rid = uid(540), uid(541)
+    row = {"record_id": uid(550), "kind": "candidate_set_confirmation",
+           "principal_id": uid(1001), "recorded_at": ts(6),
+           "target_object_id": candidate_oid, "target_revision_id": candidate_rid,
+           "content": {"reason": "legacy",
+                       "responsibilities": [{"object_id": oid, "revision_id": rid,
+                                              "payload_hash": "a" * 64}]},
+           "action_id": None}
+    conn = ProvenanceConn({"phase": "confirmed",
+                           "confirmed_candidate_ref": {"object_id": candidate_oid,
+                                                       "revision_id": candidate_rid},
+                           "confirmation_record_id": None}, [row])
+    monkeypatch.setattr(dashboard.method_readers, "review_records", lambda c, x, o: {"items": []})
+    monkeypatch.setattr(dashboard, "_load_ref", lambda c, x, ref: (
+        head(str(ref["object_id"]), "CandidateSet", latest=str(ref["revision_id"]),
+             effective=str(ref["revision_id"])),
+        revision(str(ref["object_id"]), str(ref["revision_id"]), {"title": "Candidate"})))
+    selected = head(oid, "Mission", latest=rid, effective=rid)
+    confirmations = dashboard._covering_confirmations(conn, CTX, selected, revision(oid, rid, {}))
+    assert [record["covers_selected_revision"] for record in confirmations] == [False]
+    formal = dashboard._formal_state(conn, CTX, selected, revision(oid, rid, {}), confirmations)
+    assert formal["formal"] is False
+    assert formal["authority"] == "m1b_confirm_candidates"
+
+
+def test_v04_agreement_confirmation_covers_only_its_exact_revision(monkeypatch):
+    oid, rid, other = uid(560), uid(561), uid(562)
+    row = {"record_id": uid(570), "kind": "agreement_confirmation",
+           "principal_id": uid(1001), "recorded_at": ts(4),
+           "target_object_id": oid, "target_revision_id": rid,
+           "content": {"statement": "signed", "principal_id": uid(1001)}, "action_id": None}
+    conn = ProvenanceConn({}, [])
+    monkeypatch.setattr(dashboard.method_readers, "review_records",
+                        lambda c, x, o: {"items": [row]})
+    monkeypatch.setattr(dashboard, "_load_ref", lambda c, x, ref: (
+        head(str(ref["object_id"]), "StrategicAgreement", latest=str(ref["revision_id"]),
+             effective=str(ref["revision_id"])),
+        revision(str(ref["object_id"]), str(ref["revision_id"]), {"title": "Agreement"})))
+    selected = head(oid, "StrategicAgreement", latest=rid, effective=rid)
+    confirmations = dashboard._covering_confirmations(conn, CTX, selected, revision(oid, rid, {}))
+    assert [record["covers_selected_revision"] for record in confirmations] == [True]
+    assert confirmations[0]["human_confirmation"] is True
+    formal = dashboard._formal_state(conn, CTX, selected, revision(oid, rid, {}), confirmations)
+    assert formal["formal"] is True
+    assert formal["human_approved"] is True
+    # The same signer's record never covers a different exact revision, even when
+    # that revision carries the effective pointer.
+    other_head = head(oid, "StrategicAgreement", latest=other, effective=other)
+    other_confirmations = dashboard._covering_confirmations(conn, CTX, other_head,
+                                                            revision(oid, other, {}))
+    assert [record["covers_selected_revision"] for record in other_confirmations] == [False]
+    assert dashboard._formal_state(conn, CTX, other_head, revision(oid, other, {}),
+                                   other_confirmations)["formal"] is False
+
+
+def test_v04_architecture_confirmation_follows_proposal_changed_refs(monkeypatch):
+    """0.4 adopts Architecture through ``m1a_confirm_update``: the
+    ``strategy_update_confirmation`` record sits on the proposal and covers the
+    exact Architecture revision via ``changed_refs`` (and the same when the
+    payload cites the proposal through ``source_proposal_ref``)."""
+    oid, rid, other = uid(580), uid(581), uid(582)
+    proposal_oid, proposal_rid = uid(590), uid(591)
+    proposal_ref = {"object_id": proposal_oid, "revision_id": proposal_rid,
+                    "payload_hash": "b" * 64}
+    row = {"record_id": uid(600), "kind": "strategy_update_confirmation",
+           "principal_id": uid(1001), "recorded_at": ts(8),
+           "target_object_id": proposal_oid, "target_revision_id": proposal_rid,
+           "content": {"statement": "confirmed",
+                       "changed_refs": [{"object_id": oid, "revision_id": rid,
+                                          "payload_hash": "a" * 64}],
+                       "retained_strategy_ref": None, "retained_architecture_ref": None,
+                       "applicability_rationale": "r"},
+           "action_id": None}
+    conn = ProvenanceConn({}, [row])
+    monkeypatch.setattr(dashboard.method_readers, "review_records", lambda c, x, o: {"items": []})
+    monkeypatch.setattr(dashboard, "_load_ref", lambda c, x, ref: (
+        head(str(ref["object_id"]), "StrategyUpdateProposal", latest=str(ref["revision_id"])),
+        revision(str(ref["object_id"]), str(ref["revision_id"]), {"title": "Proposal"})))
+    payload = {"title": "Architecture",
+               "strategy_ref": {"object_id": uid(610), "revision_id": uid(611)},
+               "source_agreement_ref": {"object_id": uid(620), "revision_id": uid(621)},
+               "source_proposal_ref": proposal_ref}
+    selected = head(oid, "StrategicArchitecture", latest=rid, effective=rid)
+    confirmations = dashboard._covering_confirmations(conn, CTX, selected,
+                                                      revision(oid, rid, payload))
+    assert len(confirmations) == 1
+    assert confirmations[0]["covers_selected_revision"] is True
+    assert confirmations[0]["human_confirmation"] is True
+    formal = dashboard._formal_state(conn, CTX, selected, revision(oid, rid, payload),
+                                     confirmations)
+    assert formal["formal"] is True
+    assert formal["authority"] == "method_confirm_architecture"
+    # A different Architecture revision under the same proposal is not covered.
+    other_head = head(oid, "StrategicArchitecture", latest=other, effective=other)
+    other_confirmations = dashboard._covering_confirmations(conn, CTX, other_head,
+                                                            revision(oid, other, payload))
+    assert [record["covers_selected_revision"] for record in other_confirmations] == [False]
+    assert dashboard._formal_state(conn, CTX, other_head, revision(oid, other, payload),
+                                   other_confirmations)["formal"] is False
+
+
+class CatalogStateProvenanceConn(ProvenanceConn):
+    def execute(self, sql, params=()):
+        if "clock_timestamp()" in sql:
+            return Result([{"now": ts(9)}])
+        return super().execute(sql, params)
+
+
+def test_catalog_v04_mission_carries_activation_formal_state(monkeypatch):
+    """The catalog entry — the shape the UI reads — reports an activated 0.4
+    Mission as formal instead of merely echoing the recorded phase."""
+    real_covering = dashboard._covering_confirmations
+    real_formal = dashboard._formal_state
+    oid, rid = uid(640), uid(641)
+    candidate_oid, candidate_rid = uid(650), uid(651)
+    record_id = uid(660)
+    _catalog_env(monkeypatch, [(oid, "Mission", False)])
+    monkeypatch.setattr(dashboard, "_covering_confirmations", real_covering)
+    monkeypatch.setattr(dashboard, "_formal_state", real_formal)
+    monkeypatch.setattr(dashboard, "_visible_head",
+                        lambda c, x, o: (head(oid, "Mission", latest=rid, effective=rid), None))
+    monkeypatch.setattr(dashboard, "_load_ref", lambda c, x, ref: (
+        head(candidate_oid, "CandidateSet", latest=candidate_rid, effective=candidate_rid),
+        revision(str(ref["object_id"]), str(ref["revision_id"]), {"title": "Candidate"}))
+        if str(ref["object_id"]) == candidate_oid else None)
+    monkeypatch.setattr(dashboard.method_readers, "review_records", lambda c, x, o: {"items": []})
+    monkeypatch.setattr(dashboard.protocol, "read_metadata",
+                        lambda conn, scope_id, object_id: {"contract_version": "tkos.method/0.4"})
+    row = {"record_id": record_id, "kind": "candidate_set_activation",
+           "principal_id": uid(1001), "recorded_at": ts(7),
+           "target_object_id": candidate_oid, "target_revision_id": candidate_rid,
+           "content": {"statement": "s", "notes": [],
+                       "responsibilities": [{"object_id": oid, "revision_id": rid,
+                                              "payload_hash": "a" * 64}]},
+           "action_id": None}
+    conn = CatalogStateProvenanceConn(
+        {"phase": "confirmed", "confirmation_record_id": record_id}, [row])
+    item = dashboard.catalog_objects(conn, CTX, object_type="Mission")["items"][0]
+    assert item["contract_version"] == "tkos.method/0.4"
+    assert item["basis_revision_id"] == rid
+    assert item["formal_state"]["status"] == "confirmed"
+    assert item["formal_state"]["formal"] is True
+    assert item["formal_state"]["authority"] == "m1b_activate_candidates"
+    assert item["formal_state"]["confirmation_record_id"] == record_id
+
+
+def test_catalog_item_projects_authorized_responsibility_from_selected_revision(monkeypatch):
+    """The catalog read adds the same authorized responsibility projection the
+    group list uses, derived from the exact selected revision; a participant is
+    not a responsibility relation and no Owner is inferred."""
+    oid, rid, latest_rid = uid(670), uid(671), uid(672)
+    owner, participant = uid(680), uid(681)
+    _catalog_env(monkeypatch, [(oid, "Mission", False)])
+    # The head points at a newer revision; the effective (selected) revision is
+    # the one whose payload carries the recorded responsibility.
+    monkeypatch.setattr(dashboard, "_visible_head", lambda c, x, o: (
+        head(oid, "Mission", latest=latest_rid, effective=rid), None))
+    payload = {"title": "t", "owner_principal_id": owner, "participants": [participant]}
+    monkeypatch.setattr(dashboard, "_visible_revision",
+                        lambda c, x, o, r, a: revision(o, r, payload))
+    monkeypatch.setattr(dashboard.protocol, "read_metadata",
+                        lambda conn, scope_id, obj_id: {"contract_version": "tkos.method/0.4"})
+    seen: list[dict] = []
+    real_entries = dashboard._responsibility_entries
+
+    def tracked_entries(conn, ctx, head_row, revision_payload):
+        seen.append(revision_payload)
+        return real_entries(conn, ctx, head_row, revision_payload)
+
+    monkeypatch.setattr(dashboard, "_responsibility_entries", tracked_entries)
+    monkeypatch.setattr(dashboard, "_principal", lambda c, x, pid: {
+        "principal_id": pid, "display_name": "责任人" if pid == owner else "参与人",
+        "principal_type": "human", "active": True})
+    monkeypatch.setattr(dashboard, "_assignment", lambda c, x, aid: None)
+    monkeypatch.setattr(dashboard, "_appointment",
+                        lambda c, x, pid, domain, all_domains=False: {
+                            "status": "current", "reason": None, "assignments": []})
+    monkeypatch.setattr(dashboard, "_unit_domains", lambda c, x, payload: {})
+    item = dashboard.catalog_objects(CatalogConn(), CTX, object_type="Mission")["items"][0]
+    # The helper saw exactly the selected revision payload, not the head pointer.
+    assert seen == [payload]
+    assert item["basis_revision_id"] == rid
+    assert [entry["relation"] for entry in item["responsibility"]] == ["mission_owner"]
+    assert item["responsibility"][0]["principal"]["principal_id"] == owner
+    assert item["responsibility"][0]["principal"]["display_name"] == "责任人"
 
 
 # --------------------------------------------------------------------------
@@ -710,6 +1190,27 @@ def test_mission_period_comes_from_the_exact_pco_revision(monkeypatch):
     assert period is None and source == "pco_ref_unavailable"
 
 
+def test_v04_mission_period_is_its_own_not_the_parent_pco_period(monkeypatch):
+    """0.4 MissionPayload records its own period; the PCO-derived period stays a
+    0.1-0.3 semantic and must not override or replace it."""
+    pco_oid, pco_rid = uid(730), uid(731)
+    own = {"start": "2026-09-10T00:00:00+00:00", "end": "2026-09-20T00:00:00+00:00"}
+    mission = revision(uid(740), uid(741), {
+        "title": "M",
+        "parent_pco_ref": _ref(pco_oid, pco_rid),
+        "period": own,
+    })
+
+    def unexpected(conn, ctx, ref):
+        raise AssertionError("a 0.4 Mission period must not follow the parent PCO")
+
+    monkeypatch.setattr(dashboard, "_load_ref", unexpected)
+    period, source = dashboard._derived_period(
+        None, CTX, head(uid(740), "Mission", latest=uid(741)), mission)
+    assert period == own
+    assert source == "payload"
+
+
 # --------------------------------------------------------------------------
 # readable Outcome names/criteria behind supports[].outcome_ref
 # --------------------------------------------------------------------------
@@ -833,7 +1334,8 @@ def test_ontology_catalog_lists_every_registered_type_per_rule_version(monkeypat
     catalog = dashboard.ontology_catalog(None, CTX)
     versions = {entry["contract_version"]: set(entry["object_types"])
                 for entry in catalog["versions"]}
-    assert set(versions) == {"tkos.method/0.1", "tkos.method/0.2", "tkos.method/0.3"}
+    assert set(versions) == {"tkos.method/0.1", "tkos.method/0.2", "tkos.method/0.3",
+                           "tkos.method/0.4"}
     base = versions["tkos.method/0.1"]
     assert {"Strategy", "LTCO", "PCO", "Mission", "Signal", "PotentialIssue",
             "StrategicIssue", "StrategicAgreement", "StrategicJudgment",
@@ -850,6 +1352,17 @@ def test_ontology_catalog_lists_every_registered_type_per_rule_version(monkeypat
     assert "StrategicArchitecture" not in versions["tkos.method/0.2"]
     assert {"StrategicArchitecture", "OperatingState", "OperatingProblem",
             "ResearchBrief"} <= versions["tkos.method/0.3"]
+    # 0.4 is its own compiled registry: direct issue/agreement/scope results plus
+    # the retained support types; 0.1-0.3-only concepts never leak into it.
+    v04 = versions["tkos.method/0.4"]
+    assert v04 == {"StrategicIssue", "StrategicAgreement", "Strategy", "StrategicArchitecture",
+                   "StrategyUpdateProposal", "LTCO", "PCO", "Mission", "ReviewWindow",
+                   "CandidateSet", "OperatingState", "OperatingProblem", "PeriodReview",
+                   "MethodRun", "EvidenceAsset"}
+    for old_only in ("Signal", "PotentialIssue", "StrategicJudgment", "ResearchMemo",
+                     "ResearchPlan", "ResearchReport", "ResearchBrief", "MeetingRound",
+                     "MeetingMinutes", "LTCOReviewAdvice", "BusinessFact"):
+        assert old_only not in v04
     # Every registered type is addressable in the reader directory.
     for entry in catalog["versions"]:
         for name in entry["object_types"]:
@@ -1076,6 +1589,51 @@ def test_formal_state_confirms_agreement_minutes_and_candidate_set():
         formal_candidate = dashboard._formal_state(
             _StateOnlyConn(), CTX, head_value, candidate, [])
         assert formal_candidate["formal"] is False
+
+
+def test_v04_candidate_activation_is_a_human_act_and_reports_its_authority():
+    # 0.4's whole-set activation is the human CEO decision that makes the exact
+    # PCO/Mission revision formal; the authority names the action that did it.
+    oid, rid = uid(33), uid(34)
+    head_value = head(oid, "Mission", latest=rid, effective=rid)
+    rev = revision(oid, rid, {"title": "M"})
+    assert "candidate_set_activation" in dashboard.CONFIRMATION_REVIEW_KINDS
+    formal = dashboard._formal_state(_StateOnlyConn({"phase": "confirmed"}), CTX, head_value, rev,
+                                     [_confirmation(kind="candidate_set_activation")])
+    assert formal["status"] == "confirmed"
+    assert formal["formal"] is True
+    assert formal["authority"] == "m1b_activate_candidates"
+    assert formal["confirmation_record_id"] == "rec-1"
+    # The effective pointer and recorded phase alone are never formal.
+    formal = dashboard._formal_state(_StateOnlyConn({"phase": "confirmed"}), CTX, head_value, rev, [])
+    assert formal["status"] == "confirmed"
+    assert formal["formal"] is False
+    assert formal["confirmation_record_id"] is None
+    # A record that does not cover this exact revision cannot borrow efficacy.
+    formal = dashboard._formal_state(_StateOnlyConn({"phase": "confirmed"}), CTX, head_value, rev,
+                                     [_confirmation(kind="candidate_set_activation", covers=False)])
+    assert formal["formal"] is False
+
+
+def test_v04_agreement_kinds_are_human_acts_with_the_legacy_authority():
+    oid, rid = uid(35), uid(36)
+    head_value = head(oid, "StrategicAgreement", latest=rid, effective=rid)
+    rev = revision(oid, rid, {"title": "A"})
+    for review_kind in ("agreement_confirmation", "agreement_formalized"):
+        assert review_kind in dashboard.CONFIRMATION_REVIEW_KINDS
+        formal = dashboard._formal_state(_StateOnlyConn({"phase": "formal"}), CTX, head_value, rev,
+                                         [_confirmation(kind=review_kind)])
+        assert formal["status"] == "confirmed", review_kind
+        assert formal["formal"] is True
+        assert formal["human_approved"] is True
+        assert formal["authority"] == "m1a_confirm_agreement"
+    # CandidateSet keeps the 0.4 authority when its activation record covers it.
+    candidate = head(oid, "CandidateSet", latest=rid, effective=rid)
+    formal = dashboard._formal_state(_StateOnlyConn({"phase": "confirmed"}), CTX, candidate,
+                                     revision(oid, rid, {"title": "C"}),
+                                     [_confirmation(kind="candidate_set_activation")])
+    assert formal["authority"] == "m1b_activate_candidates"
+    assert formal["formal"] is True
 
 
 def test_formal_state_strategic_issue_separates_human_and_agent_initiation():

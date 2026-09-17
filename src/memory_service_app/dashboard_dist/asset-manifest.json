@@ -19,15 +19,31 @@
     },
     {
       "path": "workbench/dashboard/src/App.tsx",
-      "sha256": "f798fef7bfed0dd99cbf9dc85c346036d4c754b938acc4c36905cdee17cfdb69"
+      "sha256": "b07d484433489bae197a13aced27e2b50e2eafefd0587bf240c379bab6bdea3b"
+    },
+    {
+      "path": "workbench/dashboard/src/GovernanceApp.tsx",
+      "sha256": "295ef38efff2ac9afddca1d9dfd827c39e21deb9fda4dd9810d2c1e65239ac43"
+    },
+    {
+      "path": "workbench/dashboard/src/MethodActions.tsx",
+      "sha256": "f5550f60a090e7d210fb26bf77c02d0c7c2b69c9f16ccae0a6be4df06661ce8c"
+    },
+    {
+      "path": "workbench/dashboard/src/SourceScenes.tsx",
+      "sha256": "335035e9b8975064bb342dc678d1ff9cb7339578c84a086ff55335125c9268d8"
     },
     {
       "path": "workbench/dashboard/src/__tests__/App.test.tsx",
-      "sha256": "98cc2cf1411d4a9ed34bb91a0024694b442c6fe83384254c67e7b2d0362c64f1"
+      "sha256": "e4c26e79be402c82f135914e9caf4ce42ba522009348764bec37b2bce6b9723e"
     },
     {
       "path": "workbench/dashboard/src/__tests__/BrowserFixes.test.tsx",
       "sha256": "29d1f1fec6808f45be040a16f486497f354d4b49b2982d7fc4242941a1c22e54"
+    },
+    {
+      "path": "workbench/dashboard/src/__tests__/BusinessDefinitions.test.tsx",
+      "sha256": "b87d31f5b6b1d3c4134a91c0a9402c2ddc336f457f4b1dd65436230233843a64"
     },
     {
       "path": "workbench/dashboard/src/__tests__/BusinessGraph.test.tsx",
@@ -35,7 +51,7 @@
     },
     {
       "path": "workbench/dashboard/src/__tests__/CatalogRecords.test.tsx",
-      "sha256": "d70c0ccccc660ee6422d63f0057bf3486638512b11b3b1ad46ffa5c5385f36eb"
+      "sha256": "0c080cc32c60e78d7f73d8256f0d1cd020fb5e108aa13258fa50099dc0b7aab0"
     },
     {
       "path": "workbench/dashboard/src/__tests__/DetailPane.test.tsx",
@@ -44,6 +60,22 @@
     {
       "path": "workbench/dashboard/src/__tests__/FilterBar.test.tsx",
       "sha256": "58e91b05d8e99aece2c60a00d11c001460ca761f1d05fc92bac0d790299a8d74"
+    },
+    {
+      "path": "workbench/dashboard/src/__tests__/GovernanceApp.test.tsx",
+      "sha256": "06dba343534da60014829dac24fee2764161dbb8e54833ba24304472f12e1a5c"
+    },
+    {
+      "path": "workbench/dashboard/src/__tests__/GovernanceDefinitions.test.tsx",
+      "sha256": "c1b69cba2ae85b85e408be2474a5459359f024710fb9b90f31adbaa95bcb1aaf"
+    },
+    {
+      "path": "workbench/dashboard/src/__tests__/MethodActions.test.tsx",
+      "sha256": "d289dfef1ef4cf276ae4d13e47ba005c5ce46d585fd9cd5e0dc6059b6b98da03"
+    },
+    {
+      "path": "workbench/dashboard/src/__tests__/MethodMap.test.tsx",
+      "sha256": "3e0d41495a897a1b9aa25b9d85d793ab00bcaa0ddd726c662442e0a92cb7404e"
     },
     {
       "path": "workbench/dashboard/src/__tests__/ObjectList.test.tsx",
@@ -55,11 +87,19 @@
     },
     {
       "path": "workbench/dashboard/src/__tests__/OntologyViews.test.tsx",
-      "sha256": "2d4cd79affd4bbc3a1537e5c58a826964f1ec68626dba94d38a2806297243e74"
+      "sha256": "4452bfd2e9a472bdd251cb17151c471f4bb693491d8f586cdb233516cddc24ec"
     },
     {
       "path": "workbench/dashboard/src/__tests__/PanZoomCanvas.test.tsx",
       "sha256": "b513a91debbb8d6acc5cc95d55147c9179e466f44ba9b9574bf8494f40ba1747"
+    },
+    {
+      "path": "workbench/dashboard/src/__tests__/SourceScenes.test.tsx",
+      "sha256": "7b15706929d12816e2e686a0fd0d2a5b906e8739dfa7df75d01f74dac3ceced8"
+    },
+    {
+      "path": "workbench/dashboard/src/__tests__/TopBar.test.tsx",
+      "sha256": "994dd11fec83cf5975299c65975296faeb2f5900c980c654d195091f0ca5cb2f"
     },
     {
       "path": "workbench/dashboard/src/__tests__/errors.test.ts",
@@ -67,7 +107,7 @@
     },
     {
       "path": "workbench/dashboard/src/__tests__/fixtures.ts",
-      "sha256": "011a9756105dc706269e5957dfedb9035fa3596c85190091b5b4208b1dfaa557"
+      "sha256": "05d9416641714b34e51fe0353b9bc064e8659d2e113610b8ce9c14208f3affb0"
     },
     {
       "path": "workbench/dashboard/src/__tests__/live.test.tsx",
@@ -75,7 +115,7 @@
     },
     {
       "path": "workbench/dashboard/src/__tests__/ontology-semantics.test.ts",
-      "sha256": "b6ba83167a9e2f2718888b6e775ae9a07a7fca30e2eeab9a92c3d7b465c55a2b"
+      "sha256": "0273feb0bcded484f1eabbcdaa326fd1f83e111b5b3c245f1662f868cc2737eb"
     },
     {
       "path": "workbench/dashboard/src/__tests__/setup.ts",
@@ -83,11 +123,15 @@
     },
     {
       "path": "workbench/dashboard/src/__tests__/urlState.test.ts",
-      "sha256": "832d1593e9fdd9fb3f0903d2cebe5ed9283d808daa0cd9f7630d55def7d51559"
+      "sha256": "1ca17dbf20f43a1ba61db461645c63922f1c68eb4ab5f5b6d8cfd5c33be5ef84"
     },
     {
       "path": "workbench/dashboard/src/components/Banners.tsx",
       "sha256": "dbe88705f4aeadb62f75109b94b5e21016ce1e056b2a95539981a5f7e948a8bf"
+    },
+    {
+      "path": "workbench/dashboard/src/components/BusinessDefinitions.tsx",
+      "sha256": "c543075df9a1707ee873a156c519535986e4cc38b9c94df04439cb3cc15c7d34"
     },
     {
       "path": "workbench/dashboard/src/components/BusinessGraph.tsx",
@@ -95,7 +139,7 @@
     },
     {
       "path": "workbench/dashboard/src/components/CatalogRecords.tsx",
-      "sha256": "65f82887d58eabd20e9b94f2d903220e981887d708b195cf8bc39abcfd435525"
+      "sha256": "f3e57ff0f2d7077787846a1c78af0127f799a1d66a2822c1724fdcdff5fca25d"
     },
     {
       "path": "workbench/dashboard/src/components/DetailPane.tsx",
@@ -131,11 +175,11 @@
     },
     {
       "path": "workbench/dashboard/src/components/TopBar.tsx",
-      "sha256": "6a89661b57ea68724a91939943bce107d57d81d39a8d5e1bdba475e9a524ab0b"
+      "sha256": "c64b4ae3b613ab50e529eaffb83d5b39f355ab989f3ce8855ca3bbce479dfa6e"
     },
     {
       "path": "workbench/dashboard/src/components/TypeInfoCard.tsx",
-      "sha256": "550214b4db2f45e361a31dc500f2b9be485b7ca8e7585fd487a4e9bf18e0deed"
+      "sha256": "3d5f4ec942590d04085924efc3c7b9aa5723341cbf1632dcf682ffff09a86032"
     },
     {
       "path": "workbench/dashboard/src/components/ui/alert.tsx",
@@ -182,12 +226,20 @@
       "sha256": "b977274550595594055d850a16775c75761765e1cd76b4827e101c2f432762df"
     },
     {
+      "path": "workbench/dashboard/src/components/ui/textarea.tsx",
+      "sha256": "82601c91ffc6c727d924162c78d7cb853114bcced4e2eb922a68ca12d4239c0f"
+    },
+    {
+      "path": "workbench/dashboard/src/governance.css",
+      "sha256": "8f3e6a8cf8a64835ccca54ede6859e33c6974826b8451a95b8d62e86bf2ba384"
+    },
+    {
       "path": "workbench/dashboard/src/index.css",
       "sha256": "481205e683ec46e6ea0ba4e714767ec2ea05b41f2faf025812f47e9ec7968978"
     },
     {
       "path": "workbench/dashboard/src/lib/api.ts",
-      "sha256": "01e1977a384f6805871ee034d561d1eeca3823b4a930efab32da310108abe186"
+      "sha256": "edb9d726ae9348b262a5b7d51be11e1ae12334245c887e46ce4766d21cdc138f"
     },
     {
       "path": "workbench/dashboard/src/lib/errors.ts",
@@ -199,23 +251,27 @@
     },
     {
       "path": "workbench/dashboard/src/lib/labels.ts",
-      "sha256": "c86675446b4aeb6381b0af9006d25f9cb9ca703925f5b58e1ca60443de976b0c"
+      "sha256": "3ed68f5b3ba9ae447b537cb0bbfff474cc695410669843bb1e4d297643361d5b"
     },
     {
       "path": "workbench/dashboard/src/lib/live.ts",
       "sha256": "84669eef4593b6849062997a23c97ab0f8fad504b138547b230f00624aaead5e"
     },
     {
+      "path": "workbench/dashboard/src/lib/methodMapLabels.ts",
+      "sha256": "e1c9e7e7cc93243c6725d4bf137de0c78908d38c29d4e1fdc7791b9ae8fe971d"
+    },
+    {
       "path": "workbench/dashboard/src/lib/ontology.ts",
-      "sha256": "0b061da921ef05b19b8a5815fdc0513b957fb0f7d8e06de683382fcd8f56b2bd"
+      "sha256": "958a03351415a6bb5cc5d9cfb5b79cc9d9d528caf4c9d702f66913f698ed5b39"
     },
     {
       "path": "workbench/dashboard/src/lib/types.ts",
-      "sha256": "7172e6b012e63682837c97da571c1488c4ad5a2dfd2a15ff102a490e3073b8aa"
+      "sha256": "87690c1776e47356c3a959aafe9bb5d706267612ee97f25030b9dbe2ec53bce5"
     },
     {
       "path": "workbench/dashboard/src/lib/urlState.ts",
-      "sha256": "00b802ee8ff323ff41859b874498fce4b55d0ab6aaf9938e616d24d97cc3b290"
+      "sha256": "ae75b3eefb712c39011da52f31b0b95183ed2f14007795692ecf8a09c8fb7457"
     },
     {
       "path": "workbench/dashboard/src/lib/utils.ts",
@@ -223,7 +279,7 @@
     },
     {
       "path": "workbench/dashboard/src/main.tsx",
-      "sha256": "c649f3f12e7004f97cd8eb6e349627450a8365277b317a0e434e146e05271724"
+      "sha256": "834f9ffb1111a64a38b40d9a6e43450c3de395cac79c9227a0dab005e4376195"
     },
     {
       "path": "workbench/dashboard/tsconfig.json",
@@ -261,19 +317,19 @@
       "sha256": "8fa40e5d248247735eb97a0bd593b8852440430600d6ba01364c31fe0abc1fe1"
     },
     {
-      "bytes": 65718,
-      "path": "assets/index-BJxPyIlM.css",
-      "sha256": "c2f3224defa1e2c93e04ff77c9f5aae2d784996ac4a0740dc20cd8c3102676ee"
+      "bytes": 629876,
+      "path": "assets/index-D87LsY6q.js",
+      "sha256": "d51e60d0fcf2dfd012ad69fac72b61e3d98264c19b37790bbccdd2fee85a1aee"
     },
     {
-      "bytes": 515357,
-      "path": "assets/index-BcOtyNvx.js",
-      "sha256": "fffe8eacf3701ee16dddaedeaad8f2548bc3be83b4d7703cb8b0c4f2a52949db"
+      "bytes": 77308,
+      "path": "assets/index-YNq2GkZz.css",
+      "sha256": "6cabb3197c085207ecf10717d61558ba68d429d533ffa05673c578391f872402"
     },
     {
       "bytes": 479,
       "path": "index.html",
-      "sha256": "5cfc7841741f8b835e817b50335d44f9c7cf51cc1dbe63c056ffa83ffcd34f9d"
+      "sha256": "64ab061a9c613f789643da9a47ee234923fc2b5915954d251a02ca52f4572911"
     }
   ],
   "schema_version": "tkos.dashboard-assets/1"

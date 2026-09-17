@@ -5,7 +5,9 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Separator } from "@/components/ui/separator"
 import { MARKER_LABELS, typeInfo, type RulesVersion } from "@/lib/ontology"
 import { RULES_VERSION_LABELS, TYPE_LABELS } from "@/lib/labels"
-import type { OntologyCatalog } from "@/lib/types"
+import type { MethodMap, OntologyCatalog } from "@/lib/types"
+import { availabilityLabel, categoryLabel, compiledLabel, contractStatusLabel,
+         maturityLabel, supportAssessmentLabel } from "@/lib/methodMapLabels"
 
 function Section({ title, defaultOpen = true, children, testId }: {
   title: string
@@ -34,6 +36,7 @@ export interface TypeInfoCardProps {
   type: string
   rules: RulesVersion
   catalog: OntologyCatalog | null
+  methodMap?: MethodMap | null
   onSelectType: (type: string) => void
   onViewData: (type: string) => void
   onClose: () => void
@@ -43,11 +46,13 @@ export interface TypeInfoCardProps {
  * 类型业务说明卡：定义、主要信息、关系、生命周期、操作主体、正式效力。
  * 概念说明只读；技术字段在技术溯源页。注册但无整理说明的类型明确标注，不猜。
  */
-export function TypeInfoCard({ type, rules, catalog, onSelectType, onViewData,
+export function TypeInfoCard({ type, rules, catalog, methodMap, onSelectType, onViewData,
                                onClose }: TypeInfoCardProps) {
   const info = typeInfo(type, rules)
   const meta = catalog?.types[type]
   const listable = meta?.listable !== false
+  const mapped = (methodMap?.entries ?? []).filter(
+    (entry) => (entry.runtime_object_types ?? []).includes(type))
   return (
     <div className="flex h-full min-h-0 flex-col" data-testid="type-info-card">
       <div className="border-b border-border bg-card px-4 py-2.5">
@@ -124,6 +129,79 @@ export function TypeInfoCard({ type, rules, catalog, onSelectType, onViewData,
             该类型已在业务规则 {rules} 注册，暂无整理的业务说明；以下为真实数据入口，不以猜测文本代替。
           </p>
         )}
+        <Separator />
+        <Section title="方法定义对照" defaultOpen={mapped.length > 0} testId="type-method-map">
+          {!methodMap ? (
+            <p className="text-[11.5px] text-muted-foreground" data-testid="method-map-unavailable">
+              方法定义对照当前不可用；这不改变该类型的业务规则与数据读取。
+            </p>
+          ) : mapped.length === 0 ? (
+            <p className="text-[11.5px] text-muted-foreground" data-testid="method-map-empty">
+              该类型未出现在 44 项工作文档对照清单中；空映射不是“无此概念”。
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {mapped.map((entry) => {
+                const documented = methodMap.method_definition_map?.documented_contracts ?? []
+                const support = entry.runtime_support ?? { compiled: "unknown",
+                  scope_enabled_contract_versions: [], links: [] }
+                return (
+                  <div key={entry.id} data-testid={`method-map-entry-${entry.id}`}
+                       className="rounded border border-border/60 px-2 py-1.5">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span className="text-[11.5px] font-medium">{entry.id} · {entry.ssot_name}</span>
+                      <Badge variant="outline" className="rounded-sm text-[9.5px]">
+                        {categoryLabel(entry.business_category)}
+                      </Badge>
+                      <Badge variant="secondary" className="rounded-sm text-[9.5px]">
+                        {maturityLabel(entry.business_maturity)}
+                      </Badge>
+                    </div>
+                    <p className="mt-1 text-[10.5px] text-muted-foreground">
+                      来源 {entry.source_ref?.source_id}
+                      {entry.source_ref?.table_name ? ` · ${entry.source_ref.table_name}` : ""}
+                      {entry.source_ref?.record_ref ? ` · ${entry.source_ref.record_ref}` : ""}
+                    </p>
+                    <p className="mt-1 text-[11px]">
+                      实现支持：{supportAssessmentLabel(entry.runtime_support_assessment)}
+                      {" · "}{compiledLabel(support.compiled)}
+                      {(support.scope_enabled_contract_versions ?? []).length
+                        ? ` · 本 scope 启用：${support.scope_enabled_contract_versions.join("、")}`
+                        : " · 本 scope 无已启用契约"}
+                    </p>
+                    {(entry.planned_contracts ?? []).length ? (
+                      <p className="mt-1 text-[10.5px] text-muted-foreground">
+                        涉及文档契约：{entry.planned_contracts.map((version) => {
+                          const status = documented.find(
+                            (item) => item.contract_version === version)?.support_status
+                          return `${version}（${contractStatusLabel(status)}）`
+                        }).join("、")}
+                      </p>
+                    ) : null}
+                    {(support.links ?? []).length ? (
+                      <p className="mt-1 flex flex-wrap items-center gap-1 text-[10.5px]">
+                        已支持对象：
+                        {support.links.map((link) => (
+                          <button key={link.object_type} type="button"
+                                  className="text-primary underline-offset-2 hover:underline"
+                                  onClick={() => onSelectType(link.object_type)}>
+                            {TYPE_LABELS[link.object_type] ?? link.object_type}
+                          </button>
+                        ))}
+                      </p>
+                    ) : null}
+                    <p className="mt-1 text-[10.5px] text-muted-foreground">
+                      授权数据：{availabilityLabel(entry.authorized_read_availability?.status)}
+                    </p>
+                    {entry.gap ? (
+                      <p className="mt-1 text-[10.5px] text-muted-foreground">差异／边界：{entry.gap}</p>
+                    ) : null}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </Section>
         <Separator />
         <div className="px-1 pt-1">
           {listable ? (

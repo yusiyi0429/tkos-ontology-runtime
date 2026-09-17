@@ -117,7 +117,14 @@ def _guard(request: Request) -> JSONResponse | None:
     return None
 
 
-def _token_or_error() -> tuple[str | None, JSONResponse | None]:
+def _token_or_error(request: Request) -> tuple[str | None, JSONResponse | None]:
+    if getattr(get_settings(), "tkos_governance_workbench_enabled", False):
+        from .governance_sessions import authenticate
+        try:
+            token, _, _ = authenticate(request)
+            return token, None
+        except GovernedError as exc:
+            return None, _json_error(exc.status, exc.code, exc.message)
     token = _viewer_token()
     if token is None:
         # A missing/invalid viewer never falls back to an elevated identity.
@@ -154,7 +161,7 @@ def overview(request: Request, strategy_id: Annotated[uuid.UUID | None, Query()]
     blocked = _guard(request)
     if blocked:
         return blocked
-    token, error = _token_or_error()
+    token, error = _token_or_error(request)
     if error:
         return error
     return _read(reads.read_overview, token, strategy_id=str(strategy_id) if strategy_id else None,
@@ -181,7 +188,7 @@ def objects(request: Request, group: Annotated[str, Query(min_length=1, max_leng
     blocked = _guard(request)
     if blocked:
         return blocked
-    token, error = _token_or_error()
+    token, error = _token_or_error(request)
     if error:
         return error
     return _read(reads.read_objects, token, group=group,
@@ -203,7 +210,7 @@ def object_detail(request: Request, object_id: uuid.UUID,
     blocked = _guard(request)
     if blocked:
         return blocked
-    token, error = _token_or_error()
+    token, error = _token_or_error(request)
     if error:
         return error
     return _read(reads.read_detail, token, str(object_id),
@@ -222,7 +229,7 @@ def revisions(request: Request, object_id: uuid.UUID,
     blocked = _guard(request)
     if blocked:
         return blocked
-    token, error = _token_or_error()
+    token, error = _token_or_error(request)
     if error:
         return error
     return _read(reads.read_revisions, token, str(object_id), limit=limit, cursor=cursor)
@@ -236,7 +243,7 @@ def revision(request: Request, object_id: uuid.UUID, revision_id: uuid.UUID):
     blocked = _guard(request)
     if blocked:
         return blocked
-    token, error = _token_or_error()
+    token, error = _token_or_error(request)
     if error:
         return error
     return _read(reads.read_revision, token, str(object_id), str(revision_id))
@@ -251,7 +258,7 @@ def reviews(request: Request, object_id: uuid.UUID,
     blocked = _guard(request)
     if blocked:
         return blocked
-    token, error = _token_or_error()
+    token, error = _token_or_error(request)
     if error:
         return error
     return _read(reads.read_reviews, token, str(object_id), effective_only=effective_only)
@@ -267,7 +274,7 @@ def object_receipts(request: Request, object_id: uuid.UUID,
     blocked = _guard(request)
     if blocked:
         return blocked
-    token, error = _token_or_error()
+    token, error = _token_or_error(request)
     if error:
         return error
     return _read(reads.read_object_receipts, token, str(object_id), limit=limit, cursor=cursor)
@@ -284,10 +291,25 @@ def downstream(request: Request, object_id: uuid.UUID,
     blocked = _guard(request)
     if blocked:
         return blocked
-    token, error = _token_or_error()
+    token, error = _token_or_error(request)
     if error:
         return error
     return _read(reads.read_downstream, token, str(object_id), str(revision_id), limit=limit, cursor=cursor)
+
+
+@api.get("/ontology/method-map")
+def ontology_method_map(request: Request,
+                       availability: Annotated[str, Query(max_length=16)] = "none"):
+    invalid = _validate(request, {"availability"})
+    if invalid:
+        return invalid
+    blocked = _guard(request)
+    if blocked:
+        return blocked
+    token, error = _token_or_error(request)
+    if error:
+        return error
+    return _read(reads.read_method_map, token, availability=availability)
 
 
 @api.get("/ontology/catalog")
@@ -298,7 +320,7 @@ def ontology_catalog(request: Request):
     blocked = _guard(request)
     if blocked:
         return blocked
-    token, error = _token_or_error()
+    token, error = _token_or_error(request)
     if error:
         return error
     return _read(reads.read_ontology_catalog, token)
@@ -316,7 +338,7 @@ def catalog_objects(request: Request,
     blocked = _guard(request)
     if blocked:
         return blocked
-    token, error = _token_or_error()
+    token, error = _token_or_error(request)
     if error:
         return error
     return _read(reads.read_catalog_objects, token, object_type=object_type,
@@ -331,7 +353,7 @@ def receipt(request: Request, receipt_id: uuid.UUID):
     blocked = _guard(request)
     if blocked:
         return blocked
-    token, error = _token_or_error()
+    token, error = _token_or_error(request)
     if error:
         return error
     return _read(reads.read_receipt, token, str(receipt_id))
@@ -345,7 +367,7 @@ def evidence(request: Request, object_id: uuid.UUID, revision_id: uuid.UUID):
     blocked = _guard(request)
     if blocked:
         return blocked
-    token, error = _token_or_error()
+    token, error = _token_or_error(request)
     if error:
         return error
     return _read(reads.read_evidence, token, str(object_id), str(revision_id))
@@ -361,6 +383,8 @@ def mount_dashboard(app: FastAPI) -> None:
     if not _enabled_from_env():
         return
     app.include_router(api)
+    from .governance import router as governance_facade
+    app.include_router(governance_facade)
     directory = assets_dir()
     index = directory / "index.html"
 

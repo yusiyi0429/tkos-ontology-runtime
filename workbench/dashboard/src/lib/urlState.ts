@@ -28,7 +28,7 @@ export const DEFAULT_VIEW: ViewState = {
   periodFrom: null,
   periodTo: null,
   owner: null,
-  rules: "0.3",
+  rules: "0.4",
   otype: null,
 }
 
@@ -48,6 +48,20 @@ const KEYS: Array<[keyof ViewState, string]> = [
   ["otype", "otype"],
 ]
 
+/**
+ * Legacy standalone object-list routes fold into the ontology map: an exact
+ * object keeps its detail route, a bare list route opens the map.  The legacy
+ * type filter selects the same type in the map, and every other filter
+ * parameter stays in the URL instead of being silently dropped.
+ */
+export function normalizeView(view: ViewState): ViewState {
+  const next: ViewState = view.view === "list"
+    ? { ...view, view: view.object ? "graph" : "map" }
+    : { ...view }
+  if (!next.otype && next.objectType) next.otype = next.objectType
+  return next
+}
+
 export function parseView(search: string): ViewState {
   const params = new URLSearchParams(search)
   const view: ViewState = { ...DEFAULT_VIEW }
@@ -55,7 +69,7 @@ export function parseView(search: string): ViewState {
     const value = params.get(key)
     if (value) (view[field] as string | null) = value
   }
-  return view
+  return normalizeView(view)
 }
 
 export function serializeView(view: ViewState): string {

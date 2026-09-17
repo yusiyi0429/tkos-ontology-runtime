@@ -18,3 +18,6 @@ build/
 .DS_Store
 node_modules/
 *.tsbuildinfo
+
+# Local browser acceptance traces may contain personal session data.
+.playwright-cli/

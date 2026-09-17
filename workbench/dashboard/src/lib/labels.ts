@@ -49,8 +49,8 @@ export const TYPE_LABELS: Record<string, string> = {
 
 export const VIEW_LABELS: Record<string, string> = {
   map: "本体地图",
+  definitions: "业务定义",
   graph: "业务关系图",
-  list: "列表",
 }
 
 export const RULES_VERSION_LABELS: Record<string, string> = {

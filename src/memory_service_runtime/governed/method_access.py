@@ -65,6 +65,21 @@ def window_participant(conn, ctx, payload):
 
 
 def research_participant(conn, ctx, state):
+    # tkos.method/0.4 issues nominate their own current human participants and
+    # personal Agents explicitly; this never becomes a company-wide role.
+    for member in state.get("participants", []):
+        if not isinstance(member, dict):
+            continue
+        if member.get("principal_id") == ctx.principal_id and ctx.principal_type == "human":
+            try:
+                return assignment(conn, ctx, member["assignment_id"], ctx.principal_id, "human")
+            except (KeyError, TypeError, GovernedError):
+                continue
+        if member.get("personal_agent_id") == ctx.principal_id and ctx.principal_type == "agent":
+            try:
+                return personal_agent(conn, ctx, ctx.principal_id, member["principal_id"])
+            except (KeyError, TypeError, GovernedError):
+                continue
     roles = {"ceo_principal_id": ("CEO", "human"), "dri_principal_id": ("DOMAIN_DRI", "human"),
              "ceo_agent_id": ("CEO_AGENT", "agent"), "dri_agent_id": ("PERSONAL_AGENT", "agent"),
              "co_agent_id": ("CO_AGENT", "agent")}
@@ -159,6 +174,11 @@ def raw_revision(conn, ctx, object_id, revision_id):
 
 def head_access(conn, ctx, object_id):
     """Return head and allowed revision IDs (None = explicit domain read right)."""
+    # A linked tkos.workspace/0.2 source artifact stays behind its scene fence on
+    # internal Method reads too; domain read/roles never bypass an unshared
+    # private source. Unlinked objects pass through unchanged.
+    from . import workspace_v02_guard
+    workspace_v02_guard.enforce_object(conn, ctx, str(object_id))
     db._assignments(conn, ctx)
     oid = db._uuid(object_id)
     head = conn.execute("SELECT * FROM gov_objects WHERE scope_id=%s AND object_id=%s", (ctx.scope_id, oid)).fetchone()
@@ -167,7 +187,20 @@ def head_access(conn, ctx, object_id):
     head = db.jsonable(head)
     try:
         db.authorize_domain(conn, ctx, head["domain_id"], "read")
-        return head, None
+        # A domain read never bypasses a linked tkos.workspace/0.2 private
+        # source fence: every revision must still pass the scene/exact-share
+        # guard, so generic Method references cannot launder private sources.
+        from . import workspace_v02_guard
+        if workspace_v02_guard.object_allowed(conn, ctx, oid):
+            return head, None
+        revisions = conn.execute(
+            "SELECT revision_id FROM gov_object_revisions WHERE scope_id=%s AND object_id=%s ORDER BY recorded_at, revision_id",
+            (ctx.scope_id, oid)).fetchall()
+        allowed = {str(row["revision_id"]) for row in revisions
+                   if workspace_v02_guard.object_allowed(conn, ctx, oid, str(row["revision_id"]))}
+        if not allowed:
+            raise GovernedError("NOT_FOUND")
+        return head, allowed
     except GovernedError as exc:
         if exc.code != "FORBIDDEN":
             raise
@@ -188,8 +221,12 @@ def head_access(conn, ctx, object_id):
             continue
         if window["object_id"] == oid:
             allowed.add(window["revision_id"])
-        original_ids = {ref["object_id"] for ref in window["payload"].get("target_refs", [])}
-        for ref in window["payload"].get("target_refs", []):
+        frozen_refs = window["payload"].get("target_refs")
+        if frozen_refs is None:
+            # tkos.method/0.4 windows freeze their members as separate exact sets.
+            frozen_refs = [*window["payload"].get("pco_refs", []), *window["payload"].get("mission_refs", [])]
+        original_ids = {ref["object_id"] for ref in frozen_refs}
+        for ref in frozen_refs:
             if ref["object_id"] == oid:
                 allowed.add(ref["revision_id"])
         state = conn.execute("SELECT state FROM gov_method_state WHERE scope_id=%s AND object_id=%s", (ctx.scope_id, window["object_id"])).fetchone()
@@ -213,9 +250,21 @@ def head_access(conn, ctx, object_id):
         if ctx.principal_type == "human" and ctx.principal_id in people:
             if mission["object_id"] == oid:
                 allowed.add(mission["revision_id"])
-            reference = mission["payload"].get("pco_ref", {})
+            reference = mission["payload"].get("pco_ref") or mission["payload"].get("parent_pco_ref") or {}
             if reference.get("object_id") == oid:
                 allowed.add(reference["revision_id"])
+    # 0.4 responsibilities confer exactly the effective result identity to its
+    # named DRI/Owner, reusing the same live responsibility resolution as states.
+    results = conn.execute("""SELECT o.object_id,o.object_type,o.effective_revision_id FROM gov_objects o
+        WHERE o.scope_id=%s AND o.object_type IN ('LTCO','PCO','Mission') AND o.effective_revision_id IS NOT NULL""",
+        (ctx.scope_id,)).fetchall()
+    for result in db.jsonable(results):
+        try:
+            state_subject_assignment(conn, ctx, {"object_id": str(result["object_id"])})
+        except GovernedError:
+            continue
+        if str(result["object_id"]) == oid:
+            allowed.add(str(result["effective_revision_id"]))
     if not allowed:
         raise GovernedError("NOT_FOUND")
     return head, allowed
@@ -228,6 +277,13 @@ def head(conn, ctx, object_id):
 
 
 def revision(conn, ctx, object_id, revision_id):
+    # Preserve a valid exact-version source grant for the exact revision even
+    # though the object-level head requires every linked revision to be readable.
+    from . import workspace_v02_guard
+    shared = workspace_v02_guard.shared_revision(conn, ctx, str(object_id), str(revision_id))
+    if shared is not None:
+        protocol.require_read_support(conn, ctx.scope_id, str(object_id))
+        return raw_revision(conn, ctx, str(object_id), db._uuid(revision_id))
     value, allowed = head_access(conn, ctx, object_id)
     protocol.require_read_support(conn, ctx.scope_id, value["object_id"])
     if allowed is not None and str(revision_id) not in allowed:
@@ -235,11 +291,63 @@ def revision(conn, ctx, object_id, revision_id):
     return raw_revision(conn, ctx, value["object_id"], db._uuid(revision_id))
 
 
+def _v04_state_subject_assignment(conn, ctx, head, subject):
+    """Live 0.4 responsibility: LTCO=current CEO, PCO=Scope DRI, Mission=owner."""
+    revision = raw_revision(conn, ctx, subject['object_id'], str(head['effective_revision_id']))
+    payload = revision['payload']
+    if head['object_type'] == 'LTCO':
+        rows = conn.execute("SELECT assignment_id,principal_id FROM gov_role_assignments WHERE scope_id=%s AND domain_id=%s AND role='CEO'", (ctx.scope_id, head['domain_id'])).fetchall()
+        owners = set()
+        for row in db.jsonable(rows):
+            try:
+                assignment(conn, ctx, str(row['assignment_id']), row['principal_id'], 'human')
+                owners.add(str(row['principal_id']))
+            except GovernedError:
+                continue
+        if len(owners) != 1:
+            raise GovernedError('FORBIDDEN')
+        owner, role = next(iter(owners)), 'CEO'
+    elif head['object_type'] == 'PCO':
+        architecture = raw_revision(conn, ctx, payload['architecture_ref']['object_id'], payload['architecture_ref']['revision_id'])['payload']
+        domain = next((d for d in [*architecture['battlefields'], *architecture['domains']]
+                       if d['unit_id'] == payload['primary_scope_id']), None)
+        if domain is None:
+            raise GovernedError('FORBIDDEN')
+        auth_domain = domain.get('auth_domain_id')
+        if auth_domain is None:
+            raise GovernedError('FORBIDDEN')
+        rows = conn.execute("SELECT assignment_id,principal_id FROM gov_role_assignments WHERE scope_id=%s AND domain_id=%s AND role='DOMAIN_DRI'", (ctx.scope_id, auth_domain)).fetchall()
+        owners = set()
+        for row in db.jsonable(rows):
+            try:
+                assignment(conn, ctx, str(row['assignment_id']), row['principal_id'], 'human')
+                owners.add(str(row['principal_id']))
+            except GovernedError:
+                continue
+        if len(owners) != 1:
+            raise GovernedError('FORBIDDEN')
+        owner = next(iter(owners))
+        if domain.get('current_dri_principal_id') and domain['current_dri_principal_id'] not in owners:
+            raise GovernedError('FORBIDDEN')
+        role = 'DOMAIN_DRI'
+    else:
+        owner, role = payload['owner_principal_id'], None
+    if str(owner) != str(ctx.principal_id) or ctx.principal_type != 'human':
+        raise GovernedError('FORBIDDEN')
+    for row in db._assignments(conn, ctx):
+        if role is None or row['role'] == role:
+            return assignment(conn, ctx, row['assignment_id'], owner, 'human')
+    raise GovernedError('FORBIDDEN')
+
+
 def state_subject_assignment(conn, ctx, subject):
     """Resolve a State's exact responsibility without turning it into a domain grant."""
-    head = conn.execute('SELECT object_type,effective_revision_id FROM gov_objects WHERE scope_id=%s AND object_id=%s', (ctx.scope_id,subject['object_id'])).fetchone()
+    head = conn.execute('SELECT object_type,domain_id,effective_revision_id FROM gov_objects WHERE scope_id=%s AND object_id=%s', (ctx.scope_id,subject['object_id'])).fetchone()
     if not head or head['object_type'] not in {'Mission','LTCO','PCO'} or not head['effective_revision_id']:
         raise GovernedError('FORBIDDEN')
+    binding = protocol.current_binding(conn, ctx.scope_id, str(subject['object_id']))
+    if binding and binding['contract_version'] == 'tkos.method/0.4' and not subject.get('outcome_id'):
+        return _v04_state_subject_assignment(conn, ctx, head, subject)
     revision = raw_revision(conn,ctx,subject['object_id'],str(head['effective_revision_id']))
     payload = revision['payload']
     if head['object_type']=='PCO' and subject.get('outcome_id'):
@@ -259,9 +367,17 @@ def state_subject_assignment(conn, ctx, subject):
 
 
 def anchor_participant(conn,ctx,head):
-    if protocol.current_binding(conn,ctx.scope_id,head['object_id'])['contract_version'] != 'tkos.method/0.3':
+    binding = protocol.current_binding(conn,ctx.scope_id,head['object_id'])
+    if binding is None or binding['contract_version'] not in {'tkos.method/0.3','tkos.method/0.4'}:
         raise GovernedError('FORBIDDEN')
     payload=raw_revision(conn,ctx,head['object_id'],head['latest_revision_id'])['payload']
+    if binding['contract_version']=='tkos.method/0.4':
+        if head['object_type']=='OperatingState':
+            return state_subject_assignment(conn,ctx,payload['subject_ref'])
+        if head['object_type']=='OperatingProblem':
+            return assignment(conn,ctx,payload['responsible_assignment_id'],ctx.principal_id,'human')
+        # A Business Scope mapping or Architecture definition never grants access.
+        raise GovernedError('FORBIDDEN')
     if head['object_type']=='StrategicArchitecture':
         domains={u['domain_id'] for u in payload['units']}
         for row in db._assignments(conn,ctx):

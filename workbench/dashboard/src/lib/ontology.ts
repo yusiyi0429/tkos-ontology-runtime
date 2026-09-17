@@ -10,9 +10,9 @@
  * type and never listed as independent objects.
  */
 
-export type RulesVersion = "0.1" | "0.2" | "0.3"
+export type RulesVersion = "0.1" | "0.2" | "0.3" | "0.4"
 
-export const RULES_VERSIONS: RulesVersion[] = ["0.3", "0.2", "0.1"]
+export const RULES_VERSIONS: RulesVersion[] = ["0.4", "0.3", "0.2", "0.1"]
 
 export function contractVersionOf(rules: RulesVersion): string {
   return `tkos.method/${rules}`
@@ -22,6 +22,7 @@ export function rulesOfContractVersion(contractVersion: string | null | undefine
   if (contractVersion === "tkos.method/0.1") return "0.1"
   if (contractVersion === "tkos.method/0.2") return "0.2"
   if (contractVersion === "tkos.method/0.3") return "0.3"
+  if (contractVersion === "tkos.method/0.4") return "0.4"
   return null
 }
 
@@ -507,7 +508,10 @@ const VERSION_OVERRIDES: Record<string, Partial<Record<RulesVersion, Partial<Typ
 export function typeInfo(type: string, rules: RulesVersion): TypeInfo | null {
   const base = BASE_TYPE_INFO[type]
   if (!base) return null
-  const override = VERSION_OVERRIDES[type]?.[rules]
+  // 0.4 has its own compiled object set and curated reading; a type that only
+  // exists in 0.1-0.3 must never be labeled with the old rules under 0.4.
+  if (rules === "0.4" && !V04_TYPES.includes(type)) return null
+  const override = rules === "0.4" ? V04_OVERRIDES[type] : VERSION_OVERRIDES[type]?.[rules]
   return override ? { ...base, ...override } : base
 }
 
@@ -532,6 +536,8 @@ const AREAS: Area[] = [
 const MAP_EDGES: Array<MapEdge & { versions?: RulesVersion[] }> = [
   { from: "Signal", to: "PotentialIssue", label: "升级为候选议题" },
   { from: "PotentialIssue", to: "StrategicIssue", label: "确认立题" },
+  { from: "StrategicIssue", to: "StrategicAgreement", label: "进入正式人类共识", versions: ["0.4"] },
+  { from: "ReviewWindow", to: "LTCO", label: "冻结确切长期结果集合", versions: ["0.4"] },
   { from: "StrategicIssue", to: "ResearchPlan", label: "指派深入研究" },
   { from: "StrategicIssue", to: "ResearchBrief", label: "指派研究（轻量）", versions: ["0.2", "0.3"] },
   { from: "ResearchMemo", to: "StrategicIssue", label: "澄清记录" },
@@ -542,11 +548,11 @@ const MAP_EDGES: Array<MapEdge & { versions?: RulesVersion[] }> = [
   { from: "StrategicAgreement", to: "StrategyUpdateProposal", label: "更新依据" },
   { from: "StrategyUpdateProposal", to: "StrategicJudgment", label: "确认产生域内判断" },
   { from: "StrategyUpdateProposal", to: "Strategy", label: "CEO 确认生效" },
-  { from: "Strategy", to: "StrategicArchitecture", label: "配对责任结构", versions: ["0.3"] },
+  { from: "Strategy", to: "StrategicArchitecture", label: "配对责任结构", versions: ["0.3", "0.4"] },
   { from: "Strategy", to: "LTCO", label: "展开为长期目标" },
-  { from: "StrategicArchitecture", to: "LTCO", label: "责任结构依据", versions: ["0.3"] },
-  { from: "StrategicArchitecture", to: "PCO", label: "责任结构依据", versions: ["0.3"] },
-  { from: "StrategicArchitecture", to: "Mission", label: "责任结构依据", versions: ["0.3"] },
+  { from: "StrategicArchitecture", to: "LTCO", label: "责任结构依据", versions: ["0.3", "0.4"] },
+  { from: "StrategicArchitecture", to: "PCO", label: "责任结构依据", versions: ["0.3", "0.4"] },
+  { from: "StrategicArchitecture", to: "Mission", label: "责任结构依据", versions: ["0.3", "0.4"] },
   { from: "LTCO", to: "PCO", label: "承接为当期目标" },
   { from: "PeriodReview", to: "LTCOReviewAdvice", label: "复盘支撑审视建议" },
   { from: "LTCOReviewAdvice", to: "LTCO", label: "审视建议" },
@@ -554,24 +560,236 @@ const MAP_EDGES: Array<MapEdge & { versions?: RulesVersion[] }> = [
   { from: "ReviewWindow", to: "CandidateSet", label: "关窗收拢" },
   { from: "CandidateSet", to: "PCO", label: "整组确认生效" },
   { from: "CandidateSet", to: "Mission", label: "整组确认生效" },
-  { from: "OperatingState", to: "Mission", label: "经营状态观察", versions: ["0.3"] },
-  { from: "OperatingState", to: "LTCO", label: "经营状态观察", versions: ["0.3"] },
-  { from: "OperatingState", to: "PCO", label: "经营状态观察", versions: ["0.3"] },
-  { from: "OperatingProblem", to: "OperatingState", label: "来源状态", versions: ["0.3"] },
-  { from: "OperatingProblem", to: "StrategicIssue", label: "移交战略立项", versions: ["0.3"] },
-  { from: "PeriodReview", to: "OperatingState", label: "引用正式状态", versions: ["0.3"] },
+  { from: "OperatingState", to: "Mission", label: "经营状态观察", versions: ["0.3", "0.4"] },
+  { from: "OperatingState", to: "LTCO", label: "经营状态观察", versions: ["0.3", "0.4"] },
+  { from: "OperatingState", to: "PCO", label: "经营状态观察", versions: ["0.3", "0.4"] },
+  { from: "OperatingProblem", to: "OperatingState", label: "来源状态", versions: ["0.3", "0.4"] },
+  { from: "OperatingProblem", to: "StrategicIssue", label: "移交战略立项", versions: ["0.3", "0.4"] },
+  { from: "PeriodReview", to: "OperatingState", label: "引用正式状态", versions: ["0.3", "0.4"] },
   { from: "PeriodReview", to: "PotentialIssue", label: "复盘发现进入候选池", versions: ["0.2", "0.3"] },
   { from: "PeriodReview", to: "PCO", label: "复盘目标" },
   { from: "BusinessFact", to: "Mission", label: "事实记录对象" },
   { from: "EvidenceAsset", to: "BusinessFact", label: "原始证据" },
-  { from: "EvidenceAsset", to: "OperatingState", label: "状态证据", versions: ["0.3"] },
+  { from: "EvidenceAsset", to: "OperatingState", label: "状态证据", versions: ["0.3", "0.4"] },
   { from: "MethodRun", to: "StrategicIssue", label: "Agent 研究运行" },
 ]
+
+/** Compiled tkos.method/0.4 object types (docs/runtime-method-registry-0.4.json).
+ *  Used only as the no-catalog fallback so 0.4 never borrows 0.1-0.3 concepts. */
+const V04_TYPES: string[] = [
+  "StrategicIssue", "StrategicAgreement", "Strategy", "StrategicArchitecture", "StrategyUpdateProposal",
+  "LTCO", "PCO", "Mission", "ReviewWindow", "CandidateSet", "OperatingState",
+  "OperatingProblem", "PeriodReview", "MethodRun", "EvidenceAsset",
+]
+
+/** 0.4 curated readings.  Only entries that differ from the base entry appear
+ *  here; unlisted 0.4 types keep their base reading.  0.1-0.3 never merge
+ *  these overrides. */
+const V04_OVERRIDES: Record<string, Partial<TypeInfo>> = {
+  Strategy: {
+    definition: "0.4 的公司战略：与独立版本化的责任结构配对采用。Required Capability 是本战略的分析语义与字段，分配给 Domain 的主要责任，不是独立对象。",
+    keyFacts: [
+      "成对采用保留未变对象的确切版本并附适用性理由；只有变更对象产生新版本，同一事务原子生效。",
+      "旧正式版本与仍生效的历史目标依据保留，不被自动改写。",
+    ],
+    relations: [
+      { target: "StrategicArchitecture", label: "配对责任结构" },
+      { target: "StrategyUpdateProposal", label: "由 CEO 确认的提案生效" },
+    ],
+    lifecycle: ["议题与全体共识", "CEO Agent 确切变更提案", "Co-agent 复核", "CEO 原子确认", "仅变更对象新版本"],
+    actors: "CEO Agent 提案，Co-agent 复核，CEO 本人确认；全体人类共识先行成立。",
+    authority: "以当前采用的确切战略版本与配对责任结构版本为准。",
+  },
+  StrategicArchitecture: {
+    definition: "0.4 的责任结构：Battlefield（价值创造场域）与 Domain（长期能力责任）各自稳定 ID；Domain 显式映射既有授权域与当前责任人，映射只解释责任、不隐式授权。",
+    keyFacts: [
+      "Battlefield 与 Domain 都可作为结果的主业务 Scope；Required Capability 仍归 Domain 主要责任。",
+      "稳定 ID 不得改变定义项类型；整体独立版本化并与战略成对采用。",
+      "未变对象保留确切版本并附适用性理由。",
+    ],
+    relations: [{ target: "Strategy", label: "与战略配对采用" }],
+    actors: "CEO Agent 根据共识提案，Co-agent 复核，CEO 本人确认。",
+    authority: "以当前采用的整份责任结构版本为准；字段映射不授予任何权限。",
+  },
+  StrategicAgreement: {
+    definition: "0.4 的正式人类共识：CEO 提名的全部当前人类参与人对同一确切议题版本的共同确认；Agent 只负责起草。",
+    keyFacts: [
+      "必要参与人必须包括 CEO 本人；任一必要参与人缺失则不成立。",
+      "名单、正文或所附证据变化使全部待确认失效，必须重新确认。",
+      "正式化重查全部必要签署人的当前任职。",
+      "未形成变化时只记录共识，不触发正式更新。",
+    ],
+    relations: [
+      { target: "StrategicIssue", label: "议题依据" },
+      { target: "StrategyUpdateProposal", label: "更新依据" },
+    ],
+    lifecycle: ["CEO Agent 起草", "全体当前人类确认同一版本", "正式成立", "作为更新依据"],
+    actors: "CEO 提名参与人；每个当前人类本人确认；Agent 不得代替任何人确认。",
+    authority: "全体确认同一确切版本后方正式；历史正式记录保持不变。",
+  },
+  StrategicIssue: {
+    definition: "0.4 的战略议题：由绑定 CEO Agent 使用本人运行直接创建、重新界定或关联；不设候选池前置门槛。",
+    keyFacts: [
+      "CEO 指定参与人与研究责任；研究与补证按需发生，不强制会议链。",
+      "该 scope 尚无正式战略与责任结构对时，议题可以明确缺少现有依据。",
+      "重新界定产生新一轮次并保留历史共识与当时的依据引用。",
+    ],
+    relations: [
+      { target: "StrategicAgreement", label: "进入正式人类共识" },
+      { target: "StrategyUpdateProposal", label: "形成更新提案" },
+    ],
+    lifecycle: ["CEO Agent 直接创建/重新界定/关联", "CEO 指定参与人与研究", "全体共识", "正式更新", "完成"],
+    actors: "绑定 CEO Agent 立项；CEO 本人指定参与人并确认正式更新。",
+    authority: "直接立项按规则生效；正式更新仍需全体共识与 CEO 本人确认。",
+  },
+  LTCO: {
+    definition: "0.4 的 Scope 级长期结果，独立身份与版本，归属唯一主业务 Scope（Domain 或 Battlefield）。",
+    keyFacts: [
+      "状态责任人为当前 CEO。",
+      "主业务 Scope 与依据在候选与确认中保持一致，旧版本作为历史依据保留。",
+    ],
+    relations: [
+      { target: "Strategy", label: "战略依据" },
+      { target: "StrategicArchitecture", label: "责任结构依据" },
+      { target: "PCO", label: "展开为周期结果" },
+    ],
+    lifecycle: ["CEO Agent 起草", "CEO 本人确认", "作为周期结果的确切父级", "周期复盘与审视"],
+    actors: "CEO Agent 起草；CEO 本人确认并承担状态责任。",
+    authority: "当前生效版本以覆盖该确切版本的确认记录为准。",
+  },
+  PCO: {
+    definition: "0.4 的周期结果：唯一主业务 Scope、确切父级长期结果与确切责任结构；状态责任人为该 Scope 的当前责任人。",
+    keyFacts: [
+      "同一公司周期的评审窗口冻结完整的周期结果与必要结果单元成员集合与版本。",
+      "候选内容变化使已收集的本人承诺失效，需重新确认。",
+    ],
+    relations: [
+      { target: "LTCO", label: "确切父级" },
+      { target: "StrategicArchitecture", label: "责任结构依据" },
+      { target: "Mission", label: "拆解为必要结果单元" },
+      { target: "CandidateSet", label: "整组激活" },
+    ],
+    lifecycle: ["Co-agent 起草", "窗口共同核对", "候选与本人承诺", "CEO 最后整组激活"],
+    actors: "Co-agent 起草；窗口参与人本人评论；具名 Scope 责任人承诺本人责任；CEO 最后整组激活。",
+    authority: "整组原子激活；不产生执行授权或验收。",
+  },
+  Mission: {
+    definition: "0.4 的独立结果单元：唯一 Owner（可以是责任人以外的人）、唯一主业务 Scope、确切父级周期结果、为什么、标准、证据与时间。",
+    keyFacts: [
+      "Owner 本人在确切候选集合中承诺本人责任，并承担状态责任。",
+      "正式结果不等于执行授权或验收。",
+    ],
+    relations: [
+      { target: "PCO", label: "确切父级" },
+      { target: "OperatingState", label: "经营状态观察" },
+    ],
+    lifecycle: ["Co-agent 起草", "窗口共同核对", "Owner 本人承诺", "CEO 整组激活", "待执行承接"],
+    actors: "Co-agent 起草；具名 Owner 本人承诺；CEO 最后整组激活。",
+    authority: "正式结果不等于执行授权；执行授权需独立约定。",
+  },
+  ReviewWindow: {
+    definition: "0.4 的共同核对窗口：冻结完整公司周期的周期结果与必要结果单元成员集合与版本；本人在窗口内发表、替代或撤回意见。",
+    keyFacts: [
+      "收拢必须恰好覆盖每个冻结成员与每份有效意见一次。",
+      "成员集合变化必须由 CEO 显式重开，不静默替换。",
+    ],
+    relations: [{ target: "CandidateSet", label: "关窗收拢" }],
+    lifecycle: ["Co-agent 开窗冻结集合", "本人评论/替代/撤回", "关窗", "收拢"],
+    actors: "Co-agent 开窗与关窗；窗口成员本人评论；CEO 显式重开。",
+    authority: "窗口意见是核对记录，不代替正式确认。",
+  },
+  CandidateSet: {
+    definition: "0.4 的完整候选集合：逐份意见取舍；具名责任人/结果 Owner 对确切候选版本承诺本人责任，CEO 最后整组激活。",
+    keyFacts: [
+      "候选、参与人或相关依据变化使已收集承诺失效，需重新确认。",
+      "存在关键未决依赖或分歧时阻止激活；非阻塞说明随整组确认记录。",
+    ],
+    relations: [
+      { target: "PCO", label: "整组激活" },
+      { target: "Mission", label: "整组激活" },
+    ],
+    lifecycle: ["收拢生成", "本人责任承诺", "CEO 整组原子激活 或 显式重开"],
+    actors: "Co-agent 收拢；具名责任人/结果 Owner 本人承诺；CEO 整组激活。",
+    authority: "整组同时生效，不启用半套，不产生执行授权。",
+  },
+  OperatingState: {
+    definition: "0.4 的经营状态：保留确切主体、观察时点、摘要、正式评级、基准、证据与缺口；推荐与正式状态分开。",
+    keyFacts: [
+      "LTCO 由当前 CEO、PCO 由对应 Scope 责任人、Mission 由唯一 Owner 确认，并在确认时重查当前任职。",
+      "无证据只能是未知并列明缺口；不自动平均下层评级。",
+      "不生成公司/场域/域的聚合状态对象。",
+    ],
+    relations: [
+      { target: "LTCO", label: "观察对象" },
+      { target: "PCO", label: "观察对象" },
+      { target: "Mission", label: "观察对象" },
+      { target: "OperatingProblem", label: "问题来源" },
+    ],
+    lifecycle: ["Agent 或有权人推荐", "责任人确认并可附理由修正", "新推荐未确认期间旧正式状态继续有效"],
+    actors: "授权 Agent 或有权人推荐；长期结果由当前 CEO、周期结果由对应 Scope 责任人、结果单元由唯一 Owner 确认。",
+    authority: "以确切的正式状态版本为准；旧确认版本作为历史保留。",
+  },
+  OperatingProblem: {
+    definition: "0.4 的经营问题：来源正式状态，记录核心问题、层级、责任任职与证据；普通关闭区分已解决与无需继续处理。",
+    keyFacts: [
+      "战略层级问题可移交活跃战略轮次；移交不等于解决。",
+      "已完成轮次先显式重新界定后再移交。",
+    ],
+    relations: [
+      { target: "OperatingState", label: "来源状态" },
+      { target: "StrategicIssue", label: "移交活跃议题" },
+    ],
+    lifecycle: ["开启", "修订", "关闭 或 移交活跃议题"],
+    actors: "按层级责任任职开启与修订；当前责任人关闭；战略移交由绑定 CEO Agent 执行。",
+    authority: "关闭处置绑定确切版本；移交后问题停止原跟踪，历史引用保留。",
+  },
+  PeriodReview: {
+    definition: "0.4 的周期复盘分析材料：引用目标的正式经营状态精确版本；是分析材料，无需也没有审批。",
+    keyFacts: [
+      "必须引用正式经营状态的确切版本。",
+      "以正式状态与证据为分析依据，不把未记录的推断写成事实。",
+    ],
+    relations: [
+      { target: "OperatingState", label: "引用正式状态" },
+      { target: "PCO", label: "复盘目标" },
+    ],
+    lifecycle: ["生成", "重新生成（保留版本）"],
+    actors: "Co-agent 生成与重新生成。",
+    authority: "分析材料无审批；系统采用该材料不等于人工批准。",
+  },
+  MethodRun: {
+    definition: "0.4 的 Agent 运行：绑定 CEO Agent 使用本人运行直接创建、重新界定或关联战略议题；是研究 Context 的授权底座。",
+    keyFacts: [
+      "运行内容只有名称与方法标识；与议题等根对象的关联由专门的运行关联动作记录。",
+      "恢复研究快照时重新核验同一 Agent、当前授权与运行中状态。",
+    ],
+    relations: [{ target: "StrategicIssue", label: "关联战略议题" }],
+    lifecycle: ["开启运行", "关联根对象", "暂停/恢复", "完成"],
+    actors: "CEO Agent 创建本人运行；CEO 保留参与人与研究责任指定。",
+    authority: "授权与恢复底座，不产生业务决定。",
+  },
+  StrategyUpdateProposal: {
+    definition: "0.4 的更新提案：依据正式人类共识提出确切变更，Co-agent 复核，CEO 最终确认后在事务内原子生成正式版本。",
+    keyFacts: [
+      "未变对象保留确切版本并附适用性理由；只有变更对象产生新版本。",
+      "提案锁定确切的共识引用与当前依据，任一项变化即拒绝并重新准备。",
+    ],
+    relations: [
+      { target: "StrategicAgreement", label: "更新依据" },
+      { target: "Strategy", label: "确认后生效" },
+      { target: "StrategicArchitecture", label: "配对变更" },
+    ],
+    lifecycle: ["CEO Agent 起草", "Co-agent 复核", "CEO 确认", "同一事务原子生效"],
+    actors: "CEO Agent 起草，Co-agent 复核，CEO 本人确认。",
+    authority: "未经 CEO 确认不生效；确认与生效在同一事务。",
+  },
+}
 
 function versionTypes(rules: RulesVersion, registered: Set<string> | null): Set<string> {
   if (registered) return registered
   // Without a catalog the map is not rendered; this fallback only keeps type
   // references internally consistent and is never presented as a directory.
+  if (rules === "0.4") return new Set(V04_TYPES)
   const all = new Set<string>()
   for (const area of AREAS) for (const type of area.types) all.add(type)
   if (rules === "0.1" || rules === "0.2") {

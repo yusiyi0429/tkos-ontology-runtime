@@ -1,38 +1,88 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { fetchCatalogObjects } from "@/lib/api"
 import { errorLabel, isAbort, isAccessDenial } from "@/lib/errors"
 import { useLiveResource } from "@/lib/live"
-import { TYPE_LABELS, formalBusinessText } from "@/lib/labels"
+import { FORMAL_LABELS, TYPE_LABELS, formalBusinessText } from "@/lib/labels"
 import { rulesOfContractVersion } from "@/lib/ontology"
 import { formatTime } from "@/lib/format"
 import type { CatalogObjectItem, CatalogObjectsPage } from "@/lib/types"
+
+const ALL = "__all__"
 
 export interface CatalogRecordsProps {
   objectType: string
   onOpenRecord: (item: CatalogObjectItem) => void
   onAccessDenied: () => void
+  /** A legacy ?view=list owner filter kept in the URL: applied to the loaded
+   *  rows when its principal appears there; otherwise it is surfaced as an
+   *  unmatched legacy filter instead of pretending it was applied. */
+  legacyOwner?: string | null
 }
 
 function pageIdentity(page: CatalogObjectsPage): string {
+  // The authorization projection (title/summary/formal state/responsibility)
+  // belongs to the page identity: the same revision can surface different
+  // authorized Owner names, and the UI must offer that as an update instead of
+  // keeping stale rows and stale owner options.
+  const responsibility = (item: CatalogObjectItem) => (item.responsibility ?? []).map(
+    (entry) => `${entry.relation}:${entry.outcome_id ?? ""}`
+      + `:${entry.principal?.principal_id ?? ""}:${entry.principal?.display_name ?? ""}`
+      + `:${entry.appointment?.status ?? ""}`).join(",")
   return page.items.map((item) =>
-    `${item.object_id}:${item.basis_revision_id}:${item.formal_state.status}`).join("|")
+    `${item.object_id}:${item.basis_revision_id}:${item.formal_state.status}`
+    + `:${item.formal_state.formal}:${item.title ?? ""}:${item.summary ?? ""}`
+    + `:${responsibility(item)}`).join("|")
+}
+
+interface OwnerOption { value: string; label: string }
+
+/**
+ * Owner options come only from the authorized responsibility projection of the
+ * loaded rows: the same recorded relations the group list filters by, with
+ * participants excluded.  A missing name is never replaced by a guess.
+ */
+export function catalogOwnerOptions(items: CatalogObjectItem[]): OwnerOption[] {
+  const seen = new Map<string, string>()
+  for (const item of items) {
+    for (const entry of item.responsibility ?? []) {
+      const principal = entry.principal
+      if (!principal || entry.relation === "participant") continue
+      if (!principal.principal_id || !principal.display_name) continue
+      if (!seen.has(principal.principal_id)) {
+        seen.set(principal.principal_id, principal.display_name)
+      }
+    }
+  }
+  return [...seen.entries()].map(([value, label]) => ({ value, label }))
 }
 
 /**
  * 某一注册类型的真实记录分页列表（catalog/objects，授权目录）。
  * 空结果只说明当前身份与筛选下未读到记录；请求失败与接口不可用单独表达，
  * 不冒充空结果。服务端更新以提示确认方式出现，网络失败保留旧内容并标注过期。
+ *
+ * 搜索/责任人/状态/版本筛选只作用于已加载的授权分页（服务端目录接口本就没有
+ * 这些参数，不伪造）；责任人选项来自已加载记录的授权责任投影，未知责任人不补造。
  */
-export function CatalogRecords({ objectType, onOpenRecord, onAccessDenied }: CatalogRecordsProps) {
+export function CatalogRecords({ objectType, onOpenRecord, onAccessDenied,
+                               legacyOwner = null }: CatalogRecordsProps) {
   const [moreItems, setMoreItems] = useState<CatalogObjectItem[]>([])
   const [moreCursor, setMoreCursor] = useState<string | null | undefined>(undefined)
   const [loadingMore, setLoadingMore] = useState(false)
   const [loadMoreError, setLoadMoreError] = useState<unknown>(null)
+  const [search, setSearch] = useState("")
+  const [status, setStatus] = useState(ALL)
+  const [version, setVersion] = useState(ALL)
+  const [owner, setOwner] = useState<string>(legacyOwner ?? ALL)
   const epochRef = useRef(0)
   const abortRef = useRef<AbortController | null>(null)
+  const currentType = useRef(objectType)
 
   const page = useLiveResource({
     key: `catalog-objects#${objectType}`,
@@ -42,6 +92,8 @@ export function CatalogRecords({ objectType, onOpenRecord, onAccessDenied }: Cat
   })
 
   useEffect(() => {
+    if (currentType.current === objectType) return
+    currentType.current = objectType
     epochRef.current += 1
     abortRef.current?.abort()
     abortRef.current = null
@@ -49,6 +101,11 @@ export function CatalogRecords({ objectType, onOpenRecord, onAccessDenied }: Cat
     setMoreCursor(undefined)
     setLoadMoreError(null)
     setLoadingMore(false)
+    // Filters describe the previously selected type; never carry them over.
+    setSearch("")
+    setStatus(ALL)
+    setVersion(ALL)
+    setOwner(ALL)
   }, [objectType])
 
   useEffect(() => () => {
@@ -94,6 +151,41 @@ export function CatalogRecords({ objectType, onOpenRecord, onAccessDenied }: Cat
 
   const hasMore = moreCursor === null ? false : Boolean(moreCursor ?? page.data?.next_cursor)
 
+  const needle = search.trim().toLowerCase()
+  // Client-side filters only see what this identity has already been authorized
+  // to page; the notes below say so instead of implying a server-wide match.
+  const filtered = useMemo(() => items.filter((item) => {
+    if (status !== ALL && item.formal_state.status !== status) return false
+    if (version !== ALL && (item.contract_version ?? "") !== version) return false
+    if (owner !== ALL && !(item.responsibility ?? []).some((entry) =>
+        entry.relation !== "participant" && entry.principal?.principal_id === owner)) return false
+    if (needle && !`${item.title ?? ""} ${item.summary ?? ""} ${item.object_id}`
+        .toLowerCase().includes(needle)) return false
+    return true
+  }), [items, status, version, owner, needle])
+  const ownerOptions = useMemo(() => catalogOwnerOptions(items), [items])
+  const ownerKnown = owner === ALL || ownerOptions.some((option) => option.value === owner)
+  const statusOptions = useMemo(() => {
+    const seen = new Map<string, string>()
+    for (const item of items) {
+      if (!seen.has(item.formal_state.status)) {
+        seen.set(item.formal_state.status,
+                 FORMAL_LABELS[item.formal_state.status] ?? item.formal_state.status)
+      }
+    }
+    return [...seen.entries()].map(([value, label]) => ({ value, label }))
+  }, [items])
+  const versionOptions = useMemo(() => {
+    const seen = new Map<string, string>()
+    for (const item of items) {
+      if (!item.contract_version) continue
+      const rules = rulesOfContractVersion(item.contract_version)
+      seen.set(item.contract_version, rules ? `业务规则 ${rules}` : item.contract_version)
+    }
+    return [...seen.entries()].map(([value, label]) => ({ value, label }))
+  }, [items])
+  const filtering = Boolean(needle) || status !== ALL || version !== ALL || owner !== ALL
+
   if ((page.loading || (!page.data && !page.error)) && items.length === 0) {
     return <div className="space-y-2 p-3" data-testid="catalog-skeleton">
       {[0, 1, 2].map((key) => <Skeleton key={key} className="h-14 w-full" />)}</div>
@@ -132,14 +224,93 @@ export function CatalogRecords({ objectType, onOpenRecord, onAccessDenied }: Cat
         </div>
       ) : null}
       <div className="border-b border-border px-3 py-1.5 text-[11px] text-muted-foreground">
-        已加载 {items.length} 条{hasMore ? "（分页未读完，不表示只有这些）" : ""}
+        {filtering
+          ? `筛选后 ${filtered.length} 条（已加载 ${items.length} 条${hasMore ? "，分页未读完" : ""}）`
+          : `已加载 ${items.length} 条${hasMore ? "（分页未读完，不表示只有这些）" : ""}`}
+      </div>
+      <div className="border-b border-border bg-card/60 px-3 py-2" data-testid="catalog-filters">
+        <div className="flex flex-wrap items-end gap-2">
+          <div className="min-w-0 flex-1 space-y-0.5">
+            <Label htmlFor="catalog-search" className="text-[10.5px] text-muted-foreground">搜索</Label>
+            <Input id="catalog-search" type="search" className="h-7"
+                   aria-label="搜索已加载记录" placeholder="标题、摘要或对象编号"
+                   value={search} onChange={(event) => setSearch(event.target.value)}
+                   data-testid="catalog-filter-search" />
+          </div>
+          <div className="space-y-0.5">
+            <Label className="text-[10.5px] text-muted-foreground">责任人</Label>
+            <Select value={owner} onValueChange={setOwner}>
+              <SelectTrigger size="sm" className="w-36" data-testid="catalog-filter-owner">
+                <SelectValue placeholder={ownerKnown ? "全部责任人" : "旧筛选责任人"} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL}>全部责任人</SelectItem>
+                {!ownerKnown && owner !== ALL ? (
+                  <SelectItem value={owner}>旧列表责任人未在已加载记录</SelectItem>
+                ) : null}
+                {ownerOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-0.5">
+            <Label className="text-[10.5px] text-muted-foreground">状态</Label>
+            <Select value={status} onValueChange={setStatus}>
+              <SelectTrigger size="sm" className="w-32" data-testid="catalog-filter-status">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL}>全部状态</SelectItem>
+                {statusOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-0.5">
+            <Label className="text-[10.5px] text-muted-foreground">业务规则版本</Label>
+            <Select value={version} onValueChange={setVersion}>
+              <SelectTrigger size="sm" className="w-40" data-testid="catalog-filter-version">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL}>全部版本</SelectItem>
+                {versionOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          {filtering ? (
+            <Button size="xs" variant="ghost"
+                    onClick={() => { setSearch(""); setStatus(ALL); setVersion(ALL); setOwner(ALL) }}>
+              清除筛选
+            </Button>
+          ) : null}
+        </div>
+        <p className="mt-1 text-[10.5px] text-muted-foreground" data-testid="catalog-filter-note">
+          责任人选项只来自已授权的已加载记录，未知责任人不补造。
+          {filtering ? ` 搜索/责任人/状态/版本仅作用于已加载的 ${items.length} 条${
+            hasMore ? "；仍有未加载记录，继续加载后同样适用。" : "（已到末页，不表示全局总数）。"}` : ""}
+        </p>
+        {legacyOwner && owner === legacyOwner && !ownerKnown ? (
+          <p className="mt-1 text-[10.5px] text-amber-800" data-testid="catalog-owner-unmatched">
+            旧列表链接指定的责任人不在已加载记录中；这不代表服务端没有匹配记录。
+          </p>
+        ) : null}
       </div>
       {items.length === 0 ? <p className="p-4 text-[12px] text-muted-foreground" data-testid="catalog-empty">
         当前身份与筛选下未读到「{TYPE_LABELS[objectType] ?? objectType}」的记录；
         这不表示全局没有数据，也不改变该类型在地图中的展示。
       </p> : null}
+      {items.length > 0 && filtered.length === 0 ? (
+        <p className="p-4 text-[12px] text-muted-foreground" data-testid="catalog-filter-empty">
+          当前筛选在已加载记录中没有匹配项{hasMore ? "；仍有未加载记录，继续加载后再筛选" : "（当前授权读取已到末页）"}。
+        </p>
+      ) : null}
       <ul className="divide-y divide-border">
-        {items.map((item) => {
+        {filtered.map((item) => {
           const rules = rulesOfContractVersion(item.contract_version)
           return (
             <li key={`${item.object_id}:${item.basis_revision_id}`}>

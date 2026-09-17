@@ -100,6 +100,9 @@ export function evidenceUrl(objectId: string, revisionId: string): string {
 export const fetchOntologyCatalog = (signal?: AbortSignal) =>
   getJson<import("@/lib/types").OntologyCatalog>("/ontology/catalog", signal)
 
+export const fetchMethodMap = (signal?: AbortSignal) =>
+  getJson<import("@/lib/types").MethodMap>("/ontology/method-map", signal)
+
 export const fetchCatalogObjects = (objectType: string, cursor: string | null,
                                     signal?: AbortSignal) => {
   const params = new URLSearchParams({ object_type: objectType, limit: "25" })

@@ -85,6 +85,10 @@ class PackConn:
                 return Result(rows[:1])
             if "FROM gov_outcome_assessments" in text:
                 return Result([])
+            if "FROM gov_workspace_v02_assets" in text:
+                # No tkos.workspace/0.2 source link exists in this legacy fixture;
+                # the source fence therefore passes every object through unchanged.
+                return Result([])
             raise AssertionError(f"unexpected read: {text[:120]}")
         if text.startswith("INSERT INTO gov_context_snapshots"):
             self.inserted = {"selected": params[5], "excluded": params[6]}

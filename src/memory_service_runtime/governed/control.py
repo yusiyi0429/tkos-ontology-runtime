@@ -110,8 +110,9 @@ def install_profile(conn: psycopg.Connection, args: argparse.Namespace) -> dict[
     if contract_sha != core.action_contract_ref.content_sha256:
         _fail("PROFILE_CONTENT_CONFLICT",
               "action_contract_ref.content_sha256 does not match the supplied contract file bytes.")
-    from . import method_profile, method_v02_profile, method_v03_profile
-    pinned_sha = (method_v03_profile.CONTRACT_SHA256 if core.profile_core_schema_version == method_v03_profile.SCHEMA_VERSION
+    from . import method_profile, method_v02_profile, method_v03_profile, method_v04_profile
+    pinned_sha = (method_v04_profile.CONTRACT_SHA256 if core.profile_core_schema_version == method_v04_profile.SCHEMA_VERSION
+                  else method_v03_profile.CONTRACT_SHA256 if core.profile_core_schema_version == method_v03_profile.SCHEMA_VERSION
                   else method_v02_profile.CONTRACT_SHA256 if core.profile_core_schema_version == method_v02_profile.SCHEMA_VERSION
                   else method_profile.CONTRACT_SHA256 if core.profile_core_schema_version == method_profile.SCHEMA_VERSION
                   else profile.CONTRACT_A_MAIN_CONTRACT_SHA256)

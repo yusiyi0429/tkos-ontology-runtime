@@ -13,8 +13,10 @@ Semantics deliberately kept from the frozen contracts:
   (Strategy -> Architecture -> LTCO/PCO -> Mission -> Operating objects), not a
   progress bar.  A group is only populated from exact, recorded references.
 * Every traversal keeps the *exact* object + revision + payload hash it read.
-  A Mission whose ``pco_ref`` names PCO v1 is evaluated against PCO v1 even
-  after the PCO head moves to v2.
+  A Mission's registered contract names its parent PCO field explicitly
+  (``pco_ref`` for 0.1-0.3, ``parent_pco_ref`` for 0.4); the recorded PCO
+  revision is evaluated exactly even after the PCO head moves to a newer
+  revision, and a payload is never read through another contract's field.
 * Still-effective targets based on an older Strategy are reported with
   ``basis.status = "historical"`` and their own recorded Strategy reference;
   they are never re-attached to the currently selected Strategy, and a Strategy
@@ -60,12 +62,17 @@ BASES = ("current", "historical", "unattached", "all")
 
 # Human confirmation review kinds.  These are records, not a permission claim.
 # ``agent_issue_initiation`` (0.3) is deliberately absent: it is the bound CEO
-# Agent's formal initiation act, not a human confirmation.
+# Agent's formal initiation act, not a human confirmation.  ``tkos.method/0.4``
+# writes the human CEO's candidate-set decision under ``candidate_set_activation``
+# and records Agreement signer confirmations/formalization under
+# ``agreement_confirmation``/``agreement_formalized``; those kinds only exist in
+# the 0.4 registry, so naming them here cannot change any 0.1-0.3 projection.
 CONFIRMATION_REVIEW_KINDS = frozenset({
     "strategy_update_confirmation", "ltco_confirmation", "candidate_set_confirmation",
     "architecture_confirmation", "state_confirmation", "problem_closure",
     "strategic_agreement_confirmation", "meeting_minutes_confirmation",
     "strategic_issue_confirmation", "brief_sufficiency",
+    "candidate_set_activation", "agreement_confirmation", "agreement_formalized",
 })
 
 # Reference errors that degrade to an explicit unavailable relationship.
@@ -78,33 +85,37 @@ _UNAVAILABLE_CODES = frozenset({"NOT_FOUND", "FORBIDDEN", "PROTOCOL_NOT_SUPPORTE
 # not just the six navigation groups — has usable recorded adjacency.
 DOWNSTREAM_FIELDS: dict[str, tuple[str, ...]] = {
     "Strategy": ("source_agreement_ref", "source_proposal_ref"),
-    "StrategicArchitecture": ("strategy_ref", "source_proposal_ref"),
+    "StrategicArchitecture": ("strategy_ref", "source_agreement_ref", "source_proposal_ref"),
     "StrategicJudgment": ("strategy_ref", "source_agreement_ref", "source_proposal_ref"),
-    "LTCO": ("strategy_ref", "architecture_ref", "advice_ref"),
-    "PCO": ("strategy_ref", "ltco_ref", "architecture_ref"),
-    "Mission": ("pco_ref", "architecture_ref"),
+    "LTCO": ("strategy_ref", "architecture_ref", "advice_ref", "baseline_refs"),
+    "PCO": ("strategy_ref", "ltco_ref", "parent_ltco_ref", "architecture_ref"),
+    "Mission": ("pco_ref", "parent_pco_ref", "architecture_ref", "evidence_refs"),
     "OperatingState": ("subject_ref", "baseline_refs", "evidence_refs"),
     "OperatingProblem": ("state_ref", "evidence_refs"),
     "BusinessFact": ("subject_ref", "corrects_ref", "source_ref"),
     "PeriodReview": ("state_refs", "target_refs", "fact_refs"),
     "LTCOReviewAdvice": ("period_review_ref", "strategy_ref", "ltco_ref"),
-    "ReviewWindow": ("strategy_ref", "ltco_ref", "target_refs", "previous_window_ref"),
-    "CandidateSet": ("window_ref", "strategy_ref", "ltco_ref", "target_refs"),
+    "ReviewWindow": ("strategy_ref", "architecture_ref", "ltco_ref", "ltco_refs",
+                     "target_refs", "pco_refs", "mission_refs", "previous_window_ref"),
+    "CandidateSet": ("window_ref", "strategy_ref", "architecture_ref", "ltco_ref", "ltco_refs",
+                     "target_refs"),
     "Signal": ("source_refs",),
     "PotentialIssue": ("signal_refs", "source_refs"),
-    "StrategicIssue": ("potential_issue_ref", "direct_source_refs", "source_refs"),
+    "StrategicIssue": ("potential_issue_ref", "direct_source_refs", "source_refs",
+                       "reframe_of_ref", "strategy_ref", "architecture_ref"),
     "ResearchMemo": ("issue_ref", "source_refs"),
     "ResearchPlan": ("issue_ref", "memo_ref"),
     "ResearchReport": ("issue_ref", "plan_ref", "evidence_refs"),
     "ResearchBrief": ("issue_ref", "source_refs"),
     "MeetingRound": ("issue_ref", "report_ref", "brief_ref", "material_refs"),
     "MeetingMinutes": ("issue_ref", "meeting_ref", "source_refs"),
-    "StrategicAgreement": ("issue_ref", "meeting_ref", "minutes_ref"),
+    "StrategicAgreement": ("issue_ref", "meeting_ref", "minutes_ref", "evidence_refs"),
     "StrategyUpdateProposal": ("issue_ref", "agreement_ref"),
 }
 DOWNSTREAM_ARRAY_FIELDS = frozenset({
     "state_refs", "target_refs", "fact_refs", "source_refs", "signal_refs",
     "direct_source_refs", "evidence_refs", "baseline_refs", "material_refs",
+    "ltco_refs", "pco_refs", "mission_refs",
 })
 DOWNSTREAM_LIMIT = 25
 DOWNSTREAM_MAX_LIMIT = 100
@@ -167,6 +178,11 @@ def _domain_name(conn: Any, ctx: Any, domain_id: Any) -> str | None:
 # --------------------------------------------------------------------------
 
 def _visible_head(conn: Any, ctx: Any, object_id: str) -> tuple[dict[str, Any], set[str] | None]:
+    # Linked tkos.workspace/0.2 source artifacts stay behind their scene fence
+    # even on dashboard paths that read Method bindings directly. Unlinked
+    # objects pass through unchanged.
+    from . import workspace_v02_guard
+    workspace_v02_guard.enforce_object(conn, ctx, str(object_id))
     head, allowed = access.head_access(conn, ctx, str(object_id))
     protocol.require_read_support(conn, ctx.scope_id, head["object_id"])
     return head, allowed
@@ -395,6 +411,36 @@ def _basis_of_exact_ref(conn: Any, ctx: Any, ref: Any, selected: dict[str, Any] 
                               visited=visited | {key}, impact_linked=impact_linked)
 
 
+# The exact parent-PCO field each registered Method contract records on a
+# Mission.  0.1-0.3 record ``pco_ref``; 0.4 records ``parent_pco_ref``.  The
+# field is selected by the registration's explicit contract version, never by
+# which key happens to exist in a payload, so one contract can never borrow
+# another contract's reference.
+MISSION_PARENT_REF_FIELDS: dict[str, str] = {
+    "tkos.method/0.1": "pco_ref",
+    "tkos.method/0.2": "pco_ref",
+    "tkos.method/0.3": "pco_ref",
+    "tkos.method/0.4": "parent_pco_ref",
+}
+
+
+def _mission_parent_ref_field(conn: Any, ctx: Any,
+                              head: dict[str, Any]) -> tuple[str | None, str | None]:
+    """Parent-PCO payload field from the Mission's explicit registration metadata.
+
+    Returns ``(field, None)`` for a registered contract whose Mission model this
+    runtime knows how to read, or ``(None, reason)`` when the registration's
+    contract version names no known Mission contract.  An unregistered or
+    unknown version is never guessed as legacy from the payload's shape.
+    """
+    metadata = protocol.read_metadata(conn, ctx.scope_id, head["object_id"])
+    version = metadata.get("contract_version")
+    field = MISSION_PARENT_REF_FIELDS.get(version) if isinstance(version, str) else None
+    if field is None:
+        return None, "mission_contract_version_unsupported"
+    return field, None
+
+
 def _basis_of_revision(conn: Any, ctx: Any, head: dict[str, Any], revision: dict[str, Any],
                        selected: dict[str, Any] | None, *, visited: frozenset[tuple[str, str]],
                        impact_linked: bool | None = None) -> dict[str, Any]:
@@ -426,7 +472,11 @@ def _basis_of_revision(conn: Any, ctx: Any, head: dict[str, Any], revision: dict
         return _compare_strategy_ref(conn, ctx, payload.get("strategy_ref"), selected,
                                      impact_linked=impact_linked, basis_revision=basis_revision)
     if kind == "Mission":
-        return _basis_of_exact_ref(conn, ctx, payload.get("pco_ref"), selected,
+        field, reason = _mission_parent_ref_field(conn, ctx, head)
+        if field is None:
+            return _basis("unavailable", selected=selected, reason=reason,
+                          impact_linked=impact_linked, basis_revision=basis_revision)
+        return _basis_of_exact_ref(conn, ctx, payload.get(field), selected,
                                    visited=visited, impact_linked=impact_linked)
     if kind == "OperatingState":
         return _basis_of_exact_ref(conn, ctx, payload.get("subject_ref"), selected,
@@ -835,6 +885,24 @@ def _review_record(conn: Any, ctx: Any, row: dict[str, Any], *, covered_refs: li
     })
 
 
+def _review_covered_refs(row: dict[str, Any]) -> list[Any] | None:
+    """Exact references one review records as covered content.
+
+    ``candidate_set_confirmation`` (0.1-0.3) names the confirmed members in
+    ``target_refs``; the 0.4 ``candidate_set_activation`` decision names the same
+    exact member revisions in ``responsibilities`` instead.  Only that kind may
+    use the 0.4 field, so a legacy record can never borrow coverage from it and
+    coverage still requires the exact object+revision the content records.
+    """
+    content = row.get("content") if isinstance(row.get("content"), dict) else {}
+    covered = content.get("target_refs")
+    if row.get("kind") == "candidate_set_activation":
+        responsibilities = content.get("responsibilities")
+        if isinstance(responsibilities, list):
+            covered = [*(covered if isinstance(covered, list) else []), *responsibilities]
+    return covered if isinstance(covered, list) else None
+
+
 def _covering_confirmations(conn: Any, ctx: Any, head: dict[str, Any],
                             revision: dict[str, Any]) -> list[dict[str, Any]]:
     """All authorized records that can confirm this exact object revision.
@@ -867,8 +935,7 @@ def _covering_confirmations(conn: Any, ctx: Any, head: dict[str, Any],
                             [ctx.scope_id, str(candidate_ref["object_id"]),
                              str(candidate_ref["revision_id"])])
         for row in rows:
-            covered = (row.get("content") or {}).get("target_refs")
-            consider(row, covered_refs=covered if isinstance(covered, list) else None,
+            consider(row, covered_refs=_review_covered_refs(row),
                      source="confirmed_candidate_set")
 
     record_id = state.get("confirmation_record_id")
@@ -877,8 +944,7 @@ def _covering_confirmations(conn: Any, ctx: Any, head: dict[str, Any],
                             "SELECT * FROM gov_method_reviews WHERE scope_id=%s AND record_id=%s",
                             [ctx.scope_id, str(record_id)])
         for row in rows:
-            covered = (row.get("content") or {}).get("target_refs")
-            consider(row, covered_refs=covered if isinstance(covered, list) else None,
+            consider(row, covered_refs=_review_covered_refs(row),
                      source="confirmation_record")
 
     for key in ("source_proposal_ref", "source_agreement_ref"):
@@ -916,6 +982,13 @@ def _covering_confirmations(conn: Any, ctx: Any, head: dict[str, Any],
                      source="potential_issue_ref")
 
     return sorted(records.values(), key=lambda item: (str(item["recorded_at"]), str(item["record_id"])))
+
+
+def _candidate_authority(record: dict[str, Any] | None) -> str:
+    """Action that made the candidate set effective, from the covering record."""
+    return ("m1b_activate_candidates"
+            if record is not None and record.get("kind") == "candidate_set_activation"
+            else "m1b_confirm_candidates")
 
 
 def _formal_state(conn: Any, ctx: Any, head: dict[str, Any], revision: dict[str, Any],
@@ -969,7 +1042,8 @@ def _formal_state(conn: Any, ctx: Any, head: dict[str, Any], revision: dict[str,
         formal = bool(effective and confirmed_by_record)
         return {"status": "confirmed" if formal else recorded_status(),
                 "formal": formal,
-                "authority": "m1b_confirm_ltco" if kind == "LTCO" else "m1b_confirm_candidates",
+                "authority": ("m1b_confirm_ltco" if kind == "LTCO"
+                              else _candidate_authority(confirmed_by_record)),
                 "applies_to_ref": selected if formal else None,
                 "confirmation_record_id": (confirmed_by_record or {}).get("record_id"),
                 "content_confirmation": confirmed_by_record,
@@ -1035,7 +1109,7 @@ def _formal_state(conn: Any, ctx: Any, head: dict[str, Any], revision: dict[str,
                 "human_approved": bool(confirmed_by_record),
                 "authority": {"StrategicAgreement": "m1a_confirm_agreement",
                               "MeetingMinutes": "m1a_confirm_minutes",
-                              "CandidateSet": "m1b_confirm_candidates"}[kind],
+                              "CandidateSet": _candidate_authority(confirmed_by_record)}[kind],
                 "applies_to_ref": selected if formal else None,
                 "confirmation_record_id": (confirmed_by_record or {}).get("record_id"),
                 "content_confirmation": confirmed_by_record,
@@ -1418,7 +1492,11 @@ def objects(conn: Any, ctx: Any, *, group: str, strategy_id: str | None = None,
 
 # Business rule versions whose registered object types the ontology map shows.
 # The directory comes from the compiled registries, never from current data.
-ONTOLOGY_CONTRACT_VERSIONS = ("tkos.method/0.1", "tkos.method/0.2", "tkos.method/0.3")
+# Compiled Method contract versions, from the real protocol set; a newly
+# compiled version (e.g. 0.4) joins the concept directory automatically.
+ONTOLOGY_CONTRACT_VERSIONS = tuple(sorted(
+    version for protocol_id, version in protocol.SUPPORTED_PROTOCOL_CONTRACTS
+    if protocol_id == "tkos.method"))
 
 
 def _registered_object_types(version: str) -> frozenset[str]:
@@ -1482,6 +1560,10 @@ def _catalog_item(conn: Any, ctx: Any, head: dict[str, Any], revision: dict[str,
     payload = revision["payload"] if isinstance(revision["payload"], dict) else {}
     metadata = protocol.read_metadata(conn, ctx.scope_id, head["object_id"])
     confirmations = _covering_confirmations(conn, ctx, head, revision)
+    # The same authorized responsibility projection the group list and detail
+    # already use, derived from the exact selected revision; participants are
+    # not a responsibility relation and no Owner is inferred.
+    responsibility = _list_responsibility(_responsibility_entries(conn, ctx, head, payload))
     return db.jsonable({
         "object_id": head["object_id"], "object_type": head["object_type"],
         "domain_id": head["domain_id"], "domain_name": _domain_name(conn, ctx, head["domain_id"]),
@@ -1497,6 +1579,7 @@ def _catalog_item(conn: Any, ctx: Any, head: dict[str, Any], revision: dict[str,
         "basis_revision_id": revision["revision_id"],
         "contract_version": metadata.get("contract_version"),
         "formal_state": _formal_state(conn, ctx, head, revision, confirmations),
+        "responsibility": responsibility,
     })
 
 

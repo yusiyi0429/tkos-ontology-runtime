@@ -275,7 +275,7 @@ def _page(fetch: Callable[[Any, int], list[Any]], keep: Callable[[Any], bool],
 
 
 def object_types(conn: Any, ctx: Any, contract_version: str | None = None) -> dict[str, Any]:
-    if contract_version in {"tkos.method/0.1", "tkos.method/0.2", "tkos.method/0.3"}:
+    if contract_version in {"tkos.method/0.1", "tkos.method/0.2", "tkos.method/0.3", "tkos.method/0.4"}:
         from .method_models import registry
         _, _, payloads = registry(contract_version)
         return {"schema_version": "method-read/" + contract_version.rsplit("/", 1)[1], "contract_version": contract_version,

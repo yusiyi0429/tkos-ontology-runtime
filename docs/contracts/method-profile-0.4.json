@@ -1,0 +1,17 @@
+{
+  "profile_core_schema_version": "tkos.method-profile/0.4",
+  "profile_id": "urn:tkos:method:m1a-m1b",
+  "revision": "0.4.0",
+  "display_name": "Method 0.4 formal human governance 2026-09-17",
+  "record_origin": "synthetic",
+  "experimental": true,
+  "corporate_approved": false,
+  "m1a_source_revision": 21,
+  "m1b_source_revision": 837,
+  "action_contract_ref": {
+    "contract_id": "tkos.method",
+    "revision": "0.4",
+    "content_sha256": "984c3e09dc9771e29e26aea858d19bb4639bb3d93dc4df12841130ef4f8e44aa"
+  },
+  "canonical_hash": "046202c0b46aeb4612336dc5c39cf10399f0813307598902a86d96fdbdae34fe"
+}

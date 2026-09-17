@@ -1,5 +1,5 @@
 import type { CatalogObjectItem, CatalogObjectsPage, Detail, ObjectListItem, ObjectsPage,
-              OntologyCatalog, Overview } from "@/lib/types"
+              OntologyCatalog, Overview, ResponsibilityEntry } from "@/lib/types"
 
 export function overview(overrides: Partial<Overview> = {}): Overview {
   return {
@@ -144,10 +144,14 @@ export function ontologyCatalog(overrides: Partial<OntologyCatalog> = {}): Ontol
   const v02 = ALL_TYPES_V03.filter((type) =>
     !["StrategicArchitecture", "OperatingState", "OperatingProblem"].includes(type))
   const v01 = v02.filter((type) => type !== "ResearchBrief")
+  const v04 = ["StrategicIssue", "StrategicAgreement", "Strategy", "StrategicArchitecture",
+    "StrategyUpdateProposal", "LTCO", "PCO", "Mission", "ReviewWindow", "CandidateSet",
+    "OperatingState", "OperatingProblem", "PeriodReview", "MethodRun", "EvidenceAsset"]
   return {
     schema_version: "tkos.dashboard/0.1",
     read_at: "2026-09-16T02:00:00+00:00",
     versions: [
+      { contract_version: "tkos.method/0.4", object_types: v04 },
       { contract_version: "tkos.method/0.3", object_types: [...ALL_TYPES_V03] },
       { contract_version: "tkos.method/0.2", object_types: v02 },
       { contract_version: "tkos.method/0.1", object_types: v01 },
@@ -173,7 +177,23 @@ export function catalogItem(id = "m1", overrides: Partial<CatalogObjectItem> = {
     basis_revision_id: `${id}-r2`,
     contract_version: "tkos.method/0.3",
     formal_state: { status: "confirmed", formal: true },
+    responsibility: [],
     ...overrides,
+  }
+}
+
+/** One authorized responsibility relation for catalog rows (participants are
+ *  never part of the catalog projection; callers can still pass the relation). */
+export function responsibilityEntry(principalId: string, displayName: string,
+                                    relation = "mission_owner"): ResponsibilityEntry {
+  return {
+    relation,
+    outcome_id: null,
+    principal: { principal_id: principalId, display_name: displayName,
+                 principal_type: "human", active: true },
+    assignment: null,
+    assignment_id: null,
+    appointment: { status: "current", reason: null, assignments: [] },
   }
 }
 
@@ -188,4 +208,113 @@ export function catalogPage(items: CatalogObjectItem[], overrides = {}): Catalog
     has_more: false,
     ...overrides,
   } as CatalogObjectsPage
+}
+
+export function methodMapEntry(overrides: Partial<import("@/lib/types").MethodMapEntry> = {}) {
+  return {
+    id: "I06",
+    business_category: "anchor",
+    ssot_name: "Mission",
+    business_name: "任务",
+    business_maturity: "defined",
+    purpose: "把 PCO 转成少数可由一个 Mission Owner 独立承担结果责任的必要结果单元。",
+    definition: "从 PCO 的结果要求出发，明确必须完成什么、由谁负责、什么证据算完成。",
+    definition_source: { document: "anchors-normalized.json", index: 5 },
+    source_ref: { source_id: "B01", table_id: "tbl7EEJUYN3dqpTt", table_name: "02_Anchor",
+                  record_ref: "rec28cqIwUbDZm", source_locator: "" },
+    runtime_correspondence: "Mission.supports / primary_scope_id",
+    runtime_object_types: ["Mission"],
+    runtime_support_assessment: "pending_business_close",
+    calibration_conclusion: "待业务收口",
+    gap: "PDO层级仍开放",
+    next_step: "对账上游关系",
+    instance_verification: "未核验企业真实实例",
+    review_status: "待评审",
+    planned_contracts: ["tkos.method/0.4"],
+    runtime_support: { assessment: "pending_business_close", compiled: "compiled",
+                       compiled_contract_versions: ["tkos.method/0.3"],
+                       scope_enabled_contract_versions: ["tkos.method/0.3"],
+                       links: [{ object_type: "Mission", contract_versions: ["tkos.method/0.3"],
+                                 catalog_path: "/catalog/objects?object_type=Mission" }] },
+    runtime_links: [{ object_type: "Mission", contract_versions: ["tkos.method/0.3"],
+                      catalog_path: "/catalog/objects?object_type=Mission" }],
+    authorized_read_availability: { status: "not_queried", note: "" },
+    ...overrides,
+  }
+}
+
+export function methodMap(overrides: Partial<import("@/lib/types").MethodMap> = {}): import("@/lib/types").MethodMap {
+  return {
+    schema_version: "tkos.dashboard/0.1",
+    read_at: "2026-09-17T02:00:00+00:00",
+    source_snapshot: { checked_date: "2026-09-17", scope: "read-only", snapshot_sha256: "a".repeat(64),
+                       entry_count: 1, sources: [], note: "" },
+    method_definition_map: { role: "documented_business_map",
+      documented_contracts: [{ contract_version: "tkos.method/0.4",
+                               support_status: "documented_not_compiled" },
+                             { contract_version: "tkos.workspace/0.2",
+                               support_status: "documented_not_compiled" }],
+      note: "" },
+    runtime_implementation: { compiled_contract_versions: ["tkos.method/0.3"],
+      scope_enabled_contract_versions: ["tkos.method/0.3"],
+      scope_registered_contract_versions: ["tkos.method/0.3"],
+      documented_contract_states: { "tkos.method/0.4": "documented_not_compiled",
+                                    "tkos.workspace/0.2": "documented_not_compiled" },
+      note: "" },
+    availability: { mode: "none", queried_object_types: 0, note: "" },
+    inventory_counts: { by_business_category: { anchor: 10 }, by_runtime_support_assessment: {}, note: "" },
+    entries: [methodMapEntry()],
+    notes: [],
+    ...overrides,
+  }
+}
+
+const UNIMPLEMENTED = {
+  runtime_support_assessment: "not_implemented",
+  gap: "0.3 未交付该对象；按当前资料标注范围",
+  runtime_object_types: [] as string[],
+  runtime_support: { assessment: "not_implemented", compiled: "no_runtime_object_type",
+                     compiled_contract_versions: [] as string[],
+                     scope_enabled_contract_versions: [] as string[], links: [] },
+  runtime_links: [] as Array<{ object_type: string; contract_versions: string[]; catalog_path: string }>,
+  planned_contracts: [] as string[],
+  authorized_read_availability: { status: "not_applicable", note: "" },
+}
+
+/** All four business categories with unimplemented + reference concepts. */
+export function methodMapAll(): import("@/lib/types").MethodMap {
+  const anchor = methodMapEntry()
+  const play = methodMapEntry({ id: "I07", ssot_name: "Play", business_name: "打法",
+    business_category: "anchor", business_maturity: "defined",
+    purpose: "为一个已确认 Mission 选择一套有取舍、有因果逻辑、可被对齐和验证的赢法。",
+    definition: "从 Mission 的结果要求、关键约束和 Evidence 出发，形成可验证的赢法。",
+    definition_source: { document: "anchors-normalized.json", index: 6 }, ...UNIMPLEMENTED })
+  const plan = methodMapEntry({ id: "I08", ssot_name: "Human + AI Plan", business_name: "人机协同工作计划",
+    business_category: "anchor", business_maturity: "defined",
+    purpose: "把 Play 变成真实可运行的人 + Agent 工作系统，明确必须发生的工作与分工。",
+    definition: "从 Play 的 Key Moves、Quality Bar 和 Milestones 出发，明确人机分工与交接。",
+    definition_source: { document: "anchors-normalized.json", index: 7 }, ...UNIMPLEMENTED })
+  const missionRef = methodMapEntry({ id: "I11", ssot_name: "Company Mission", business_name: "公司使命",
+    business_category: "reference", business_maturity: "to_define",
+    purpose: "长期定义公司存在的根本目的，约束 Strategy 与重大经营选择。",
+    definition: "待定义：Mission 的正式内容边界、与 Vision / Strategy 的关系。",
+    definition_source: { document: "references-normalized.json", index: 0 }, ...UNIMPLEMENTED })
+  const artifact = methodMapEntry({ id: "I19", ssot_name: "Company Period Review", business_name: "公司周期复盘报告",
+    business_category: "business_artifact", business_maturity: "defined",
+    purpose: "在下一周期经营承诺形成前，让 CEO 快速看清本周期经营结果、原因与含义。",
+    definition: "调用最新经营状态与 Canonical RAG，对照本周期 PCO 识别结果与差距。",
+    definition_source: { document: "artifacts-normalized.json", index: 0 } })
+  const record = methodMapEntry({ id: "I30", ssot_name: "Actual Result", business_name: "实际结果",
+    business_category: "evidence_runtime_record", business_maturity: "partial",
+    purpose: "说明实际发生的经营结果。",
+    definition: "Source / As-of / Metric or result definition / Related Anchor / Traceability",
+    definition_source: { document: "records-normalized.json", index: 0 } })
+  return methodMap({
+    entries: [anchor, play, plan, missionRef, artifact, record],
+    source_snapshot: { checked_date: "2026-09-17", scope: "read-only", snapshot_sha256: "b".repeat(64),
+                       entry_count: 44, sources: [], note: "" },
+    inventory_counts: { by_business_category: { anchor: 10, reference: 8, business_artifact: 11,
+                                                evidence_runtime_record: 15 },
+                        by_runtime_support_assessment: {}, note: "" },
+  })
 }

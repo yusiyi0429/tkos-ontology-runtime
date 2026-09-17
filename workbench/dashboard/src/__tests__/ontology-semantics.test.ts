@@ -9,8 +9,11 @@ import { describe, expect, it } from "vitest"
 import {
   RULES_VERSIONS,
   areasFor,
+  contractVersionOf,
   mapEdges,
+  rulesOfContractVersion,
   typeInfo,
+  undocumentedTypes,
   type RulesVersion,
   type TypeInfo,
 } from "../lib/ontology"
@@ -178,6 +181,109 @@ describe("confirmed core relations are present per version", () => {
   })
 })
 
+describe("tkos.method/0.4 map reading is real and version-scoped", () => {
+  const V04 = ["StrategicIssue", "StrategicAgreement", "Strategy", "StrategicArchitecture",
+    "StrategyUpdateProposal", "LTCO", "PCO", "Mission", "ReviewWindow", "CandidateSet",
+    "OperatingState", "OperatingProblem", "PeriodReview", "MethodRun", "EvidenceAsset"]
+
+  it("exposes 0.4 while 0.1-0.3 keep their original readings", () => {
+    expect(rulesOfContractVersion("tkos.method/0.4")).toBe("0.4")
+    expect(contractVersionOf("0.4")).toBe("tkos.method/0.4")
+    expect(RULES_VERSIONS[0]).toBe("0.4")
+    expect(RULES_VERSIONS).toEqual(expect.arrayContaining(ALL_VERSIONS))
+    for (const rules of ALL_VERSIONS) {
+      expect(text(info("StrategicAgreement", rules))).not.toContain("全体当前人类")
+      expect(text(info("CandidateSet", rules))).not.toContain("本人责任承诺")
+      expect(text(info("Mission", rules))).not.toContain("唯一 Owner")
+      expect(info("Signal", rules)).not.toBeNull()
+    }
+  })
+
+  it("0.4 noPotentialIssue: direct Agent issue with no candidate-pool gate", () => {
+    const body = text(info("StrategicIssue", "0.4"))
+    expect(body).toContain("直接创建")
+    expect(info("StrategicIssue", "0.4").relations.map((relation) => relation.target))
+      .not.toContain("PotentialIssue")
+    expect(mapEdges("0.4", null).some((edge) => edge.from === "PotentialIssue" || edge.to === "PotentialIssue"))
+      .toBe(false)
+  })
+
+  it("0.4 all-signer Agreement: CEO mandatory, exact version, no meeting chain", () => {
+    const agreement = info("StrategicAgreement", "0.4")
+    expect(text(agreement)).toContain("全体")
+    expect(text(agreement)).toContain("包括 CEO 本人")
+    expect(agreement.relations.map((relation) => relation.target)).not.toContain("MeetingMinutes")
+    expect(text(agreement)).toContain("失效")
+  })
+
+  it("0.4 scope results: Domain and Battlefield, PCO parent, Mission Owner", () => {
+    expect(text(info("LTCO", "0.4"))).toContain("Battlefield")
+    expect(text(info("LTCO", "0.4"))).toContain("Domain")
+    expect(text(info("PCO", "0.4"))).toContain("Scope")
+    expect(text(info("PCO", "0.4"))).toContain("责任人")
+    expect(text(info("PCO", "0.4"))).toContain("确切父级")
+    expect(text(info("Mission", "0.4"))).toContain("Owner")
+    expect(info("Mission", "0.4").relations.map((relation) => relation.target))
+      .toEqual(expect.arrayContaining(["PCO", "OperatingState"]))
+  })
+
+  it("0.4 commitments and whole-set CEO activation are explicit", () => {
+    const candidate = text(info("CandidateSet", "0.4"))
+    expect(candidate).toContain("承诺")
+    expect(candidate).toContain("整组")
+    expect(candidate).toContain("关键未决")
+    const window = text(info("ReviewWindow", "0.4"))
+    expect(window).not.toContain("截止")
+    expect(window).toContain("恰好覆盖")
+  })
+
+  it("0.4 State responsibility, Unknown rule and PeriodReview basis", () => {
+    const state = info("OperatingState", "0.4")
+    expect(state.relations.map((relation) => relation.target))
+      .toEqual(expect.arrayContaining(["LTCO", "PCO", "Mission"]))
+    expect(text(state)).toContain("未知")
+    expect(text(state)).toContain("当前 CEO")
+    expect(text(state)).toContain("Scope 责任人")
+    expect(text(state)).toContain("Owner")
+    expect(text(info("PeriodReview", "0.4"))).toContain("正式经营状态")
+    expect(info("PeriodReview", "0.4").relations.map((relation) => relation.target))
+      .toContain("OperatingState")
+    expect(mapEdges("0.4", null).some((edge) => edge.from === "PeriodReview" && edge.to === "PotentialIssue"))
+      .toBe(false)
+  })
+
+  it("the catalog filters 0.4 areas and unknown old-only types stay unlabeled", () => {
+    const curated = new Set(areasFor("0.4", null).flatMap((area) => area.types))
+    for (const type of V04) expect(curated.has(type), type).toBe(true)
+    expect(undocumentedTypes("0.4", new Set(V04))).toEqual([])
+    const registered = new Set(["StrategicIssue", "Signal", "PotentialIssue", "BusinessFact"])
+    const filtered = areasFor("0.4", registered).flatMap((area) => area.types)
+    expect(filtered.every((type) => registered.has(type))).toBe(true)
+    expect(filtered).toContain("StrategicIssue")
+    expect(typeInfo("Signal", "0.4")).toBeNull()
+    expect(typeInfo("PotentialIssue", "0.4")).toBeNull()
+    expect(typeInfo("StrategicIssue", "0.4")).not.toBeNull()
+  })
+
+  it("0.4 graph edges connect only 0.4 types and drop removed concepts", () => {
+    const curated = new Set(areasFor("0.4", null).flatMap((area) => area.types))
+    const edges = mapEdges("0.4", null)
+    expect(edges.some((edge) => edge.from === "StrategicIssue" && edge.to === "StrategicAgreement")).toBe(true)
+    expect(edges.some((edge) => edge.from === "ReviewWindow" && edge.to === "LTCO")).toBe(true)
+    expect(edges.some((edge) => edge.from === "Strategy" && edge.to === "StrategicArchitecture")).toBe(true)
+    expect(edges.some((edge) => edge.from === "OperatingProblem" && edge.to === "StrategicIssue")).toBe(true)
+    for (const gone of ["Signal", "PotentialIssue", "ResearchPlan", "ResearchBrief", "MeetingRound",
+                        "MeetingMinutes", "BusinessFact", "StrategicJudgment", "LTCOReviewAdvice",
+                        "ResearchMemo", "ResearchReport"]) {
+      expect(edges.some((edge) => edge.from === gone || edge.to === gone), gone).toBe(false)
+    }
+    for (const edge of edges) {
+      expect(curated.has(edge.from), edge.from).toBe(true)
+      expect(curated.has(edge.to), edge.to).toBe(true)
+    }
+  })
+})
+
 describe("business-language boundary (R4)", () => {
   const FORBIDDEN = [
     "effective", "canonical", "pco_ref", "hard_deadline", "previous_state_ref",
@@ -188,7 +294,7 @@ describe("business-language boundary (R4)", () => {
 
   it("curated text never requires reading API field names", () => {
     expect(RULES_VERSIONS).toEqual(expect.arrayContaining(ALL_VERSIONS))
-    for (const rules of ALL_VERSIONS) {
+    for (const rules of [...ALL_VERSIONS, "0.4"] as RulesVersion[]) {
       for (const area of areasFor(rules, null)) {
         for (const type of area.types) {
           const body = text(info(type, rules))

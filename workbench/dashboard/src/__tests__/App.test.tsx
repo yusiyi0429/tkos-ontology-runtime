@@ -1,15 +1,9 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
+import { act, render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { App } from "@/App"
-import { detail, missionItem, objectsPage, overview } from "@/__tests__/fixtures"
-
-interface Deferred<T> { promise: Promise<T>; resolve: (value: T) => void }
-function deferred<T>(): Deferred<T> {
-  let resolve!: (value: T) => void
-  const promise = new Promise<T>((res) => { resolve = res })
-  return { promise, resolve }
-}
+import { catalogItem, catalogPage, detail, methodMap, ontologyCatalog, overview,
+         responsibilityEntry } from "@/__tests__/fixtures"
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -21,10 +15,34 @@ function denial(): Response {
                                  message: "Current authority does not permit this operation." } }, 403)
 }
 
-// The legacy list/detail flows pinned by this file run in the list view; the
-// ontology map is the default view and is covered by OntologyViews.test.tsx.
+type Api = {
+  overview?: () => Response | Promise<Response>
+  catalog?: () => Response | Promise<Response>
+  records?: () => Response | Promise<Response>
+  detail?: () => Response | Promise<Response>
+}
+
+/** Stubs the authorized dashboard reads with synthetic fixtures. */
+function stubApi(api: Api = {}) {
+  const fetcher = vi.fn((input: RequestInfo | URL) => {
+    const url = String(input)
+    if (url.includes("/ontology/catalog")) {
+      return Promise.resolve(api.catalog?.() ?? jsonResponse(ontologyCatalog()))
+    }
+    if (url.includes("/ontology/method-map")) return Promise.resolve(jsonResponse(methodMap()))
+    if (url.includes("/catalog/objects")) {
+      return Promise.resolve(api.records?.() ?? jsonResponse(catalogPage([catalogItem()])))
+    }
+    if (url.includes("/overview")) return Promise.resolve(api.overview?.() ?? jsonResponse(overview()))
+    if (url.includes("/objects/")) return Promise.resolve(api.detail?.() ?? jsonResponse(detail()))
+    return Promise.resolve(jsonResponse({}, 404))
+  })
+  vi.stubGlobal("fetch", fetcher)
+  return fetcher
+}
+
 beforeEach(() => {
-  window.history.replaceState(null, "", "/dashboard/?view=list")
+  window.history.replaceState(null, "", "/dashboard/?view=map&rules=0.4")
 })
 
 afterEach(() => {
@@ -32,391 +50,213 @@ afterEach(() => {
   window.history.replaceState(null, "", "/dashboard/")
 })
 
-describe("App", () => {
-  it("loads overview, auto-selects the single Strategy and opens a listed object", async () => {
-    const user = userEvent.setup()
+describe("read-only explorer navigation", () => {
+  it("offers only map, definitions and graph; the old list entry is gone", async () => {
+    stubApi()
+    render(<App />)
+    await screen.findByTestId("view-tabs")
+    for (const name of ["map", "definitions", "graph"]) {
+      expect(screen.getByTestId(`view-tab-${name}`)).toBeInTheDocument()
+    }
+    expect(screen.queryByTestId("view-tab-list")).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "列表" })).not.toBeInTheDocument()
+  })
+})
+
+describe("legacy object-list routes", () => {
+  it("opens the exact object's details and rewrites the list route", async () => {
+    window.history.replaceState(null, "",
+      "/dashboard/?view=list&strategy=s1&object=m1&rev=m1-r2&group=mission&owner=p1")
+    stubApi()
+    render(<App />)
+    await screen.findByTestId("detail-pane")
+    expect(within(screen.getByTestId("detail-pane")).getAllByText("任务 m1").length)
+      .toBeGreaterThan(0)
+    await waitFor(() => expect(window.location.search).toContain("view=graph"))
+    expect(window.location.search).toContain("object=m1")
+    expect(window.location.search).toContain("rev=m1-r2")
+    // The legacy list filter references survive the normalization.
+    expect(window.location.search).toContain("group=mission")
+    expect(window.location.search).toContain("owner=p1")
+  })
+
+  it("folds a list type filter into the map records and preserves every filter", async () => {
+    window.history.replaceState(null, "",
+      "/dashboard/?view=list&object_type=Mission&owner=p1&period_from=2026-09-01&domain=d1")
+    stubApi({ records: () => jsonResponse(catalogPage([
+      catalogItem("m1", { responsibility: [responsibilityEntry("p1", "责任人甲")] }),
+      catalogItem("m2", { responsibility: [responsibilityEntry("p2", "责任人乙")] }),
+    ])) })
+    render(<App />)
+    await screen.findByTestId("type-info-card")
+    await screen.findByTestId("catalog-row-m1")
+    // The legacy owner filter is applied to the embedded records list.
+    expect(screen.queryByTestId("catalog-row-m2")).not.toBeInTheDocument()
+    expect(screen.getByTestId("catalog-filter-owner")).toHaveTextContent("责任人甲")
+    // Filters this type-scoped authorized read cannot apply are stated visibly.
+    expect(screen.getByTestId("legacy-filter-note")).toHaveTextContent("业务域")
+    expect(screen.getByTestId("legacy-filter-note")).toHaveTextContent("周期")
+    expect(window.location.search).toContain("view=map")
+    expect(window.location.search).toContain("otype=Mission")
+    expect(window.location.search).toContain("object_type=Mission")
+    expect(window.location.search).toContain("owner=p1")
+    expect(window.location.search).toContain("period_from=2026-09-01")
+    expect(window.location.search).toContain("domain=d1")
+  })
+
+  it("keeps the pinned revision when the default strategy is adopted after load", async () => {
     const calls: string[] = []
+    let releaseOverview!: (value: Response) => void
+    const overviewGate = new Promise<Response>((resolve) => { releaseOverview = resolve })
     vi.stubGlobal("fetch", vi.fn((input: RequestInfo | URL) => {
       const url = String(input)
       calls.push(url)
-      if (url.includes("/overview")) return Promise.resolve(jsonResponse(overview()))
-      if (url.includes("/objects?")) return Promise.resolve(jsonResponse(objectsPage([missionItem("m1")])))
+      if (url.includes("/overview")) return overviewGate
+      if (url.includes("/ontology/catalog")) return Promise.resolve(jsonResponse(ontologyCatalog()))
+      if (url.includes("/ontology/method-map")) return Promise.resolve(jsonResponse(methodMap()))
+      if (url.includes("/downstream")) {
+        return Promise.resolve(jsonResponse({ items: [], next_cursor: null, has_more: false,
+                                              limit: 25, bounded: 100 }))
+      }
       if (url.includes("/objects/")) return Promise.resolve(jsonResponse(detail()))
       return Promise.resolve(jsonResponse({}, 404))
     }))
+    window.history.replaceState(null, "", "/dashboard/?view=list&object=m1&rev=m1-r1")
     render(<App />)
-    await waitFor(() => expect(screen.getByTestId("viewer-name")).toHaveTextContent("合成 CEO"))
-    await waitFor(() => expect(screen.getByTestId("object-row-m1")).toBeInTheDocument())
-    await user.click(screen.getByTestId("object-row-m1"))
-    await waitFor(() => expect(screen.getByTestId("detail-pane")).toBeInTheDocument())
+    // The legacy route normalizes immediately with the exact revision intact and
+    // no strategy yet; the overview default arrives afterwards.
+    await screen.findByTestId("detail-pane")
+    await waitFor(() => expect(window.location.search).toContain("view=graph"))
     expect(window.location.search).toContain("object=m1")
+    expect(window.location.search).toContain("rev=m1-r1")
+    expect(window.location.search).not.toContain("strategy=")
+    await act(async () => {
+      releaseOverview(jsonResponse(overview()))
+      await overviewGate
+    })
+    // Initial default adoption is not a user strategy switch: the pinned
+    // revision survives in the URL and the detail read keeps the exact revision.
+    await waitFor(() => expect(window.location.search).toContain("strategy=s1"))
+    expect(window.location.search).toContain("rev=m1-r1")
+    await waitFor(() => {
+      const reads = calls.filter((url) => url.includes("/objects/m1"))
+      expect(reads.length).toBeGreaterThan(0)
+      expect(reads[reads.length - 1]).toContain("revision_id=m1-r1")
+      expect(reads[reads.length - 1]).toContain("strategy_id=s1")
+    })
+    // An explicit refresh still reads the same exact pinned revision.
+    await userEvent.setup().click(screen.getByRole("button", { name: "立即刷新" }))
+    expect(window.location.search).toContain("rev=m1-r1")
+    await waitFor(() => {
+      const reads = calls.filter((url) => url.includes("/objects/m1"))
+      expect(reads[reads.length - 1]).toContain("revision_id=m1-r1")
+    })
   })
 
-  it("invalidates protected projections when the authorization version changes", async () => {
+  it("normalizes a bare list route to the ontology map", async () => {
+    window.history.replaceState(null, "", "/dashboard/?view=list")
+    stubApi()
+    render(<App />)
+    await screen.findByTestId("ontology-map")
+    expect(screen.getByTestId("view-tab-map")).toHaveAttribute("aria-current", "page")
+    await waitFor(() => expect(window.location.search).toContain("view=map"))
+    expect(window.location.search).not.toContain("view=list")
+  })
+})
+
+describe("authorization boundaries", () => {
+  it("invalidates protected records when the authorization version changes", async () => {
     const user = userEvent.setup()
+    let releaseLate!: () => void
+    const gate = new Promise<void>((resolve) => { releaseLate = resolve })
     let epoch = 1
-    let items = [missionItem("m1")]
+    let armed = false
     vi.stubGlobal("fetch", vi.fn((input: RequestInfo | URL) => {
       const url = String(input)
       if (url.includes("/overview")) return Promise.resolve(jsonResponse(overview({
         viewer: { scope_id: "s", principal_id: "p-ceo", principal_type: "human",
                   display_name: "合成 CEO", auth_epoch: epoch, assignments: [] } })))
-      if (url.includes("/objects?")) return Promise.resolve(jsonResponse(objectsPage(items)))
-      if (url.includes("/objects/")) return Promise.resolve(jsonResponse(detail()))
+      if (url.includes("/ontology/catalog")) return Promise.resolve(jsonResponse(ontologyCatalog()))
+      if (url.includes("/ontology/method-map")) return Promise.resolve(jsonResponse(methodMap()))
+      if (url.includes("/catalog/objects")) {
+        // Each reload gets its own Response; a shared body would be read twice.
+        return armed ? gate.then(() => jsonResponse(catalogPage([catalogItem()])))
+          : Promise.resolve(jsonResponse(catalogPage([catalogItem()])))
+      }
       return Promise.resolve(jsonResponse({}, 404))
     }))
+    window.history.replaceState(null, "",
+      "/dashboard/?view=map&otype=Mission&object_type=Mission")
     render(<App />)
-    await waitFor(() => expect(screen.getByTestId("object-row-m1")).toBeInTheDocument())
-    // A revocation bumps the authorization epoch and removes the row.
+    await screen.findByTestId("catalog-row-m1")
     epoch = 2
-    items = []
+    armed = true
     await user.click(screen.getByRole("button", { name: "立即刷新" }))
-    await waitFor(() => expect(screen.queryByTestId("object-row-m1")).not.toBeInTheDocument())
-    expect(screen.queryByTestId("pending-banner")).not.toBeInTheDocument()
-    expect(screen.getByTestId("list-empty")).toBeInTheDocument()
-  })
-
-  it("clears protected content on 403 and an in-flight list response cannot restore it", async () => {
-    const user = userEvent.setup()
-    const lateList = deferred<Response>()
-    let armRefresh = false
-    let detailCalls = 0
-    vi.stubGlobal("fetch", vi.fn((input: RequestInfo | URL) => {
-      const url = String(input)
-      if (url.includes("/overview")) return Promise.resolve(jsonResponse(overview()))
-      if (url.includes("/objects?")) {
-        if (armRefresh) {
-          armRefresh = false
-          return lateList.promise // an in-flight refresh that ignores its abort
-        }
-        return Promise.resolve(jsonResponse(objectsPage([missionItem("m1")])))
-      }
-      if (url.includes("/objects/")) {
-        detailCalls += 1
-        return Promise.resolve(denial()) // exact-object read is no longer authorized
-      }
-      return Promise.resolve(jsonResponse({}, 404))
-    }))
-    render(<App />)
-    await waitFor(() => expect(screen.getByTestId("object-row-m1")).toBeInTheDocument())
-    armRefresh = true
-    await user.click(screen.getByRole("button", { name: "立即刷新" }))
-    await user.click(screen.getByTestId("object-row-m1"))
-    await waitFor(() => expect(detailCalls).toBeGreaterThan(0))
-    await waitFor(() => expect(screen.getByTestId("auth-lost")).toBeInTheDocument())
-    // The private header/overview is cleared as well, not just the list.
-    await waitFor(() => expect(screen.getByTestId("viewer-name")).toHaveTextContent("未加载"))
+    // The old protected projection is cleared before the reload resolves.
+    await waitFor(() => expect(screen.queryByTestId("catalog-row-m1")).not.toBeInTheDocument())
     await act(async () => {
-      lateList.resolve(jsonResponse(objectsPage([missionItem("m1")])))
-      await lateList.promise
+      releaseLate()
+      await gate
     })
-    expect(screen.queryByTestId("object-row-m1")).not.toBeInTheDocument()
-    expect(screen.getByTestId("auth-lost")).toBeInTheDocument()
-    expect(screen.queryByRole("button", { name: "加载更多版本" })).not.toBeInTheDocument()
+    expect(await screen.findByTestId("catalog-row-m1")).toBeInTheDocument()
   })
 
-  it("keeps stale data and shows a Chinese recovery message for a storage 503", async () => {
+  it("clears protected records on 403 and a late response cannot restore them", async () => {
     const user = userEvent.setup()
-    let armFailure = false
-    vi.stubGlobal("fetch", vi.fn((input: RequestInfo | URL) => {
-      const url = String(input)
-      if (url.includes("/overview")) return Promise.resolve(jsonResponse(overview()))
-      if (url.includes("/objects?")) {
-        if (armFailure) {
-          armFailure = false
-          return Promise.resolve(jsonResponse({ error: { code: "EVIDENCE_UNAVAILABLE",
-            message: "Evidence storage configuration is unavailable" } }, 503))
-        }
-        return Promise.resolve(jsonResponse(objectsPage([missionItem("m1")])))
-      }
-      if (url.includes("/objects/")) return Promise.resolve(jsonResponse(detail()))
-      return Promise.resolve(jsonResponse({}, 404))
-    }))
-    render(<App />)
-    await waitFor(() => expect(screen.getByTestId("object-row-m1")).toBeInTheDocument())
-    armFailure = true
-    await user.click(screen.getByRole("button", { name: "立即刷新" }))
-    await waitFor(() => expect(screen.getByTestId("error-banner")).toBeInTheDocument())
-    expect(screen.getByTestId("error-banner")).toHaveTextContent("证据存储暂不可用")
-    expect(screen.getByTestId("error-banner")).not.toHaveTextContent("Evidence storage")
-    expect(screen.getByTestId("stale-banner")).toBeInTheDocument()
-  })
-})
-
-describe("App load-more and authorization observation", () => {
-  it("ignores a delayed load-more page after filters change", async () => {
-    const user = userEvent.setup()
-    const latePage = deferred<Response>()
+    let releaseLate!: () => void
+    const gate = new Promise<void>((resolve) => { releaseLate = resolve })
     let armed = false
-    vi.stubGlobal("fetch", vi.fn((input: RequestInfo | URL) => {
-      const url = String(input)
-      if (url.includes("/overview")) return Promise.resolve(jsonResponse(overview()))
-      if (url.includes("/objects?")) {
-        if (armed && url.includes("cursor=c1")) {
-          armed = false
-          return latePage.promise
-        }
-        return Promise.resolve(jsonResponse(objectsPage([missionItem("m1")],
-          { next_cursor: "c1", has_more: true })))
-      }
-      return Promise.resolve(jsonResponse({}, 404))
-    }))
-    render(<App />)
-    await waitFor(() => expect(screen.getByTestId("object-row-m1")).toBeInTheDocument())
-    armed = true
-    await user.click(screen.getByRole("button", { name: "加载更多" }))
-    // The filter changes while the continuation is in flight.
-    fireEvent.change(document.getElementById("period-from") as HTMLInputElement,
-                     { target: { value: "2026-09-01" } })
-    await act(async () => {
-      latePage.resolve(jsonResponse(objectsPage([missionItem("m9")], { next_cursor: null })))
-      await latePage.promise
-    })
-    expect(screen.queryByTestId("object-row-m9")).not.toBeInTheDocument()
-  })
-
-  it("treats a final page as exhausted and never resurrects the first cursor", async () => {
-    const user = userEvent.setup()
-    let calls = 0
-    vi.stubGlobal("fetch", vi.fn((input: RequestInfo | URL) => {
-      const url = String(input)
-      if (url.includes("/overview")) return Promise.resolve(jsonResponse(overview()))
-      if (url.includes("/objects?")) {
-        calls += 1
-        if (url.includes("cursor=c1")) {
-          return Promise.resolve(jsonResponse(objectsPage([missionItem("m2")], { next_cursor: null })))
-        }
-        return Promise.resolve(jsonResponse(objectsPage([missionItem("m1")],
-          { next_cursor: "c1", has_more: true })))
-      }
-      return Promise.resolve(jsonResponse({}, 404))
-    }))
-    render(<App />)
-    await waitFor(() => expect(screen.getByTestId("object-row-m1")).toBeInTheDocument())
-    await user.click(screen.getByRole("button", { name: "加载更多" }))
-    await waitFor(() => expect(screen.getByTestId("object-row-m2")).toBeInTheDocument())
-    expect(screen.queryByRole("button", { name: "加载更多" })).not.toBeInTheDocument()
-    expect(calls).toBeGreaterThanOrEqual(2)
-  })
-
-  it("shows a retry hint when load-more fails without clearing loaded rows", async () => {
-    const user = userEvent.setup()
-    let armed = false
-    vi.stubGlobal("fetch", vi.fn((input: RequestInfo | URL) => {
-      const url = String(input)
-      if (url.includes("/overview")) return Promise.resolve(jsonResponse(overview()))
-      if (url.includes("/objects?")) {
-        if (armed) {
-          armed = false
-          return Promise.resolve(jsonResponse({ error: { code: "EVIDENCE_UNAVAILABLE",
-            message: "storage" } }, 503))
-        }
-        return Promise.resolve(jsonResponse(objectsPage([missionItem("m1")],
-          { next_cursor: "c1", has_more: true })))
-      }
-      return Promise.resolve(jsonResponse({}, 404))
-    }))
-    render(<App />)
-    await waitFor(() => expect(screen.getByTestId("object-row-m1")).toBeInTheDocument())
-    armed = true
-    await user.click(screen.getByRole("button", { name: "加载更多" }))
-    await waitFor(() => expect(screen.getByTestId("load-more-error")).toBeInTheDocument())
-    expect(screen.getByTestId("object-row-m1")).toBeInTheDocument()
-  })
-
-  it("clears the list when a load-more is denied (403)", async () => {
-    const user = userEvent.setup()
-    let armed = false
-    vi.stubGlobal("fetch", vi.fn((input: RequestInfo | URL) => {
-      const url = String(input)
-      if (url.includes("/overview")) return Promise.resolve(jsonResponse(overview()))
-      if (url.includes("/objects?")) {
-        if (armed) {
-          armed = false
-          return Promise.resolve(denial())
-        }
-        return Promise.resolve(jsonResponse(objectsPage([missionItem("m1")],
-          { next_cursor: "c1", has_more: true })))
-      }
-      return Promise.resolve(jsonResponse({}, 404))
-    }))
-    render(<App />)
-    await waitFor(() => expect(screen.getByTestId("object-row-m1")).toBeInTheDocument())
-    armed = true
-    await user.click(screen.getByRole("button", { name: "加载更多" }))
-    await waitFor(() => expect(screen.getByTestId("auth-lost")).toBeInTheDocument())
-    expect(screen.queryByTestId("object-row-m1")).not.toBeInTheDocument()
-  })
-
-  it("invalidates protected projections from a pending overview response", async () => {
-    const user = userEvent.setup()
-    let phase = 1
-    let items = [missionItem("m1")]
+    let denyOverview = false
     vi.stubGlobal("fetch", vi.fn((input: RequestInfo | URL) => {
       const url = String(input)
       if (url.includes("/overview")) {
-        const groups = overview().groups.map((group) =>
-          group.group === "ltco" ? { ...group, available: phase === 1 } : group)
-        return Promise.resolve(jsonResponse(overview({
-          groups,
-          viewer: { scope_id: "s", principal_id: "p-ceo", principal_type: "human",
-                    display_name: "合成 CEO", auth_epoch: phase, assignments: [] } })))
+        return Promise.resolve(denyOverview
+          ? denial() : jsonResponse(overview()))
       }
-      if (url.includes("/objects?")) return Promise.resolve(jsonResponse(objectsPage(items)))
-      if (url.includes("/objects/")) return Promise.resolve(jsonResponse(detail()))
+      if (url.includes("/ontology/catalog")) return Promise.resolve(jsonResponse(ontologyCatalog()))
+      if (url.includes("/ontology/method-map")) return Promise.resolve(jsonResponse(methodMap()))
+      if (url.includes("/catalog/objects")) {
+        return armed ? gate.then(() => jsonResponse(catalogPage([catalogItem()])))
+          : Promise.resolve(jsonResponse(catalogPage([catalogItem()])))
+      }
       return Promise.resolve(jsonResponse({}, 404))
     }))
+    window.history.replaceState(null, "",
+      "/dashboard/?view=map&otype=Mission&object_type=Mission")
     render(<App />)
-    await waitFor(() => expect(screen.getByTestId("object-row-m1")).toBeInTheDocument())
-    // A revocation changes both authorization identity and group availability;
-    // the overview response is offered as a pending update, but the protected
-    // list must already be invalidated from the observed successful payload.
-    phase = 2
-    items = []
+    await screen.findByTestId("catalog-row-m1")
+    // An in-flight records refresh that will ignore its abort.
+    armed = true
+    await act(async () => { window.dispatchEvent(new Event("focus")) })
+    denyOverview = true
     await user.click(screen.getByRole("button", { name: "立即刷新" }))
-    await waitFor(() => expect(screen.queryByTestId("object-row-m1")).not.toBeInTheDocument())
-    expect(screen.getByTestId("list-empty")).toBeInTheDocument()
+    await screen.findByTestId("auth-lost")
+    await waitFor(() => expect(screen.queryByTestId("catalog-row-m1")).not.toBeInTheDocument())
+    await act(async () => {
+      releaseLate()
+      await gate
+    })
+    expect(screen.queryByTestId("catalog-row-m1")).not.toBeInTheDocument()
+    expect(screen.getByTestId("auth-lost")).toBeInTheDocument()
   })
 })
 
-describe("App same-screen basis groups", () => {
-  it("shows current-basis and historical-basis rows together by default", async () => {
-    const historical = missionItem("m-old", {
-      title: "旧战略下的正式任务",
-      basis: { status: "historical", reason: "recorded_other_strategy", impact_linked: true,
-               selected_strategy_ref: { object_id: "s2", revision_id: "s2r1" },
-               strategy_ref: { object_id: "s1", revision_id: "s1r1" }, basis_revision: "effective" },
-    })
-    const current = missionItem("m-new", { title: "当前战略下的任务" })
-    vi.stubGlobal("fetch", vi.fn((input: RequestInfo | URL) => {
-      const url = String(input)
-      if (url.includes("/overview")) return Promise.resolve(jsonResponse(overview()))
-      if (url.includes("/objects?")) {
-        return Promise.resolve(jsonResponse(objectsPage([historical, current])))
-      }
-      if (url.includes("/objects/")) return Promise.resolve(jsonResponse(detail()))
-      return Promise.resolve(jsonResponse({}, 404))
-    }))
-    render(<App />)
-    await waitFor(() => expect(screen.getByTestId("object-row-m-old")).toBeInTheDocument())
-    // Both groups are on the same screen, each with its own label.
-    expect(screen.getByTestId("basis-section-当前依据")).toBeInTheDocument()
-    expect(screen.getByTestId("basis-section-历史依据（旧 Strategy）")).toBeInTheDocument()
-    expect(screen.getByTestId("object-row-m-new")).toBeInTheDocument()
-    expect(window.location.search).toContain("basis=all")
-  })
-})
-
-describe("App manual loader lifecycle", () => {
-  it("aborts an in-flight load-more on filter change and resets its loading state", async () => {
-    const user = userEvent.setup()
-    const signals: AbortSignal[] = []
-    const latePage = deferred<Response>()
-    let armed = false
-    vi.stubGlobal("fetch", vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
-      const url = String(input)
-      if (url.includes("/overview")) return Promise.resolve(jsonResponse(overview()))
-      if (url.includes("/objects?")) {
-        if (armed && url.includes("cursor=c1")) {
-          armed = false
-          if (init?.signal) signals.push(init.signal)
-          return latePage.promise
-        }
-        return Promise.resolve(jsonResponse(objectsPage([missionItem("m1")],
-          { next_cursor: "c1", has_more: true })))
-      }
-      return Promise.resolve(jsonResponse({}, 404))
-    }))
-    render(<App />)
-    await waitFor(() => expect(screen.getByTestId("object-row-m1")).toBeInTheDocument())
-    armed = true
-    await user.click(screen.getByRole("button", { name: "加载更多" }))
-    fireEvent.change(document.getElementById("period-from") as HTMLInputElement,
-                     { target: { value: "2026-09-01" } })
-    await waitFor(() => expect(signals[0]?.aborted).toBe(true))
-    // The loading flag is reset, so the control is usable again.
-    await waitFor(() => expect(screen.getByRole("button", { name: "加载更多" })).not.toBeDisabled())
-    await act(async () => {
-      latePage.resolve(jsonResponse(objectsPage([missionItem("m9")], { next_cursor: null })))
-      await latePage.promise
-    })
-    expect(screen.queryByTestId("object-row-m9")).not.toBeInTheDocument()
-  })
-
-  it("ignores a stale 403 from a superseded load-more instead of clearing the new view", async () => {
-    const user = userEvent.setup()
-    const lateDenial = deferred<Response>()
-    let armed = false
-    vi.stubGlobal("fetch", vi.fn((input: RequestInfo | URL, _init?: RequestInit) => {
-      const url = String(input)
-      if (url.includes("/overview")) return Promise.resolve(jsonResponse(overview()))
-      if (url.includes("/objects?")) {
-        if (armed && url.includes("cursor=c1")) {
-          armed = false
-          return lateDenial.promise
-        }
-        return Promise.resolve(jsonResponse(objectsPage([missionItem("m1")],
-          { next_cursor: "c1", has_more: true })))
-      }
-      return Promise.resolve(jsonResponse({}, 404))
-    }))
-    render(<App />)
-    await waitFor(() => expect(screen.getByTestId("object-row-m1")).toBeInTheDocument())
-    armed = true
-    await user.click(screen.getByRole("button", { name: "加载更多" }))
-    fireEvent.change(document.getElementById("period-from") as HTMLInputElement,
-                     { target: { value: "2026-09-01" } })
-    await act(async () => {
-      lateDenial.resolve(denial())
-      await lateDenial.promise
-    })
-    expect(screen.queryByTestId("auth-lost")).not.toBeInTheDocument()
-    await waitFor(() => expect(screen.getByTestId("object-row-m1")).toBeInTheDocument())
-  })
-
-  it("aborts manual paging when the authorization identity changes", async () => {
-    const user = userEvent.setup()
-    const signals: AbortSignal[] = []
-    const latePage = deferred<Response>()
-    let armed = false
-    let epoch = 1
-    vi.stubGlobal("fetch", vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
-      const url = String(input)
-      if (url.includes("/overview")) return Promise.resolve(jsonResponse(overview({
-        viewer: { scope_id: "s", principal_id: "p-ceo", principal_type: "human",
-                  display_name: "合成 CEO", auth_epoch: epoch, assignments: [] } })))
-      if (url.includes("/objects?")) {
-        if (armed && url.includes("cursor=c1")) {
-          armed = false
-          if (init?.signal) signals.push(init.signal)
-          return latePage.promise
-        }
-        return Promise.resolve(jsonResponse(objectsPage([missionItem("m1")],
-          { next_cursor: "c1", has_more: true })))
-      }
-      return Promise.resolve(jsonResponse({}, 404))
-    }))
-    render(<App />)
-    await waitFor(() => expect(screen.getByTestId("object-row-m1")).toBeInTheDocument())
-    armed = true
-    await user.click(screen.getByRole("button", { name: "加载更多" }))
-    epoch = 2 // a revocation bumped auth_epoch
-    await user.click(screen.getByRole("button", { name: "立即刷新" }))
-    await waitFor(() => expect(signals[0]?.aborted).toBe(true))
-    await act(async () => {
-      latePage.resolve(jsonResponse(objectsPage([missionItem("m9")], { next_cursor: null })))
-      await latePage.promise
-    })
-    expect(screen.queryByTestId("object-row-m9")).not.toBeInTheDocument()
-    await waitFor(() => expect(screen.getByRole("button", { name: "加载更多" })).not.toBeDisabled())
-  })
-
+describe("detail paging", () => {
   it("clears history and receipt pagination when the exact revision changes", async () => {
     const user = userEvent.setup()
     vi.stubGlobal("fetch", vi.fn((input: RequestInfo | URL) => {
       const url = String(input)
       if (url.includes("/overview")) return Promise.resolve(jsonResponse(overview()))
-      if (url.includes("/objects?")) return Promise.resolve(jsonResponse(objectsPage([missionItem("m1")])))
+      if (url.includes("/downstream")) {
+        return Promise.resolve(jsonResponse({ items: [], next_cursor: null, has_more: false,
+                                              limit: 25, bounded: 100 }))
+      }
+      if (url.includes("/revisions")) {
+        return Promise.resolve(jsonResponse({ items: [], next_cursor: null }))
+      }
+      if (url.includes("/receipts")) {
+        return Promise.resolve(jsonResponse({ items: [], next_cursor: null }))
+      }
       if (url.includes("/objects/")) {
         const value = detail()
         value.history.next_cursor = "h1"
@@ -427,10 +267,9 @@ describe("App manual loader lifecycle", () => {
       }
       return Promise.resolve(jsonResponse({}, 404))
     }))
+    window.history.replaceState(null, "", "/dashboard/?view=graph&object=m1")
     render(<App />)
-    await waitFor(() => expect(screen.getByTestId("object-row-m1")).toBeInTheDocument())
-    await user.click(screen.getByTestId("object-row-m1"))
-    await waitFor(() => expect(screen.getByTestId("detail-pane")).toBeInTheDocument())
+    await screen.findByTestId("detail-pane")
     await user.click(screen.getByRole("tab", { name: "版本与候选" }))
     expect(screen.getByRole("button", { name: "加载更多版本" })).toBeInTheDocument()
     await user.click(screen.getByRole("tab", { name: "证据与确认" }))

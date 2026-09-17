@@ -104,3 +104,29 @@ Strategy，即使 PCO 头已到 v2。
 以上读取不改变 `gov_objects`、`gov_object_revisions`、`gov_action_receipts`、
 `gov_method_reviews`、`gov_method_state`、`gov_context_snapshots`、`runtime_tasks`
 或任何业务/权限记录；隔离验收在浏览前后对固定表集合做计数 oracle。
+
+## 方法地图（`/v1/dashboard/ontology/method-map`）
+
+只读接口，把 44 项工作文档清单与 Runtime 实现分开投影。它不新增动作、不写业务、
+不改变服务器规则；本机工作台通过 `/dashboard/api/v1/ontology/method-map` 读取同一投影。
+
+| 字段 | 来源 | 用途 |
+| --- | --- | --- |
+| `source_snapshot` | `docs/reviews/2026-09-17-business-data/` 的清单与来源清单（生成模块，含内容指纹） | 每条目的来源表/记录定位与检查日期；不复制完整来源文档 |
+| `method_definition_map.documented_contracts` | 契约文档与编译支持状态 | 区分“仅文档”与“本 scope 已启用” |
+| `runtime_implementation.compiled_contract_versions` | 本进程编译的注册表 | 实现支持；不是业务数据 |
+| `runtime_implementation.scope_enabled_contract_versions` | 当前 scope 的 `gov_protocol_support_registry` 行 | 只有编译且本 scope 登记读取支持时才提供运行时链接 |
+| `entries[].business_maturity` | 工作文档“Method标准状态” | 业务成熟度 |
+| `entries[].runtime_support_assessment` | 工作文档校准结论 | 工程差异，不等于已实现 |
+| `entries[].runtime_support` | 编译注册表 | 实现支持等级与已支持对象类型 |
+| `entries[].business_name` / `purpose` / `definition` | 工作文档规范化快照（`anchors/references/artifacts/records-normalized.json`） | 业务名称、目的与简明定义；只嵌入短定义，不复制完整来源文档 |
+| `entries[].authorized_read_availability` | 当前身份读取（默认 `not_queried`） | `visible` / `none_visible` / `partially_visible` / `partial_failed` / `failed` / `not_implemented` / `not_applicable`；不返回记录条数 |
+
+`availability=query` 时才按当前授权检查每个已启用对象类型；单个类型的应用级失败
+（如 `FORBIDDEN`）逐类型标注并保留其他类型的可见结果，基础设施错误使整个请求失败，
+不伪装成“无数据”。`none_visible` 只表示当前身份未读到，不是“不可读”证明；部分类型可见时
+合并状态为 `partially_visible`。概念条目在无运行时对象或无实例时保留；空映射不表示概念不存在。
+
+工作台另有独立的“业务定义”视图：按四类业务身份展示全部 44 项概念及其目的/定义，
+不依赖实际实例或运行时注册表；未编译、未启用或无实例的概念仍然显示。原有按对象类型
+组织的本体地图与协议视图保持独立。

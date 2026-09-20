@@ -8,20 +8,26 @@ Runtime 提供 Clark 现有月度核对、周进展和会议工作面的 Runtime
 
 已合并的 `tkos.method/0.3` 提供 Anchor 与 CEO Agent 立项能力：整体版本化 Architecture、Operating State、Problem 及原子移交。见 [伙伴接口包](docs/runtime-anchors-v03-integration.md) 和 [隔离验收](docs/runtime-anchors-v03-acceptance.md)。该增量纳入 v0.3.0；本机 API/Worker 已随看板镜像更新，旧对象仍保留原协议绑定。
 
+已合并的 `tkos.method/0.4` 把 CEO Agent 立项、Agreement 全体精确确认与多 PCO 候选整组激活纳入正式链，并新增 `tkos.workspace/0.2` 独立来源场景（无业务锚点的会议／文档／本人选定对话、来源版本与更正、精确分享、默认私有）。同期新增本机**治理工作台**：有权本人以个人会话办理白名单动作，Runtime 只负责权限、版本、正式效力与回执。该增量纳入 v0.4.0，迁移头到 0028；0.1/0.2/0.3 对象保留原协议绑定与原生效规则。
+
 ## 当前交付状态
 
-当前功能 Release 为 **[v0.3.0](https://github.com/yusiyi0429/tkos-ontology-runtime/releases/tag/v0.3.0)**，包含 Clark 场景接口、Method 0.2 生命周期、Method 0.3 Anchor，以及经 [PR #6](https://github.com/yusiyi0429/tkos-ontology-runtime/pull/6) 合并的只读看板、本体地图与业务关系图。
+当前功能 Release 为 **[v0.4.0](https://github.com/yusiyi0429/tkos-ontology-runtime/releases/tag/v0.4.0)**，在 v0.3.0 之上新增 Method 0.4 正式链、`tkos.workspace/0.2` 独立来源场景、本机治理工作台，以及本体地图内的实际记录入口。
 
-本次交付 wheel、源码包、**amd64/arm64 完整五镜像离线包**及 SHA256 校验和，详见[发布说明](docs/releases/v0.3.0.md)和[离线验收](docs/releases/v0.3.0-offline-acceptance.md)。两架构均通过业务/看板 58 项、本体接口/数据库 46 项检查；amd64 使用 Docker 仿真验收。本机原 API/Worker 仍运行 `eccc346` 镜像，新界面为 58806 源码预览；尚未部署新版容器或远程生产环境。
+本次交付 wheel、源码包、**amd64/arm64 完整五镜像离线包**及 SHA256 校验和，详见[发布说明](docs/releases/v0.4.0.md)。v0.3.0 的[发布说明](docs/releases/v0.3.0.md)与[离线验收](docs/releases/v0.3.0-offline-acceptance.md)作为上一版证据保留。
 
 | 验证范围 | 结果 |
 | --- | --- |
+| Method 0.4 ＋ workspace 0.2 本地受控链 | 浏览器人类链与受控 Co-agent HTTP/DB 均由 root 独立执行，见[交付报告](docs/method-04-delivery-report.md)、[合并前复核](docs/acceptance/method04-premerge.md) |
+| 治理工作台真实 HTTP／数据库 | **23/23**：三个独立会话、跨身份日志隐藏、CAS、关窗竞争、本人核对不生效、DRI 不能确认、CEO 整组确认；另真实浏览器三 profile 与重启复核，见[验收](docs/acceptance/runtime-governance-workbench.md) |
 | Method 0.3 实际 HTTP／PostgreSQL／MinIO 增量 | **35/35**：Architecture、State、Problem、Agent 立项、原子移交、权限与恢复、M1B 回归 |
 | Method 0.2 独立回归 | **22/22**：生命周期、关窗竞争、候选原子性与旧版共存 |
-| Python 回归 | **699 passed、1 既有 skipped**；legacy 集成另 **14 passed** |
-| 迁移与构建 | 空库迁移至 0025 及重复执行 **1 passed**；wheel／sdist 构建通过 |
-| Workbench 模块回归 | **61 passed**；不代表 Clark 浏览器验收 |
+| Python 回归 | 主回归 **941 passed、2 skipped**（应用角色）；旧叙述集成另 **14 passed**（owner 角色） |
+| 迁移与构建 | 空库迁移至 **0028** 及重复执行 **1 passed**；wheel／sdist 构建通过 |
+| 前端回归 | **184 passed／23 个文件**；类型检查、生产构建与资源清单校验通过。不代表 Clark 浏览器验收 |
 | 伙伴接线／Clark 浏览器／真实模型 | **尚未验证／尚未验证／未运行** |
+
+业务主线四栏视图的浏览器渲染尚未由人核对；其四栏逻辑已按真实隔离数据逐状态复演，级联与空态结论见[发布说明](docs/releases/v0.4.0.md)。
 
 验收使用隔离数据库、独立合成身份和受控 Agent 输入。详见 [0.3 验收报告](docs/runtime-anchors-v03-acceptance.md)、[机器检查清单](docs/acceptance/anchors-v03-summary.json) 和 [复跑入口](acceptance/anchors_v03/README.md)。企业身份、历史对象跨版本接续、生产迁移与部署另行安排。
 
@@ -41,6 +47,28 @@ Runtime 提供 Clark 现有月度核对、周进展和会议工作面的 Runtime
 - 原列表看板验收基线：0.3 隔离 HTTP/PG/MinIO **58/58**（[复跑](acceptance/dashboard_0_3/README.md)）、真实 0.1 数据只读 **49/49**（[复跑](acceptance/dashboard_0_1/README.md)）、Python dashboard 回归 76、Node 前端回归 56。
 - 原容器访问：[Runtime 经营看板](http://127.0.0.1:58802/dashboard/)。API/Worker 已按 `eccc346` 重建，保留现有 0.1 数据、Clark 及 PostgreSQL/MinIO 数据卷；当前仍为五容器。
 - 原列表看板独立浏览器与本机部署通过，见[验收报告与截图](docs/runtime-dashboard-acceptance.md)；[复跑与回滚](docs/runtime-dashboard-deployment.md)。业务同事理解度、Clark 接线/浏览器及真实模型另行验证；本增量已纳入 v0.3.0。旧的 `workbench/` 四页原型与 `/docs` 保留不变。
+
+## Method 0.4：正式链收口与独立来源
+
+- **CEO Agent 直接立项**：绑定 Agent 可直接提出 issue、reframe 或关联既有议题；立项本身不授予战略确认权，CEO 本人仍独立指派研究。
+- **Agreement 全体精确确认**：被提名的每位当事人各自对同一精确 revision 确认，全部到齐后 Agreement 转 formal；`no_change=true` 的共识不驱动战略更新。
+- **多 PCO 候选与整组激活**：窗口收拢产出候选组，责任 DRI 与 Mission Owner 各自按「责任」承诺（`gov_method_commitments`，同一候选版本下每个责任对象只承诺一次），CEO 只能整组确认，不能代替任何人承诺。
+- **Battlefield ＋ Domain 双主责范围**：LTCO/PCO 的 `primary_scope_id` 可指向战场或责任域。
+- **`tkos.workspace/0.2` 独立来源**：无业务锚点的会议／文档／本人选定对话场景，来源身份与版本、更正与撤回、精确分享无遍历、默认私有与来源围栏、不可变 Context 快照并在读取时重查当前授权；撤权后不恢复正文与自由文本。
+
+契约与接线材料见 [Method 0.4 冻结契约](docs/contracts/tkos-method-0.4.md)、[workspace 0.2 契约](docs/contracts/tkos-workspace-0.2.md)、[动作注册表](docs/runtime-method-registry-0.4.json)、[工作台 OpenAPI](docs/runtime-governance-openapi.json)、[workspace OpenAPI](docs/runtime-workspace-v02-openapi.json)、[伙伴事件映射](docs/partner-ui-event-mapping.md)与[workspace 接入说明](docs/workspace-v02-integration.md)。验收范围见[验收矩阵](docs/method-04-acceptance-matrix.md)、[交付报告](docs/method-04-delivery-report.md)与[合并前复核](docs/acceptance/method04-premerge.md)；复跑入口在 `acceptance/method_v04/` 与 `acceptance/workspace_v02/`。真实业务模型与 Clark 未运行。
+
+## 本机治理工作台
+
+有权本人的个人会话入口：Runtime 负责权限、版本、正式动作与回执，Clark 继续负责业务交互、模型与 Agent 编排。**没有数据库任意编辑器，也没有 Agent 身份选择器。** 默认关闭（`TKOS_GOVERNANCE_WORKBENCH_ENABLED`）。
+
+按「你要做的事」分四组：处理核对与确认（我的待办、方法事项）、查看业务与依据（业务主线、正式 Mission、业务关系图）、理解本体与规则（本体地图、业务定义）、管理来源与追溯（独立来源、我的提交）。
+
+- **方法事项**：全部人工白名单动作的 typed 表单——参与人提名、Agreement 本人确认、正式更新最终确认、LTCO 确认、候选本人承诺与 CEO 整组激活、候选/窗口重开、经营状态确认、问题登记/修订/关闭。精确引用由已授权对象选择器派生，提交前展示完整预览。
+- **业务主线**：`战略 → 长期目标 → 阶段目标 → 任务` 四栏，选中任一卡片后其下游按该卡片的**精确 revision** 收窄。收窄复用服务端语义——战略走 `basis=current` 的递归依据解析，LTCO/PCO 走 `/objects/{id}/downstream?revision_id=`（只返回记录 `payload_hash` 指向该精确版本的子对象）。Mission 不记录 `ltco_ref`，因此只选 LTCO 时任务栏如实提示需再选阶段目标，不伪造过滤。某栏缺某状态时显示「暂无」，不以另一状态填补。
+- **会话边界**：同源 ＋ CSRF ＋ `no-store`，登录限流，重绑/重置与过期处理；浏览器不接触任何治理凭据。
+
+详见 [启用与分工](docs/runtime-governance-workbench.md)、[隔离验收](docs/acceptance/runtime-governance-workbench.md)与[复跑入口](acceptance/governance_workbench/README.md)。本轮不代表 Clark 接线、真实模型或远程部署完成。
 
 ## Method 0.3：Anchor 与 Agent 立项
 
@@ -95,7 +123,7 @@ WorkItem 固定承诺版本、指定 DRI、指定验收人及标准。Deliverabl
 
 ## 接口与代码
 
-当前源码 API 快照见 [0.3 OpenAPI](docs/runtime-anchors-v03-openapi.json)，61 个 Method 0.3 动作的注册信息见 [注册表](docs/runtime-method-registry-0.3.json)。运行中服务的实际版本以其 `/openapi.json` 为准。原 Method 0.1 的 [API 指南](docs/runtime-method-api.md)、[49 个动作 schema](docs/runtime-method-actions.json) 和 [接入契约](docs/method-clark-contract.md) 保留用于对应版本，不作为 0.3 的权限规则。
+当前源码 API 快照见 [工作台 OpenAPI](docs/runtime-governance-openapi.json) 与 [workspace 0.2 OpenAPI](docs/runtime-workspace-v02-openapi.json)，Method 0.4 动作的注册信息见 [0.4 注册表](docs/runtime-method-registry-0.4.json)。上一版 [0.3 OpenAPI](docs/runtime-anchors-v03-openapi.json) 与 [0.3 注册表](docs/runtime-method-registry-0.3.json) 作为对应版本文档保留。各 OpenAPI 快照内嵌的是导出当时的应用版本，不随发布号改写。运行中服务的实际版本以其 `/openapi.json` 为准。原 Method 0.1 的 [API 指南](docs/runtime-method-api.md)、[49 个动作 schema](docs/runtime-method-actions.json) 和 [接入契约](docs/method-clark-contract.md) 保留用于对应版本，不作为 0.3 的权限规则。
 
 既有 v0.2 的 [OpenAPI 快照](contracts/openapi.json)、[Runtime 契约](docs/runtime-independent-contract.md)和[实现说明](docs/runtime-implementation-notes.md)作为对应版本文档保留。
 
@@ -107,6 +135,8 @@ WorkItem 固定承诺版本、指定 DRI、指定验收人及标准。Deliverabl
 | `src/memory_service/` | 原有 Memory 核心与数据库迁移 |
 | `src/adapter/` | 保留的 Clark 只读兼容接口 |
 | `acceptance/anchors_v03/`、`acceptance/lifecycle_v02/`、`acceptance/workspace_scenes/` | 0.3 Anchor、0.2 生命周期和 Clark 场景接口隔离验收 |
+| `acceptance/method_v04/`、`acceptance/workspace_v02/` | Method 0.4 正式链与 workspace 0.2 独立来源隔离验收 |
+| `acceptance/governance_workbench/` | 本机治理工作台会话、权限与真实 HTTP/数据库验收 |
 | `acceptance/method_independent/` | M1A＋M1B 完整 API、权限、并发、恢复与历史兼容验收 |
 | `acceptance/composition_a2_independent/`、`acceptance/execution_a3_independent/` | A2 公司组合与 A3 执行交接独立验收 |
 | `acceptance/runtime/` | 既有 v0.2 HTTP、数据库、S3、故障和恢复验收 |
@@ -157,12 +187,8 @@ python3 acceptance/runtime/infra.py up
 
 ## 部署与来源
 
-离线发布说明见 [v0.2.1 Release 指南](docs/releases/v0.2.1.md)。AMD64 与 ARM64 分包均包含 Runtime API、Worker、PostgreSQL 17＋pgvector、MinIO Server 和 MinIO Client 五类镜像；Clark 与宿主机 Nginx 不在包内。镜像中的 Method 控制面输入位于 `/opt/tkos/docs/`；发布版本与生产切换分别验收。v0.2.0 只包含 AMD64 API／Worker，已由 v0.2.1 替代。
+离线发布说明见 [v0.4.0 发布说明](docs/releases/v0.4.0.md)；历史版本见 [v0.3.0](docs/releases/v0.3.0.md) 与 [v0.2.1](docs/releases/v0.2.1.md)。AMD64 与 ARM64 分包均包含 Runtime API、Worker、PostgreSQL 17＋pgvector、MinIO Server 和 MinIO Client 五类镜像；Clark 与宿主机 Nginx 不在包内。镜像中的 Method 控制面输入位于 `/opt/tkos/docs/`；发布版本与生产切换分别验收。v0.2.0 只包含 AMD64 API／Worker，已由 v0.2.1 替代。
 
 代码可构建 API/Worker 镜像，远程试点还需要环境初始化和部署验收，见 [部署边界](docs/deployment.md)。根目录没有可直接投产的 Compose；历史 Memory 模板仅保留在 `deploy/legacy-memory/`。
 
 本仓库以独立源代码快照初始化，来源及基线见 [SOURCE_PROVENANCE.md](SOURCE_PROVENANCE.md)。
-
-### 本机 M1B 治理工作台（开发分支）
-
-个人身份办理评论、替代/撤回、差异核对、CEO 整组确认及重开，查看正式 Mission 和提交回执。默认关闭；保留本体地图、业务关系图和只读模式。详见 [启用与分工](docs/runtime-governance-workbench.md)及[隔离验收入口](acceptance/governance_workbench/README.md)。本轮不代表 Clark 接线、真实模型或远程部署完成。

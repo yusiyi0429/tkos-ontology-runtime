@@ -22,8 +22,12 @@
       "sha256": "b07d484433489bae197a13aced27e2b50e2eafefd0587bf240c379bab6bdea3b"
     },
     {
+      "path": "workbench/dashboard/src/BusinessMainline.tsx",
+      "sha256": "244cac3163f55afb84cdad1d821a6ed3d1ba72aba5840814824da8336cba4ec7"
+    },
+    {
       "path": "workbench/dashboard/src/GovernanceApp.tsx",
-      "sha256": "295ef38efff2ac9afddca1d9dfd827c39e21deb9fda4dd9810d2c1e65239ac43"
+      "sha256": "4e14ae52be2a17cc600ca9c4dfda03407b40ab0f674703b34fb719245dd5501c"
     },
     {
       "path": "workbench/dashboard/src/MethodActions.tsx",
@@ -50,6 +54,10 @@
       "sha256": "2296d4ce9d7fafc8b84d46c1883ca5936eadc310bc000c826ac0f42661e0a02a"
     },
     {
+      "path": "workbench/dashboard/src/__tests__/BusinessMainline.test.tsx",
+      "sha256": "8dd6168488988717c030058357a9618eb4cdda9e57ba7b6e574b819693615181"
+    },
+    {
       "path": "workbench/dashboard/src/__tests__/CatalogRecords.test.tsx",
       "sha256": "0c080cc32c60e78d7f73d8256f0d1cd020fb5e108aa13258fa50099dc0b7aab0"
     },
@@ -68,6 +76,10 @@
     {
       "path": "workbench/dashboard/src/__tests__/GovernanceDefinitions.test.tsx",
       "sha256": "c1b69cba2ae85b85e408be2474a5459359f024710fb9b90f31adbaa95bcb1aaf"
+    },
+    {
+      "path": "workbench/dashboard/src/__tests__/GovernanceNav.test.tsx",
+      "sha256": "b5a5bb5a0104b5b0341b0d50e2753655c9440ab2df7822863fca9de193667aea"
     },
     {
       "path": "workbench/dashboard/src/__tests__/MethodActions.test.tsx",
@@ -231,7 +243,7 @@
     },
     {
       "path": "workbench/dashboard/src/governance.css",
-      "sha256": "8f3e6a8cf8a64835ccca54ede6859e33c6974826b8451a95b8d62e86bf2ba384"
+      "sha256": "b9aa0ebd71e816aeab8511518b9bfaf7a8ff65c00d57f2babc97c30ed5ac13c0"
     },
     {
       "path": "workbench/dashboard/src/index.css",
@@ -288,6 +300,10 @@
     {
       "path": "workbench/dashboard/vite.config.ts",
       "sha256": "c4288cb2d28c2d313302b1e4cb3174f550c192cf50a1d52b599f7e6ff9531fa0"
+    },
+    {
+      "path": "workbench/dashboard/vite.verify.config.ts",
+      "sha256": "f3e02a7de6fb724d833ef6973b5561dd9f8d037b436b083f6f6a50ed162840b0"
     }
   ],
   "outputs": [
@@ -317,19 +333,19 @@
       "sha256": "8fa40e5d248247735eb97a0bd593b8852440430600d6ba01364c31fe0abc1fe1"
     },
     {
-      "bytes": 629876,
-      "path": "assets/index-D87LsY6q.js",
-      "sha256": "d51e60d0fcf2dfd012ad69fac72b61e3d98264c19b37790bbccdd2fee85a1aee"
+      "bytes": 79858,
+      "path": "assets/index-BJlo0Q4C.css",
+      "sha256": "40060ba48dabe0ec4e4dc23063f2663d7570451399def9a2fe64066310792687"
     },
     {
-      "bytes": 77308,
-      "path": "assets/index-YNq2GkZz.css",
-      "sha256": "6cabb3197c085207ecf10717d61558ba68d429d533ffa05673c578391f872402"
+      "bytes": 640842,
+      "path": "assets/index-CmNoj22c.js",
+      "sha256": "df110d34ba03a53b29bb8adb7a72221cb72fba37a496a22289f6cbf437444c79"
     },
     {
       "bytes": 479,
       "path": "index.html",
-      "sha256": "64ab061a9c613f789643da9a47ee234923fc2b5915954d251a02ca52f4572911"
+      "sha256": "1486f01c79c177d8ccd51c4515198f5bf218ee01cc405f012a2ea6d4051a8fdd"
     }
   ],
   "schema_version": "tkos.dashboard-assets/1"

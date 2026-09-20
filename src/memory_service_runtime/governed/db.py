@@ -6,17 +6,20 @@ AuthContext for a later transaction. Historical reads still use current rights.
 """
 from __future__ import annotations
 
-from contextlib import contextmanager
+from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal
+import atexit
 import hashlib
 import os
+import threading
 from typing import Any, Iterator
 from uuid import UUID
 
 import psycopg
 from psycopg.rows import dict_row
+from psycopg_pool import ConnectionPool, PoolTimeout
 
 from . import checkpoints
 from .errors import GovernedError
@@ -195,12 +198,91 @@ def revision_row(conn: psycopg.Connection, ctx: AuthContext, object_id: str,
     return jsonable(row)
 
 
+# Session GUCs the governed path declares.  Every governed call sets these
+# transaction-locally, so COMMIT/ROLLBACK already clears them; the pool clears
+# them again on return so a reused connection cannot carry an identity or a
+# scope into the next caller even if some future path forgets the `local` flag.
+_SESSION_GUCS = ("app.governed_scope_id", "app.runtime_write_capability",
+                 "app.governed_credential_digest")
+
+_POOL_LOCK = threading.Lock()
+_POOL: ConnectionPool | None = None
+_POOL_KEY: tuple[str, int] | None = None
+
+
+def _reset(conn: psycopg.Connection) -> None:
+    """Clear governance session state before the connection is reused."""
+    conn.execute("SELECT " + ", ".join(f"set_config('{name}', '', false)"
+                                       for name in _SESSION_GUCS))
+    conn.commit()
+
+
+def _pool_config() -> tuple[str, int, float]:
+    """Pool sizing from the environment.  max_size 0 disables pooling.
+
+    DATABASE_URL is read through env_value so DATABASE_URL_FILE works here too:
+    the DSN carries the application password, and a secret file keeps it out of
+    the container environment where `docker inspect` would expose it.
+    """
+    from memory_service_runtime.config import RuntimeConfigError, env_value
+
+    try:
+        url = env_value("DATABASE_URL").strip()
+    except RuntimeConfigError:
+        url = ""
+    try:
+        max_size = int(os.environ.get("GOVERNED_POOL_MAX_SIZE", "10"))
+        timeout = float(os.environ.get("GOVERNED_POOL_TIMEOUT_SECONDS", "10"))
+    except ValueError:
+        max_size, timeout = 10, 10.0
+    return url, max(max_size, 0), max(timeout, 0.1)
+
+
+def _pool(url: str, max_size: int) -> ConnectionPool:
+    """One bounded pool per process, rebuilt when the DSN or bound changes."""
+    global _POOL, _POOL_KEY
+    with _POOL_LOCK:
+        if _POOL is not None and _POOL_KEY == (url, max_size):
+            return _POOL
+        if _POOL is not None:
+            _POOL.close()
+            _POOL, _POOL_KEY = None, None
+        pool = ConnectionPool(url, min_size=0, max_size=max_size, open=True,
+                              reset=_reset, kwargs={"row_factory": dict_row,
+                                                    "connect_timeout": 5})
+        _POOL, _POOL_KEY = pool, (url, max_size)
+        return pool
+
+
+@atexit.register
+def _close_pool() -> None:
+    """Release pooled backends on SIGTERM so shutdown stays inside the grace period."""
+    global _POOL, _POOL_KEY
+    with _POOL_LOCK:
+        if _POOL is not None:
+            _POOL.close()
+            _POOL, _POOL_KEY = None, None
+
+
 @contextmanager
 def transaction(token: str) -> Iterator[tuple[psycopg.Connection, AuthContext]]:
-    url = os.environ.get("DATABASE_URL", "").strip()
+    url, max_size, timeout = _pool_config()
     if not url:
         raise GovernedError("EVIDENCE_UNAVAILABLE", "The governed database is unavailable.")
-    with psycopg.connect(url, row_factory=dict_row, connect_timeout=5) as conn:
+    if max_size == 0:
+        with psycopg.connect(url, row_factory=dict_row, connect_timeout=5) as conn:
+            with conn.transaction():
+                yield conn, authenticate(conn, token)
+        return
+    pool = _pool(url, max_size)
+    with ExitStack() as stack:
+        try:
+            conn = stack.enter_context(pool.connection(timeout=timeout))
+        except (PoolTimeout, psycopg.OperationalError) as exc:
+            # Exhausted pool or an unreachable server: a 503 the caller can
+            # retry, not an unhandled 500.  The code is shared with evidence
+            # storage because the public error set has no overload signal yet.
+            raise GovernedError("EVIDENCE_UNAVAILABLE",
+                                "The governed database is unavailable.") from exc
         with conn.transaction():
-            ctx = authenticate(conn, token)
-            yield conn, ctx
+            yield conn, authenticate(conn, token)

@@ -1,0 +1,362 @@
+name: ${COMPOSE_PROJECT_NAME:-tkos-runtime-prod}
+
+x-runtime-environment: &runtime-environment
+  # The DSN carries the application password, so it is mounted as a secret
+  # instead of being interpolated into the environment, where `docker inspect`
+  # would print it.  Ops profiles below are one-shot and still use env DSNs.
+  DATABASE_URL_FILE: /run/secrets/database-url
+  DB_CONNECT_TIMEOUT: ${DB_CONNECT_TIMEOUT:-5}
+  GOVERNED_POOL_MAX_SIZE: ${GOVERNED_POOL_MAX_SIZE:-10}
+  GOVERNED_POOL_TIMEOUT_SECONDS: ${GOVERNED_POOL_TIMEOUT_SECONDS:-10}
+  MEMORY_TENANT: ${MEMORY_TENANT}
+  MEMORY_ORG: ${MEMORY_ORG}
+  TKOS_OBJECT_STORE_ENDPOINT: http://minio:9000
+  TKOS_OBJECT_STORE_BUCKET: ${MINIO_SNAPSHOT_BUCKET}
+  TKOS_OBJECT_STORE_ARTIFACT_BUCKET: ${MINIO_ARTIFACT_BUCKET}
+  TKOS_OBJECT_STORE_ACCESS_KEY_FILE: /run/secrets/minio-app-access-key
+  TKOS_OBJECT_STORE_SECRET_KEY_FILE: /run/secrets/minio-app-secret-key
+  TKOS_OBJECT_STORE_REGION: us-east-1
+  TKOS_OBJECT_STORE_VERIFY_TLS: "false"
+
+x-service-security: &service-security
+  init: true
+  read_only: true
+  restart: unless-stopped
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+
+services:
+  postgres:
+    image: ${POSTGRES_IMAGE}
+    # pg_stat_statements is the per-statement call counter the performance
+    # baseline reads; it must be preloaded before db_admin.py can CREATE it.
+    command:
+      - postgres
+      - -c
+      - shared_preload_libraries=pg_stat_statements
+      - -c
+      - pg_stat_statements.track=all
+      - -c
+      - pg_stat_statements.max=${PG_STAT_STATEMENTS_MAX:-5000}
+    environment:
+      POSTGRES_USER: ${POSTGRES_ADMIN_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_ADMIN_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    shm_size: 256m
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
+    stop_grace_period: 60s
+    restart: unless-stopped
+    networks: [data-internal]
+
+  minio:
+    image: ${MINIO_IMAGE}
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9000/minio/health/ready"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
+    stop_grace_period: 30s
+    restart: unless-stopped
+    networks: [data-internal]
+
+  minio-init:
+    image: ${MINIO_MC_IMAGE}
+    profiles: [ops]
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      - |
+        mc alias set local http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD" >/dev/null
+        mc ready local >/dev/null
+        mc mb --ignore-existing "local/$$MINIO_ARTIFACT_BUCKET" >/dev/null
+        mc version enable "local/$$MINIO_ARTIFACT_BUCKET" >/dev/null
+        mc mb --ignore-existing --with-lock "local/$$MINIO_SNAPSHOT_BUCKET" >/dev/null
+        mc version enable "local/$$MINIO_SNAPSHOT_BUCKET" >/dev/null
+        mc retention set --default GOVERNANCE "$$MINIO_SNAPSHOT_RETENTION" "local/$$MINIO_SNAPSHOT_BUCKET" >/dev/null
+        policy=/tmp/runtime-policy.json
+        printf '%s\n' \
+          '{"Version":"2012-10-17","Statement":[' \
+          '{"Effect":"Allow","Action":["s3:GetBucketLocation","s3:ListBucket","s3:GetBucketVersioning","s3:GetBucketObjectLockConfiguration"],"Resource":["arn:aws:s3:::'"$$MINIO_ARTIFACT_BUCKET"'","arn:aws:s3:::'"$$MINIO_SNAPSHOT_BUCKET"'"]},' \
+          '{"Effect":"Allow","Action":["s3:GetObject","s3:GetObjectVersion","s3:PutObject"],"Resource":["arn:aws:s3:::'"$$MINIO_ARTIFACT_BUCKET"'/*","arn:aws:s3:::'"$$MINIO_SNAPSHOT_BUCKET"'/*"]},' \
+          '{"Effect":"Allow","Action":["s3:DeleteObject"],"Resource":["arn:aws:s3:::'"$$MINIO_ARTIFACT_BUCKET"'/*"]}' \
+          ']}' > "$$policy"
+        mc admin user add local "$$MINIO_APP_ACCESS_KEY" "$$MINIO_APP_SECRET_KEY" >/dev/null
+        if ! mc admin policy info local "$$MINIO_APP_POLICY" >/dev/null 2>&1; then
+          mc admin policy create local "$$MINIO_APP_POLICY" "$$policy" >/dev/null
+        fi
+        mc admin policy attach local "$$MINIO_APP_POLICY" --user "$$MINIO_APP_ACCESS_KEY" >/dev/null
+        mc stat "local/$$MINIO_ARTIFACT_BUCKET" >/dev/null
+        mc stat "local/$$MINIO_SNAPSHOT_BUCKET" >/dev/null
+    environment:
+      MC_CONFIG_DIR: /tmp/.mc
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_APP_ACCESS_KEY: ${MINIO_APP_ACCESS_KEY}
+      MINIO_APP_SECRET_KEY: ${MINIO_APP_SECRET_KEY}
+      MINIO_APP_POLICY: ${MINIO_APP_POLICY}
+      MINIO_ARTIFACT_BUCKET: ${MINIO_ARTIFACT_BUCKET}
+      MINIO_SNAPSHOT_BUCKET: ${MINIO_SNAPSHOT_BUCKET}
+      MINIO_SNAPSHOT_RETENTION: ${MINIO_SNAPSHOT_RETENTION:-30d}
+    depends_on:
+      minio:
+        condition: service_healthy
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt:
+      - no-new-privileges:true
+    networks: [data-internal]
+
+  db-admin:
+    image: ${RUNTIME_API_IMAGE}
+    profiles: [ops]
+    entrypoint: ["python", "/ops/db_admin.py"]
+    environment:
+      POSTGRES_ADMIN_URL: postgresql://${POSTGRES_ADMIN_USER}:${POSTGRES_ADMIN_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      POSTGRES_MIGRATION_URL: postgresql://${POSTGRES_OWNER_USER}:${POSTGRES_OWNER_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      POSTGRES_APP_URL: postgresql://${POSTGRES_APP_USER}:${POSTGRES_APP_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_OWNER_USER: ${POSTGRES_OWNER_USER}
+      POSTGRES_OWNER_PASSWORD: ${POSTGRES_OWNER_PASSWORD}
+      POSTGRES_APP_USER: ${POSTGRES_APP_USER}
+      POSTGRES_APP_PASSWORD: ${POSTGRES_APP_PASSWORD}
+      MEMORY_TENANT: ${MEMORY_TENANT}
+      MEMORY_ORG: ${MEMORY_ORG}
+      TKOS_NARRATIVE_DOMAIN_ID: ${TKOS_NARRATIVE_DOMAIN_ID}
+      TKOS_NARRATIVE_SCOPE_ID: ${TKOS_NARRATIVE_SCOPE_ID}
+      TKOS_NARRATIVE_PRINCIPAL_ID: ${TKOS_NARRATIVE_PRINCIPAL_ID}
+      TKOS_NARRATIVE_ASSIGNMENT_ID: ${TKOS_NARRATIVE_ASSIGNMENT_ID}
+      TKOS_NARRATIVE_CREDENTIAL_ID: ${TKOS_NARRATIVE_CREDENTIAL_ID}
+      TKOS_NARRATIVE_POLICY_ID: ${TKOS_NARRATIVE_POLICY_ID}
+      TKOS_NARRATIVE_POLICY_REVISION_ID: ${TKOS_NARRATIVE_POLICY_REVISION_ID}
+      TKOS_NARRATIVE_SERVICE_TOKEN_FILE: /run/private/runtime-service-token
+    volumes:
+      - ./db_admin.py:/ops/db_admin.py:ro
+      - ./private:/run/private:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt:
+      - no-new-privileges:true
+    networks: [data-internal]
+
+  migrate:
+    image: ${RUNTIME_API_IMAGE}
+    profiles: [ops]
+    command: ["tkos-memory-migrate"]
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_OWNER_USER}:${POSTGRES_OWNER_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      DB_CONNECT_TIMEOUT: ${DB_CONNECT_TIMEOUT:-5}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt:
+      - no-new-privileges:true
+    networks: [data-internal]
+
+  restore:
+    image: ${POSTGRES_IMAGE}
+    profiles: [ops]
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      - |
+        export PGPASSWORD="$$POSTGRES_ADMIN_PASSWORD"
+        pg_restore --exit-on-error --no-owner --no-acl \
+          --single-transaction \
+          --host=postgres --username="$$POSTGRES_ADMIN_USER" --dbname="$$POSTGRES_DB" \
+          /run/private/merged.dump
+    environment:
+      POSTGRES_ADMIN_USER: ${POSTGRES_ADMIN_USER}
+      POSTGRES_ADMIN_PASSWORD: ${POSTGRES_ADMIN_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - ./private:/run/private:ro
+    user: "0:0"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt:
+      - no-new-privileges:true
+    networks: [data-internal]
+
+  # Governance tables carry FORCE ROW LEVEL SECURITY, which applies to the table
+  # owner as well.  A pg_dump run as the migration owner therefore exits 0 and
+  # silently writes zero rows for those tables.  The dump must run as an
+  # identity that bypasses RLS, and the guard below refuses to start otherwise.
+  backup:
+    image: ${POSTGRES_IMAGE}
+    profiles: [ops]
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      - |
+        export PGPASSWORD="$$POSTGRES_ADMIN_PASSWORD"
+        psql --host=postgres --username="$$POSTGRES_ADMIN_USER" --dbname="$$POSTGRES_DB" \
+          -qtAX -v ON_ERROR_STOP=1 -c \
+          "SELECT CASE WHEN rolsuper OR rolbypassrls THEN 'ok'
+                       ELSE 'FATAL: backup role is subject to FORCE RLS' END
+             FROM pg_roles WHERE rolname=current_user" | grep -qx ok
+        stamp=$$(date -u +%Y%m%dT%H%M%SZ)
+        out="/backups/$${POSTGRES_DB}-$${stamp}.dump"
+        umask 077
+        pg_dump --format=custom --compress=9 \
+          --host=postgres --username="$$POSTGRES_ADMIN_USER" --dbname="$$POSTGRES_DB" \
+          --file="$$out"
+        sha256sum "$$out" > "$$out.sha256"
+        psql --host=postgres --username="$$POSTGRES_ADMIN_USER" --dbname="$$POSTGRES_DB" \
+          -qtAX -c "SELECT relname||' '||n_live_tup FROM pg_stat_user_tables
+                     WHERE relname LIKE 'gov_%' ORDER BY relname" > "$$out.rowcounts"
+        chmod 0400 "$$out" "$$out.sha256" "$$out.rowcounts"
+        echo "{\"ok\":true,\"operation\":\"backup\",\"dump\":\"$$out\"}"
+    environment:
+      POSTGRES_ADMIN_USER: ${POSTGRES_ADMIN_USER}
+      POSTGRES_ADMIN_PASSWORD: ${POSTGRES_ADMIN_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - ./backups:/backups
+    user: "0:0"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt:
+      - no-new-privileges:true
+    networks: [data-internal]
+
+  # MinIO holds the evidence and snapshot objects the dump references by hash.
+  # Versioning and Object Lock protect them in place; they do not survive loss
+  # of the host, so the objects are mirrored alongside the dump.
+  backup-objects:
+    image: ${MINIO_MC_IMAGE}
+    profiles: [ops]
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      - |
+        mc alias set local http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD" >/dev/null
+        mc ready local >/dev/null
+        stamp=$$(date -u +%Y%m%dT%H%M%SZ)
+        for bucket in "$$MINIO_ARTIFACT_BUCKET" "$$MINIO_SNAPSHOT_BUCKET"; do
+          mc mirror --quiet --overwrite "local/$$bucket" "/backups/objects/$$stamp/$$bucket"
+        done
+        echo "{\"ok\":true,\"operation\":\"backup-objects\",\"stamp\":\"$$stamp\"}"
+    environment:
+      MC_CONFIG_DIR: /tmp/.mc
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_ARTIFACT_BUCKET: ${MINIO_ARTIFACT_BUCKET}
+      MINIO_SNAPSHOT_BUCKET: ${MINIO_SNAPSHOT_BUCKET}
+    volumes:
+      - ./backups:/backups
+    user: "0:0"
+    depends_on:
+      minio:
+        condition: service_healthy
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt:
+      - no-new-privileges:true
+    networks: [data-internal]
+
+  runtime-api:
+    <<: *service-security
+    image: ${RUNTIME_API_IMAGE}
+    environment:
+      <<: *runtime-environment
+      ADAPTER_AUTH: ${ADAPTER_AUTH}
+      VIEWER_USER_ID: ${VIEWER_USER_ID}
+      MEMORY_EMBEDDING_API_KEY_FILE: /run/secrets/embedding-api-key
+      MEMORY_EMBEDDING_BASE_URL: ${MEMORY_EMBEDDING_BASE_URL}
+      MEMORY_EMBEDDING_MODEL: ${MEMORY_EMBEDDING_MODEL}
+      MEMORY_EMBEDDING_DIM: ${MEMORY_EMBEDDING_DIM:-2048}
+      TKOS_NARRATIVE_ENABLED: "1"
+      TKOS_NARRATIVE_LEGACY_ENABLED: "1"
+      TKOS_NARRATIVE_COMPRESSION: ${TKOS_NARRATIVE_COMPRESSION:-none}
+      TKOS_NARRATIVE_DOMAIN_ID: ${TKOS_NARRATIVE_DOMAIN_ID}
+      TKOS_NARRATIVE_TIMEOUT_SECONDS: ${TKOS_NARRATIVE_TIMEOUT_SECONDS:-20}
+    secrets:
+      - database-url
+      - embedding-api-key
+      - minio-app-access-key
+      - minio-app-secret-key
+    ports:
+      - "127.0.0.1:${RUNTIME_HTTP_PORT:-8030}:8010"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    tmpfs: [/tmp]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8010/healthz',timeout=4)"]
+      interval: 10s
+      timeout: 5s
+      retries: 18
+      start_period: 15s
+    networks: [data-internal, egress]
+
+  runtime-worker:
+    <<: *service-security
+    image: ${RUNTIME_WORKER_IMAGE}
+    environment:
+      <<: *runtime-environment
+      RUNTIME_WORKER_ID: ${RUNTIME_WORKER_ID:-tkos-runtime-prod-worker-1}
+      RUNTIME_WORKER_POLL_SECONDS: ${RUNTIME_WORKER_POLL_SECONDS:-1}
+    secrets:
+      - database-url
+      - minio-app-access-key
+      - minio-app-secret-key
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      runtime-api:
+        condition: service_healthy
+    tmpfs: [/tmp]
+    stop_grace_period: 45s
+    healthcheck:
+      test: ["CMD", "tkos-memory-worker-health"]
+      interval: 10s
+      timeout: 5s
+      retries: 18
+      start_period: 15s
+    networks: [data-internal, egress]
+
+secrets:
+  database-url:
+    file: ./private/database-url
+  embedding-api-key:
+    file: ./private/embedding-api-key
+  minio-app-access-key:
+    file: ./private/minio-app-access-key
+  minio-app-secret-key:
+    file: ./private/minio-app-secret-key
+
+networks:
+  data-internal:
+    internal: true
+  egress:
+
+volumes:
+  postgres-data:
+  minio-data:

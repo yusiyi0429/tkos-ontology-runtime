@@ -7,6 +7,16 @@ from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
+def _secret(name: str) -> str:
+    """Read ``NAME_FILE`` if the deployment mounts this credential as a secret."""
+    from memory_service_runtime.config import RuntimeConfigError, env_value
+
+    try:
+        return env_value(name).strip()
+    except RuntimeConfigError:
+        return ""
+
+
 class Settings(BaseSettings):
     """Configuration for one tenant/organization scope.
 
@@ -59,6 +69,13 @@ class Settings(BaseSettings):
         self.tkos_dashboard_allowed_hosts = self.tkos_dashboard_allowed_hosts.strip()
         self.tkos_dashboard_allowed_origins = self.tkos_dashboard_allowed_origins.strip()
         self.tkos_dashboard_assets_dir = self.tkos_dashboard_assets_dir.strip()
+
+        # 这两项是凭据：DSN 带应用口令，provider key 是外部凭据。部署可以改用
+        # ``*_FILE`` 挂 secret，让它们不出现在容器环境里（`docker inspect` 可读）。
+        self.database_url = self.database_url or _secret("DATABASE_URL")
+        self.memory_embedding_api_key = (
+            self.memory_embedding_api_key or _secret("MEMORY_EMBEDDING_API_KEY")
+        )
 
         if not self.memory_tenant or not self.memory_org:
             raise ValueError("MEMORY_TENANT 和 MEMORY_ORG 不能为空：不能使用空 scope")

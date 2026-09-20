@@ -1,5 +1,7 @@
 .env
 .env.*
+deploy/*/private/
+deploy/*/backups/
 !.env.example
 .runtime-acceptance/
 artifacts/

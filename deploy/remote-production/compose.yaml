@@ -199,10 +199,12 @@ services:
       - no-new-privileges:true
     networks: [data-internal]
 
-  # Governance tables carry FORCE ROW LEVEL SECURITY, which applies to the table
-  # owner as well.  A pg_dump run as the migration owner therefore exits 0 and
-  # silently writes zero rows for those tables.  The dump must run as an
-  # identity that bypasses RLS, and the guard below refuses to start otherwise.
+  # Forty-nine governance tables carry FORCE ROW LEVEL SECURITY, which applies
+  # to the table owner as well, so the dump must run as an identity that
+  # bypasses RLS.  By default pg_dump fails loudly here (it sets row_security
+  # off and the server rejects the query), but adding --enable-row-security to
+  # "fix" that error turns it into an exit-0 dump containing zero governance
+  # rows.  The guard states the requirement up front so that is never the fix.
   backup:
     image: ${POSTGRES_IMAGE}
     profiles: [ops]
@@ -217,14 +219,22 @@ services:
              FROM pg_roles WHERE rolname=current_user" | grep -qx ok
         stamp=$$(date -u +%Y%m%dT%H%M%SZ)
         out="/backups/$${POSTGRES_DB}-$${stamp}.dump"
+        test ! -e "$$out" || { echo "FATAL: $$out already exists"; exit 1; }
         umask 077
+        # Write under .partial and rename only after pg_dump succeeds, so an
+        # interrupted run never leaves a file that looks like a usable backup.
         pg_dump --format=custom --compress=9 \
           --host=postgres --username="$$POSTGRES_ADMIN_USER" --dbname="$$POSTGRES_DB" \
-          --file="$$out"
-        sha256sum "$$out" > "$$out.sha256"
+          --file="$$out.partial"
         psql --host=postgres --username="$$POSTGRES_ADMIN_USER" --dbname="$$POSTGRES_DB" \
           -qtAX -c "SELECT relname||' '||n_live_tup FROM pg_stat_user_tables
-                     WHERE relname LIKE 'gov_%' ORDER BY relname" > "$$out.rowcounts"
+                     WHERE relname LIKE 'gov_%' ORDER BY relname" > "$$out.partial.rowcounts"
+        mv "$$out.partial" "$$out"
+        mv "$$out.partial.rowcounts" "$$out.rowcounts"
+        # Record the basename, not the in-container path, so the sidecar still
+        # verifies after the dump is copied off this host — which is the whole
+        # reason it exists.
+        (cd /backups && sha256sum "$${out##*/}" > "$${out##*/}.sha256")
         chmod 0400 "$$out" "$$out.sha256" "$$out.rowcounts"
         echo "{\"ok\":true,\"operation\":\"backup\",\"dump\":\"$$out\"}"
     environment:

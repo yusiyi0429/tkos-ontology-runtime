@@ -1,4 +1,4 @@
-import { ArrowUpRight, BookOpen, CheckCheck, CircleCheck, ClipboardList, FileText, Fingerprint, GitBranch, GitPullRequest, Inbox, LogOut, Network, RefreshCw, ShieldCheck, Waypoints } from 'lucide-react'
+import { ArrowUpRight, BookOpen, CheckCheck, Compass, CircleCheck, ClipboardList, FileText, Fingerprint, GitBranch, GitPullRequest, Inbox, LogOut, Network, RefreshCw, ShieldCheck, Waypoints } from 'lucide-react'
 import './governance.css'
 import { createContext, useContext, useCallback, useEffect, useRef, useState } from 'react'
 import { App } from '@/App'
@@ -69,22 +69,43 @@ function Facts({ payload, responsibilities }: { payload: Payload; responsibiliti
   return <dl className="grid gap-3 text-sm">{Object.entries(payload).filter(([k]) => FIELD[k]).map(([k,v]) => <div key={k}><dt className="font-medium text-muted-foreground">{FIELD[k]}</dt><dd className="whitespace-pre-wrap break-words">{k === 'hard_deadline' ? formatTime(String(v)) : <BusinessValue value={v} names={names}/>}</dd></div>)}</dl>
 }
 
+// Navigation is grouped by what the reader came to do, not by object layer.
+// The leaf destinations and their ids are unchanged; only the grouping and the
+// purpose home above them are new, so existing links and tabs keep working.
 const NAV = [
-  { id: 'tasks', label: '我的待办', icon: Inbox, description: '共同核对与待确认事项' },
-  { id: 'method', label: '方法事项', icon: GitPullRequest, description: 'Agreement、责任承诺与正式状态确认' },
-  { id: 'sources', label: '独立来源', icon: FileText, description: '无锚点会议／文档来源、分享与跟进草稿' },
-  { id: 'missions', label: '正式 Mission', icon: CheckCheck, description: '已确认的责任与交付要求' },
-  { id: 'map', label: '本体地图', icon: Waypoints, description: '理解业务对象与规则' },
-  { id: 'definitions', label: '业务定义', icon: BookOpen, description: '44 项业务概念、目的与实现支持' },
-  { id: 'graph', label: '业务关系图', icon: Network, description: '查看目标、责任与依据的关联' },
-  { id: 'submissions', label: '我的提交', icon: ClipboardList, description: '核对回执与恢复未明结果' },
+  { id: 'home', label: '目的首页', icon: Compass, description: '按你要做的事进入对应工作面', group: '' },
+  { id: 'tasks', label: '我的待办', icon: Inbox, description: '共同核对与待确认事项', group: '处理核对与确认' },
+  { id: 'method', label: '方法事项', icon: GitPullRequest, description: 'Agreement、责任承诺与正式状态确认', group: '处理核对与确认' },
+  { id: 'missions', label: '正式 Mission', icon: CheckCheck, description: '已确认的责任与交付要求', group: '查看业务与依据' },
+  { id: 'graph', label: '业务关系图', icon: Network, description: '查看目标、责任与依据的关联', group: '查看业务与依据' },
+  { id: 'map', label: '本体地图', icon: Waypoints, description: '理解业务对象与规则', group: '理解本体与规则' },
+  { id: 'definitions', label: '业务定义', icon: BookOpen, description: '44 项业务概念、目的与实现支持', group: '理解本体与规则' },
+  { id: 'sources', label: '独立来源', icon: FileText, description: '无锚点会议／文档来源、分享与跟进草稿', group: '管理来源与追溯' },
+  { id: 'submissions', label: '我的提交', icon: ClipboardList, description: '核对回执与恢复未明结果', group: '管理来源与追溯' },
 ]
+
+// The four purpose entries are derived from NAV, so a destination can never
+// appear on the home page under a purpose it is not filed under in the sidebar.
+const PURPOSE_INTENT: Record<string, string> = {
+  '处理核对与确认': '固定版本评论、本人承诺与整组确认——需要你本人动作的事项。',
+  '查看业务与依据': '沿战略 → 长期目标 → 阶段目标 → 任务查看正式内容及其确认依据。',
+  '理解本体与规则': '业务对象、它们之间的关系，以及每类对象由哪些记录承载。',
+  '管理来源与追溯': '登记来源、分享片段，并按回执追溯每一次已提交的动作。',
+}
+const PURPOSES = [...new Set(NAV.filter(n => n.group).map(n => n.group))]
+  .map(group => ({ group, intent: PURPOSE_INTENT[group] ?? '', items: NAV.filter(n => n.group === group) }))
 function EmptyState({ title, children }: { title: string; children: React.ReactNode }) {
   return <div className="gov-empty"><CircleCheck size={32} strokeWidth={1.4}/><h3>{title}</h3><p>{children}</p></div>
 }
 function ReviewPath({ phase }: { phase?: string }) {
-  const current = phase === 'open' ? 0 : phase === 'closed' ? 1 : phase === 'resolved' ? 2 : -1
-  return <ol className="gov-review-path" aria-label="共同核对流程">{['DRI 共同核对', 'Co-agent 收拢', 'CEO 整组确认', '正式 Mission'].map((label, i) => <li key={label} aria-current={i === current ? 'step' : undefined}><span>{i + 1}</span>{label}</li>)}</ol>
+  // Committing is its own step (m1b_commit_candidate) between the co-agent
+  // pass and the CEO's group confirmation: the CEO cannot commit for anyone.
+  // `resolved` keeps pointing at the CEO step it pointed at before this stage
+  // was added — it is the phase m1b_activate_candidates requires, and this
+  // component is not told whether the commitments are already complete, so it
+  // must not claim the window is still waiting on them.
+  const current = phase === 'open' ? 0 : phase === 'closed' ? 1 : phase === 'resolved' ? 3 : -1
+  return <ol className="gov-review-path" aria-label="共同核对流程">{['固定版本评论', 'Co-agent 收拢', '本人承诺', 'CEO 整组确认', '正式 Mission'].map((label, i) => <li key={label} aria-current={i === current ? 'step' : undefined}><span>{i + 1}</span>{label}</li>)}</ol>
 }
 
 export async function governanceFetch<T>(path: string, method = 'GET', body?: unknown, csrf?: string, signal?: AbortSignal): Promise<T> {
@@ -204,12 +225,26 @@ function GovernanceShell({ session, onAuthLost, onLogout }: { session: Session; 
 
   const switchTab = (value: string) => { const legacy = value === 'list'; const object = new URLSearchParams(location.search).get('object'); const next = legacy ? (object ? 'graph' : 'map') : value; intentEpoch.current++; setWindowId(null); setPreview(null); setTab(next); const url = new URL(location.href); if (EXPLORER.includes(next)) url.searchParams.set('view', next); else url.searchParams.delete('view'); history.replaceState(null, '', url); window.dispatchEvent(new PopStateEvent('popstate')) }
   const activeNav = NAV.find(n => n.id === tab) ?? NAV[0]
-  return <div className="gov-shell"><aside className="gov-sidebar"><div className="gov-wordmark"><GitBranch size={26}/><span>TKOS <small>RUNTIME</small></span></div><p className="gov-sidebar-caption">治理工作台</p><nav aria-label="工作台导航">{NAV.map(({id, label, icon: Icon}, i) => <div key={id}>{i === 0 && <p className="gov-nav-group">我的工作</p>}{i === 2 && <p className="gov-nav-group">业务与本体</p>}{i === 5 && <p className="gov-nav-group">操作追溯</p>}<button aria-current={tab === id ? 'page' : undefined} className="gov-nav-item" onClick={() => switchTab(id)}><Icon size={18}/><span>{label}</span>{tab === id && <span className="gov-nav-dot"/>}</button></div>)}</nav><div className="gov-sidebar-foot"><ShieldCheck size={17}/><span>本人权限 · 正式回执</span></div></aside><div className="gov-body"><header className="gov-topbar"><div><span className="gov-breadcrumb">工作空间 / </span><span>{activeNav.label}</span></div><div className="gov-user"><span className="gov-environment">本机隔离测试</span><span className="gov-avatar">{session.identity.display_name.slice(0,1)}</span><div><strong>{session.identity.display_name}</strong><small>{[...new Set(session.identity.assignments.map(a => ({CEO:'CEO', DOMAIN_DRI:'域负责人', MISSION_DRI:'Mission 负责人'}[a.role] ?? a.role)))].join(' / ')}</small></div><Button variant="ghost" size="icon" aria-label="退出登录" onClick={() => void onLogout().catch(handleError)}><LogOut size={17}/></Button></div></header>
+  return <div className="gov-shell"><aside className="gov-sidebar"><div className="gov-wordmark"><GitBranch size={26}/><span>TKOS <small>RUNTIME</small></span></div><p className="gov-sidebar-caption">治理工作台</p><nav aria-label="工作台导航">{NAV.map(({id, label, icon: Icon, group}, i) => <div key={id}>{group && group !== NAV[i - 1]?.group && <p className="gov-nav-group">{group}</p>}<button aria-current={tab === id ? 'page' : undefined} className="gov-nav-item" onClick={() => switchTab(id)}><Icon size={18}/><span>{label}</span>{tab === id && <span className="gov-nav-dot"/>}</button></div>)}</nav><div className="gov-sidebar-foot"><ShieldCheck size={17}/><span>本人权限 · 正式回执</span></div></aside><div className="gov-body"><header className="gov-topbar"><div><span className="gov-breadcrumb">工作空间 / </span><span>{activeNav.label}</span></div><div className="gov-user"><span className="gov-environment">本机隔离测试</span><span className="gov-avatar">{session.identity.display_name.slice(0,1)}</span><div><strong>{session.identity.display_name}</strong><small>{[...new Set(session.identity.assignments.map(a => ({CEO:'CEO', DOMAIN_DRI:'域负责人', MISSION_DRI:'Mission 负责人'}[a.role] ?? a.role)))].join(' / ')}</small></div><Button variant="ghost" size="icon" aria-label="退出登录" onClick={() => void onLogout().catch(handleError)}><LogOut size={17}/></Button></div></header>
     {failure && <Alert className="mx-auto my-4 max-w-5xl"><AlertDescription>{failure} <Button variant="link" onClick={refresh}>刷新核对</Button></AlertDescription></Alert>}
     {EXPLORER.includes(tab) ? <div className="gov-explorer"><App embedded /></div> : <main className="gov-main">
       {tab === 'sources' ? <SourceScenes session={session} prepare={prepare} onError={handleError} /> : tab === 'method' ? <MethodActions session={session} prepare={prepare} onError={handleError} onExplore={(objectId) => { const url = new URL(location.href); url.searchParams.set('object', objectId); history.replaceState(null, '', url); switchTab('graph') }} /> : windowId && tab === 'tasks' ? <WindowPane key={windowId} id={windowId} session={session} prepare={prepare} busy={busy || !!failure} onError={handleError} onBack={() => { intentEpoch.current++; setPreview(null); setWindowId(null) }} /> : <>
-        <div className="gov-page-heading"><div><p className="gov-eyebrow">{tab === 'tasks' ? '共同核对 / M1B' : tab === 'missions' ? '正式成果 / MISSION' : '操作追溯 / RECEIPTS'}</p><h2>{tab === 'tasks' ? '需要我处理的事项' : tab === 'missions' ? '正式 Mission · 待执行承接' : '提交记录与恢复'}</h2><p className="gov-page-description">{activeNav.description}。所有内容按你当前的权限展示。</p></div><Button variant="outline" onClick={refresh}><RefreshCw size={15}/>刷新</Button></div>{tab === 'tasks' && <div className="gov-flow-panel"><div><span className="gov-section-label">从核对到生效</span><p>每一步保留责任与依据</p></div><ReviewPath /></div>}
-        {loading && <p>正在读取…</p>}
+        <div className="gov-page-heading"><div><p className="gov-eyebrow">{tab === 'home' ? 'RUNTIME · 治理型业务内核' : tab === 'tasks' ? '共同核对 / M1B' : tab === 'missions' ? '正式成果 / MISSION' : '操作追溯 / RECEIPTS'}</p><h2>{tab === 'home' ? '看懂治理：从战略到任务的每一步都留痕' : tab === 'tasks' ? '需要我处理的事项' : tab === 'missions' ? '正式 Mission · 待执行承接' : '提交记录与恢复'}</h2><p className="gov-page-description">{activeNav.description}。所有内容按你当前的权限展示。</p></div><Button variant="outline" onClick={refresh}><RefreshCw size={15}/>刷新</Button></div>{tab === 'tasks' && <div className="gov-flow-panel"><div><span className="gov-section-label">从核对到生效</span><p>每一步保留责任与依据</p></div><ReviewPath /></div>}
+        {loading && tab !== 'home' && <p>正在读取…</p>}
+        {tab === 'home' && PURPOSES.map(({ group, intent, items }) => (
+          <section key={group} className="gov-task-card">
+            <div className="gov-task-symbol">{(() => { const Icon = items[0].icon; return <Icon size={22}/> })()}</div>
+            <div className="gov-task-copy">
+              <h3>{group}</h3>
+              <p>{intent}</p>
+            </div>
+            <div className="gov-task-actions">
+              {items.map(item => (
+                <Button key={item.id} variant="outline" onClick={() => switchTab(item.id)}>{item.label}</Button>
+              ))}
+            </div>
+          </section>
+        ))}
         {tab === 'tasks' && !loading && !failure && <>{tasks.length === 0 && <EmptyState title="当前没有待处理事项">新的共同核对或候选审阅事项出现后，会显示在这里。已生效的任务可在“正式 Mission”中查看。</EmptyState>}{tasks.map(t => <section key={t.object_id} className="gov-task-card"><div className="gov-task-symbol"><Inbox size={22}/></div><div className="gov-task-copy"><div className="gov-card-kicker"><span>{STATUS[t.phase]}</span><small>{t.contract_version}</small></div><h3>{t.title}</h3><p>{t.label}</p></div><Button variant="outline" onClick={() => { intentEpoch.current++; setPreview(null); setWindowId(t.object_id) }}>查看并办理<ArrowUpRight size={15}/></Button></section>)}{after && <Button variant="outline" onClick={async () => { const e = epoch.current; try { const page = await governanceFetch<{ items: Task[]; next_after: string | null }>(`/governance/tasks?after=${after}`); if (mounted.current && e === epoch.current) { setTasks(v => [...v, ...page.items]); setAfter(page.next_after) } } catch (e) { handleError(e) } }}>加载更多</Button>}</>}
         {tab === 'submissions' && <>{!commands.length && !loading && !failure && <EmptyState title="还没有提交记录">办理事项后，可以在这里查看正式回执或恢复结果不明的提交。</EmptyState>}{commands.map(c => <section key={c.command_id} className="gov-submission-card"><div className="flex items-center justify-between"><p>{(() => { const envelope = (c.envelope as Payload | null) ?? {}; return ACTION[String(envelope.action_type ?? (envelope.event as Payload)?.kind ?? '')] ?? '提交' })()} · {STATUS[c.status]}{c.payload_withheld ? ' · 正文已按当前授权撤下' : ''}</p><Button variant="outline" onClick={() => setPreview(c)}>查看结果／恢复</Button></div>{c.receipt === null ? <p className="mt-2 text-xs text-muted-foreground">回执已按当前授权隐藏</p>
               : c.receipt ? <p className="mt-2 text-xs text-muted-foreground">回执 {String((c.receipt as Payload).receipt_id ?? '未记录')}</p> : null}</section>)}</>}

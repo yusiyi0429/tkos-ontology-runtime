@@ -44,14 +44,23 @@ authorized Runtime actions for a later real identity and business-data rollout.
 **Backups.** `docker compose --profile ops run --rm backup` writes a custom-format
 dump, its sha256 and a live row-count sidecar into `backups/` with mode 0400;
 `backup-objects` mirrors both MinIO buckets beside it. The dump runs as the
-admin identity on purpose: eleven governance tables carry
-`FORCE ROW LEVEL SECURITY`, which applies to the table owner too, so a dump
-taken as the migration owner exits 0 and silently contains no rows for them.
-The service refuses to start unless its role is `rolsuper` or `rolbypassrls`.
+admin identity on purpose: forty-nine governance tables carry
+`FORCE ROW LEVEL SECURITY`, which applies to the table owner too, so the dump
+needs an identity that bypasses RLS. A dump attempted as the migration owner
+is not silently wrong by itself: pg_dump sets `row_security off`, the server
+rejects the query and pg_dump exits 1. The hazard is the obvious fix for that
+error — adding `--enable-row-security` makes the same command exit 0 and write
+a dump containing zero governance rows. Both behaviours were reproduced
+against this schema. The guard states the identity requirement up front so the
+loud failure is never converted into a silent one, and the service refuses to
+start unless its role is `rolsuper` or `rolbypassrls`.
 Drive both from host cron, and copy the results off this host — neither MinIO
 versioning nor Object Lock survives loss of the machine. Restore is only proven
 when a drill has restored into an empty database and `db_admin.py fingerprint`
-matches; the existing `restore` profile does the pg_restore half.
+matches; the existing `restore` profile does the pg_restore half. That drill
+has been run against this schema: 78 tables restored into an empty database
+from a dump of a seeded scope, identical 77-table fingerprints, and row-level
+security intact on both sides (49 tables ENABLE and FORCE, 53 policies).
 
 **Statement counters.** The postgres service preloads `pg_stat_statements` and
 `db_admin.py prepare` creates the extension. `db_admin.py statements-reset`

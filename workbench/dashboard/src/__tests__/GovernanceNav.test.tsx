@@ -35,7 +35,7 @@ describe('purpose-grouped navigation', () => {
 
   it('keeps every existing destination reachable under a purpose', async () => {
     await signIn()
-    for (const label of ['我的待办','方法事项','正式 Mission','业务关系图','本体地图','业务定义','独立来源','我的提交']) {
+    for (const label of ['我的待办','方法事项','业务主线','正式 Mission','业务关系图','本体地图','业务定义','独立来源','我的提交']) {
       expect(screen.getByRole('button', { name: label })).toBeInTheDocument()
     }
   })
@@ -56,6 +56,15 @@ describe('purpose-grouped navigation', () => {
     const viewing = cards[1].closest('section')!
     fireEvent.click(within(viewing).getByRole('button', { name:'正式 Mission' }))
     expect(screen.getByText('正式 Mission · 待执行承接')).toBeInTheDocument()
+  })
+
+  it('opens the business mainline as four lanes from strategy to mission', async () => {
+    await signIn()
+    fireEvent.click(screen.getByRole('button', { name:'业务主线' }))
+    await screen.findByTestId('business-mainline')
+    for (const name of ['战略 Strategy', '长期目标 LTCO', '阶段目标 PCO', '任务 Mission']) {
+      expect(screen.getByRole('region', { name })).toBeInTheDocument()
+    }
   })
 
   it('shows committing as its own step, which the CEO cannot perform for others', async () => {

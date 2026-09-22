@@ -729,3 +729,137 @@ def test_resolve_window_candidates_must_retain_their_period_review_ref(monkeypat
     assert exc.value.code == 'STALE_DEPENDENCY'
     _case(same, same)               # identical refs: passes
     _case(None, None)               # both None (e.g. first period): passes
+
+
+# --------------------------------------------------------------- Mission
+
+
+def _architecture_env():
+    oid, rid = str(uuid4()), str(uuid4())
+    head = {'object_id': oid, 'object_type': 'StrategicArchitecture'}
+    revision = {'object_id': oid, 'revision_id': rid, 'payload_hash': 'a' * 64,
+                'payload': {'battlefields': [{'unit_id': 'bf-1'}], 'domains': [{'unit_id': 'dom-1'}]}}
+    return {oid: (head, revision)}, {'object_id': oid, 'revision_id': rid, 'payload_hash': 'a' * 64}
+
+
+def _mission(**updates):
+    return {'primary_scope_id': 'bf-1', 'period': {'start': '2026-10-01T00:00:00Z', 'end': '2026-10-15T00:00:00Z'},
+            'contributes_to_scope_ids': ['dom-1'], 'dependencies': [], 'constraint_refs': [], **updates}
+
+
+def test_mission_contributions_and_dependencies_bind_to_the_exact_architecture():
+    refs, architecture = _architecture_env()
+    e = _fake_execution(refs=refs)
+    method_v05._check_mission_extras(e, _mission(), architecture_ref=architecture)
+    with pytest.raises(GovernedError):  # contributing to its own primary Scope
+        method_v05._check_mission_extras(e, _mission(contributes_to_scope_ids=['bf-1']), architecture_ref=architecture)
+    with pytest.raises(GovernedError):  # unknown unit
+        method_v05._check_mission_extras(e, _mission(contributes_to_scope_ids=['bf-9']), architecture_ref=architecture)
+    inside = {'kind': 'scope', 'scope_id': 'dom-1', 'needed_by': '2026-10-10T00:00:00Z', 'note': 'n'}
+    outside = {**inside, 'needed_by': '2026-11-10T00:00:00Z'}
+    method_v05._check_mission_extras(e, _mission(dependencies=[inside]), architecture_ref=architecture)
+    with pytest.raises(GovernedError):
+        method_v05._check_mission_extras(e, _mission(dependencies=[outside]), architecture_ref=architecture)
+
+
+def test_only_pco_responsibilities_need_a_commitment(monkeypatch):
+    pco_id, mission_id = str(uuid4()), str(uuid4())
+    heads = {pco_id: {'object_id': pco_id, 'object_type': 'PCO'}, mission_id: {'object_id': mission_id, 'object_type': 'Mission'}}
+    e = SimpleNamespace(ref=lambda reference, **kw: None, head=lambda oid: heads[oid],
+                        revision=lambda oid, rid: {'payload': {'primary_scope_id': 'bf-1'}})
+    monkeypatch.setattr(method_v04, '_pco_responsibility', lambda e, payload: ('dri', 'DOMAIN_DRI', 'auth', {'assignment_id': 'x'}))
+    payload = {'target_refs': [{'object_id': pco_id, 'revision_id': str(uuid4()), 'payload_hash': 'a' * 64},
+                               {'object_id': mission_id, 'revision_id': str(uuid4()), 'payload_hash': 'a' * 64}]}
+    required = method_v05._required_committers(e, payload)
+    assert set(required) == {pco_id} and required[pco_id]['owner'] == 'dri' and required[pco_id]['role'] == 'DOMAIN_DRI'
+    assert method_v05.required_committers is method_v05._required_committers
+    for kind in ('m1b_draft_mission', 'm1b_revise_mission', 'm1b_commit_candidate', 'm1b_activate_candidates'):
+        assert kind in method_v05.COLLECTORS and kind in method_v05.RUNNERS
+
+
+# ---------------------------- pin: the PCO-only-committer deadlock closure
+#
+# Before 0.5 got its own _required_committers, this module inherited 0.4's
+# version, which also lists a Mission's Owner as a required committer -- while
+# 0.5's own scoped_assignment (m1b_commit_candidate branch, Task 4) and
+# _collect_commit_candidate (this task) already refuse to let ANYONE commit a
+# Mission directly (contract Sec5).  Any candidate set naming a Mission could
+# then never collect every "required" commitment: activation was unreachable.
+# The two tests below pin both halves of the closure directly against the
+# real _collect_commit_candidate / _collect_activate_candidates, not just
+# against _required_committers in isolation.
+
+def _pco_and_mission():
+    """A (PCO, Mission) pair of object/revision/ref triples for candidate-set fixtures."""
+    pco_oid, mission_oid = str(uuid4()), str(uuid4())
+    pco_head = {'object_id': pco_oid, 'object_type': 'PCO'}
+    pco_revision = {'object_id': pco_oid, 'revision_id': str(uuid4()), 'payload_hash': 'a' * 64, 'payload': {}}
+    mission_head = {'object_id': mission_oid, 'object_type': 'Mission'}
+    mission_revision = {'object_id': mission_oid, 'revision_id': str(uuid4()), 'payload_hash': 'a' * 64, 'payload': {}}
+    pco_ref = {'object_id': pco_oid, 'revision_id': pco_revision['revision_id'], 'payload_hash': 'a' * 64}
+    mission_ref = {'object_id': mission_oid, 'revision_id': mission_revision['revision_id'], 'payload_hash': 'a' * 64}
+    return (pco_oid, pco_head, pco_revision, pco_ref), (mission_oid, mission_head, mission_revision, mission_ref)
+
+
+def test_commit_candidate_refuses_a_mission_responsibility_ref_even_for_the_pcos_own_dri(monkeypatch):
+    """Pin (a): contract Sec5 "m1b_commit_candidate 指向 Mission 一律拒绝（INVALID_REQUEST）"
+    holds even for someone who genuinely is the named PCO's current DRI -- the refusal turns on
+    the target's object type, not on whether the caller's identity would otherwise pass."""
+    (pco_oid, pco_head, pco_revision, pco_ref), (mission_oid, mission_head, _mrev, mission_ref) = _pco_and_mission()
+    candidate_oid = str(uuid4())
+    candidate_revision = {'object_id': candidate_oid, 'revision_id': str(uuid4()), 'payload_hash': 'a' * 64,
+                          'payload': {'target_refs': [pco_ref, mission_ref]}}
+    refs = {pco_oid: (pco_head, pco_revision), mission_oid: (mission_head, _mrev)}
+    e = _fake_execution(refs=refs, states={candidate_oid: {'phase': 'pending'}})
+    e.target, e.target_revision = {'object_id': candidate_oid}, candidate_revision
+    e.head = lambda oid: {pco_oid: pco_head, mission_oid: mission_head}[oid]
+    e.params = {'responsibility_ref': mission_ref}
+    dri = str(uuid4())
+    e.ctx.principal_id = dri   # genuinely the PCO's own current DRI (see the mock below)
+    monkeypatch.setattr(method_v04, '_candidate_basis_current', lambda e, payload: None)
+    monkeypatch.setattr(method_v04, '_pco_responsibility',
+                        lambda e, payload: (dri, 'DOMAIN_DRI', str(uuid4()), {'assignment_id': 'a1'}))
+    with pytest.raises(GovernedError) as exc:
+        method_v05._collect_commit_candidate(e)
+    assert exc.value.code == 'INVALID_REQUEST'
+
+
+def test_activate_candidates_succeeds_when_only_the_pco_dri_committed(monkeypatch):
+    """Pin (b): the exact scenario that used to deadlock -- a pending candidate set naming one
+    PCO and one Mission, with only the PCO DRI's commitment recorded (pin (a) above shows no
+    other commitment can ever exist for the Mission). Activation must succeed, and the Mission
+    must never appear in the required-committer set that gated it."""
+    (pco_oid, pco_head, pco_revision, pco_ref), (mission_oid, mission_head, mission_revision, mission_ref) = _pco_and_mission()
+    window_oid = str(uuid4())
+    window_head = {'object_id': window_oid, 'object_type': 'ReviewWindow'}
+    window_revision = {'object_id': window_oid, 'revision_id': str(uuid4()), 'payload_hash': 'a' * 64, 'payload': {}}
+    window_ref = {'object_id': window_oid, 'revision_id': window_revision['revision_id'], 'payload_hash': 'a' * 64}
+    candidate_oid = str(uuid4())
+    candidate_revision = {'object_id': candidate_oid, 'revision_id': str(uuid4()), 'payload_hash': 'a' * 64,
+                          'payload': {'target_refs': [pco_ref, mission_ref], 'window_ref': window_ref,
+                                      'unresolved_differences': []}}
+    candidate_ref = {'object_id': candidate_oid, 'revision_id': candidate_revision['revision_id'], 'payload_hash': 'a' * 64}
+    refs = {pco_oid: (pco_head, pco_revision), mission_oid: (mission_head, mission_revision),
+            window_oid: (window_head, window_revision)}
+    states = {candidate_oid: {'phase': 'pending'},
+              pco_oid: {'phase': 'candidate', 'candidate_ref': candidate_ref},
+              mission_oid: {'phase': 'candidate', 'candidate_ref': candidate_ref},
+              window_oid: {'phase': 'resolved'}}
+    e = _fake_execution(refs=refs, states=states)
+    e.target, e.target_revision = {'object_id': candidate_oid}, candidate_revision
+    e.head = lambda oid: {pco_oid: pco_head, mission_oid: mission_head, window_oid: window_head}[oid]
+    e.revision = lambda oid, rid: {pco_oid: pco_revision, mission_oid: mission_revision}[oid]
+    dri = str(uuid4())
+    e.conn = _RowsConn([{'responsibility_object_id': pco_oid, 'responsibility_revision_id': pco_revision['revision_id'],
+                         'principal_id': dri, 'assignment_id': 'a1'}])
+    e.validate_assignment = lambda assignment_id, principal_id, principal_type: None
+    domain_id = str(uuid4())
+    monkeypatch.setattr(method_v05, '_human_ceo', lambda e: None)
+    monkeypatch.setattr(method_v04, '_candidate_basis_current', lambda e, payload: None)
+    monkeypatch.setattr(method_v04, '_pco_responsibility',
+                        lambda e, payload: (dri, 'DOMAIN_DRI', domain_id, {'assignment_id': 'a1'}))
+    monkeypatch.setattr(method_access, 'assignment',
+                        lambda conn, ctx, assignment_id, principal_id, principal_type:
+                            {'role': 'DOMAIN_DRI', 'domain_id': domain_id, 'assignment_id': assignment_id})
+    method_v05._collect_activate_candidates(e)
+    assert set(e._v04['activation']['required']) == {pco_oid}   # the Mission was never required

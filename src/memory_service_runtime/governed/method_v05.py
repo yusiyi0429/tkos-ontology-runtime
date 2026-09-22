@@ -328,7 +328,6 @@ def _collect_resolve_window(e):
         if not ((candidate_ref is None and frozen_ref is None) or _same(candidate_ref, frozen_ref)):
             fail("A candidate PCO must retain its drafted Period Review reference.", "STALE_DEPENDENCY")
         _check_pco_extras(e, candidate["payload"])
-    # Task 8 在这里追加候选 Mission 的贡献 / 依赖 / 约束校验。
 
 
 def _run_draft_pco(e):
@@ -353,6 +352,224 @@ RUNNERS.update({"m1b_confirm_review": _run_confirm_review,
                 "m1b_regenerate_review": _run_regenerate_review,
                 "m1b_draft_pco": _run_draft_pco, "m1b_revise_pco": _run_revise_pco,
                 "m1b_resolve_window": v4._resolve_window})
+
+
+# ---------------------------------------------------------------- Mission
+
+
+def _check_mission_extras(e, payload, *, architecture_ref, mission_ref=None):
+    _head, revision = e.ref(architecture_ref, types={"StrategicArchitecture"}, current=False)
+    units = {d["unit_id"] for d in [*revision["payload"]["battlefields"], *revision["payload"]["domains"]]}
+    for unit in payload["contributes_to_scope_ids"]:
+        if unit == payload["primary_scope_id"] or unit not in units:
+            fail("Contributions name other Scopes of the exact Architecture.", "INVALID_REQUEST")
+    start = datetime.fromisoformat(payload["period"]["start"])
+    end = datetime.fromisoformat(payload["period"]["end"])
+    for dependency in payload["dependencies"]:
+        needed = datetime.fromisoformat(dependency["needed_by"])
+        if not (start <= needed <= end):
+            fail("A dependency's needed_by must fall inside the Mission period.", "INVALID_REQUEST")
+        if dependency["kind"] == "mission":
+            e.ref(dependency["mission_ref"], types={"Mission"}, current=False)
+        elif dependency["scope_id"] not in units:
+            fail("A Scope dependency must name a unit of the exact Architecture.", "INVALID_REQUEST")
+    _check_constraint_refs(e, payload["constraint_refs"], scope_id=payload["primary_scope_id"], mission_ref=mission_ref)
+
+
+def _collect_mission_draft(e):
+    v4.collect(e)
+    payload = e.params["payload"]
+    _pco_head, pco_revision = e.ref(payload["parent_pco_ref"], types={"PCO"}, current=False)
+    mission_ref = _exact(e.target, e.target_revision) if getattr(e, "target", None) else None
+    _check_mission_extras(e, payload, architecture_ref=pco_revision["payload"]["architecture_ref"], mission_ref=mission_ref)
+
+
+def _run_draft_mission(e):
+    head, revision = e.create("Mission", e.params["payload"])
+    e.set_state(head, {"phase": "draft"})
+    return {**_exact(head, revision), "phase": "draft"}
+
+
+def _run_revise_mission(e):
+    head, revision = e.revise(e.target, e.params["payload"])
+    e.set_state(head, {"phase": "draft"})
+    return {**_exact(head, revision), "phase": "draft"}
+
+
+def _collect_resolve_window_missions(e):
+    _collect_resolve_window(e)
+    window = e.target_revision["payload"]
+    frozen = e._m1b["missions"]
+    for candidate in e.params["missions"]:
+        head = frozen[str(candidate["object_id"])]["head"]
+        revision = frozen[str(candidate["object_id"])]["revision"]
+        _check_mission_extras(e, candidate, architecture_ref=window["architecture_ref"],
+                              mission_ref=_exact(head, revision))
+
+
+# ----------------------------------------------------- commitment / activation
+
+
+def _required_committers(e, payload):
+    """0.5：只有 PCO 责任需要承诺，由本域 DRI 做；Mission 由其 PCO 的承诺覆盖。"""
+    required = {}
+    for reference in payload["target_refs"]:
+        e.ref(reference, types={"PCO", "Mission"}, current=True)
+        member = e.head(reference["object_id"])
+        if member["object_type"] != "PCO":
+            continue
+        revision = e.revision(reference["object_id"], reference["revision_id"])
+        owner, role, domain_id, _assignment = v4._pco_responsibility(e, revision["payload"])
+        required[str(reference["object_id"])] = {"reference": reference, "owner": owner,
+                                                 "role": role, "domain_id": domain_id}
+    return required
+
+
+required_committers = _required_committers
+
+
+def _collect_commit_candidate(e):
+    if e.ctx.principal_type != "human":
+        fail("Only the responsibility Scope DRI can commit.", "FORBIDDEN")
+    state = _phase(e.state(e.target), "pending")
+    payload = e.target_revision["payload"]
+    v4._candidate_basis_current(e, payload)
+    reference = e.params["responsibility_ref"]
+    if not any(_same(reference, ref) for ref in payload["target_refs"]):
+        fail("The commitment must name one exact candidate responsibility.", "INVALID_REQUEST")
+    for ref in payload["target_refs"]:
+        e.ref(ref, types={"PCO", "Mission"}, current=True)
+    member = e.head(reference["object_id"])
+    if member["object_type"] != "PCO":
+        fail("0.5 commitments are made per responsibility Scope on its PCO; Missions are covered by their PCO.",
+             "INVALID_REQUEST")
+    revision = e.revision(reference["object_id"], reference["revision_id"])
+    owner, expected_role, expected_domain, _assignment = v4._pco_responsibility(e, revision["payload"])
+    if owner != e.ctx.principal_id:
+        fail("A responsibility commitment can only be published by the Scope's own DRI.", "FORBIDDEN")
+    assignment = None
+    for row in db._assignments(e.conn, e.ctx):
+        if row["principal_id"] != owner or row["role"] != expected_role or str(row["domain_id"]) != str(expected_domain):
+            continue
+        try:
+            assignment = e.validate_assignment(row["assignment_id"], owner, "human")
+            break
+        except GovernedError:
+            continue
+    if assignment is None:
+        fail("The DRI has no current assignment for this responsibility.", "FORBIDDEN")
+    e._v04.update(commitment_owner=owner, commitment_assignment=assignment, candidate_state=state)
+
+
+def _collect_activate_candidates(e):
+    _human_ceo(e)
+    state = _phase(e.state(e.target), "pending")
+    payload = e.target_revision["payload"]
+    v4._candidate_basis_current(e, payload)
+    required = _required_committers(e, payload)
+    for reference in payload["target_refs"]:
+        member = e.head(reference["object_id"])
+        member_state = e.state(member)
+        if member_state.get("phase") != "candidate" or not _same(member_state.get("candidate_ref"), _exact(e.target, e.target_revision)):
+            fail("The candidate set is no longer the authoritative member state.", "STALE_DEPENDENCY")
+    rows = e.conn.execute(
+        """SELECT responsibility_object_id, responsibility_revision_id, principal_id, assignment_id
+           FROM gov_method_commitments WHERE scope_id=%s AND candidate_revision_id=%s""",
+        (e.ctx.scope_id, e.target_revision["revision_id"])).fetchall()
+    committed = {str(r["responsibility_object_id"]): db.jsonable(r) for r in db.jsonable(rows)}
+    for oid, spec in required.items():
+        recorded = committed.get(oid)
+        reference = spec["reference"]
+        if recorded is None or str(recorded["principal_id"]) != str(spec["owner"]):
+            fail("Every responsibility Scope DRI must commit the exact candidate set before activation.", "INVALID_STATE")
+        if str(recorded["responsibility_revision_id"]) != str(reference["revision_id"]):
+            fail("A recorded commitment names a different responsibility revision.", "INVALID_STATE")
+        try:
+            assignment = access.assignment(e.conn, e.ctx, str(recorded["assignment_id"]), spec["owner"], "human")
+        except GovernedError:
+            fail("A recorded commitment assignment is no longer current; explicit recommit is required.", "INVALID_STATE")
+        if assignment["role"] != spec["role"] or str(assignment["domain_id"]) != str(spec["domain_id"]):
+            fail("A recorded commitment assignment no longer matches the named responsibility.", "INVALID_STATE")
+        e.validate_assignment(str(recorded["assignment_id"]), spec["owner"], "human")
+    if [d for d in payload.get("unresolved_differences", []) if d["critical"]]:
+        fail("A critical unresolved difference blocks activation.", "INVALID_STATE")
+    window_head, window_revision = e.ref(payload["window_ref"], types={"ReviewWindow"}, current=False)
+    if e.state(window_head).get("phase") != "resolved":
+        fail("The reviewed window is no longer in its resolved state.", "INVALID_STATE")
+    e._v04["activation"] = {"state": state, "payload": payload, "window_head": window_head,
+                            "window_revision": window_revision, "required": required}
+
+
+def _run_activate_candidates(e):
+    result = v4._activate_candidates(e)
+    for reference in e._v04["activation"]["payload"]["target_refs"]:
+        member = e.head(reference["object_id"])
+        if member["object_type"] != "Mission":
+            continue
+        state = deepcopy(e.state(member))
+        state["owner_activation_record_id"] = result["review_record_id"]
+        e.set_state(member, state)
+    return result
+
+
+def activation_blockers(conn, ctx, obj):
+    """0.5 工作台投影：与 0.4 同结构，只是承诺人规则换成 PCO 的 DRI。"""
+    payload = (obj.get("latest_revision") or {}).get("payload") or {}
+    candidate_revision_id = (obj.get("latest_revision") or {}).get("revision_id")
+    context = light(conn, ctx)
+    blockers = []
+    try:
+        v4._candidate_basis_current(context, payload)
+    except GovernedError:
+        blockers.append("stale_basis")
+    try:
+        candidate_head = context.head(obj["object_id"])
+        candidate_revision = context.revision(obj["object_id"], obj["latest_revision"]["revision_id"])
+        for reference in payload["target_refs"]:
+            member = context.head(reference["object_id"])
+            state = context.state(member)
+            if state.get("phase") != "candidate" or not _same(state.get("candidate_ref"), _exact(candidate_head, candidate_revision)):
+                blockers.append("member_state_changed")
+                break
+    except (GovernedError, KeyError):
+        blockers.append("member_state_changed")
+    if any(item.get("critical") for item in payload.get("unresolved_differences", [])):
+        blockers.append("critical_difference")
+    try:
+        required = _required_committers(context, payload)
+    except GovernedError:
+        blockers.append("missing_commitment")
+        return blockers
+    rows = conn.execute(
+        """SELECT responsibility_object_id, responsibility_revision_id, principal_id, assignment_id
+           FROM gov_method_commitments WHERE scope_id=%s AND candidate_revision_id=%s""",
+        (ctx.scope_id, candidate_revision_id)).fetchall()
+    committed = {str(row["responsibility_object_id"]): db.jsonable(row) for row in db.jsonable(rows)}
+    for oid, spec in required.items():
+        recorded = committed.get(oid)
+        if recorded is None or str(recorded["principal_id"]) != str(spec["owner"]):
+            blockers.append("missing_commitment")
+            continue
+        if str(recorded["responsibility_revision_id"]) != str(spec["reference"]["revision_id"]):
+            blockers.append("member_state_changed")
+            continue
+        try:
+            assignment = access.assignment(conn, ctx, str(recorded["assignment_id"]), spec["owner"], "human")
+        except GovernedError:
+            blockers.append("commitment_assignment_revoked")
+            continue
+        if assignment["role"] != spec["role"] or str(assignment["domain_id"]) != str(spec["domain_id"]):
+            blockers.append("commitment_assignment_mismatch")
+    return blockers
+
+
+COLLECTORS.update({"m1b_draft_mission": _collect_mission_draft, "m1b_revise_mission": _collect_mission_draft,
+                   "m1b_resolve_window": _collect_resolve_window_missions,
+                   "m1b_commit_candidate": _collect_commit_candidate,
+                   "m1b_activate_candidates": _collect_activate_candidates})
+RUNNERS.update({"m1b_draft_mission": _run_draft_mission, "m1b_revise_mission": _run_revise_mission,
+                "m1b_commit_candidate": v4._commit_candidate,
+                "m1b_activate_candidates": _run_activate_candidates})
 
 
 def constraint_assignment_static(conn, ctx, payload):
@@ -385,9 +602,6 @@ def constraint_assignment_static(conn, ctx, payload):
 # ------------------------------------------------------- scoped authority
 
 
-required_committers = v4._required_committers   # Task 8 换成 0.5 规则（只有 PCO 的 DRI）
-
-
 def scoped_assignment(conn, ctx, kind, target, revision):
     """0.5 scoped 动作的本人责任；对 0.4 语义不变的动作委托 0.4 并带上 0.5 版本。"""
     payload = revision["payload"]
@@ -414,7 +628,3 @@ def scoped_assignment(conn, ctx, kind, target, revision):
 
 def state_subject_owner_static(conn, ctx, subject):
     return v4._state_subject_owner_static(conn, ctx, subject, CONTRACT_VERSION)
-
-
-def activation_blockers(conn, ctx, obj):
-    return v4.activation_blockers(conn, ctx, obj, CONTRACT_VERSION)   # Task 8 换成 0.5 规则

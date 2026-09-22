@@ -1,0 +1,22 @@
+{
+  "profile_core_schema_version": "tkos.method-profile/0.5",
+  "profile_id": "urn:tkos:method:m1a-m1b",
+  "revision": "0.5.0",
+  "display_name": "Method 0.5 ontology v0.7 alignment 2026-09-22",
+  "record_origin": "synthetic",
+  "experimental": true,
+  "corporate_approved": false,
+  "m1a_source_revision": 21,
+  "m1b_source_revision": 837,
+  "action_contract_ref": {
+    "contract_id": "tkos.method",
+    "revision": "0.5",
+    "content_sha256": "d2ea113231533862fb2aed1611608b54c00fe66db0bbb99fe904ec6c69ed6d6f"
+  },
+  "canonical_hash": "a3c0cad2580317e273db0f050a542392993971ae44d62b55baffe9b7d990f8d2",
+  "ontology_registry_ref": {
+    "registry_id": "tkos.ontology-registry",
+    "revision": "0.7.1",
+    "content_sha256": "4f44c759d26db4e6812c60b11664add106697a1abf69935b9a9ca316e62220f8"
+  }
+}

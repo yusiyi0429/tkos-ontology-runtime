@@ -236,6 +236,121 @@ RUNNERS.update({"m1b_propose_ltco": _run_propose_ltco, "m1b_revise_ltco": _run_r
                 "m1b_confirm_ltco": _run_confirm_ltco})
 
 
+# ---------------------------------------------------------- Period Review
+
+
+def _collect_confirm_review(e):
+    _human_ceo(e)
+    _phase(e.state(e.target), "generated")
+    for reference in e.target_revision["payload"]["state_refs"]:
+        v4._canonical_state(e, reference)
+
+
+def _run_generate_review(e):
+    # 0.5：不像 0.4 那样传 status="recorded"——create() 会把 recorded 判定为立即生效
+    # （method_service.py ~277），在 CEO 确认之前就生效，违反契约 §4「确认后 effective，
+    # 生效只来自确认」。省略 status 落默认的 draft，不产生 effective_revision_id。
+    head, revision = e.create("PeriodReview", e.params["payload"])
+    e.set_state(head, {"phase": "generated"})
+    return {**_exact(head, revision), "nature": "agent_analysis", "phase": "generated"}
+
+
+def _run_confirm_review(e):
+    head, revision = e.target, e.target_revision
+    generated = _exact(head, revision)
+    overrides = {key: e.params[key] for key in ("findings", "learnings", "implications") if e.params.get(key) is not None}
+    if overrides:
+        head, revision = e.revise(head, {**revision["payload"], **overrides})
+    record = e.review("review_confirmation", _exact(head, revision),
+                      {"statement": e.params["statement"], "overrides": sorted(overrides)})
+    e.transition(head, status="confirmed", effective=True)
+    e.set_state(head, {"phase": "confirmed", "confirmation_record_id": record, "agent_generation_ref": generated})
+    return {**_exact(head, revision), "phase": "confirmed", "review_record_id": record}
+
+
+def _run_regenerate_review(e):
+    # 0.5：重新生成不再使复盘生效——不传 status/effective，沿用 e.target 现有生命周期与
+    # effective_revision_id（生效只来自 m1b_confirm_review）。已确认版本的 Agent 起草溯源
+    # （state.agent_generation_ref，契约 §4）若存在则原样保留；其余状态字段（如已失效的
+    # confirmation_record_id）重置。
+    head, revision = e.revise(e.target, e.params["payload"])
+    old_state = e.state(head)
+    state = {"phase": "generated"}
+    if "agent_generation_ref" in old_state:
+        state["agent_generation_ref"] = old_state["agent_generation_ref"]
+    e.set_state(head, state)
+    return {**_exact(head, revision), "nature": "agent_analysis", "phase": "generated"}
+
+
+# -------------------------------------------------------------------- PCO
+
+
+def _check_period_review_ref(e, payload):
+    start = datetime.fromisoformat(payload["period"]["start"])
+    reference = payload.get("period_review_ref")
+    if reference is not None:
+        head, revision = e.ref(reference, types={"PeriodReview"}, effective=True, current=False)
+        if e.state(head).get("phase") != "confirmed":
+            fail("PCO must cite a CEO-confirmed Period Review.", "STALE_DEPENDENCY")
+        if datetime.fromisoformat(revision["payload"]["period"]["end"]) > start:
+            fail("The cited Period Review must precede the PCO period.", "INVALID_REQUEST")
+        return
+    rows = e.conn.execute(
+        """SELECT r.payload FROM gov_objects o JOIN gov_object_revisions r
+             ON (r.scope_id, r.object_id, r.revision_id) = (o.scope_id, o.object_id, o.effective_revision_id)
+           WHERE o.scope_id=%s AND o.object_type='PeriodReview' AND o.effective_revision_id IS NOT NULL""",
+        (e.ctx.scope_id,)).fetchall()
+    for row in db.jsonable(rows):
+        if datetime.fromisoformat(row["payload"]["period"]["end"]) <= start:
+            fail("A confirmed Period Review exists for an earlier period; the PCO must cite it.", "INVALID_REQUEST")
+
+
+def _check_pco_extras(e, payload):
+    _check_period_review_ref(e, payload)
+    _check_constraint_refs(e, payload["constraint_refs"], scope_id=payload["primary_scope_id"])
+
+
+def _collect_pco_draft(e):
+    v4.collect(e)
+    _check_pco_extras(e, e.params["payload"])
+
+
+def _collect_resolve_window(e):
+    v4.collect(e)
+    for candidate in e.params["pcos"]:
+        frozen_payload = e._m1b["pcos"][str(candidate["object_id"])]["revision"]["payload"]
+        candidate_ref = candidate["payload"].get("period_review_ref")
+        frozen_ref = frozen_payload.get("period_review_ref")
+        if not ((candidate_ref is None and frozen_ref is None) or _same(candidate_ref, frozen_ref)):
+            fail("A candidate PCO must retain its drafted Period Review reference.", "STALE_DEPENDENCY")
+        _check_pco_extras(e, candidate["payload"])
+    # Task 8 在这里追加候选 Mission 的贡献 / 依赖 / 约束校验。
+
+
+def _run_draft_pco(e):
+    head, revision = e.create("PCO", e.params["payload"])
+    e.set_state(head, {"phase": "draft"})
+    return {**_exact(head, revision), "phase": "draft"}
+
+
+def _run_revise_pco(e):
+    head, revision = e.revise(e.target, e.params["payload"])
+    e.set_state(head, {"phase": "draft"})
+    return {**_exact(head, revision), "phase": "draft"}
+
+
+COLLECTORS.update({"m1b_confirm_review": _collect_confirm_review,
+                   "m1b_generate_review": lambda e: v4.collect(e),
+                   "m1b_regenerate_review": lambda e: v4.collect(e),
+                   "m1b_draft_pco": _collect_pco_draft, "m1b_revise_pco": _collect_pco_draft,
+                   "m1b_resolve_window": _collect_resolve_window})
+RUNNERS.update({"m1b_confirm_review": _run_confirm_review,
+                "m1b_generate_review": _run_generate_review,
+                "m1b_regenerate_review": _run_regenerate_review,
+                "m1b_draft_pco": _run_draft_pco, "m1b_revise_pco": _run_revise_pco,
+                "m1b_resolve_window": v4._resolve_window})
+
+
 def constraint_assignment_static(conn, ctx, payload):
     """只读解析 Constraint 范围责任人，供 scoped 授权回退与工作台可用性投影使用。"""
     context = light(conn, ctx)

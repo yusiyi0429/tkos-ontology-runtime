@@ -407,7 +407,8 @@ def _fake_execution(*, refs, states=None, ctx_type='human'):
         return head, revision
 
     return SimpleNamespace(ref=ref, state=lambda head: states.get(head['object_id'], {}),
-                           ctx=SimpleNamespace(principal_type=ctx_type, principal_id=str(uuid4()), assignments=[]),
+                           ctx=SimpleNamespace(principal_type=ctx_type, principal_id=str(uuid4()),
+                                               scope_id=str(uuid4()), assignments=[]),
                            params={}, _v04={})
 
 
@@ -566,3 +567,136 @@ def test_revise_ltco_state_carries_last_review_but_drops_everything_else():
     assert _revise_case({'phase': 'confirmed', 'confirmation_record_id': 'r1', 'last_review': last_review}) == \
         {'phase': 'draft', 'last_review': last_review}
     assert _revise_case({'phase': 'confirmed', 'confirmation_record_id': 'r1'}) == {'phase': 'draft'}
+
+
+# ------------------------------------------------------ Period Review / PCO
+
+
+def _review(phase, end, effective=True):
+    oid, rid = str(uuid4()), str(uuid4())
+    head = {'object_id': oid, 'object_type': 'PeriodReview', 'effective_revision_id': rid if effective else None}
+    revision = {'object_id': oid, 'revision_id': rid, 'payload_hash': 'a' * 64,
+                'payload': {'period': {'start': '2026-09-01T00:00:00Z', 'end': end}}}
+    return oid, head, revision, {'object_id': oid, 'revision_id': rid, 'payload_hash': 'a' * 64}, phase
+
+
+class _RowsConn:
+    def __init__(self, rows):
+        self.rows = rows
+
+    def execute(self, sql, params=None):
+        rows = self.rows
+        return SimpleNamespace(fetchall=lambda: rows, fetchone=lambda: rows[0] if rows else None)
+
+
+def test_pco_must_cite_a_confirmed_earlier_period_review_when_one_exists():
+    confirmed = _review('confirmed', '2026-09-30T00:00:00Z')
+    generated = _review('generated', '2026-09-30T00:00:00Z', effective=False)
+    late = _review('confirmed', '2026-10-15T00:00:00Z')
+    refs = {r[0]: (r[1], r[2]) for r in (confirmed, generated, late)}
+    states = {r[0]: {'phase': r[4]} for r in (confirmed, generated, late)}
+    payload = {'period': {'start': '2026-10-01T00:00:00Z', 'end': '2026-10-31T00:00:00Z'}}
+    e = _fake_execution(refs=refs, states=states)
+    e.conn = _RowsConn([])
+    method_v05._check_period_review_ref(e, {**payload, 'period_review_ref': confirmed[3]})
+    with pytest.raises(GovernedError) as exc:
+        method_v05._check_period_review_ref(e, {**payload, 'period_review_ref': generated[3]})
+    assert exc.value.code == 'STALE_DEPENDENCY'
+    with pytest.raises(GovernedError) as exc:
+        method_v05._check_period_review_ref(e, {**payload, 'period_review_ref': late[3]})
+    assert exc.value.code == 'INVALID_REQUEST'
+    method_v05._check_period_review_ref(e, {**payload, 'period_review_ref': None})   # first period
+    e.conn = _RowsConn([{'payload': confirmed[2]['payload']}])
+    with pytest.raises(GovernedError) as exc:  # a confirmed earlier review exists and must be cited
+        method_v05._check_period_review_ref(e, {**payload, 'period_review_ref': None})
+    assert exc.value.code == 'INVALID_REQUEST'
+    for kind in ('m1b_confirm_review', 'm1b_generate_review', 'm1b_regenerate_review',
+                'm1b_draft_pco', 'm1b_revise_pco', 'm1b_resolve_window'):
+        assert kind in method_v05.COLLECTORS and kind in method_v05.RUNNERS
+
+
+def test_generate_review_runner_does_not_make_it_effective():
+    """T7-a: the brief's plan delegated m1b_generate_review to 0.4 unchanged, whose runner
+    passes status="recorded" to create() -- create() marks status in {active, confirmed,
+    recorded, stored} effective immediately (method_service.py ~277), so every 0.5 generated
+    review would be CEO-confirmed-effective before any CEO confirmation.  0.5's own runner must
+    omit status (create()'s default is "draft", which is not in that effective-making set)."""
+    payload = {'review_id': 'r1', 'period': {'start': '2026-10-01T00:00:00Z', 'end': '2026-10-31T00:00:00Z'}}
+    oid, rid = str(uuid4()), str(uuid4())
+    head = {'object_id': oid}
+    revision = {'object_id': oid, 'revision_id': rid, 'payload_hash': 'a' * 64}
+    created = {}
+
+    def create(object_type, payload_arg, **kwargs):
+        created.update(object_type=object_type, payload=payload_arg, kwargs=kwargs)
+        return head, revision
+
+    written = {}
+    e = SimpleNamespace(params={'payload': payload}, create=create,
+                        set_state=lambda h, s: written.update(state=s))
+    method_v05._run_generate_review(e)
+    assert created == {'object_type': 'PeriodReview', 'payload': payload, 'kwargs': {}}
+    assert created['kwargs'].get('status') not in {'active', 'confirmed', 'recorded', 'stored'}
+    assert written['state'] == {'phase': 'generated'}
+
+
+def test_regenerate_review_runner_keeps_lifecycle_and_carries_agent_generation_ref_only_if_present():
+    """T7-b: after T7-a, m1b_regenerate_review must not pass status="recorded" either -- a
+    recorded-but-not-effective revision would break the codebase convention recorded => effective.
+    No status/effective goes to revise() at all, leaving e.target's lifecycle untouched (effective
+    only ever comes from m1b_confirm_review).  State carry-over: state.agent_generation_ref (the
+    confirmed version's agent-draft provenance, contract Sec4) is kept only when the prior state
+    actually had one; everything else, e.g. a stale confirmation_record_id, resets."""
+
+    def _regenerate_case(prior_state):
+        oid, rid = str(uuid4()), str(uuid4())
+        head = {'object_id': oid}
+        revision = {'object_id': oid, 'revision_id': rid, 'payload_hash': 'a' * 64}
+        revise_calls = []
+
+        def revise(target, payload, **kwargs):
+            revise_calls.append((target, payload, kwargs))
+            return head, revision
+
+        written = {}
+        e = SimpleNamespace(target=head, params={'payload': {'title': 'Q4'}},
+                            revise=revise, state=lambda h: prior_state,
+                            set_state=lambda h, s: written.update(state=s))
+        method_v05._run_regenerate_review(e)
+        assert revise_calls == [(head, {'title': 'Q4'}, {})]   # no status, no effective
+        return written['state']
+
+    assert _regenerate_case({'phase': 'confirmed', 'confirmation_record_id': 'r1',
+                             'agent_generation_ref': {'object_id': 'g1'}}) == \
+        {'phase': 'generated', 'agent_generation_ref': {'object_id': 'g1'}}
+    assert _regenerate_case({'phase': 'confirmed', 'confirmation_record_id': 'r1'}) == \
+        {'phase': 'generated'}
+
+
+def test_resolve_window_candidates_must_retain_their_period_review_ref(monkeypatch):
+    """T7-d: contract Sec4 "候选 PCO 保留起草时的 period_review_ref" as value retention -- the
+    same STALE_DEPENDENCY code 0.4 uses for its own window retention checks (strategy/architecture/
+    parent LTCO/period/primary_scope_id, method_v04.py ~869-877).  method_v04.collect is faked to
+    populate e._m1b the way the real 0.4 _collect_resolve_window does, and _check_pco_extras is
+    stubbed out (it has its own coverage) so this isolates the retention check alone."""
+    monkeypatch.setattr(method_v05, '_check_pco_extras', lambda e, payload: None)
+    pco_oid = str(uuid4())
+    same, other = ref(), ref()
+
+    def _case(candidate_ref, frozen_ref):
+        def fake_collect(e):
+            e._m1b = {'pcos': {pco_oid: {'revision': {'payload':
+                     {} if frozen_ref is None else {'period_review_ref': frozen_ref}}}}}
+        monkeypatch.setattr(method_v04, 'collect', fake_collect)
+        candidate_payload = {} if candidate_ref is None else {'period_review_ref': candidate_ref}
+        e = SimpleNamespace(params={'pcos': [{'object_id': pco_oid, 'payload': candidate_payload}]})
+        method_v05._collect_resolve_window(e)
+
+    with pytest.raises(GovernedError) as exc:
+        _case(other, same)          # candidate ref != frozen ref
+    assert exc.value.code == 'STALE_DEPENDENCY'
+    with pytest.raises(GovernedError) as exc:
+        _case(None, same)           # frozen ref given, candidate dropped it
+    assert exc.value.code == 'STALE_DEPENDENCY'
+    _case(same, same)               # identical refs: passes
+    _case(None, None)               # both None (e.g. first period): passes

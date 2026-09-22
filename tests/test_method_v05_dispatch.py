@@ -1030,6 +1030,36 @@ def test_drilldown_refs_must_be_canonical_states_of_other_subjects(monkeypatch):
     assert 'method_confirm_state' not in method_v05.COLLECTORS
 
 
+def test_regenerate_must_preserve_the_state_identity_and_period(monkeypatch):
+    """Fix round 1: the regenerate branch (previous_state_ref set) was untested. 0.5 adds a
+    period check on top of 0.4's own previous_state_ref validation (method_v04.py ~1217, which
+    only compares subject_ref and as_of): the cited previous State's period must match exactly,
+    or VERSION_CONFLICT (contract Sec6, "同主体、同 period"). The new-identity "already have a
+    State" lookup (the else branch, against gov_method_state_keys) must never run on this
+    branch -- e.conn is seeded with a row that would raise the OTHER VERSION_CONFLICT message
+    if that branch were mistakenly reached, so a regression that falls through is caught by the
+    message assertion below rather than passing silently on a coincidentally-matching code."""
+    monkeypatch.setattr(method_v04, '_collect_propose_state', lambda e: None)
+    prev_id, prev_rid = str(uuid4()), str(uuid4())
+    prev_ref = {'object_id': prev_id, 'revision_id': prev_rid, 'payload_hash': 'a' * 64}
+    prev_head = {'object_id': prev_id, 'object_type': 'OperatingState'}
+    period = {'start': '2026-10-01T00:00:00Z', 'end': '2026-10-31T00:00:00Z'}
+    prev_revision = {'object_id': prev_id, 'revision_id': prev_rid, 'payload_hash': 'a' * 64,
+                     'payload': {'period': period}}
+    e = _fake_execution(refs={prev_id: (prev_head, prev_revision)}, states={})
+    e.conn = _RowsConn([{'state_id': str(uuid4())}])   # would wrongly fire "already have a State" if consulted
+    e.params = {'payload': {'subject_ref': ref(), 'as_of': period['end'], 'period': period, 'drilldown_refs': []},
+               'previous_state_ref': prev_ref}
+    method_v05._collect_propose_state(e)   # same period: passes without consulting gov_method_state_keys
+
+    different_period = {'start': '2026-09-01T00:00:00Z', 'end': period['end']}   # same as_of, different start
+    e.params['payload']['period'] = different_period
+    with pytest.raises(GovernedError) as exc:
+        method_v05._collect_propose_state(e)
+    assert exc.value.code == 'VERSION_CONFLICT'
+    assert exc.value.message == 'A new generation must preserve the State identity and period.'
+
+
 def test_propose_state_runner_makes_a_new_identity_canonical_without_a_second_transition():
     """T9-a: create() with status="active" already sets effective_revision_id to the one
     version this branch ever writes (method_service.py ~277), so the new-identity branch of
@@ -1071,5 +1101,59 @@ def test_propose_state_runner_makes_a_new_identity_canonical_without_a_second_tr
     assert 'gov_method_state_keys' in sql and 'INSERT' in sql
     assert params == (scope_id, *method_v04._state_key(payload), oid)
     assert written['state'] == {'phase': 'recorded', 'canonical_ref': reference,
+                                'recommendation_ref': reference, 'generated_by': principal_id}
+    assert result == {**reference, 'phase': 'recorded', 'nature': 'owner_statement'}
+
+
+def test_propose_state_runner_regenerates_via_revise_without_touching_state_keys():
+    """Fix round 1: the regenerate branch (previous_state_ref set) was untested. It must
+    resolve the head via e.ref and call e.revise on it with exactly status="active",
+    effective=True -- never e.create, and never an INSERT into gov_method_state_keys (that
+    table tracks brand-new identities only; a regeneration reuses the existing one). The fake
+    execution below has no `create`/`transition` attribute, so a wrong branch or a reintroduced
+    transition call fails loudly with AttributeError instead of silently passing. State
+    carry-over: an unrelated pre-existing key in the prior state survives the update; the four
+    keys the runner owns are overwritten to point at the freshly revised version."""
+    prev_oid, prev_rid = str(uuid4()), str(uuid4())
+    prev_head = {'object_id': prev_oid}
+    new_rid = str(uuid4())
+    new_revision = {'object_id': prev_oid, 'revision_id': new_rid, 'payload_hash': 'b' * 64}
+    prev_ref = {'object_id': prev_oid, 'revision_id': prev_rid, 'payload_hash': 'a' * 64}
+
+    ref_calls = []
+
+    def fake_ref(reference, **kwargs):
+        ref_calls.append((reference, kwargs))
+        return prev_head, {'object_id': prev_oid, 'revision_id': prev_rid, 'payload_hash': 'a' * 64}
+
+    revise_calls = []
+
+    def revise(head, payload_arg, **kwargs):
+        revise_calls.append((head, payload_arg, kwargs))
+        return prev_head, new_revision
+
+    executed = []
+
+    class _Conn:
+        def execute(self, sql, params=None):
+            executed.append((sql, params))
+            return SimpleNamespace(fetchone=lambda: None, fetchall=lambda: [])
+
+    principal_id = str(uuid4())
+    payload = {'subject_ref': ref(), 'as_of': '2026-10-31T00:00:00Z',
+              'period': {'start': '2026-10-01T00:00:00Z', 'end': '2026-10-31T00:00:00Z'}, 'drilldown_refs': []}
+    prior_state = {'unrelated_key': 'kept', 'phase': 'recorded', 'canonical_ref': {'object_id': 'stale'}}
+    written = {}
+    e = SimpleNamespace(params={'payload': payload, 'previous_state_ref': prev_ref}, ref=fake_ref, revise=revise,
+                        conn=_Conn(), ctx=SimpleNamespace(principal_id=principal_id, principal_type='human'),
+                        state=lambda h: prior_state, set_state=lambda h, s: written.update(state=s))
+
+    result = method_v05._run_propose_state(e)
+
+    assert ref_calls == [(prev_ref, {'types': {'OperatingState'}})]
+    assert revise_calls == [(prev_head, payload, {'status': 'active', 'effective': True})]
+    assert executed == []   # no gov_method_state_keys INSERT on the regenerate branch
+    reference = {'object_id': prev_oid, 'revision_id': new_rid, 'payload_hash': 'b' * 64}
+    assert written['state'] == {'unrelated_key': 'kept', 'phase': 'recorded', 'canonical_ref': reference,
                                 'recommendation_ref': reference, 'generated_by': principal_id}
     assert result == {**reference, 'phase': 'recorded', 'nature': 'owner_statement'}

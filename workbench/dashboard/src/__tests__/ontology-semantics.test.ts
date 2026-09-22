@@ -329,4 +329,39 @@ describe("0.5 rules", () => {
     expect(mapEdges("0.4", registered).every((edge) => edges.some((e) => e.from === edge.from && e.to === edge.to))).toBe(true)
     expect(areasFor("0.5", registered).some((area) => area.types.includes("Constraint"))).toBe(true)
   })
+
+  // Regression guard: typeInfo("X", "0.5") shallow-merges V05_OVERRIDES over
+  // V04_OVERRIDES per field, so any field a 0.5 override does not name still
+  // falls through as literal 0.4 text.  These pin the specific 0.4 phrases
+  // that are actually wrong under the 0.5 contract, not a blanket ban on
+  // words ("确认" is legitimate elsewhere — e.g. Constraint below).
+  const V05 = ["StrategicIssue", "StrategicAgreement", "Strategy", "StrategicArchitecture",
+    "StrategyUpdateProposal", "LTCO", "PCO", "Mission", "ReviewWindow", "CandidateSet",
+    "OperatingState", "OperatingProblem", "PeriodReview", "MethodRun", "EvidenceAsset", "Constraint"]
+
+  it("no 0.5 reading falls back to a 0.4-labeled definition", () => {
+    for (const type of V05) {
+      expect(text(info(type, "0.5")), `${type} still reads "0.4 的"`).not.toContain("0.4 的")
+    }
+  })
+
+  it("Mission and CandidateSet's 0.5 readings drop the 0.4 Owner-commitment wording", () => {
+    const mission = text(info("Mission", "0.5"))
+    expect(mission).not.toContain("Owner 本人承诺")
+    expect(mission).not.toContain("具名 Owner")
+    expect(mission).toContain("DRI")
+    const candidateSet = text(info("CandidateSet", "0.5"))
+    expect(candidateSet).not.toContain("Owner 本人承诺")
+    expect(candidateSet).not.toContain("结果 Owner")
+    expect(candidateSet).toContain("DRI")
+  })
+
+  it("OperatingState's 0.5 lifecycle has no human confirmation step (Constraint still legitimately does)", () => {
+    const lifecycle = info("OperatingState", "0.5").lifecycle.join("\n")
+    expect(lifecycle).not.toContain("推荐")
+    expect(lifecycle).not.toContain("确认")
+    // "确认" is not banned globally: Constraint's own 0.5 text legitimately
+    // requires a human confirmer by scope (contract §2).
+    expect(text(info("Constraint", "0.5"))).toContain("确认")
+  })
 })

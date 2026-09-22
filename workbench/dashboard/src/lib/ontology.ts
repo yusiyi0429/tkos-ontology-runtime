@@ -607,11 +607,48 @@ const V04_TYPES: string[] = [
 /** Compiled tkos.method/0.5 object types (docs/runtime-method-registry-0.5.json). */
 const V05_TYPES: string[] = [...V04_TYPES, "Constraint"]
 
-/** 0.5 curated readings on top of the 0.4 overrides. */
+/** 0.5 curated readings on top of the 0.4 overrides.  Every field a 0.5 type
+ *  needs that would otherwise fall through from V04_OVERRIDES and contradict
+ *  the 0.5 contract (docs/contracts/tkos-method-0.5.md) must be listed here —
+ *  a merge only fixes the fields it names; anything left out still inherits
+ *  the 0.4 text verbatim. */
 const V05_OVERRIDES: Record<string, Partial<TypeInfo>> = {
+  // These five only drop the 0.4-only "0.4 的" prefix from V04_OVERRIDES;
+  // nothing else about them changes in 0.5 (the 0.5 contract is silent on
+  // Strategy/Architecture/Agreement/Issue/UpdateProposal — §1 "未列入本契约
+  // 的规则，以 0.4 契约为准").
+  Strategy: {
+    definition: "公司战略：与独立版本化的责任结构配对采用。Required Capability 是本战略的分析语义与字段，分配给 Domain 的主要责任，不是独立对象。",
+  },
+  StrategicArchitecture: {
+    definition: "责任结构：Battlefield（价值创造场域）与 Domain（长期能力责任）各自稳定 ID；Domain 显式映射既有授权域与当前责任人，映射只解释责任、不隐式授权。",
+  },
+  StrategicAgreement: {
+    definition: "正式人类共识：CEO 提名的全部当前人类参与人对同一确切议题版本的共同确认；Agent 只负责起草。",
+  },
+  StrategicIssue: {
+    definition: "战略议题：由绑定 CEO Agent 使用本人运行直接创建、重新界定或关联；不设候选池前置门槛。",
+  },
+  StrategyUpdateProposal: {
+    definition: "更新提案：依据正式人类共识提出确切变更，Co-agent 复核，CEO 最终确认后在事务内原子生成正式版本。",
+  },
+  ReviewWindow: {
+    definition: "共同核对窗口：冻结完整公司周期的周期结果与必要结果单元成员集合与版本；本人在窗口内发表、替代或撤回意见。",
+  },
+  // §8: M1B.3 仍用 0.4 的 OperatingProblem 语义 — semantics unchanged, only the
+  // "0.4 的" prefix is wrong to keep showing under the 0.5 rules version.
+  OperatingProblem: {
+    definition: "经营问题：来源正式状态，记录核心问题、层级、责任任职与证据；普通关闭区分已解决与无需继续处理。",
+  },
+  MethodRun: {
+    definition: "Agent 运行：绑定 CEO Agent 使用本人运行直接创建、重新界定或关联战略议题；是研究 Context 的授权底座。",
+  },
+  // §6: method_propose_state produces canonical state directly; 0.5 has no
+  // method_confirm_state, so the 0.4 recommend-then-confirm lifecycle is wrong.
   OperatingState: {
     definition: "0.5 的经营状态：带起止时间，由 Co-agent / MF 生成即为正式状态，无人工确认；上层状态可下钻到下层状态与直接证据，不自动汇总。",
     keyFacts: ["生成即 canonical；对状态有异议走经营问题，不改写状态。", "同一主体同一截止时间只有一个身份，再次生成产生新版本。"],
+    lifecycle: ["Co-agent / CEO Agent / 主体责任人生成", "生成即为正式（canonical），无需人工核准", "如需更新，引用上一版本生成同一身份的新版本"],
     actors: "Co-agent、CEO Agent 或主体责任人本人生成。",
     authority: "以最新生成版本为准；不设确认人。",
   },
@@ -621,23 +658,39 @@ const V05_OVERRIDES: Record<string, Partial<TypeInfo>> = {
     actors: "Co-agent 起草，CEO 本人确认。",
     authority: "只有 CEO 确认的版本生效。",
   },
+  // §4: PCO gains period_review_ref/boundary/constraint_refs; its 0.4 "状态
+  // 责任人" claim is gone in 0.5 because OperatingState no longer has a human
+  // confirmer at all (see OperatingState above), so it must not carry over.
   PCO: {
+    definition: "当期经营目标：唯一主业务 Scope、确切父级长期结果与确切责任结构；新增承接已确认的周期复盘、边界与约束引用。",
     keyFacts: [
       "承接已确认的复盘与本域 LTCO，引用已确认的约束，写明边界与预期推进幅度。",
       "候选集合只由责任域 DRI 承诺，一次覆盖本域 PCO 与其全部 Mission。",
     ],
   },
+  // §3: LTCO gains realization_logic/key_assumptions/constraint_refs and the
+  // conclusion-bearing confirmation; its 0.4 "并承担状态责任" actors claim is
+  // gone for the same reason as PCO above.
   LTCO: {
+    definition: "长期经营目标：独立身份与版本，归属唯一主业务 Scope（Domain 或 Battlefield）；新增实现逻辑、关键假设与约束引用；horizon 语义为“从当下起滚动的未来 6 个月”，文本承载、不自动计算。",
     keyFacts: ["含实现逻辑、关键假设与约束引用；每次确认带结论：首次确立、修订或维持。"],
+    actors: "CEO Agent 起草；CEO 本人确认，并按结论标注首次确立、修订或维持。",
   },
+  // §5: commitment is DRI-only on the PCO (covering it and every Mission
+  // under it); a candidate Mission itself is never personally committed to,
+  // so every 0.4 "Owner 本人承诺" claim below is wrong and must be replaced.
   Mission: {
+    definition: "独立结果单元：唯一 Owner（可以是责任人以外的人）、唯一主业务 Scope、确切父级周期结果、为什么、标准、证据与时间；新增边界、对其他责任域的贡献、依赖与资源需求，并引用约束。",
     keyFacts: [
       "记录对其他责任域的贡献、依赖（Mission 或责任域，含需要时点）、资源需求与约束引用。",
       "Owner 端到端对交付结果负责，实际执行可分派；Owner 指派在 CEO 整组激活时生效。",
     ],
+    lifecycle: ["Co-agent 起草", "窗口共同核对（Owner 参与讨论，不承诺）", "随本域 PCO 的 DRI 承诺一并覆盖", "CEO 整组激活，Owner 指派同时生效", "待执行承接"],
+    actors: "Co-agent 起草；Owner 参与窗口讨论但不承诺；本域 PCO 的责任域 DRI 承诺覆盖本 Mission；CEO 整组激活时 Owner 指派同时生效。",
   },
   CandidateSet: {
     definition: "0.5 的候选集合：关窗收拢的完整 PCO + Mission 集合；只有各责任域 DRI 对本域 PCO 承诺，CEO 整组激活。",
+    actors: "Co-agent 收拢；具名责任域 DRI 对本域 PCO 承诺，一次覆盖该 PCO 与其全部 Mission；CEO 整组激活。",
   },
 }
 

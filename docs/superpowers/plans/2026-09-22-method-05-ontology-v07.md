@@ -201,7 +201,7 @@ OBJECTS = {
  "Finding": '{status: missing, notes: MF}',
  "ManagementIssue": '{status: partial, object_type: OperatingProblem, notes: 与 0.4 相同，M1B.3 本期不做}',
  "Evidence": '{status: partial, object_type: EvidenceAsset, notes: 与 0.4 相同，没有子类字段}',
- "TraceabilityRecord": '{status: partial, notes: 新增确认记录投影 GET /v1/method/objects/{id}/confirmations 与 review_records 的 effect 分类；交接、会议记录、通知、重开条件随 M2 / M3 / MF}',
+ "TraceabilityRecord": '{status: partial, notes: "新增确认记录投影 GET /v1/method/objects/{id}/confirmations 与 review_records 的 effect 分类；交接、会议记录、通知、重开条件随 M2 / M3 / MF"}',
 }
 RELATIONS = {
  "architecture_contains_unit": '{status: exists, path: "StrategicArchitecture.battlefields[] / domains[]"}',

@@ -135,19 +135,87 @@ def test_state_period_and_as_of_agree_and_confirmation_is_gone():
     assert m.ConfirmReview.model_validate({'statement': 'Confirmed', 'findings': ['f']}).learnings is None
 
 
-def test_action_request_dispatches_v05_and_keeps_older_contracts_frozen():
+def test_0_5_targetless_action_enforces_its_own_null_target_shape():
     body = {'action_type': 'm1b_record_constraint', 'target': None, 'expected_versions': [],
             'idempotency_key': 'v05-unit-dispatch-0001', 'reason': 'Dispatch boundary check',
             'contract_version': 'tkos.method/0.5',
             'params': {'domain_id': str(uuid4()), 'payload': constraint_payload()}}
     accepted = ActionRequest.model_validate(body)
     assert accepted.params.payload.applies_to.kind == 'scope'
-    for old in ('tkos.method/0.1', 'tkos.method/0.2', 'tkos.method/0.3', 'tkos.method/0.4'):
-        with pytest.raises(ValidationError):
-            ActionRequest.model_validate({**body, 'contract_version': old})
-    with pytest.raises(ValidationError):  # 0.5 has no state confirmation
-        ActionRequest.model_validate({**body, 'action_type': 'method_confirm_state', 'params': {'reason': 'x' * 8},
-                                      'target': {'object_id': str(uuid4()), 'revision_id': str(uuid4()), 'expected_version': 1}})
     with pytest.raises(ValidationError):  # targetless 0.5 action with a target
         ActionRequest.model_validate({**body, 'target': {'object_id': str(uuid4()), 'revision_id': str(uuid4()),
                                                          'expected_version': 1}})
+
+
+def test_unrecognized_action_with_null_target_hits_the_legacy_rule_not_a_version_check():
+    """Not a version-freezing check.  ``m1b_record_constraint`` is not a
+    recognized action name under 0.1-0.4 at all, so none of envelope_rules's
+    version-specific branches match it there; it falls through to the legacy
+    rule that a null target is only legal for create_object/revoke_assignment
+    (models.py's final ``elif``).  That rule rejects *any* unclaimed action
+    name carrying a null target — it says nothing about which contract
+    versions accept or reject the action itself.
+    """
+    body = {'action_type': 'm1b_record_constraint', 'target': None, 'expected_versions': [],
+            'idempotency_key': 'v05-unit-dispatch-0003', 'reason': 'Null-target legacy fallback check',
+            'params': {'domain_id': str(uuid4()), 'payload': constraint_payload()}}
+    for old in ('tkos.method/0.1', 'tkos.method/0.2', 'tkos.method/0.3', 'tkos.method/0.4'):
+        with pytest.raises(ValidationError):
+            ActionRequest.model_validate({**body, 'contract_version': old})
+
+
+def test_confirm_ltco_and_confirm_state_pin_the_declared_version_binding():
+    """Pins two real, version-gated envelope facts: ``m1b_confirm_ltco`` is a
+    shared action name that ``select_params`` binds to a different,
+    version-specific model depending on the declared contract_version, and
+    ``method_confirm_state`` exists in 0.4's ACTION_TARGETS but not 0.5's
+    (0.5 drops human state confirmation; see method_v05_models.HUMAN_ACTIONS).
+    """
+    target = {'object_id': str(uuid4()), 'revision_id': str(uuid4()), 'expected_version': 1}
+    envelope = {'action_type': 'm1b_confirm_ltco', 'target': target, 'expected_versions': [],
+                'idempotency_key': 'v05-unit-pin-confirm-ltco', 'reason': 'Pin the shared-name dispatch'}
+    under_04 = ActionRequest.model_validate({**envelope, 'contract_version': 'tkos.method/0.4',
+                                              'params': {'statement': 'Reaffirmed for this period.'}})
+    assert type(under_04.params) is v4.ConfirmLTCO
+    under_05 = ActionRequest.model_validate({**envelope, 'contract_version': 'tkos.method/0.5',
+                                              'params': {'conclusion': 'maintained',
+                                                         'statement': 'Reaffirmed for this period.'}})
+    assert type(under_05.params) is m.ConfirmLTCO
+    with pytest.raises(ValidationError):  # 0.5's conclusion is genuinely required, not incidentally accepted
+        ActionRequest.model_validate({**envelope, 'contract_version': 'tkos.method/0.5',
+                                      'params': {'statement': 'Missing conclusion'}})
+
+    confirm_state = {'action_type': 'method_confirm_state', 'target': target, 'expected_versions': [],
+                     'idempotency_key': 'v05-unit-pin-confirm-state', 'reason': 'Pin the 0.4-only action',
+                     'params': {'reason': 'Reviewed and reaffirmed'}}
+    accepted = ActionRequest.model_validate({**confirm_state, 'contract_version': 'tkos.method/0.4'})
+    assert type(accepted.params) is v4.ConfirmState
+    with pytest.raises(ValidationError):
+        ActionRequest.model_validate({**confirm_state, 'contract_version': 'tkos.method/0.5'})
+
+
+def test_envelope_does_not_gate_a_0_5_only_action_under_an_older_declared_version():
+    """Documents a real, current limit of the request envelope, not a bug: a
+    0.5-only *targeted* action (unlike the targetless one above) is not
+    rejected just because an older contract_version was declared, when that
+    action name is unclaimed by every version-specific branch in
+    ``select_params``/``envelope_rules``.  ``select_params`` falls through to
+    the outer ``params: ActionParams`` union, which now includes 0.5's models,
+    so the shape still resolves to ``method_v05_models.ReviseConstraint``.
+
+    This is not where version isolation lives.  protocol.py's module
+    docstring states that a request's declared ``contract_version`` "only
+    declares which action format the client understands" — the authoritative
+    version is the *object's binding*, enforced by protocol.py's frozen
+    rejection matrix via ``protocol._declared_mismatch``.  Task 4 proves end
+    to end that an object bound to tkos.method/0.4 cannot execute a 0.5-only
+    action, with authentication/authorization checked before any protocol
+    error is revealed.
+    """
+    accepted = ActionRequest.model_validate({
+        'action_type': 'm1b_revise_constraint',
+        'target': {'object_id': str(uuid4()), 'revision_id': str(uuid4()), 'expected_version': 1},
+        'expected_versions': [], 'idempotency_key': 'v05-unit-envelope-gap-0001',
+        'reason': 'Documents the envelope gap, not a bug', 'contract_version': 'tkos.method/0.4',
+        'params': {'payload': constraint_payload()}})
+    assert type(accepted.params) is m.ReviseConstraint

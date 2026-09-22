@@ -360,6 +360,19 @@ def install_errors(app):
         return await request_validation_exception_handler(request, exc)
 
 
+@router.get("/method/company-view")
+def method_company_view(request: Request, response: Response, token: Annotated[str, Depends(bearer)],
+                        period_start: AwareDatetime, period_end: AwareDatetime):
+    from . import method_readers
+    workbench.strict_query(request.query_params, {"period_start", "period_end"})
+    if period_start >= period_end:
+        raise GovernedError("INVALID_REQUEST", "period_start must precede period_end", status=422)
+    with db.transaction(token) as (conn, ctx):
+        result = method_readers.company_view(conn, ctx, period_start.isoformat(), period_end.isoformat())
+    response.headers["Cache-Control"] = "no-store"
+    return result
+
+
 @router.get("/method/{collection}")
 def method_list(collection: str, request: Request, response: Response,
                 token: Annotated[str, Depends(bearer)], domain_id: uuid.UUID | None = None,
@@ -367,7 +380,8 @@ def method_list(collection: str, request: Request, response: Response,
     from . import method_readers
     kinds = {"review-windows": "ReviewWindow", "candidate-sets": "CandidateSet", "business-facts": "BusinessFact",
              "period-reviews": "PeriodReview", "strategies": "Strategy", "strategic-issues": "StrategicIssue", "runs": "MethodRun",
-             "signals": "Signal", "potential-issues": "PotentialIssue", "research-briefs": "ResearchBrief"}
+             "signals": "Signal", "potential-issues": "PotentialIssue", "research-briefs": "ResearchBrief",
+             "ltcos": "LTCO", "pcos": "PCO", "missions": "Mission", "constraints": "Constraint", "operating-states": "OperatingState"}
     if collection not in kinds:
         raise GovernedError("NOT_FOUND")
     workbench.strict_query(request.query_params, {"domain_id", "after", "limit"})
@@ -385,6 +399,15 @@ def method_reviews(object_id: uuid.UUID, request: Request, response: Response,
     workbench.strict_query(request.query_params, {"effective_only"})
     with db.transaction(token) as (conn, ctx):
         result = method_readers.review_records(conn, ctx, str(object_id), effective_only=effective_only)
+    response.headers["Cache-Control"] = "no-store"
+    return result
+
+
+@router.get("/method/objects/{object_id}/confirmations")
+def method_confirmations(object_id: uuid.UUID, response: Response, token: Annotated[str, Depends(bearer)]):
+    from . import method_readers
+    with db.transaction(token) as (conn, ctx):
+        result = method_readers.confirmations(conn, ctx, str(object_id))
     response.headers["Cache-Control"] = "no-store"
     return result
 

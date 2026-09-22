@@ -107,6 +107,26 @@ def authorize_receipt(conn, ctx, row, *, replay=False):
         db.authorize_domain(conn, ctx, domain, row["action_type"])
 
 
+# 决定类 = 有权人的正式确认 / 承诺 / 激活 / 重开 / 关闭 / 移交；意见类 = 窗口评论；分析类 = Agent 产出；其余为系统记录。
+DECISION_KINDS = frozenset({
+    "ltco_confirmation", "review_confirmation", "constraint_confirmation", "candidate_set_activation",
+    "agreement_confirmation", "agreement_formalized", "strategy_update_confirmation", "state_confirmation",
+    "ceo_reopen", "problem_closure", "problem_transfer",
+})
+OPINION_KINDS = frozenset({"window_comment", "window_opinion_withdrawal", "ltco_revision_response"})
+ANALYSIS_KINDS = frozenset({"personal_agent_analysis", "strategy_update_impact_review", "window_resolution"})
+
+
+def review_effect(kind):
+    if kind in DECISION_KINDS:
+        return "decision"
+    if kind in OPINION_KINDS:
+        return "opinion"
+    if kind in ANALYSIS_KINDS:
+        return "analysis"
+    return "record"
+
+
 def review_records(conn, ctx, object_id, *, effective_only=False):
     head = access.head(conn, ctx, object_id)
     rows = conn.execute("SELECT * FROM gov_method_reviews WHERE scope_id=%s AND (target_object_id=%s OR window_id=%s) ORDER BY recorded_at,record_id",
@@ -122,6 +142,7 @@ def review_records(conn, ctx, object_id, *, effective_only=False):
             access.revision(conn, ctx, row["target_object_id"], row["target_revision_id"])
         except GovernedError:
             continue
+        row["effect"] = review_effect(row["kind"])
         row["effective_opinion"] = active is not None and row["record_id"] in active
         if not effective_only or row["effective_opinion"]:
             items.append(row)
@@ -443,3 +464,114 @@ def snapshot(conn, ctx, row, *, research=False):
     # was generated as the fetching caller or under today's role context.
     return db.jsonable({"context_snapshot_id": row["snapshot_id"], "valid_at": row["valid_at"], "known_at": row["known_at"],
                        "selected": row["selected"], "excluded": row["excluded"], "context_request": context, "recorded_at": row["recorded_at"]})
+
+
+def confirmations(conn, ctx, object_id):
+    """一个对象的决定类记录与承诺行；不可见对象按 head 的 NOT_FOUND / FORBIDDEN 处理，
+    承诺行还要按责任版本与候选版本两侧各自的当前可见性过滤：一行承诺带着另一个
+    人的 principal_id、assignment_id 与承诺文本，请求对象自身的 head 校验并不能
+    代表另一侧引用的可见性（撤权后历史内容也要按当前权限读取）。"""
+    access.head(conn, ctx, object_id)
+    rows = conn.execute(
+        "SELECT * FROM gov_method_reviews WHERE scope_id=%s AND target_object_id=%s ORDER BY recorded_at, record_id",
+        (ctx.scope_id, object_id)).fetchall()
+    items = []
+    for row in db.jsonable(rows):
+        if review_effect(row["kind"]) != "decision":
+            continue
+        try:
+            access.revision(conn, ctx, row["target_object_id"], row["target_revision_id"])
+        except GovernedError as exc:
+            if exc.code in {"NOT_FOUND", "FORBIDDEN"}:
+                continue
+            raise
+        row["effect"] = "decision"
+        items.append(row)
+    commitment_rows = db.jsonable(conn.execute(
+        """SELECT commitment_id, candidate_object_id, candidate_revision_id, responsibility_object_id,
+                  responsibility_revision_id, principal_id, assignment_id, statement, recorded_at
+           FROM gov_method_commitments WHERE scope_id=%s AND (responsibility_object_id=%s OR candidate_object_id=%s)
+           ORDER BY recorded_at, commitment_id""",
+        (ctx.scope_id, object_id, object_id)).fetchall())
+    commitments = []
+    for row in commitment_rows:
+        try:
+            access.revision(conn, ctx, row["responsibility_object_id"], row["responsibility_revision_id"])
+            access.revision(conn, ctx, row["candidate_object_id"], row["candidate_revision_id"])
+        except GovernedError as exc:
+            if exc.code in {"NOT_FOUND", "FORBIDDEN"}:
+                continue
+            raise
+        commitments.append(row)
+    return {"items": items, "commitments": commitments}
+
+
+def _overlaps(period, start, end):
+    return _time(period["start"]) < _time(end) and _time(period["end"]) > _time(start)
+
+
+def company_view(conn, ctx, period_start, period_end):
+    """按主 Scope 汇总当前正式 LTCO、时段内 PCO / Mission 与生效 Constraint；投影，不是对象。"""
+    rows = db.jsonable(conn.execute(
+        """SELECT o.object_id, o.object_type, r.payload FROM gov_objects o
+           JOIN gov_object_revisions r ON (r.scope_id, r.object_id, r.revision_id) = (o.scope_id, o.object_id, o.effective_revision_id)
+           WHERE o.scope_id=%s AND o.object_type IN ('LTCO','PCO','Mission','Constraint')
+           ORDER BY o.object_type, o.object_id""", (ctx.scope_id,)).fetchall())
+    scopes, company_constraints, mission_constraints = {}, [], {}
+
+    def visible(oid):
+        if not access.is_method_object(conn, ctx, oid):
+            return None
+        try:
+            item = object_state(conn, ctx, oid)
+        except GovernedError as exc:
+            if exc.code in {"NOT_FOUND", "FORBIDDEN"}:
+                return None
+            raise
+        # 只认 0.5 自身的投影：scope 内若还留有 0.4 对象，按 0.5 摆放等于就地
+        # 重解释历史（合同 §1）；生效版本对调用者不可读时，也不能用它的载荷
+        # 判定所属 Scope / 时段（SQL 是按 payload 原样读取的）。
+        if item["protocol"]["contract_version"] != "tkos.method/0.5" or item["effective_revision_id"] is None:
+            return None
+        return item
+
+    def bucket(unit):
+        return scopes.setdefault(unit, {"scope_id": unit, "ltco": None, "pcos": [], "missions": [], "constraints": []})
+
+    for row in rows:
+        oid, kind, payload = str(row["object_id"]), row["object_type"], row["payload"]
+        if kind == "Constraint":
+            if not _overlaps(payload["effective"], period_start, period_end):
+                continue
+            item = visible(oid)
+            if item is None:
+                continue
+            applies = payload["applies_to"]
+            if applies["kind"] == "company":
+                company_constraints.append(item)
+            elif applies["kind"] == "scope":
+                bucket(applies["scope_id"])["constraints"].append(item)
+            else:
+                mission_constraints.setdefault(str(applies["mission_ref"]["object_id"]), []).append(item)
+            continue
+        if kind != "LTCO" and not _overlaps(payload["period"], period_start, period_end):
+            continue
+        item = visible(oid)
+        if item is None:
+            continue
+        target = bucket(payload["primary_scope_id"])
+        if kind == "LTCO":
+            target["ltco"] = item
+        elif kind == "PCO":
+            target["pcos"].append(item)
+        else:
+            record = (item.get("method_state") or {}).get("owner_activation_record_id")
+            item["owner_effective_from"] = None
+            if record:
+                found = conn.execute("SELECT recorded_at FROM gov_method_reviews WHERE scope_id=%s AND record_id=%s",
+                                     (ctx.scope_id, record)).fetchone()
+                item["owner_effective_from"] = db.jsonable(found["recorded_at"]) if found else None
+            target["missions"].append(item)
+    return {"schema_version": "method-read/0.5", "period": {"start": period_start, "end": period_end},
+            "scopes": [scopes[key] for key in sorted(scopes)],
+            "company_constraints": company_constraints, "mission_constraints": mission_constraints}

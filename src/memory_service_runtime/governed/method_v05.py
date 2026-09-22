@@ -77,7 +77,10 @@ def _constraint_responsibility(e, payload):
 def _check_constraint_payload(e, payload):
     applies = payload["applies_to"]
     if applies["kind"] == "scope":
-        _head, revision = e.ref(payload["architecture_ref"], types={"StrategicArchitecture"}, effective=True, current=False)
+        # 与 v4._candidate_basis_current 同口径：Architecture 基准在服务端读取。范围责任人（只持有
+        # 映射授权域任职的 DRI）按设计读不到公司域 Architecture，也不因此获得读取权。
+        _head, revision = light(e.conn, e.ctx).ref(payload["architecture_ref"], types={"StrategicArchitecture"},
+                                                   effective=True)
         _scope_definition(e, revision["payload"], applies["scope_id"])
     _source_refs(e, payload["evidence_refs"])
 

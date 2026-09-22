@@ -514,6 +514,102 @@ def test_mission_constraint_confirmer_uses_the_missions_own_scope_not_its_pcos(m
     assert e._v04['constraint_owner'] == mission_dri
 
 
+class _ShapeConn:
+    """Answers head_access by SQL shape: the head row, one Constraint's own revisions,
+    and nothing for every other grant source (windows, Missions, 0.4 results)."""
+
+    def __init__(self, head, revisions):
+        self.head, self.revisions = head, revisions
+
+    def execute(self, sql, params=None):
+        if 'FROM gov_objects WHERE' in sql:
+            rows = [dict(self.head)]
+        elif 'FROM gov_object_revisions' in sql and 'JOIN' not in sql:
+            rows = [dict(row) for row in self.revisions]
+        else:
+            rows = []
+        return SimpleNamespace(fetchone=lambda: rows[0] if rows else None, fetchall=lambda: rows)
+
+
+def test_a_scope_dri_without_a_company_role_reads_exactly_the_constraint_versions_it_answers_for(monkeypatch):
+    """Contract §2: a scope Constraint is confirmed (and may be revised) by the Scope's mapped
+    DOMAIN_DRI, who in 0.4/0.5 holds only its auth-domain appointment.  The Constraint lives in
+    the company domain, so without a responsibility grant head_access answered NOT_FOUND and the
+    only permitted confirmer could never load its target (real HTTP/PG acceptance, Task 12).
+    The grant is per exact version, resolved live by the scoped-authorization resolver; anyone
+    else still gets NOT_FOUND, and no other object type gains anything from it."""
+    from memory_service_runtime.governed import db as core_db, workspace_v02_guard
+    dri_v1, dri_v2, ic = str(uuid4()), str(uuid4()), str(uuid4())
+    oid, r1, r2 = str(uuid4()), str(uuid4()), str(uuid4())
+    head = {'object_id': oid, 'object_type': 'Constraint', 'domain_id': str(uuid4()),
+            'latest_revision_id': r2, 'effective_revision_id': r1}
+
+    def version(rid, dri):   # each version cites an Architecture version that maps the Scope to `dri`
+        return {'revision_id': rid, 'payload': {'applies_to': {'kind': 'scope', 'scope_id': 'scope-a'},
+                                                'architecture_ref': {'revision_id': dri}}}
+
+    def responsible(conn, ctx, payload):
+        if payload['architecture_ref']['revision_id'] != ctx.principal_id:
+            raise GovernedError('FORBIDDEN')
+        return {'assignment_id': str(uuid4()), 'principal_id': ctx.principal_id}
+
+    def forbidden(*_args, **_kwargs):
+        raise GovernedError('FORBIDDEN')
+
+    monkeypatch.setattr(workspace_v02_guard, 'enforce_object', lambda *a, **k: None)
+    monkeypatch.setattr(core_db, '_assignments', lambda *a, **k: [])
+    monkeypatch.setattr(core_db, 'authorize_domain', forbidden)       # no company-domain read
+    monkeypatch.setattr(method_access, 'is_method_object', lambda *a, **k: True)
+    monkeypatch.setattr(method_access, 'research_grants', lambda *a, **k: set())
+    monkeypatch.setattr(method_access, 'anchor_grants', lambda *a, **k: set())
+    monkeypatch.setattr(protocol, 'current_binding', lambda conn, scope_id, object_id: {'contract_version': 'tkos.method/0.5'})
+    monkeypatch.setattr(method_v05, 'constraint_assignment_static', responsible)
+    conn = _ShapeConn(head, [version(r1, dri_v1), version(r2, dri_v2)])
+
+    def ctx(principal_id):
+        return SimpleNamespace(scope_id=str(uuid4()), principal_id=principal_id, principal_type='human', assignments=[])
+
+    assert method_access.head_access(conn, ctx(dri_v1), oid) == (head, {r1})
+    assert method_access.head_access(conn, ctx(dri_v2), oid) == (head, {r2})
+    with pytest.raises(GovernedError) as exc:
+        method_access.head_access(conn, ctx(ic), oid)
+    assert exc.value.code == 'NOT_FOUND'
+    conn.head = {**head, 'object_type': 'PCO'}            # the grant is the Constraint's alone
+    with pytest.raises(GovernedError) as exc:
+        method_access.head_access(conn, ctx(dri_v1), oid)
+    assert exc.value.code == 'NOT_FOUND'
+
+
+def test_scope_constraint_basis_is_checked_server_side_not_through_the_callers_grants(monkeypatch):
+    """0.4/0.5 never grant a Scope DRI the company-domain Architecture
+    (method_access.anchor_participant), so, like v4._candidate_basis_current, the exact
+    Architecture basis of a scope Constraint is read server-side: its responsible DRI can record,
+    revise and confirm it.  The basis must still be the exact effective version holding the unit."""
+    arch_oid, arch_rid = str(uuid4()), str(uuid4())
+    head = {'object_id': arch_oid, 'object_type': 'StrategicArchitecture',
+            'effective_revision_id': arch_rid, 'latest_revision_id': arch_rid}
+    architecture = {'object_id': arch_oid, 'revision_id': arch_rid, 'payload_hash': 'a' * 64,
+                    'payload': {'battlefields': [], 'domains': [{'unit_id': 'scope-a'}]}}
+    monkeypatch.setattr(method_access, 'raw_revision', lambda conn, ctx, oid, rid: dict(architecture))
+    monkeypatch.setattr(protocol, 'current_binding', lambda conn, scope_id, oid: {'contract_version': 'tkos.method/0.5'})
+
+    def caller_cannot_read(reference, types=None, effective=False, current=True):
+        raise GovernedError('NOT_FOUND')
+
+    e = SimpleNamespace(conn=_Conn(head), ref=caller_cannot_read,
+                        ctx=SimpleNamespace(scope_id=str(uuid4()), principal_id=str(uuid4()), principal_type='human'))
+    payload = {'applies_to': {'kind': 'scope', 'scope_id': 'scope-a'}, 'evidence_refs': [],
+               'architecture_ref': {'object_id': arch_oid, 'revision_id': arch_rid, 'payload_hash': 'a' * 64}}
+    method_v05._check_constraint_payload(e, payload)
+    with pytest.raises(GovernedError) as exc:
+        method_v05._check_constraint_payload(e, {**payload, 'applies_to': {'kind': 'scope', 'scope_id': 'scope-x'}})
+    assert exc.value.code == 'INVALID_REQUEST'   # the unit must exist in that exact Architecture version
+    head['effective_revision_id'] = str(uuid4())
+    with pytest.raises(GovernedError) as exc:
+        method_v05._check_constraint_payload(e, payload)
+    assert exc.value.code == 'STALE_DEPENDENCY'  # and that version must still be the effective one
+
+
 def _ltco_target(phase, effective):
     oid, rid = str(uuid4()), str(uuid4())
     head = {'object_id': oid, 'object_type': 'LTCO', 'domain_id': str(uuid4()),

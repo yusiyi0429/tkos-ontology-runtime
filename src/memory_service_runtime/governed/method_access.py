@@ -265,9 +265,31 @@ def head_access(conn, ctx, object_id):
             continue
         if str(result["object_id"]) == oid:
             allowed.add(str(result["effective_revision_id"]))
+    if head["object_type"] == "Constraint":
+        allowed |= constraint_grants(conn, ctx, head)
     if not allowed:
         raise GovernedError("NOT_FOUND")
     return head, allowed
+
+
+def constraint_grants(conn, ctx, head):
+    """0.5 Constraint：确认 / 修订它的范围责任人（scope → 该 Scope 映射授权域的 DRI，mission → 该
+    Mission 主 Scope 的 DRI）只持有授权域任职，读不到公司域；按每个确切版本、用 scoped 授权回退同一个
+    服务端解析授予该版本本身——不含其来源，不是域授权。"""
+    binding = protocol.current_binding(conn, ctx.scope_id, str(head["object_id"]))
+    if binding is None or binding["contract_version"] != "tkos.method/0.5":
+        return set()
+    from . import method_v05
+    allowed = set()
+    rows = conn.execute("SELECT revision_id, payload FROM gov_object_revisions WHERE scope_id=%s AND object_id=%s",
+                        (ctx.scope_id, head["object_id"])).fetchall()
+    for row in db.jsonable(rows):
+        try:
+            method_v05.constraint_assignment_static(conn, ctx, row["payload"])
+        except GovernedError:
+            continue
+        allowed.add(str(row["revision_id"]))
+    return allowed
 
 
 def head(conn, ctx, object_id):

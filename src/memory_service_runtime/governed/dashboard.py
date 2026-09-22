@@ -87,10 +87,12 @@ DOWNSTREAM_FIELDS: dict[str, tuple[str, ...]] = {
     "Strategy": ("source_agreement_ref", "source_proposal_ref"),
     "StrategicArchitecture": ("strategy_ref", "source_agreement_ref", "source_proposal_ref"),
     "StrategicJudgment": ("strategy_ref", "source_agreement_ref", "source_proposal_ref"),
-    "LTCO": ("strategy_ref", "architecture_ref", "advice_ref", "baseline_refs"),
-    "PCO": ("strategy_ref", "ltco_ref", "parent_ltco_ref", "architecture_ref"),
-    "Mission": ("pco_ref", "parent_pco_ref", "architecture_ref", "evidence_refs"),
-    "OperatingState": ("subject_ref", "baseline_refs", "evidence_refs"),
+    "LTCO": ("strategy_ref", "architecture_ref", "advice_ref", "baseline_refs", "constraint_refs"),
+    "PCO": ("strategy_ref", "ltco_ref", "parent_ltco_ref", "architecture_ref",
+            "period_review_ref", "constraint_refs"),
+    "Mission": ("pco_ref", "parent_pco_ref", "architecture_ref", "evidence_refs", "constraint_refs"),
+    "Constraint": ("architecture_ref", "evidence_refs"),
+    "OperatingState": ("subject_ref", "baseline_refs", "evidence_refs", "drilldown_refs"),
     "OperatingProblem": ("state_ref", "evidence_refs"),
     "BusinessFact": ("subject_ref", "corrects_ref", "source_ref"),
     "PeriodReview": ("state_refs", "target_refs", "fact_refs"),
@@ -115,7 +117,7 @@ DOWNSTREAM_FIELDS: dict[str, tuple[str, ...]] = {
 DOWNSTREAM_ARRAY_FIELDS = frozenset({
     "state_refs", "target_refs", "fact_refs", "source_refs", "signal_refs",
     "direct_source_refs", "evidence_refs", "baseline_refs", "material_refs",
-    "ltco_refs", "pco_refs", "mission_refs",
+    "ltco_refs", "pco_refs", "mission_refs", "constraint_refs", "drilldown_refs",
 })
 DOWNSTREAM_LIMIT = 25
 DOWNSTREAM_MAX_LIMIT = 100

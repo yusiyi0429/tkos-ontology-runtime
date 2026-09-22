@@ -1335,7 +1335,7 @@ def test_ontology_catalog_lists_every_registered_type_per_rule_version(monkeypat
     versions = {entry["contract_version"]: set(entry["object_types"])
                 for entry in catalog["versions"]}
     assert set(versions) == {"tkos.method/0.1", "tkos.method/0.2", "tkos.method/0.3",
-                           "tkos.method/0.4"}
+                           "tkos.method/0.4", "tkos.method/0.5"}
     base = versions["tkos.method/0.1"]
     assert {"Strategy", "LTCO", "PCO", "Mission", "Signal", "PotentialIssue",
             "StrategicIssue", "StrategicAgreement", "StrategicJudgment",

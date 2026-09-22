@@ -44,8 +44,9 @@ def happy_path(h, f, flow):
     ltco_period, pco_period, mission_period = period(-30, 335), period(-1, 30), period(0, 15)
     scope_constraint = flow.record_constraint({'kind': 'scope', 'scope_id': 'scope-a'}, architecture_ref=architecture_ref,
                                               effective=pco_period)
+    # 契约不授予 IC 读取范围 Constraint；运行时先授权、统一不披露，看不到即 NOT_FOUND——两种码都证明 IC 无法确认。
     flow.deny('owner_a', flow.command('m1b_confirm_constraint', {'statement': 'An IC tries to confirm.'},
-                                      oid=scope_constraint['object_id']), codes={'FORBIDDEN'})
+                                      oid=scope_constraint['object_id']), codes={'FORBIDDEN', 'NOT_FOUND'})
     flow.deny('ceo', flow.command('m1b_confirm_constraint', {'statement': 'The CEO is not the scope DRI.'},
                                   oid=scope_constraint['object_id']), codes={'FORBIDDEN'})
     flow.confirm_constraint('dri_a', scope_constraint)
@@ -76,9 +77,9 @@ def happy_path(h, f, flow):
     conf = flow.confirmations(ltco_a['object_id'])
     check('confirmations_projection_lists_both_ltco_decisions',
           [item['content']['conclusion'] for item in conf['items'] if item['kind'] == 'ltco_confirmation'] == ['established', 'maintained'])
-    flow.deny('co_agent', flow.command('m1b_propose_ltco', {'domain_id': f['domains']['company'], 'payload': {
+    flow.deny('ceo_agent', flow.command('m1b_propose_ltco', {'domain_id': f['domains']['company'], 'payload': {
         **flow.object(ltco_b['object_id'])['latest_revision']['payload'], 'title': 'Cross-scope constraint',
-        'constraint_refs': [scope_constraint]}}), codes={'INVALID_REQUEST', 'FORBIDDEN'})
+        'constraint_refs': [scope_constraint]}}), codes={'INVALID_REQUEST'})
     check('ltco_cannot_reference_another_scopes_constraint', True)
 
     # ------------------------------------------------------ PCO / Mission
@@ -94,6 +95,26 @@ def happy_path(h, f, flow):
         **flow.object(mission_a['object_id'])['latest_revision']['payload'], 'contributes_to_scope_ids': ['scope-a']}}),
         codes={'INVALID_REQUEST'})
     check('mission_cannot_contribute_to_its_own_scope', True)
+
+    # --------------------------------------- Mission Constraint（契约 §2 第三种确认人）
+    # 任一确切 Mission 版本都可作 applies_to；在草稿期登记确认，Mission 才能在后续版本中引用"本 Mission 的"约束。
+    mission_constraint = flow.record_constraint({'kind': 'mission', 'mission_ref': mission_a},
+                                                effective=mission_period, title='Synthetic mission capacity constraint')
+    recorded = flow.object(mission_constraint['object_id'])
+    check('mission_constraint_recorded_against_the_exact_mission_version',
+          recorded['latest_revision']['payload']['applies_to'] == {'kind': 'mission', 'mission_ref': mission_a}
+          and recorded['method_state']['phase'] == 'draft' and recorded['effective_revision_id'] is None)
+    # CEO 看得到该对象但不是确认人（FORBIDDEN）；按统一不披露规则得 NOT_FOUND 同样表示无法确认。
+    flow.deny('ceo', flow.command('m1b_confirm_constraint', {'statement': 'The CEO is not the Mission Scope DRI.'},
+                                  oid=mission_constraint['object_id']), codes={'FORBIDDEN', 'NOT_FOUND'})
+    flow.confirm_constraint('dri_a', mission_constraint)
+    confirmed_constraint = flow.object(mission_constraint['object_id'])
+    confirmers = [item['principal_id'] for item in flow.confirmations(mission_constraint['object_id'])['items']
+                  if item['kind'] == 'constraint_confirmation']
+    check('mission_constraint_confirmed_by_the_missions_scope_dri_only',
+          confirmed_constraint['method_state']['phase'] == 'confirmed'
+          and confirmed_constraint['effective_revision_id'] == mission_constraint['revision_id']
+          and confirmers == [flow.principal('dri_a')])
 
     window = flow.open_window([pco_a, pco_b], [mission_a, mission_b], [ltco_a, ltco_b], pco_period,
                               names=('dri_a', 'dri_b', 'owner_a', 'owner_b'))

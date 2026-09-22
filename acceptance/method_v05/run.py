@@ -104,9 +104,9 @@ def happy_path(h, f, flow):
     check('mission_constraint_recorded_against_the_exact_mission_version',
           recorded['latest_revision']['payload']['applies_to'] == {'kind': 'mission', 'mission_ref': mission_a}
           and recorded['method_state']['phase'] == 'draft' and recorded['effective_revision_id'] is None)
-    # CEO 看得到该对象但不是确认人（FORBIDDEN）；按统一不披露规则得 NOT_FOUND 同样表示无法确认。
+    # CEO 经公司域读得到该对象但不是确认人，只能是 FORBIDDEN；NOT_FOUND 意味着可见性回退，必须失败。
     flow.deny('ceo', flow.command('m1b_confirm_constraint', {'statement': 'The CEO is not the Mission Scope DRI.'},
-                                  oid=mission_constraint['object_id']), codes={'FORBIDDEN', 'NOT_FOUND'})
+                                  oid=mission_constraint['object_id']), codes={'FORBIDDEN'})
     flow.confirm_constraint('dri_a', mission_constraint)
     confirmed_constraint = flow.object(mission_constraint['object_id'])
     confirmers = [item['principal_id'] for item in flow.confirmations(mission_constraint['object_id'])['items']

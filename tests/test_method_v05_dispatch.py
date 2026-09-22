@@ -999,3 +999,77 @@ def test_activation_blockers_is_empty_for_the_deadlock_fix_scenario(monkeypatch)
     ctx = SimpleNamespace(scope_id=str(uuid4()))
     obj = {'object_id': fx.candidate_oid, 'latest_revision': fx.candidate_revision}
     assert method_v05.activation_blockers(conn, ctx, obj) == []
+
+
+# --------------------------------------------------------- Operating State
+
+
+def test_drilldown_refs_must_be_canonical_states_of_other_subjects(monkeypatch):
+    monkeypatch.setattr(method_v04, '_collect_propose_state', lambda e: None)
+    subject = ref()
+    lower_id, lower_rid = str(uuid4()), str(uuid4())
+    lower_ref = {'object_id': lower_id, 'revision_id': lower_rid, 'payload_hash': 'a' * 64}
+    lower_head = {'object_id': lower_id, 'object_type': 'OperatingState'}
+    lower_revision = {'object_id': lower_id, 'revision_id': lower_rid, 'payload_hash': 'a' * 64, 'payload': {'subject_ref': ref()}}
+    e = _fake_execution(refs={lower_id: (lower_head, lower_revision)}, states={lower_id: {'canonical_ref': lower_ref}})
+    e.conn = _RowsConn([])
+    e.params = {'payload': {'subject_ref': subject, 'as_of': '2026-10-31T00:00:00Z',
+                            'period': {'start': '2026-10-01T00:00:00Z', 'end': '2026-10-31T00:00:00Z'},
+                            'drilldown_refs': [lower_ref]}}
+    method_v05._collect_propose_state(e)
+    e.params['payload']['drilldown_refs'] = [{**lower_ref, 'revision_id': str(uuid4())}]
+    with pytest.raises(GovernedError) as exc:
+        method_v05._collect_propose_state(e)
+    assert exc.value.code == 'STALE_DEPENDENCY'
+    lower_revision['payload']['subject_ref'] = subject
+    e.params['payload']['drilldown_refs'] = [lower_ref]
+    with pytest.raises(GovernedError) as exc:
+        method_v05._collect_propose_state(e)
+    assert exc.value.code == 'INVALID_REQUEST'
+    assert 'method_propose_state' in method_v05.COLLECTORS and 'method_propose_state' in method_v05.RUNNERS
+    assert 'method_confirm_state' not in method_v05.COLLECTORS
+
+
+def test_propose_state_runner_makes_a_new_identity_canonical_without_a_second_transition():
+    """T9-a: create() with status="active" already sets effective_revision_id to the one
+    version this branch ever writes (method_service.py ~277), so the new-identity branch of
+    _run_propose_state must not also call e.transition -- that would double the object_version
+    bump and the lifecycle event for one governed action. The fake execution below carries no
+    `transition` attribute at all, so any reintroduced call fails loudly with AttributeError
+    instead of silently passing."""
+    oid, rid = str(uuid4()), str(uuid4())
+    head = {'object_id': oid}
+    revision = {'object_id': oid, 'revision_id': rid, 'payload_hash': 'a' * 64}
+    created = {}
+
+    def create(object_type, payload_arg, **kwargs):
+        created.update(object_type=object_type, payload=payload_arg, kwargs=kwargs)
+        return head, revision
+
+    executed = []
+
+    class _Conn:
+        def execute(self, sql, params=None):
+            executed.append((sql, params))
+            return SimpleNamespace(fetchone=lambda: None, fetchall=lambda: [])
+
+    principal_id = str(uuid4())
+    scope_id = str(uuid4())
+    payload = {'subject_ref': ref(), 'as_of': '2026-10-31T00:00:00Z',
+              'period': {'start': '2026-10-01T00:00:00Z', 'end': '2026-10-31T00:00:00Z'}, 'drilldown_refs': []}
+    written = {}
+    e = SimpleNamespace(params={'payload': payload}, create=create, conn=_Conn(),
+                        ctx=SimpleNamespace(principal_id=principal_id, principal_type='human', scope_id=scope_id),
+                        state=lambda h: {}, set_state=lambda h, s: written.update(state=s))
+
+    result = method_v05._run_propose_state(e)
+
+    assert created == {'object_type': 'OperatingState', 'payload': payload, 'kwargs': {'status': 'active'}}
+    reference = {'object_id': oid, 'revision_id': rid, 'payload_hash': 'a' * 64}
+    assert len(executed) == 1
+    sql, params = executed[0]
+    assert 'gov_method_state_keys' in sql and 'INSERT' in sql
+    assert params == (scope_id, *method_v04._state_key(payload), oid)
+    assert written['state'] == {'phase': 'recorded', 'canonical_ref': reference,
+                                'recommendation_ref': reference, 'generated_by': principal_id}
+    assert result == {**reference, 'phase': 'recorded', 'nature': 'owner_statement'}

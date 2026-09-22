@@ -588,6 +588,62 @@ RUNNERS.update({"m1b_draft_mission": _run_draft_mission, "m1b_revise_mission": _
                 "m1b_activate_candidates": _run_activate_candidates})
 
 
+# ------------------------------------------------------ Operating State
+
+
+def _collect_propose_state(e):
+    v4._collect_propose_state(e)     # 责任解析、基线、证据、previous_state_ref 沿用 0.4
+    payload = e.params["payload"]
+    for reference in payload["drilldown_refs"]:
+        head, revision = e.ref(reference, types={"OperatingState"}, effective=True, current=False)
+        if not _same(e.state(head).get("canonical_ref"), reference):
+            fail("Drill-down references must cite canonical States.", "STALE_DEPENDENCY")
+        if _same(revision["payload"]["subject_ref"], payload["subject_ref"]):
+            fail("A State cannot drill down into its own subject.", "INVALID_REQUEST")
+    previous = e.params.get("previous_state_ref")
+    if previous:
+        _head, prev = e.ref(previous, types={"OperatingState"})
+        if prev["payload"]["period"] != payload["period"]:
+            fail("A new generation must preserve the State identity and period.", "VERSION_CONFLICT")
+    else:
+        key = v4._state_key(payload)
+        row = e.conn.execute(
+            "SELECT state_id FROM gov_method_state_keys WHERE scope_id=%s AND subject_id=%s AND outcome_id=%s AND as_of=%s",
+            (e.ctx.scope_id, *key)).fetchone()
+        if row:
+            fail("This subject and as-of already have a State; regenerate with previous_state_ref.", "VERSION_CONFLICT")
+
+
+def _run_propose_state(e):
+    payload = e.params["payload"]
+    previous = e.params.get("previous_state_ref")
+    if previous:
+        head, _old = e.ref(previous, types={"OperatingState"})
+        head, revision = e.revise(head, payload, status="active", effective=True)
+    else:
+        # T9-a：create() 传 status="active" 时，effective_revision_id 直接落在这唯一一个
+        # 版本上（method_service.py ~277："status in {active,confirmed,recorded,stored}"
+        # 才判定 effective），首次生成不需要再调用 e.transition(head, effective=True)——
+        # 那只会对同一个治理动作多打一次 object_version、多记一条同类型事件。再生成走
+        # revise(..., status="active", effective=True)，一次调用同样只产生一条事件，两条
+        # 分支因此都恰好一次 object_version 变化、一条事件。
+        head, revision = e.create("OperatingState", payload, status="active")
+        e.conn.execute(
+            "INSERT INTO gov_method_state_keys(scope_id,subject_id,outcome_id,as_of,state_id) VALUES(%s,%s,%s,%s,%s)",
+            (e.ctx.scope_id, *v4._state_key(payload), head["object_id"]))
+    reference = _exact(head, revision)
+    state = deepcopy(e.state(head))
+    state.update(phase="recorded", canonical_ref=reference, recommendation_ref=reference,
+                 generated_by=e.ctx.principal_id)
+    e.set_state(head, state)
+    return {**reference, "phase": "recorded",
+            "nature": "agent_analysis" if e.ctx.principal_type == "agent" else "owner_statement"}
+
+
+COLLECTORS["method_propose_state"] = _collect_propose_state
+RUNNERS["method_propose_state"] = _run_propose_state
+
+
 def constraint_assignment_static(conn, ctx, payload):
     """只读解析 Constraint 范围责任人，供 scoped 授权回退与工作台可用性投影使用。"""
     context = light(conn, ctx)

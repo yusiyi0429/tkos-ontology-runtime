@@ -54,15 +54,148 @@ def run(e):
     return v4.run(e)
 
 
+# ------------------------------------------------------------- Constraint
+
+
+def _constraint_responsibility(e, payload):
+    """确认人：company → 当前 CEO；scope → 该 Scope 授权域的唯一当前 DRI；mission → 其主 Scope 的 DRI。"""
+    applies = payload["applies_to"]
+    if applies["kind"] == "company":
+        return _current_ceo(e, e.domain_id if getattr(e, "domain_id", None) else e.target["domain_id"])
+    if applies["kind"] == "scope":
+        principal, _role, _auth_domain, assignment = v4._pco_responsibility(
+            e, {"architecture_ref": payload["architecture_ref"], "primary_scope_id": applies["scope_id"]})
+        return principal, assignment
+    _mission_head, mission_revision = e.ref(applies["mission_ref"], types={"Mission"}, current=False)
+    _pco_head, pco_revision = e.ref(mission_revision["payload"]["parent_pco_ref"], types={"PCO"}, current=False)
+    # 解析用 Mission 自身的 primary_scope_id（而非其父级 PCO 的）：该字段才是"其主 Scope"，
+    # PCO 只提供解析所需的确切 Architecture 基准。
+    return v4._pco_dri(e, {"architecture_ref": pco_revision["payload"]["architecture_ref"],
+                           "primary_scope_id": mission_revision["payload"]["primary_scope_id"]})
+
+
+def _check_constraint_payload(e, payload):
+    applies = payload["applies_to"]
+    if applies["kind"] == "scope":
+        _head, revision = e.ref(payload["architecture_ref"], types={"StrategicArchitecture"}, effective=True, current=False)
+        _scope_definition(e, revision["payload"], applies["scope_id"])
+    _source_refs(e, payload["evidence_refs"])
+
+
+def _check_constraint_refs(e, refs, *, scope_id, mission_ref=None):
+    """LTCO / PCO / Mission 只能引用已确认、且适用于公司或本对象主 Scope（或本 Mission）的 Constraint。"""
+    for reference in refs:
+        head, revision = e.ref(reference, types={"Constraint"}, effective=True, current=False)
+        if e.state(head).get("phase") != "confirmed":
+            fail("Only confirmed Constraints can be referenced.", "STALE_DEPENDENCY")
+        applies = revision["payload"]["applies_to"]
+        if applies["kind"] == "company":
+            continue
+        if applies["kind"] == "scope" and applies["scope_id"] == scope_id:
+            continue
+        if (applies["kind"] == "mission" and mission_ref is not None
+                and applies["mission_ref"]["object_id"] == mission_ref["object_id"]):
+            continue
+        fail("A referenced Constraint must apply to the company or to this object's own Scope.", "INVALID_REQUEST")
+
+
+def _constraint_actor(e, payload):
+    owner, assignment = _constraint_responsibility(e, payload)
+    if e.ctx.principal_type == "human":
+        e.require_actor(owner, "human")
+    else:
+        _agent(e, "CO_AGENT")
+    e._v04.update(constraint_owner=owner, constraint_assignment=assignment)
+
+
+def _collect_record_constraint(e):
+    payload = e.params["payload"]
+    _check_constraint_payload(e, payload)
+    _constraint_actor(e, payload)
+
+
+def _collect_revise_constraint(e):
+    _phase(e.state(e.target), "draft", "confirmed")
+    payload = e.params["payload"]
+    if payload["applies_to"] != e.target_revision["payload"]["applies_to"]:
+        fail("A revision keeps the constraint's applicability; record a new Constraint instead.", "INVALID_REQUEST")
+    _check_constraint_payload(e, payload)
+    _constraint_actor(e, payload)
+
+
+def _collect_confirm_constraint(e):
+    _phase(e.state(e.target), "draft")
+    payload = e.target_revision["payload"]
+    _check_constraint_payload(e, payload)
+    owner, assignment = _constraint_responsibility(e, payload)
+    e.require_actor(owner, "human")
+    e._v04.update(constraint_owner=owner, constraint_assignment=assignment)
+
+
+def _run_record_constraint(e):
+    head, revision = e.create("Constraint", e.params["payload"])
+    e.set_state(head, {"phase": "draft"})
+    return {**_exact(head, revision), "phase": "draft"}
+
+
+def _run_revise_constraint(e):
+    head, revision = e.revise(e.target, e.params["payload"])
+    state = deepcopy(e.state(head))
+    state.update(phase="draft")
+    e.set_state(head, state)
+    return {**_exact(head, revision), "phase": "draft"}
+
+
+def _run_confirm_constraint(e):
+    record = e.review("constraint_confirmation", _exact(e.target, e.target_revision),
+                      {"statement": e.params["statement"], "principal_id": e._v04["constraint_owner"],
+                       "assignment_id": e._v04["constraint_assignment"]["assignment_id"]})
+    state = deepcopy(e.state(e.target))
+    state.update(phase="confirmed", confirmation_record_id=record)
+    e.set_state(e.target, state)
+    e.transition(e.target, status="confirmed", effective=True)
+    return {**_exact(e.target, e.target_revision), "phase": "confirmed", "review_record_id": record}
+
+
+COLLECTORS.update({"m1b_record_constraint": _collect_record_constraint,
+                   "m1b_revise_constraint": _collect_revise_constraint,
+                   "m1b_confirm_constraint": _collect_confirm_constraint})
+RUNNERS.update({"m1b_record_constraint": _run_record_constraint,
+                "m1b_revise_constraint": _run_revise_constraint,
+                "m1b_confirm_constraint": _run_confirm_constraint})
+
+
+def constraint_assignment_static(conn, ctx, payload):
+    """只读解析 Constraint 范围责任人，供 scoped 授权回退与工作台可用性投影使用。"""
+    context = light(conn, ctx)
+    applies = payload["applies_to"]
+    if applies["kind"] == "company":
+        rows = conn.execute(
+            "SELECT assignment_id, principal_id, domain_id FROM gov_role_assignments WHERE scope_id=%s AND principal_id=%s AND role='CEO'",
+            (ctx.scope_id, ctx.principal_id)).fetchall()
+        for row in db.jsonable(rows):
+            try:
+                return access.assignment(conn, ctx, str(row["assignment_id"]), ctx.principal_id, "human")
+            except GovernedError:
+                continue
+        raise GovernedError("FORBIDDEN")
+    if applies["kind"] == "scope":
+        basis = {"architecture_ref": payload["architecture_ref"], "primary_scope_id": applies["scope_id"]}
+    else:
+        _head, mission = context.ref(applies["mission_ref"], types={"Mission"})
+        _pco_head, pco = context.ref(mission["payload"]["parent_pco_ref"], types={"PCO"})
+        # 同上：取 Mission 自身的 primary_scope_id，而非其父级 PCO 的。
+        basis = {"architecture_ref": pco["payload"]["architecture_ref"], "primary_scope_id": mission["payload"]["primary_scope_id"]}
+    principal, _role, _auth_domain, assignment = v4._pco_responsibility(context, basis)
+    if principal != ctx.principal_id or ctx.principal_type != "human":
+        raise GovernedError("FORBIDDEN")
+    return assignment
+
+
 # ------------------------------------------------------- scoped authority
 
 
 required_committers = v4._required_committers   # Task 8 换成 0.5 规则（只有 PCO 的 DRI）
-
-
-def constraint_assignment_static(conn, ctx, payload):
-    """Constraint 范围责任人的只读解析（Task 5 实现）。"""
-    raise GovernedError("FORBIDDEN")
 
 
 def scoped_assignment(conn, ctx, kind, target, revision):

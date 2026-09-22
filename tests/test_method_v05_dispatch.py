@@ -392,3 +392,122 @@ def test_every_compiled_method_contract_is_readable():
         assert metadata['registration_status'] == 'registered', version
         expected = 'method_v0_' + version.rsplit('.', 1)[-1]   # tkos.method/0.4 -> method_v0_4
         assert metadata['interpretation_status'] == expected, version
+
+
+# ------------------------------------------------------------- Constraint
+
+
+def _fake_execution(*, refs, states=None, ctx_type='human'):
+    states = states or {}
+
+    def ref(reference, types=None, effective=False, current=True):
+        head, revision = refs[reference['object_id']]
+        if types and head['object_type'] not in types:
+            raise GovernedError('NOT_FOUND')
+        return head, revision
+
+    return SimpleNamespace(ref=ref, state=lambda head: states.get(head['object_id'], {}),
+                           ctx=SimpleNamespace(principal_type=ctx_type, principal_id=str(uuid4()), assignments=[]),
+                           params={}, _v04={})
+
+
+def _constraint(kind, scope_id=None, phase='confirmed'):
+    oid = str(uuid4())
+    applies = {'kind': kind}
+    if kind == 'scope':
+        applies['scope_id'] = scope_id
+    if kind == 'mission':
+        applies['mission_ref'] = ref()
+    head = {'object_id': oid, 'object_type': 'Constraint'}
+    revision = {'object_id': oid, 'revision_id': str(uuid4()), 'payload_hash': 'a' * 64,
+                'payload': {'applies_to': applies}}
+    reference = {'object_id': oid, 'revision_id': revision['revision_id'], 'payload_hash': 'a' * 64}
+    return oid, head, revision, reference, phase
+
+
+def test_constraint_refs_must_be_confirmed_and_applicable():
+    company = _constraint('company')
+    own_scope = _constraint('scope', 'bf-1')
+    other_scope = _constraint('scope', 'bf-2')
+    draft = _constraint('company', phase='draft')
+    refs = {c[0]: (c[1], c[2]) for c in (company, own_scope, other_scope, draft)}
+    states = {c[0]: {'phase': c[4]} for c in (company, own_scope, other_scope, draft)}
+    e = _fake_execution(refs=refs, states=states)
+    method_v05._check_constraint_refs(e, [company[3], own_scope[3]], scope_id='bf-1')
+    with pytest.raises(GovernedError) as exc:
+        method_v05._check_constraint_refs(e, [other_scope[3]], scope_id='bf-1')
+    assert exc.value.code == 'INVALID_REQUEST'
+    with pytest.raises(GovernedError) as exc:
+        method_v05._check_constraint_refs(e, [draft[3]], scope_id='bf-1')
+    assert exc.value.code == 'STALE_DEPENDENCY'
+    mission = _constraint('mission')
+    refs[mission[0]] = (mission[1], mission[2])
+    states[mission[0]] = {'phase': 'confirmed'}
+    own = mission[2]['payload']['applies_to']['mission_ref']
+    method_v05._check_constraint_refs(e, [mission[3]], scope_id='bf-1', mission_ref=own)
+    with pytest.raises(GovernedError):  # a Mission constraint never applies to another Mission
+        method_v05._check_constraint_refs(e, [mission[3]], scope_id='bf-1', mission_ref=ref())
+
+
+def test_constraint_actions_are_registered_as_0_5_handlers():
+    for kind in ('m1b_record_constraint', 'm1b_revise_constraint', 'm1b_confirm_constraint'):
+        assert kind in method_v05.COLLECTORS and kind in method_v05.RUNNERS
+
+
+def test_mission_constraint_confirmer_uses_the_missions_own_scope_not_its_pcos(monkeypatch):
+    """Contract §2: a mission-kind Constraint is confirmed by the DRI of *that Mission's*
+    primary Scope -- not its parent PCO's, even though the two may differ (PCOPayload and
+    MissionPayload each carry their own independent ``primary_scope_id``).
+
+    ``v4._pco_dri`` is faked to key strictly off the ``primary_scope_id`` it is handed, so
+    the two readings are distinguished by construction: whichever scope's DRI actually gets
+    resolved is the one whose identity check below passes.  Confirming this scenario against
+    the brief's sample code (which hands ``_pco_dri`` the PARENT PCO's own payload, i.e. the
+    PCO's ``primary_scope_id``) makes both assertions fail -- the PCO-scope DRI would be
+    accepted and the Mission-scope DRI refused, the exact inverse of what is asserted here.
+    """
+    mission_scope, pco_scope = 'mission-scope', 'pco-scope'
+    mission_dri, pco_dri = str(uuid4()), str(uuid4())
+    dri_for_scope = {mission_scope: mission_dri, pco_scope: pco_dri}
+
+    def fake_pco_dri(_e, payload):
+        principal = dri_for_scope[payload['primary_scope_id']]
+        return principal, {'assignment_id': str(uuid4()), 'principal_id': principal, 'role': 'DOMAIN_DRI'}
+
+    monkeypatch.setattr(method_v04, '_pco_dri', fake_pco_dri)
+
+    pco_oid = str(uuid4())
+    pco_head = {'object_id': pco_oid, 'object_type': 'PCO'}
+    pco_revision = {'object_id': pco_oid, 'revision_id': str(uuid4()), 'payload_hash': 'a' * 64,
+                    'payload': {'architecture_ref': ref(), 'primary_scope_id': pco_scope}}
+
+    mission_oid = str(uuid4())
+    mission_head = {'object_id': mission_oid, 'object_type': 'Mission'}
+    parent_pco_ref = {'object_id': pco_oid, 'revision_id': pco_revision['revision_id'], 'payload_hash': 'a' * 64}
+    mission_revision = {'object_id': mission_oid, 'revision_id': str(uuid4()), 'payload_hash': 'a' * 64,
+                        'payload': {'parent_pco_ref': parent_pco_ref, 'primary_scope_id': mission_scope}}
+    mission_ref = {'object_id': mission_oid, 'revision_id': mission_revision['revision_id'], 'payload_hash': 'a' * 64}
+
+    constraint_oid = str(uuid4())
+    head = {'object_id': constraint_oid, 'object_type': 'Constraint'}
+    target_revision = {'object_id': constraint_oid, 'revision_id': str(uuid4()), 'payload_hash': 'a' * 64,
+                       'payload': {'applies_to': {'kind': 'mission', 'mission_ref': mission_ref}, 'evidence_refs': []}}
+
+    refs = {pco_oid: (pco_head, pco_revision), mission_oid: (mission_head, mission_revision)}
+    states = {constraint_oid: {'phase': 'draft'}}
+    e = _fake_execution(refs=refs, states=states)
+    e.target, e.target_revision = head, target_revision
+
+    def require_actor(principal_id, principal_type='human'):
+        if e.ctx.principal_id != principal_id or e.ctx.principal_type != principal_type:
+            raise GovernedError('FORBIDDEN')
+    e.require_actor = require_actor
+
+    e.ctx.principal_id = pco_dri
+    with pytest.raises(GovernedError) as exc:
+        method_v05._collect_confirm_constraint(e)
+    assert exc.value.code == 'FORBIDDEN'   # the PCO's own Scope DRI is not this Mission's confirmer
+
+    e.ctx.principal_id = mission_dri
+    method_v05._collect_confirm_constraint(e)   # the Mission's own Scope DRI is
+    assert e._v04['constraint_owner'] == mission_dri

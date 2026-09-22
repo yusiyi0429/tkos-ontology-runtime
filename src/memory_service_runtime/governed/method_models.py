@@ -13,6 +13,9 @@ MethodActionParams = Union[tuple(METHOD_ACTION_PARAMS.values())]
 
 
 def registry(version):
+    if version == "tkos.method/0.5":
+        from . import method_v05_models as v05
+        return v05.ACTION_PARAMS, v05.ACTION_TARGETS, v05.PAYLOAD_MODELS
     if version == "tkos.method/0.4":
         from . import method_v04_models as v04
         return v04.ACTION_PARAMS, v04.ACTION_TARGETS, v04.PAYLOAD_MODELS

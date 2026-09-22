@@ -47,6 +47,7 @@ SUPPORTED_PROTOCOL_CONTRACTS = frozenset(
         ("tkos.method", "tkos.method/0.2"),
         ("tkos.method", "tkos.method/0.3"),
         ("tkos.method", "tkos.method/0.4"),
+        ("tkos.method", "tkos.method/0.5"),
         (profile.CONTRACT_A_PROTOCOL_ID, profile.CONTRACT_A_CONTRACT_VERSION),
     }
 )

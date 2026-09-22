@@ -589,7 +589,7 @@ class _RowsConn:
         return SimpleNamespace(fetchall=lambda: rows, fetchone=lambda: rows[0] if rows else None)
 
 
-def test_pco_must_cite_a_confirmed_earlier_period_review_when_one_exists():
+def test_pco_must_cite_a_confirmed_earlier_period_review_when_one_exists(monkeypatch):
     confirmed = _review('confirmed', '2026-09-30T00:00:00Z')
     generated = _review('generated', '2026-09-30T00:00:00Z', effective=False)
     late = _review('confirmed', '2026-10-15T00:00:00Z')
@@ -606,13 +606,42 @@ def test_pco_must_cite_a_confirmed_earlier_period_review_when_one_exists():
         method_v05._check_period_review_ref(e, {**payload, 'period_review_ref': late[3]})
     assert exc.value.code == 'INVALID_REQUEST'
     method_v05._check_period_review_ref(e, {**payload, 'period_review_ref': None})   # first period
-    e.conn = _RowsConn([{'payload': confirmed[2]['payload']}])
+    e.conn = _RowsConn([{'object_id': confirmed[0], 'payload': confirmed[2]['payload']}])
+    # this scope's copy of `confirmed` is bound to 0.5 itself, so it still counts (see the
+    # dedicated cross-version test below for the 0.4-bound / unbound cases the fix addresses).
+    monkeypatch.setattr(protocol, 'current_binding',
+                        lambda conn, scope_id, object_id: {'contract_version': method_v05.CONTRACT_VERSION})
     with pytest.raises(GovernedError) as exc:  # a confirmed earlier review exists and must be cited
         method_v05._check_period_review_ref(e, {**payload, 'period_review_ref': None})
     assert exc.value.code == 'INVALID_REQUEST'
     for kind in ('m1b_confirm_review', 'm1b_generate_review', 'm1b_regenerate_review',
                 'm1b_draft_pco', 'm1b_revise_pco', 'm1b_resolve_window'):
         assert kind in method_v05.COLLECTORS and kind in method_v05.RUNNERS
+
+
+def test_period_review_gate_only_counts_reviews_currently_bound_to_0_5(monkeypatch):
+    """Controller finding (fix round 1): a scope can still hold PeriodReview objects left from an
+    in-place protocol upgrade, bound to an older Method version (gov_protocol_policies is per
+    (scope, domain) with a sequence; an in-place upgrade does not migrate old bindings).  0.4 makes
+    a PeriodReview effective at generation with no confirmation, so counting it here would deadlock
+    the first 0.5 PCO -- it could neither cite it (e.ref -> gate_dependency ->
+    PROTOCOL_BINDING_CONFLICT, a mismatched contract_version) nor omit it (this SQL would still see
+    it and refuse INVALID_REQUEST) -- and would flout contract Sec1 "不就地重解释历史" by treating a
+    0.4 review as if it were 0.5-confirmed.  Only a review whose CURRENT binding is 0.5 must count."""
+    confirmed = _review('confirmed', '2026-09-30T00:00:00Z')
+    payload = {'period': {'start': '2026-10-01T00:00:00Z', 'end': '2026-10-31T00:00:00Z'}}
+    e = _fake_execution(refs={}, states={})
+    e.conn = _RowsConn([{'object_id': confirmed[0], 'payload': confirmed[2]['payload']}])
+
+    for binding in (None, {'contract_version': 'tkos.method/0.4'}):   # no binding, or an older one
+        monkeypatch.setattr(protocol, 'current_binding', lambda conn, scope_id, object_id, b=binding: b)
+        method_v05._check_period_review_ref(e, {**payload, 'period_review_ref': None})   # does not block
+
+    monkeypatch.setattr(protocol, 'current_binding',
+                        lambda conn, scope_id, object_id: {'contract_version': method_v05.CONTRACT_VERSION})
+    with pytest.raises(GovernedError) as exc:   # the same row, now bound to 0.5, blocks again
+        method_v05._check_period_review_ref(e, {**payload, 'period_review_ref': None})
+    assert exc.value.code == 'INVALID_REQUEST'
 
 
 def test_generate_review_runner_does_not_make_it_effective():

@@ -9,7 +9,7 @@ from __future__ import annotations
 from copy import deepcopy
 from datetime import datetime
 
-from . import db, method_access as access, method_v04 as v4
+from . import db, method_access as access, method_v04 as v4, protocol
 from .errors import GovernedError
 from .method_v04 import _agent, _current_ceo, _exact, _human_ceo, _phase, _same, _scope_definition, _source_refs
 from .method_v05_models import ACTION_PARAMS, HUMAN_ACTIONS
@@ -296,12 +296,16 @@ def _check_period_review_ref(e, payload):
             fail("The cited Period Review must precede the PCO period.", "INVALID_REQUEST")
         return
     rows = e.conn.execute(
-        """SELECT r.payload FROM gov_objects o JOIN gov_object_revisions r
+        """SELECT o.object_id, r.payload FROM gov_objects o JOIN gov_object_revisions r
              ON (r.scope_id, r.object_id, r.revision_id) = (o.scope_id, o.object_id, o.effective_revision_id)
            WHERE o.scope_id=%s AND o.object_type='PeriodReview' AND o.effective_revision_id IS NOT NULL""",
         (e.ctx.scope_id,)).fetchall()
     for row in db.jsonable(rows):
-        if datetime.fromisoformat(row["payload"]["period"]["end"]) <= start:
+        if datetime.fromisoformat(row["payload"]["period"]["end"]) > start:
+            continue
+        # 只统计当前绑定仍是 0.5 的 PeriodReview——原地升级不迁移旧绑定，0.4 生成即生效、无需确认，计入会致死锁且违反 §1「不就地重解释历史」。
+        binding = protocol.current_binding(e.conn, e.ctx.scope_id, str(row["object_id"]))
+        if binding is not None and binding["contract_version"] == CONTRACT_VERSION:
             fail("A confirmed Period Review exists for an earlier period; the PCO must cite it.", "INVALID_REQUEST")
 
 

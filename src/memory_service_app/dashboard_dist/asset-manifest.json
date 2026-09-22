@@ -300,10 +300,6 @@
     {
       "path": "workbench/dashboard/vite.config.ts",
       "sha256": "c4288cb2d28c2d313302b1e4cb3174f550c192cf50a1d52b599f7e6ff9531fa0"
-    },
-    {
-      "path": "workbench/dashboard/vite.verify.config.ts",
-      "sha256": "f3e02a7de6fb724d833ef6973b5561dd9f8d037b436b083f6f6a50ed162840b0"
     }
   ],
   "outputs": [

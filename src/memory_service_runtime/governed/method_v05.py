@@ -165,6 +165,77 @@ RUNNERS.update({"m1b_record_constraint": _run_record_constraint,
                 "m1b_confirm_constraint": _run_confirm_constraint})
 
 
+# ------------------------------------------------------------------- LTCO
+
+
+def _collect_ltco_draft(e):
+    v4.collect(e)
+    payload = e.params["payload"]
+    _check_constraint_refs(e, payload["constraint_refs"], scope_id=payload["primary_scope_id"])
+
+
+def _collect_confirm_ltco(e):
+    state = e.state(e.target)
+    _phase(state, "draft", "confirmed")
+    payload = e.target_revision["payload"]
+    v4._ltco_check(e, payload)
+    _check_constraint_refs(e, payload["constraint_refs"], scope_id=payload["primary_scope_id"])
+    owner, _assignment = _current_ceo(e, e.target["domain_id"])
+    e.require_actor(owner, "human")
+    conclusion = e.params["conclusion"]
+    has_formal = e.target.get("effective_revision_id") is not None
+    if state.get("phase") == "confirmed":
+        if conclusion != "maintained" or not has_formal:
+            fail("A confirmed LTCO can only be maintained; revise it for a new version.", "INVALID_REQUEST")
+        if str(e.target["effective_revision_id"]) != str(e.target_revision["revision_id"]):
+            fail("Maintain the exact effective LTCO version.", "STALE_DEPENDENCY")
+        return
+    expected = "revised" if has_formal else "established"
+    if conclusion != expected:
+        fail(f"This confirmation must conclude '{expected}'.", "INVALID_REQUEST")
+
+
+def _run_propose_ltco(e):
+    head, revision = e.create("LTCO", e.params["payload"])
+    e.set_state(head, {"phase": "draft"})
+    return {**_exact(head, revision), "phase": "draft"}
+
+
+def _run_revise_ltco(e):
+    # 修订不是确认：state 重置为 draft，不沿用已确认状态里 0.4 遗留的 confirmation_record_id；
+    # 但 last_review（若已存在）要保留——它是 §3 历次审视结论的记录，不应被一次修订抹去。
+    head, revision = e.revise(e.target, e.params["payload"])
+    old_state = e.state(head)
+    state = {"phase": "draft"}
+    if "last_review" in old_state:
+        state["last_review"] = old_state["last_review"]
+    e.set_state(head, state)
+    record = e.review("ltco_revision_response", _exact(head, revision), {"response": e.params["response"]})
+    return {**_exact(head, revision), "phase": "draft", "review_record_id": record}
+
+
+def _run_confirm_ltco(e):
+    conclusion = e.params["conclusion"]
+    record = e.review("ltco_confirmation", _exact(e.target, e.target_revision),
+                      {"conclusion": conclusion, "statement": e.params["statement"]})
+    state = deepcopy(e.state(e.target))
+    state.update(phase="confirmed", confirmation_record_id=record,
+                 last_review={"conclusion": conclusion, "record_id": record})
+    e.set_state(e.target, state)
+    if conclusion == "maintained":
+        e.transition(e.target)   # 只推进 CAS；正式版本不变
+    else:
+        e.transition(e.target, status="confirmed", effective=True)
+    return {**_exact(e.target, e.target_revision), "phase": "confirmed", "conclusion": conclusion,
+            "review_record_id": record}
+
+
+COLLECTORS.update({"m1b_propose_ltco": _collect_ltco_draft, "m1b_revise_ltco": _collect_ltco_draft,
+                   "m1b_confirm_ltco": _collect_confirm_ltco})
+RUNNERS.update({"m1b_propose_ltco": _run_propose_ltco, "m1b_revise_ltco": _run_revise_ltco,
+                "m1b_confirm_ltco": _run_confirm_ltco})
+
+
 def constraint_assignment_static(conn, ctx, payload):
     """只读解析 Constraint 范围责任人，供 scoped 授权回退与工作台可用性投影使用。"""
     context = light(conn, ctx)

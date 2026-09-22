@@ -511,3 +511,58 @@ def test_mission_constraint_confirmer_uses_the_missions_own_scope_not_its_pcos(m
     e.ctx.principal_id = mission_dri
     method_v05._collect_confirm_constraint(e)   # the Mission's own Scope DRI is
     assert e._v04['constraint_owner'] == mission_dri
+
+
+def _ltco_target(phase, effective):
+    oid, rid = str(uuid4()), str(uuid4())
+    head = {'object_id': oid, 'object_type': 'LTCO', 'domain_id': str(uuid4()),
+            'effective_revision_id': rid if effective else None, 'latest_revision_id': rid}
+    revision = {'object_id': oid, 'revision_id': rid, 'payload_hash': 'a' * 64,
+                'payload': {'primary_scope_id': 'bf-1', 'constraint_refs': []}}
+    return head, revision, {oid: {'phase': phase}}
+
+
+def test_ltco_conclusion_must_match_the_objects_history(monkeypatch):
+    monkeypatch.setattr(method_v04, '_ltco_check', lambda e, payload: None)
+    monkeypatch.setattr(method_v05, '_current_ceo', lambda e, domain_id: (e.ctx.principal_id, {'assignment_id': 'a'}))
+    for phase, effective, conclusion, ok in [('draft', False, 'established', True), ('draft', False, 'revised', False),
+                                             ('draft', True, 'revised', True), ('draft', True, 'established', False),
+                                             ('draft', True, 'maintained', False), ('confirmed', True, 'maintained', True),
+                                             ('confirmed', True, 'revised', False)]:
+        head, revision, states = _ltco_target(phase, effective)
+        e = _fake_execution(refs={}, states=states)
+        e.target, e.target_revision = head, revision
+        e.params = {'conclusion': conclusion, 'statement': 'reason'}
+        e.require_actor = lambda principal, kind: None
+        if ok:
+            method_v05._collect_confirm_ltco(e)
+        else:
+            with pytest.raises(GovernedError) as exc:
+                method_v05._collect_confirm_ltco(e)
+            assert exc.value.code == 'INVALID_REQUEST', (phase, effective, conclusion)
+    for kind in ('m1b_propose_ltco', 'm1b_revise_ltco', 'm1b_confirm_ltco'):
+        assert kind in method_v05.COLLECTORS and kind in method_v05.RUNNERS
+
+
+def test_revise_ltco_state_carries_last_review_but_drops_everything_else():
+    """Deviation from the brief (see _run_revise_ltco): a revise resets state to
+    {'phase': 'draft'}, carrying the prior last_review forward only when present --
+    never a stale confirmation_record_id, and never a written last_review: None."""
+
+    def _revise_case(prior_state):
+        oid, rid = str(uuid4()), str(uuid4())
+        head = {'object_id': oid}
+        revision = {'object_id': oid, 'revision_id': rid, 'payload_hash': 'a' * 64}
+        written = {}
+        e = SimpleNamespace(target=head, params={'payload': {}, 'response': 'ack'},
+                            revise=lambda target, payload: (head, revision),
+                            state=lambda h: prior_state,
+                            set_state=lambda h, s: written.update(state=s),
+                            review=lambda kind, ref, content: str(uuid4()))
+        method_v05._run_revise_ltco(e)
+        return written['state']
+
+    last_review = {'conclusion': 'maintained', 'record_id': 'r1'}
+    assert _revise_case({'phase': 'confirmed', 'confirmation_record_id': 'r1', 'last_review': last_review}) == \
+        {'phase': 'draft', 'last_review': last_review}
+    assert _revise_case({'phase': 'confirmed', 'confirmation_record_id': 'r1'}) == {'phase': 'draft'}

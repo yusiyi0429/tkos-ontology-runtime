@@ -830,6 +830,7 @@ def test_activate_candidates_succeeds_when_only_the_pco_dri_committed(monkeypatc
     other commitment can ever exist for the Mission). Activation must succeed, and the Mission
     must never appear in the required-committer set that gated it."""
     (pco_oid, pco_head, pco_revision, pco_ref), (mission_oid, mission_head, mission_revision, mission_ref) = _pco_and_mission()
+    mission_revision = {**mission_revision, 'payload': {'owner_principal_id': str(uuid4())}}
     window_oid = str(uuid4())
     window_head = {'object_id': window_oid, 'object_type': 'ReviewWindow'}
     window_revision = {'object_id': window_oid, 'revision_id': str(uuid4()), 'payload_hash': 'a' * 64, 'payload': {}}
@@ -849,6 +850,7 @@ def test_activate_candidates_succeeds_when_only_the_pco_dri_committed(monkeypatc
     e.target, e.target_revision = {'object_id': candidate_oid}, candidate_revision
     e.head = lambda oid: {pco_oid: pco_head, mission_oid: mission_head, window_oid: window_head}[oid]
     e.revision = lambda oid, rid: {pco_oid: pco_revision, mission_oid: mission_revision}[oid]
+    e.validate_principal = lambda principal_id, principal_type='human': {'assignment_id': 'owner-a1'}   # Owner is current
     dri = str(uuid4())
     e.conn = _RowsConn([{'responsibility_object_id': pco_oid, 'responsibility_revision_id': pco_revision['revision_id'],
                          'principal_id': dri, 'assignment_id': 'a1'}])
@@ -863,3 +865,137 @@ def test_activate_candidates_succeeds_when_only_the_pco_dri_committed(monkeypatc
                             {'role': 'DOMAIN_DRI', 'domain_id': domain_id, 'assignment_id': assignment_id})
     method_v05._collect_activate_candidates(e)
     assert set(e._v04['activation']['required']) == {pco_oid}   # the Mission was never required
+
+
+# ------------------------- fix round 1: candidate Mission Owner re-validation
+#
+# Finding 1: 0.5 removed the Mission's own required commitment (contract Sec5),
+# which in 0.4 was what proved a candidate Mission's Owner was a current human
+# principal, at both commit and activation (_required_committers ->
+# _mission_owner -> validate_principal). Nothing replaced that proof, so a
+# candidate naming a never-validated or since-revoked Owner could resolve and
+# activate, and activation now stamps state.owner_activation_record_id on it.
+# Finding 2: the fix must not duplicate its checks between the collector and
+# the activation_blockers projection, so these tests probe both.
+
+def _activation_fixture(*, owner_ok):
+    """One resolved-window CandidateSet naming one PCO (its DRI will be the sole committer)
+    and one Mission, for activation-path tests. owner_ok=False makes the Mission's
+    owner_principal_id fail principal validation."""
+    (pco_oid, pco_head, pco_revision, pco_ref), (mission_oid, mission_head, mission_revision, mission_ref) = _pco_and_mission()
+    owner = str(uuid4())
+    mission_revision = {**mission_revision, 'payload': {'owner_principal_id': owner}}
+    window_oid = str(uuid4())
+    window_head = {'object_id': window_oid, 'object_type': 'ReviewWindow'}
+    window_revision = {'object_id': window_oid, 'revision_id': str(uuid4()), 'payload_hash': 'a' * 64, 'payload': {}}
+    window_ref = {'object_id': window_oid, 'revision_id': window_revision['revision_id'], 'payload_hash': 'a' * 64}
+    candidate_oid = str(uuid4())
+    candidate_revision = {'object_id': candidate_oid, 'revision_id': str(uuid4()), 'payload_hash': 'a' * 64,
+                          'payload': {'target_refs': [pco_ref, mission_ref], 'window_ref': window_ref,
+                                      'unresolved_differences': []}}
+    candidate_head = {'object_id': candidate_oid, 'object_type': 'CandidateSet'}
+    candidate_ref = {'object_id': candidate_oid, 'revision_id': candidate_revision['revision_id'], 'payload_hash': 'a' * 64}
+    dri = str(uuid4())
+    heads = {pco_oid: pco_head, mission_oid: mission_head, window_oid: window_head, candidate_oid: candidate_head}
+    revisions = {pco_oid: pco_revision, mission_oid: mission_revision, window_oid: window_revision,
+                candidate_oid: candidate_revision}
+    refs = {pco_oid: (pco_head, pco_revision), mission_oid: (mission_head, mission_revision),
+            window_oid: (window_head, window_revision), candidate_oid: (candidate_head, candidate_revision)}
+    states = {candidate_oid: {'phase': 'pending'},
+              pco_oid: {'phase': 'candidate', 'candidate_ref': candidate_ref},
+              mission_oid: {'phase': 'candidate', 'candidate_ref': candidate_ref},
+              window_oid: {'phase': 'resolved'}}
+    commitment_rows = [{'responsibility_object_id': pco_oid, 'responsibility_revision_id': pco_revision['revision_id'],
+                        'principal_id': dri, 'assignment_id': 'a1'}]
+
+    def validate_principal(principal_id, principal_type='human'):
+        if not owner_ok:
+            raise GovernedError('FORBIDDEN')
+        return {'assignment_id': 'owner-a1'}
+
+    return SimpleNamespace(pco_oid=pco_oid, mission_oid=mission_oid, window_oid=window_oid, candidate_oid=candidate_oid,
+                           heads=heads, revisions=revisions, refs=refs, states=states, dri=dri, owner=owner,
+                           candidate_revision=candidate_revision, candidate_ref=candidate_ref,
+                           commitment_rows=commitment_rows, validate_principal=validate_principal)
+
+
+def test_resolve_window_refuses_a_candidate_mission_whose_owner_fails_validation(monkeypatch):
+    """Finding 1(a): resolution must validate the CANDIDATE's owner_principal_id (which can
+    rename the Owner away from the frozen revision's -- CandidateMission carries its own field)
+    with v4._mission_owner, exactly as 0.4 validates the frozen Owner when a window opens. Its
+    error propagates unmodified (FORBIDDEN, from validate_principal)."""
+    mission_oid = str(uuid4())
+    mission_head = {'object_id': mission_oid, 'object_type': 'Mission'}
+    mission_revision = {'object_id': mission_oid, 'revision_id': str(uuid4()), 'payload_hash': 'a' * 64, 'payload': {}}
+    candidate = {'object_id': mission_oid, 'owner_principal_id': str(uuid4())}
+    e = SimpleNamespace(target_revision={'payload': {}}, params={'missions': [candidate]},
+                        validate_principal=lambda principal_id, principal_type='human':
+                            (_ for _ in ()).throw(GovernedError('FORBIDDEN')))
+    monkeypatch.setattr(method_v05, '_collect_resolve_window',
+                        lambda e: setattr(e, '_m1b', {'missions': {mission_oid: {'head': mission_head,
+                                                                                 'revision': mission_revision}}}))
+    with pytest.raises(GovernedError) as exc:
+        method_v05._collect_resolve_window_missions(e)
+    assert exc.value.code == 'FORBIDDEN'
+
+
+def test_activate_candidates_and_blockers_agree_when_a_missions_owner_is_invalid(monkeypatch):
+    """Finding 1(b)/(c) and Finding 2's shared helper: activation must re-validate every Mission
+    member's Owner even though Missions are never required committers (pin (b) above), and the
+    read-only projection must report the same reason -- mission_owner_invalid -- rather than
+    silently allowing what the collector refuses."""
+    fx = _activation_fixture(owner_ok=False)
+    domain_id = str(uuid4())
+    monkeypatch.setattr(method_v04, '_candidate_basis_current', lambda e, payload: None)
+    monkeypatch.setattr(method_v04, '_pco_responsibility',
+                        lambda e, payload: (fx.dri, 'DOMAIN_DRI', domain_id, {'assignment_id': 'a1'}))
+    monkeypatch.setattr(method_access, 'assignment',
+                        lambda conn, ctx, assignment_id, principal_id, principal_type:
+                            {'role': 'DOMAIN_DRI', 'domain_id': domain_id, 'assignment_id': assignment_id})
+
+    # collector half: INVALID_STATE, not the FORBIDDEN validate_principal itself raises
+    e = _fake_execution(refs=fx.refs, states=fx.states)
+    e.target, e.target_revision = {'object_id': fx.candidate_oid}, fx.candidate_revision
+    e.head = lambda oid: fx.heads[oid]
+    e.revision = lambda oid, rid: fx.revisions[oid]
+    e.conn = _RowsConn(fx.commitment_rows)
+    e.validate_assignment = lambda assignment_id, principal_id, principal_type: None
+    e.validate_principal = fx.validate_principal
+    monkeypatch.setattr(method_v05, '_human_ceo', lambda e: None)
+    with pytest.raises(GovernedError) as exc:
+        method_v05._collect_activate_candidates(e)
+    assert exc.value.code == 'INVALID_STATE'
+
+    # projection half: the same underlying scenario, through activation_blockers
+    context = _fake_execution(refs=fx.refs, states=fx.states)
+    context.head = lambda oid: fx.heads[oid]
+    context.revision = lambda oid, rid: fx.revisions[oid]
+    context.validate_principal = fx.validate_principal
+    monkeypatch.setattr(method_v05, 'light', lambda conn, ctx: context)
+    conn = _RowsConn(fx.commitment_rows)
+    ctx = SimpleNamespace(scope_id=str(uuid4()))
+    obj = {'object_id': fx.candidate_oid, 'latest_revision': fx.candidate_revision}
+    assert method_v05.activation_blockers(conn, ctx, obj) == ['mission_owner_invalid']
+
+
+def test_activation_blockers_is_empty_for_the_deadlock_fix_scenario(monkeypatch):
+    """The workbench half of the deadlock fix pinned above (test_activate_candidates_succeeds_
+    when_only_the_pco_dri_committed): the same pending PCO+Mission candidate set, only the PCO
+    DRI committed, Owner valid -- activation_blockers must agree it is ready to activate."""
+    fx = _activation_fixture(owner_ok=True)
+    domain_id = str(uuid4())
+    context = _fake_execution(refs=fx.refs, states=fx.states)
+    context.head = lambda oid: fx.heads[oid]
+    context.revision = lambda oid, rid: fx.revisions[oid]
+    context.validate_principal = fx.validate_principal
+    monkeypatch.setattr(method_v05, 'light', lambda conn, ctx: context)
+    monkeypatch.setattr(method_v04, '_candidate_basis_current', lambda e, payload: None)
+    monkeypatch.setattr(method_v04, '_pco_responsibility',
+                        lambda e, payload: (fx.dri, 'DOMAIN_DRI', domain_id, {'assignment_id': 'a1'}))
+    monkeypatch.setattr(method_access, 'assignment',
+                        lambda conn, ctx, assignment_id, principal_id, principal_type:
+                            {'role': 'DOMAIN_DRI', 'domain_id': domain_id, 'assignment_id': assignment_id})
+    conn = _RowsConn(fx.commitment_rows)
+    ctx = SimpleNamespace(scope_id=str(uuid4()))
+    obj = {'object_id': fx.candidate_oid, 'latest_revision': fx.candidate_revision}
+    assert method_v05.activation_blockers(conn, ctx, obj) == []

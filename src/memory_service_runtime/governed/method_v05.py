@@ -403,6 +403,7 @@ def _collect_resolve_window_missions(e):
     for candidate in e.params["missions"]:
         head = frozen[str(candidate["object_id"])]["head"]
         revision = frozen[str(candidate["object_id"])]["revision"]
+        v4._mission_owner(e, candidate)   # 候选的 Owner 可能与冻结版本不同，需按候选值重新校验
         _check_mission_extras(e, candidate, architecture_ref=window["architecture_ref"],
                               mission_ref=_exact(head, revision))
 
@@ -461,41 +462,80 @@ def _collect_commit_candidate(e):
     e._v04.update(commitment_owner=owner, commitment_assignment=assignment, candidate_state=state)
 
 
+def _activation_findings(reader, conn, ctx, payload, required, candidate_ref):
+    """m1b_activate_candidates 的有序 (code, message, blocker_code) 发现列表，供收集器的写路径与
+    只读投影 activation_blockers 共用，避免规则变更只改到其中一处。覆盖：成员状态、每个候选 Mission
+    的 Owner（§5 去掉的是 Owner 的承诺，不是 Owner 的有效性）、以及每个必需 PCO 的承诺。不判定候选
+    集自身的 phase、基准是否过期（stale_basis）或 unresolved_differences（critical_difference）——
+    这两项仍由两个调用方各自保留在原有位置。
+    """
+    findings = []
+    for reference in payload["target_refs"]:
+        member = reader.head(reference["object_id"])
+        member_state = reader.state(member)
+        if member_state.get("phase") != "candidate" or not _same(member_state.get("candidate_ref"), candidate_ref):
+            findings.append(("STALE_DEPENDENCY", "The candidate set is no longer the authoritative member state.",
+                             "member_state_changed"))
+            break
+    for reference in payload["target_refs"]:
+        member = reader.head(reference["object_id"])
+        if member["object_type"] != "Mission":
+            continue
+        revision = reader.revision(reference["object_id"], reference["revision_id"])
+        try:
+            v4._mission_owner(reader, revision["payload"])
+        except GovernedError:
+            findings.append(("INVALID_STATE",
+                             "A candidate Mission's Owner is no longer a current principal; reopen and resolve again.",
+                             "mission_owner_invalid"))
+    rows = conn.execute(
+        """SELECT responsibility_object_id, responsibility_revision_id, principal_id, assignment_id
+           FROM gov_method_commitments WHERE scope_id=%s AND candidate_revision_id=%s""",
+        (ctx.scope_id, candidate_ref["revision_id"])).fetchall()
+    committed = {str(r["responsibility_object_id"]): db.jsonable(r) for r in db.jsonable(rows)}
+    for oid, spec in required.items():
+        recorded = committed.get(oid)
+        if recorded is None or str(recorded["principal_id"]) != str(spec["owner"]):
+            findings.append(("INVALID_STATE",
+                             "Every responsibility Scope DRI must commit the exact candidate set before activation.",
+                             "missing_commitment"))
+            continue
+        if str(recorded["responsibility_revision_id"]) != str(spec["reference"]["revision_id"]):
+            findings.append(("INVALID_STATE", "A recorded commitment names a different responsibility revision.",
+                             "member_state_changed"))
+            continue
+        try:
+            assignment = access.assignment(conn, ctx, str(recorded["assignment_id"]), spec["owner"], "human")
+        except GovernedError:
+            findings.append(("INVALID_STATE",
+                             "A recorded commitment assignment is no longer current; explicit recommit is required.",
+                             "commitment_assignment_revoked"))
+            continue
+        if assignment["role"] != spec["role"] or str(assignment["domain_id"]) != str(spec["domain_id"]):
+            findings.append(("INVALID_STATE", "A recorded commitment assignment no longer matches the named responsibility.",
+                             "commitment_assignment_mismatch"))
+    return findings, committed
+
+
 def _collect_activate_candidates(e):
     _human_ceo(e)
     state = _phase(e.state(e.target), "pending")
     payload = e.target_revision["payload"]
     v4._candidate_basis_current(e, payload)
     required = _required_committers(e, payload)
-    for reference in payload["target_refs"]:
-        member = e.head(reference["object_id"])
-        member_state = e.state(member)
-        if member_state.get("phase") != "candidate" or not _same(member_state.get("candidate_ref"), _exact(e.target, e.target_revision)):
-            fail("The candidate set is no longer the authoritative member state.", "STALE_DEPENDENCY")
-    rows = e.conn.execute(
-        """SELECT responsibility_object_id, responsibility_revision_id, principal_id, assignment_id
-           FROM gov_method_commitments WHERE scope_id=%s AND candidate_revision_id=%s""",
-        (e.ctx.scope_id, e.target_revision["revision_id"])).fetchall()
-    committed = {str(r["responsibility_object_id"]): db.jsonable(r) for r in db.jsonable(rows)}
-    for oid, spec in required.items():
-        recorded = committed.get(oid)
-        reference = spec["reference"]
-        if recorded is None or str(recorded["principal_id"]) != str(spec["owner"]):
-            fail("Every responsibility Scope DRI must commit the exact candidate set before activation.", "INVALID_STATE")
-        if str(recorded["responsibility_revision_id"]) != str(reference["revision_id"]):
-            fail("A recorded commitment names a different responsibility revision.", "INVALID_STATE")
-        try:
-            assignment = access.assignment(e.conn, e.ctx, str(recorded["assignment_id"]), spec["owner"], "human")
-        except GovernedError:
-            fail("A recorded commitment assignment is no longer current; explicit recommit is required.", "INVALID_STATE")
-        if assignment["role"] != spec["role"] or str(assignment["domain_id"]) != str(spec["domain_id"]):
-            fail("A recorded commitment assignment no longer matches the named responsibility.", "INVALID_STATE")
-        e.validate_assignment(str(recorded["assignment_id"]), spec["owner"], "human")
+    candidate_ref = _exact(e.target, e.target_revision)
+    findings, committed = _activation_findings(e, e.conn, e.ctx, payload, required, candidate_ref)
+    if findings:
+        code, message, _blocker = findings[0]
+        fail(message, code)
     if [d for d in payload.get("unresolved_differences", []) if d["critical"]]:
         fail("A critical unresolved difference blocks activation.", "INVALID_STATE")
     window_head, window_revision = e.ref(payload["window_ref"], types={"ReviewWindow"}, current=False)
     if e.state(window_head).get("phase") != "resolved":
         fail("The reviewed window is no longer in its resolved state.", "INVALID_STATE")
+    for oid, spec in required.items():
+        recorded = committed[oid]
+        e.validate_assignment(str(recorded["assignment_id"]), spec["owner"], "human")
     e._v04["activation"] = {"state": state, "payload": payload, "window_head": window_head,
                             "window_revision": window_revision, "required": required}
 
@@ -513,26 +553,14 @@ def _run_activate_candidates(e):
 
 
 def activation_blockers(conn, ctx, obj):
-    """0.5 工作台投影：与 0.4 同结构，只是承诺人规则换成 PCO 的 DRI。"""
+    """0.5 工作台投影：与 0.4 同结构，只是承诺人规则换成 PCO 的 DRI，并新增候选 Mission 的 Owner 校验。"""
     payload = (obj.get("latest_revision") or {}).get("payload") or {}
-    candidate_revision_id = (obj.get("latest_revision") or {}).get("revision_id")
     context = light(conn, ctx)
     blockers = []
     try:
         v4._candidate_basis_current(context, payload)
     except GovernedError:
         blockers.append("stale_basis")
-    try:
-        candidate_head = context.head(obj["object_id"])
-        candidate_revision = context.revision(obj["object_id"], obj["latest_revision"]["revision_id"])
-        for reference in payload["target_refs"]:
-            member = context.head(reference["object_id"])
-            state = context.state(member)
-            if state.get("phase") != "candidate" or not _same(state.get("candidate_ref"), _exact(candidate_head, candidate_revision)):
-                blockers.append("member_state_changed")
-                break
-    except (GovernedError, KeyError):
-        blockers.append("member_state_changed")
     if any(item.get("critical") for item in payload.get("unresolved_differences", [])):
         blockers.append("critical_difference")
     try:
@@ -540,26 +568,14 @@ def activation_blockers(conn, ctx, obj):
     except GovernedError:
         blockers.append("missing_commitment")
         return blockers
-    rows = conn.execute(
-        """SELECT responsibility_object_id, responsibility_revision_id, principal_id, assignment_id
-           FROM gov_method_commitments WHERE scope_id=%s AND candidate_revision_id=%s""",
-        (ctx.scope_id, candidate_revision_id)).fetchall()
-    committed = {str(row["responsibility_object_id"]): db.jsonable(row) for row in db.jsonable(rows)}
-    for oid, spec in required.items():
-        recorded = committed.get(oid)
-        if recorded is None or str(recorded["principal_id"]) != str(spec["owner"]):
-            blockers.append("missing_commitment")
-            continue
-        if str(recorded["responsibility_revision_id"]) != str(spec["reference"]["revision_id"]):
-            blockers.append("member_state_changed")
-            continue
-        try:
-            assignment = access.assignment(conn, ctx, str(recorded["assignment_id"]), spec["owner"], "human")
-        except GovernedError:
-            blockers.append("commitment_assignment_revoked")
-            continue
-        if assignment["role"] != spec["role"] or str(assignment["domain_id"]) != str(spec["domain_id"]):
-            blockers.append("commitment_assignment_mismatch")
+    try:
+        candidate_head = context.head(obj["object_id"])
+        candidate_revision = context.revision(obj["object_id"], obj["latest_revision"]["revision_id"])
+        findings, _committed = _activation_findings(context, conn, ctx, payload, required,
+                                                     _exact(candidate_head, candidate_revision))
+        blockers.extend(finding[2] for finding in findings)
+    except (GovernedError, KeyError):
+        blockers.append("member_state_changed")
     return blockers
 
 

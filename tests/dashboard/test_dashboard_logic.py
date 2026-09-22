@@ -322,8 +322,16 @@ def test_mission_basis_never_falls_back_across_registered_contracts(monkeypatch)
         SELECTED, visited=frozenset(), impact_linked=False)
     assert (basis["status"], basis["reason"]) == ("unavailable", "referenced_revision_unavailable")
 
+    # A 0.5 Mission records parent_pco_ref like 0.4: a bare legacy pco_ref is ignored.
+    _registered_version(monkeypatch, "tkos.method/0.5")
+    basis = dashboard._basis_of_revision(
+        None, CTX, head(mission_oid, "Mission", latest=mission_rid, effective=mission_rid),
+        revision(mission_oid, mission_rid, {"title": "M", "pco_ref": parent}),
+        SELECTED, visited=frozenset(), impact_linked=False)
+    assert (basis["status"], basis["reason"]) == ("unavailable", "referenced_revision_unavailable")
+
     # An unknown or unregistered version is explicit and resolves no field at all.
-    for version in ("tkos.method/0.5", None):
+    for version in ("tkos.method/9.9", None):
         calls: list[Any] = []
         monkeypatch.setattr(dashboard, "_load_ref",
                             lambda conn, ctx, ref: calls.append(ref) or readable)

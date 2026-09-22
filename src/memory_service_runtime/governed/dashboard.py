@@ -423,6 +423,7 @@ MISSION_PARENT_REF_FIELDS: dict[str, str] = {
     "tkos.method/0.2": "pco_ref",
     "tkos.method/0.3": "pco_ref",
     "tkos.method/0.4": "parent_pco_ref",
+    "tkos.method/0.5": "parent_pco_ref",
 }
 
 

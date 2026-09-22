@@ -40,6 +40,10 @@ HUMAN_ACTION_LABELS = {
     'm1b_commit_candidate': '提交本人责任承诺',
     'm1b_activate_candidates': '整组激活候选集合',
     'method_confirm_state': '确认正式经营状态',
+    'm1b_confirm_review': '确认周期复盘（CEO）',
+    'm1b_confirm_constraint': '确认经营约束（按范围）',
+    'm1b_record_constraint': '登记经营约束',
+    'm1b_revise_constraint': '修订经营约束',
     'method_open_problem': '登记经营问题',
     'method_revise_problem': '修订经营问题',
     'method_close_problem': '关闭经营问题',
@@ -58,6 +62,10 @@ FORMAL_EFFECT = {
     'm1b_reopen_candidates': 'new_review_window',
     'm1b_reopen_window': 'new_review_window',
     'method_confirm_state': 'canonical_operating_state',
+    'm1b_confirm_review': 'confirmed_period_review',
+    'm1b_confirm_constraint': 'effective_constraint',
+    'm1b_record_constraint': 'constraint_draft',
+    'm1b_revise_constraint': 'constraint_draft',
     'method_open_problem': 'tracked_problem',
     'method_revise_problem': 'tracked_problem',
     'method_close_problem': 'problem_disposition',
@@ -67,10 +75,12 @@ FORMAL_EFFECT = {
 CEO_ONLY_ACTIONS = frozenset({
     'm1a_set_participants', 'm1a_confirm_update', 'm1b_confirm_ltco',
     'm1b_activate_candidates', 'm1b_reopen_candidates', 'm1b_reopen_window',
+    'm1b_confirm_review',
 })
 SCOPED_HUMAN_ACTIONS = frozenset({
     'm1a_confirm_agreement', 'm1b_comment', 'm1b_replace_comment', 'm1b_withdraw_comment',
     'm1b_commit_candidate', 'method_confirm_state',
+    'm1b_confirm_constraint', 'm1b_revise_constraint',
     'method_revise_problem', 'method_close_problem',
 })
 # Conservative phase gates per action, from the implemented 0.4 validators.  The
@@ -79,13 +89,16 @@ PHASE_RULES = {
     'm1a_set_participants': {'issue_confirmed', 'agreement_formal', 'completed'},
     'm1a_confirm_agreement': {'draft', 'awaiting_confirmation'},
     'm1a_confirm_update': {'reviewed'},
-    'm1b_confirm_ltco': {'draft'},
+    'm1b_confirm_ltco': {'draft', 'confirmed'},
     'm1b_comment': {'open'}, 'm1b_replace_comment': {'open'}, 'm1b_withdraw_comment': {'open'},
     'm1b_commit_candidate': {'pending'},
     'm1b_activate_candidates': {'pending'},
     'm1b_reopen_candidates': {'pending'},
     'm1b_reopen_window': {'open', 'closed', 'resolved'},
     'method_confirm_state': {'proposed'},
+    'm1b_confirm_review': {'generated'},
+    'm1b_confirm_constraint': {'draft'},
+    'm1b_revise_constraint': {'draft', 'confirmed'},
     'method_revise_problem': {'open'}, 'method_close_problem': {'open'},
     'method_open_problem': {'confirmed'},
 }
@@ -143,9 +156,13 @@ def action_options(conn, ctx, obj, action):
     if action == 'm1b_withdraw_comment':
         return {'opinions': _my_opinions(conn, ctx, obj)}
     if action == 'm1b_commit_candidate':
-        from . import method_v04
         try:
-            required = method_v04._required_committers(method_v04._LightExecution(conn, ctx), payload)
+            if obj['protocol']['contract_version'] == 'tkos.method/0.5':
+                from . import method_v05
+                required = method_v05.required_committers(method_v05.light(conn, ctx), payload)
+            else:
+                from . import method_v04
+                required = method_v04._required_committers(method_v04._LightExecution(conn, ctx), payload)
         except GovernedError:
             return {'responsibilities': []}
         mine = [spec for spec in required.values() if str(spec['owner']) == str(ctx.principal_id)]
@@ -258,23 +275,44 @@ def _availability(conn, ctx, obj, action, *, ceo):
         confirmed = set(state.get('confirmed_principal_ids') or [])
         if ctx.principal_id in confirmed:
             return False, 'already_confirmed'
+    executor = _executor(obj)
     if action in SCOPED_HUMAN_ACTIONS:
-        from . import method_v04
         try:
-            method_v04.scoped_assignment(conn, ctx, action, obj, obj['latest_revision'])
+            executor.scoped_assignment(conn, ctx, action, obj, obj['latest_revision'])
         except GovernedError:
             return False, SCOPED_REASONS.get(action, 'not_responsible_owner')
     if action == 'method_open_problem':
-        from . import method_v04
-        owner = method_v04._state_subject_owner_static(conn, ctx, obj['latest_revision']['payload']['subject_ref'])
+        owner = executor.state_subject_owner_static(conn, ctx, obj['latest_revision']['payload']['subject_ref'])
         if owner != ctx.principal_id or not db._assignments(conn, ctx):
             return False, 'not_state_owner'
     if action == 'm1b_activate_candidates' and conn is not None:
-        from . import method_v04
-        blockers = method_v04.activation_blockers(conn, ctx, obj)
+        blockers = executor.activation_blockers(conn, ctx, obj)
         if blockers:
             return False, blockers[0]
     return True, None
+
+
+def _executor(obj):
+    """0.5 对象用 0.5 执行器的只读投影；其余沿用 0.4。"""
+    if obj['protocol']['contract_version'] == 'tkos.method/0.5':
+        from . import method_v05
+        return method_v05
+    from . import method_v04
+    return _V04Facade(method_v04)
+
+
+class _V04Facade:
+    def __init__(self, module):
+        self.module = module
+
+    def scoped_assignment(self, conn, ctx, action, obj, revision):
+        return self.module.scoped_assignment(conn, ctx, action, obj, revision)
+
+    def state_subject_owner_static(self, conn, ctx, subject):
+        return self.module._state_subject_owner_static(conn, ctx, subject)
+
+    def activation_blockers(self, conn, ctx, obj):
+        return self.module.activation_blockers(conn, ctx, obj)
 
 
 def reference(obj):
@@ -293,14 +331,25 @@ def scenes(conn, ctx, window_id):
     return result
 
 
+def human_actions_for(version):
+    if version == 'tkos.method/0.5':
+        from .method_v05_models import HUMAN_ACTIONS as v05
+        return v05
+    from .method_v04_models import HUMAN_ACTIONS as v04
+    return v04
+
+
 def method_object_actions(conn, ctx, obj):
-    """Allowlisted human actions for one 0.4 object with current availability."""
-    from .method_v04_models import ACTION_TARGETS, HUMAN_ACTIONS as V04_HUMAN_ACTIONS
-    if obj['protocol']['contract_version'] != 'tkos.method/0.4':
+    """Allowlisted human actions for one 0.4 / 0.5 object with current availability."""
+    version = obj['protocol']['contract_version']
+    if version not in {'tkos.method/0.4', 'tkos.method/0.5'}:
         return {'items': []}
+    from .method_models import registry
+    _params, targets, _payloads = registry(version)
+    human = human_actions_for(version)
     ceo = ctx.principal_type == 'human' and _caller_is_ceo(ctx, obj['domain_id'])
-    offered = [action for action in sorted(V04_HUMAN_ACTIONS)
-               if obj['object_type'] in ACTION_TARGETS.get(action, frozenset())]
+    offered = [action for action in sorted(human)
+               if obj['object_type'] in targets.get(action, frozenset())]
     if obj['object_type'] == 'OperatingState':
         # Problem opening has no target object; the state in the form is the
         # exact subject.  Availability is still checked now, not only at submit.
@@ -321,7 +370,7 @@ def method_object_actions(conn, ctx, obj):
 
 def actions(conn, ctx, object_id):
     obj = method_readers.object_state(conn, ctx, object_id)
-    if obj['protocol']['contract_version'] == 'tkos.method/0.4':
+    if obj['protocol']['contract_version'] in {'tkos.method/0.4', 'tkos.method/0.5'}:
         return method_object_actions(conn, ctx, obj)
     kind = obj['object_type']
     if kind == 'CandidateSet':
@@ -370,7 +419,7 @@ def method_tasks(conn, ctx, after=None, limit=25):
             if exc.code in {'NOT_FOUND', 'FORBIDDEN'}:
                 continue
             raise
-        if obj['protocol']['contract_version'] != 'tkos.method/0.4':
+        if obj['protocol']['contract_version'] not in {'tkos.method/0.4', 'tkos.method/0.5'}:
             continue
         offered_all = method_object_actions(conn, ctx, obj)['items']
         offered = [item for item in offered_all if item['allowed']]
@@ -398,7 +447,7 @@ def method_tasks(conn, ctx, after=None, limit=25):
 
 def window(conn, ctx, window_id):
     obj = method_readers.object_state(conn, ctx, window_id)
-    if obj['protocol']['contract_version'] == 'tkos.method/0.4':
+    if obj['protocol']['contract_version'] in {'tkos.method/0.4', 'tkos.method/0.5'}:
         # 0.4 windows are Method objects; no 0.1 monthly scene is involved.
         return {'identity': workspace_readers.identity(conn, ctx), 'object': obj,
                 'monthly': None, 'scenes': [],
@@ -435,7 +484,7 @@ def tasks(conn, ctx, after=None, limit=25):
             raise
         obj = value['object']
         monthly = value['monthly']
-        if obj['protocol']['contract_version'] == 'tkos.method/0.4':
+        if obj['protocol']['contract_version'] in {'tkos.method/0.4', 'tkos.method/0.5'}:
             items.append({'object_id': obj['object_id'],
                           'title': obj['latest_revision']['payload'].get('title', obj['object_type']),
                           'phase': obj['method_state'].get('phase', 'unknown'),

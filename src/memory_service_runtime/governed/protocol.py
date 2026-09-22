@@ -575,6 +575,9 @@ def _binding_interpretation(installed: dict[str, Any] | None,
         return "read_unsupported", ("The current support registry does not grant read interpretation "
                                     "for this protocol/contract version; no legacy meaning is attached.")
     if binding["protocol_id"] == "tkos.method":
+        if binding["contract_version"] == "tkos.method/0.5":
+            return "method_v0_5", ("Method 0.5; 0.4 rules plus Constraint, LTCO review conclusion, "
+                                    "CEO-confirmed Period Review, DRI-only commitment and canonical State.")
         if binding["contract_version"] == "tkos.method/0.4":
             return "method_v0_4", ("Method 0.4; formal human Agreement, paired Strategy/Architecture, "
                                     "complete candidate-set commitment and canonical State.")

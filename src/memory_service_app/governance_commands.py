@@ -33,6 +33,13 @@ def v04_human_actions():
     return v04
 
 
+def human_actions_for(version):
+    if version == 'tkos.method/0.5':
+        from memory_service_runtime.governed.method_v05_models import HUMAN_ACTIONS as v05
+        return v05
+    return v04_human_actions()
+
+
 def root():
     value = get_settings().tkos_governance_commands_dir
     if not value:
@@ -112,8 +119,8 @@ def parse(body):
     if version == 'tkos.method/0.3':
         if action not in HUMAN_ACTIONS:
             raise GovernedError('FORBIDDEN')
-    elif version == 'tkos.method/0.4':
-        if action not in v04_human_actions():
+    elif version in {'tkos.method/0.4', 'tkos.method/0.5'}:
+        if action not in human_actions_for(version):
             raise GovernedError('FORBIDDEN')
     else:
         raise GovernedError('FORBIDDEN')

@@ -213,8 +213,19 @@ def test_source_read_routes_are_registered():
     assert '/v1/governance/method/tasks' in paths
 
 
-def test_phase_rules_confirm_ltco_uses_implemented_draft_phase():
-    assert governance.PHASE_RULES['m1b_confirm_ltco'] == {'draft'}
+def test_phase_rules_confirm_ltco_widens_only_for_the_0_5_maintained_conclusion():
+    """0.5 confirms an already-effective LTCO with ``conclusion='maintained'``, so the
+    shared offer table admits ``confirmed`` too.  This is a workbench hint only: a 0.4
+    caller has no way to express that conclusion and the 0.4 core still gates on draft.
+    """
+    from pydantic import ValidationError
+    from memory_service_runtime.governed.method_v04_models import ConfirmLTCO as V04ConfirmLTCO
+    from memory_service_runtime.governed.method_v05_models import ConfirmLTCO as V05ConfirmLTCO
+    assert governance.PHASE_RULES['m1b_confirm_ltco'] == {'draft', 'confirmed'}
+    assert 'conclusion' not in V04ConfirmLTCO.model_fields
+    assert V05ConfirmLTCO.model_fields['conclusion'].is_required()
+    with pytest.raises(ValidationError):
+        V04ConfirmLTCO.model_validate({'statement': '本人确认', 'conclusion': 'maintained'})
 
 
 def test_activation_availability_reports_the_backend_blocker(monkeypatch):

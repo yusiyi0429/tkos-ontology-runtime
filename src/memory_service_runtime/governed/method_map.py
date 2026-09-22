@@ -34,7 +34,7 @@ SCHEMA_VERSION = "tkos.dashboard/0.1"
 # Contracts whose rules are documented in this repository.  Method 0.4 has a
 # compiled profile identity but is not part of the compiled protocol set yet;
 # workspace 0.2 support is reported by its own contract until compiled.
-DOCUMENTED_CONTRACTS = ("tkos.method/0.4", "tkos.workspace/0.2")
+DOCUMENTED_CONTRACTS = ("tkos.method/0.5", "tkos.method/0.4", "tkos.workspace/0.2")
 AVAILABILITY_MODES = ("none", "query")
 
 # States: enabled_in_scope | compiled_not_enabled_in_scope | documented_not_compiled
@@ -103,7 +103,7 @@ def _workspace_v02_state() -> str:
 
 def documented_contract_state(version: str,
                               states: dict[str, dict[str, Any]] | None = None) -> str:
-    if version == METHOD_V04:
+    if version.startswith("tkos.method/"):
         if version not in (states or {}):
             return "documented_not_compiled"
         state = states[version]

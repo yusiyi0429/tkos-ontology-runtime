@@ -346,7 +346,7 @@ def state_subject_assignment(conn, ctx, subject):
     if not head or head['object_type'] not in {'Mission','LTCO','PCO'} or not head['effective_revision_id']:
         raise GovernedError('FORBIDDEN')
     binding = protocol.current_binding(conn, ctx.scope_id, str(subject['object_id']))
-    if binding and binding['contract_version'] == 'tkos.method/0.4' and not subject.get('outcome_id'):
+    if binding and binding['contract_version'] in {'tkos.method/0.4', 'tkos.method/0.5'} and not subject.get('outcome_id'):
         return _v04_state_subject_assignment(conn, ctx, head, subject)
     revision = raw_revision(conn,ctx,subject['object_id'],str(head['effective_revision_id']))
     payload = revision['payload']
@@ -368,10 +368,10 @@ def state_subject_assignment(conn, ctx, subject):
 
 def anchor_participant(conn,ctx,head):
     binding = protocol.current_binding(conn,ctx.scope_id,head['object_id'])
-    if binding is None or binding['contract_version'] not in {'tkos.method/0.3','tkos.method/0.4'}:
+    if binding is None or binding['contract_version'] not in {'tkos.method/0.3','tkos.method/0.4','tkos.method/0.5'}:
         raise GovernedError('FORBIDDEN')
     payload=raw_revision(conn,ctx,head['object_id'],head['latest_revision_id'])['payload']
-    if binding['contract_version']=='tkos.method/0.4':
+    if binding['contract_version'] in {'tkos.method/0.4','tkos.method/0.5'}:
         if head['object_type']=='OperatingState':
             return state_subject_assignment(conn,ctx,payload['subject_ref'])
         if head['object_type']=='OperatingProblem':

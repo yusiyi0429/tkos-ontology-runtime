@@ -670,6 +670,101 @@
                   "method_close_problem"
                 ],
                 "type": "string"
+              },
+              {
+                "enum": [
+                  "method_open_run",
+                  "method_attach_run",
+                  "method_pause_run",
+                  "method_resume_run",
+                  "method_record_attempt",
+                  "m1a_create_issue",
+                  "m1a_reframe_issue",
+                  "m1a_associate_issue",
+                  "m1a_set_participants",
+                  "m1a_draft_agreement",
+                  "m1a_revise_agreement",
+                  "m1a_confirm_agreement",
+                  "m1a_propose_update",
+                  "m1a_review_update",
+                  "m1a_confirm_update",
+                  "m1a_transfer_problem",
+                  "m1b_propose_ltco",
+                  "m1b_revise_ltco",
+                  "m1b_confirm_ltco",
+                  "m1b_draft_pco",
+                  "m1b_revise_pco",
+                  "m1b_draft_mission",
+                  "m1b_revise_mission",
+                  "m1b_open_window",
+                  "m1b_comment",
+                  "m1b_replace_comment",
+                  "m1b_withdraw_comment",
+                  "m1b_assist_review",
+                  "m1b_close_window",
+                  "m1b_resolve_window",
+                  "m1b_commit_candidate",
+                  "m1b_activate_candidates",
+                  "m1b_reopen_candidates",
+                  "m1b_reopen_window",
+                  "m1b_generate_review",
+                  "m1b_regenerate_review",
+                  "method_propose_state",
+                  "method_confirm_state",
+                  "method_open_problem",
+                  "method_revise_problem",
+                  "method_close_problem"
+                ],
+                "type": "string"
+              },
+              {
+                "enum": [
+                  "method_open_run",
+                  "method_attach_run",
+                  "method_pause_run",
+                  "method_resume_run",
+                  "method_record_attempt",
+                  "m1a_create_issue",
+                  "m1a_reframe_issue",
+                  "m1a_associate_issue",
+                  "m1a_set_participants",
+                  "m1a_draft_agreement",
+                  "m1a_revise_agreement",
+                  "m1a_confirm_agreement",
+                  "m1a_propose_update",
+                  "m1a_review_update",
+                  "m1a_confirm_update",
+                  "m1a_transfer_problem",
+                  "m1b_propose_ltco",
+                  "m1b_revise_ltco",
+                  "m1b_confirm_ltco",
+                  "m1b_draft_pco",
+                  "m1b_revise_pco",
+                  "m1b_draft_mission",
+                  "m1b_revise_mission",
+                  "m1b_open_window",
+                  "m1b_comment",
+                  "m1b_replace_comment",
+                  "m1b_withdraw_comment",
+                  "m1b_assist_review",
+                  "m1b_close_window",
+                  "m1b_resolve_window",
+                  "m1b_commit_candidate",
+                  "m1b_activate_candidates",
+                  "m1b_reopen_candidates",
+                  "m1b_reopen_window",
+                  "m1b_generate_review",
+                  "m1b_regenerate_review",
+                  "method_propose_state",
+                  "method_open_problem",
+                  "method_revise_problem",
+                  "method_close_problem",
+                  "m1b_record_constraint",
+                  "m1b_revise_constraint",
+                  "m1b_confirm_constraint",
+                  "m1b_confirm_review"
+                ],
+                "type": "string"
               }
             ],
             "title": "Action Type"
@@ -889,13 +984,13 @@
                 "$ref": "#/components/schemas/memory_service_runtime__governed__method_m1b_models__OpenWindow"
               },
               {
-                "$ref": "#/components/schemas/Comment"
+                "$ref": "#/components/schemas/memory_service_runtime__governed__method_m1b_models__Comment"
               },
               {
                 "$ref": "#/components/schemas/WithdrawComment"
               },
               {
-                "$ref": "#/components/schemas/AssistReview"
+                "$ref": "#/components/schemas/memory_service_runtime__governed__method_m1b_models__AssistReview"
               },
               {
                 "$ref": "#/components/schemas/CloseWindow"
@@ -982,7 +1077,7 @@
                 "$ref": "#/components/schemas/ReviseArchitecture"
               },
               {
-                "$ref": "#/components/schemas/ProposeState"
+                "$ref": "#/components/schemas/memory_service_runtime__governed__method_v03_models__ProposeState"
               },
               {
                 "$ref": "#/components/schemas/ConfirmState"
@@ -995,6 +1090,150 @@
               },
               {
                 "$ref": "#/components/schemas/CloseProblem"
+              },
+              {
+                "$ref": "#/components/schemas/CreateIssue"
+              },
+              {
+                "$ref": "#/components/schemas/ReframeIssue"
+              },
+              {
+                "$ref": "#/components/schemas/AssociateIssue"
+              },
+              {
+                "$ref": "#/components/schemas/SetParticipants"
+              },
+              {
+                "$ref": "#/components/schemas/DraftAgreement"
+              },
+              {
+                "$ref": "#/components/schemas/ReviseAgreement"
+              },
+              {
+                "$ref": "#/components/schemas/ConfirmAgreement"
+              },
+              {
+                "$ref": "#/components/schemas/memory_service_runtime__governed__method_v04_models__ProposeUpdate"
+              },
+              {
+                "$ref": "#/components/schemas/ReviewUpdate"
+              },
+              {
+                "$ref": "#/components/schemas/ConfirmUpdate"
+              },
+              {
+                "$ref": "#/components/schemas/TransferProblem"
+              },
+              {
+                "$ref": "#/components/schemas/memory_service_runtime__governed__method_v04_models__ProposeLTCO"
+              },
+              {
+                "$ref": "#/components/schemas/memory_service_runtime__governed__method_v04_models__ReviseLTCO"
+              },
+              {
+                "$ref": "#/components/schemas/memory_service_runtime__governed__method_v04_models__ConfirmLTCO"
+              },
+              {
+                "$ref": "#/components/schemas/memory_service_runtime__governed__method_v04_models__DraftPCO"
+              },
+              {
+                "$ref": "#/components/schemas/memory_service_runtime__governed__method_v04_models__RevisePCO"
+              },
+              {
+                "$ref": "#/components/schemas/memory_service_runtime__governed__method_v04_models__DraftMission"
+              },
+              {
+                "$ref": "#/components/schemas/memory_service_runtime__governed__method_v04_models__ReviseMission"
+              },
+              {
+                "$ref": "#/components/schemas/memory_service_runtime__governed__method_v04_models__OpenWindow"
+              },
+              {
+                "$ref": "#/components/schemas/memory_service_runtime__governed__method_v04_models__Comment"
+              },
+              {
+                "$ref": "#/components/schemas/ReplaceComment"
+              },
+              {
+                "$ref": "#/components/schemas/WithdrawComment"
+              },
+              {
+                "$ref": "#/components/schemas/memory_service_runtime__governed__method_v04_models__AssistReview"
+              },
+              {
+                "$ref": "#/components/schemas/CloseWindow"
+              },
+              {
+                "$ref": "#/components/schemas/memory_service_runtime__governed__method_v04_models__ResolveWindow"
+              },
+              {
+                "$ref": "#/components/schemas/CommitCandidate"
+              },
+              {
+                "$ref": "#/components/schemas/ActivateCandidates"
+              },
+              {
+                "$ref": "#/components/schemas/memory_service_runtime__governed__method_v04_models__ReopenCandidates"
+              },
+              {
+                "$ref": "#/components/schemas/memory_service_runtime__governed__method_v04_models__GenerateReview"
+              },
+              {
+                "$ref": "#/components/schemas/memory_service_runtime__governed__method_v04_models__RegenerateReview"
+              },
+              {
+                "$ref": "#/components/schemas/memory_service_runtime__governed__method_v04_models__ProposeState"
+              },
+              {
+                "$ref": "#/components/schemas/ConfirmState"
+              },
+              {
+                "$ref": "#/components/schemas/OpenProblem"
+              },
+              {
+                "$ref": "#/components/schemas/ReviseProblem"
+              },
+              {
+                "$ref": "#/components/schemas/CloseProblem"
+              },
+              {
+                "$ref": "#/components/schemas/memory_service_runtime__governed__method_v05_models__ProposeLTCO"
+              },
+              {
+                "$ref": "#/components/schemas/memory_service_runtime__governed__method_v05_models__ReviseLTCO"
+              },
+              {
+                "$ref": "#/components/schemas/memory_service_runtime__governed__method_v05_models__ConfirmLTCO"
+              },
+              {
+                "$ref": "#/components/schemas/memory_service_runtime__governed__method_v05_models__DraftPCO"
+              },
+              {
+                "$ref": "#/components/schemas/memory_service_runtime__governed__method_v05_models__RevisePCO"
+              },
+              {
+                "$ref": "#/components/schemas/memory_service_runtime__governed__method_v05_models__DraftMission"
+              },
+              {
+                "$ref": "#/components/schemas/memory_service_runtime__governed__method_v05_models__ReviseMission"
+              },
+              {
+                "$ref": "#/components/schemas/memory_service_runtime__governed__method_v05_models__ResolveWindow"
+              },
+              {
+                "$ref": "#/components/schemas/memory_service_runtime__governed__method_v05_models__ProposeState"
+              },
+              {
+                "$ref": "#/components/schemas/RecordConstraint"
+              },
+              {
+                "$ref": "#/components/schemas/ReviseConstraint"
+              },
+              {
+                "$ref": "#/components/schemas/ConfirmConstraint"
+              },
+              {
+                "$ref": "#/components/schemas/ConfirmReview"
               }
             ],
             "title": "Params"
@@ -1072,6 +1311,31 @@
           "expected_version"
         ],
         "title": "ActionTarget",
+        "type": "object"
+      },
+      "ActivateCandidates": {
+        "additionalProperties": false,
+        "properties": {
+          "notes": {
+            "items": {
+              "minLength": 1,
+              "pattern": "\\S",
+              "type": "string"
+            },
+            "title": "Notes",
+            "type": "array"
+          },
+          "statement": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Statement",
+            "type": "string"
+          }
+        },
+        "required": [
+          "statement"
+        ],
+        "title": "ActivateCandidates",
         "type": "object"
       },
       "ActivateCommitmentParams": {
@@ -1173,6 +1437,234 @@
           "payload"
         ],
         "title": "AdviseLTCO",
+        "type": "object"
+      },
+      "AgentBinding": {
+        "additionalProperties": false,
+        "properties": {
+          "agent_principal_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Agent Principal Id",
+            "type": "string"
+          },
+          "owner_principal_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Owner Principal Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "agent_principal_id",
+          "owner_principal_id"
+        ],
+        "title": "AgentBinding",
+        "type": "object"
+      },
+      "AgentRun": {
+        "additionalProperties": false,
+        "properties": {
+          "agent_principal_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Agent Principal Id",
+            "type": "string"
+          },
+          "context_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Context Id",
+            "type": "string"
+          },
+          "draft_event_id": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Draft Event Id"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "pattern": "\\S",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "external_run_id": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "pattern": "\\S",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Run Id"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?(Z|[+-]\\d{2}:\\d{2})$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "input_refs": {
+            "items": {
+              "$ref": "#/components/schemas/SourceVersionRef"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Input Refs",
+            "type": "array"
+          },
+          "kind": {
+            "const": "agent_run",
+            "title": "Kind",
+            "type": "string"
+          },
+          "model": {
+            "$ref": "#/components/schemas/ModelSpec"
+          },
+          "output_refs": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "maxItems": 100,
+            "title": "Output Refs",
+            "type": "array"
+          },
+          "purpose": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Purpose",
+            "type": "string"
+          },
+          "started_at": {
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?(Z|[+-]\\d{2}:\\d{2})$",
+            "title": "Started At",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "succeeded",
+              "failed",
+              "unknown"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "agent_principal_id",
+          "purpose",
+          "model",
+          "input_refs",
+          "context_id",
+          "status",
+          "started_at"
+        ],
+        "title": "AgentRun",
+        "type": "object"
+      },
+      "AgreementPayload": {
+        "additionalProperties": false,
+        "properties": {
+          "evidence_refs": {
+            "items": {
+              "$ref": "#/components/schemas/ObjectRef"
+            },
+            "title": "Evidence Refs",
+            "type": "array"
+          },
+          "issue_ref": {
+            "$ref": "#/components/schemas/ObjectRef"
+          },
+          "no_change": {
+            "default": false,
+            "title": "No Change",
+            "type": "boolean"
+          },
+          "participants": {
+            "items": {
+              "$ref": "#/components/schemas/AgreementSigner"
+            },
+            "minItems": 1,
+            "title": "Participants",
+            "type": "array"
+          },
+          "statement": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Statement",
+            "type": "string"
+          },
+          "title": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "issue_ref",
+          "statement",
+          "participants"
+        ],
+        "title": "AgreementPayload",
+        "type": "object"
+      },
+      "AgreementSigner": {
+        "additionalProperties": false,
+        "properties": {
+          "assignment_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Assignment Id",
+            "type": "string"
+          },
+          "personal_agent_id": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Personal Agent Id"
+          },
+          "principal_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Principal Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "principal_id",
+          "assignment_id"
+        ],
+        "title": "AgreementSigner",
         "type": "object"
       },
       "AmendFormationRoundParams": {
@@ -1392,44 +1884,22 @@
         "title": "AssignResearchParams",
         "type": "object"
       },
-      "AssistReview": {
+      "AssociateIssue": {
         "additionalProperties": false,
         "properties": {
-          "analysis": {
-            "minLength": 1,
-            "pattern": "\\S",
-            "title": "Analysis",
-            "type": "string"
-          },
-          "generation_version": {
-            "minLength": 1,
-            "pattern": "\\S",
-            "title": "Generation Version",
-            "type": "string"
-          },
-          "owner_principal_id": {
-            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
-            "title": "Owner Principal Id",
-            "type": "string"
-          },
           "source_refs": {
             "items": {
-              "$ref": "#/components/schemas/memory_service_runtime__governed__method_m1b_models__ExactRef"
+              "$ref": "#/components/schemas/ObjectRef"
             },
+            "minItems": 1,
             "title": "Source Refs",
             "type": "array"
-          },
-          "target_ref": {
-            "$ref": "#/components/schemas/memory_service_runtime__governed__method_m1b_models__ExactRef"
           }
         },
         "required": [
-          "target_ref",
-          "owner_principal_id",
-          "analysis",
-          "generation_version"
+          "source_refs"
         ],
-        "title": "AssistReview",
+        "title": "AssociateIssue",
         "type": "object"
       },
       "AttachRun": {
@@ -1476,6 +1946,87 @@
           "note"
         ],
         "title": "Attempt",
+        "type": "object"
+      },
+      "BattlefieldDefinition": {
+        "additionalProperties": false,
+        "properties": {
+          "auth_domain_id": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Auth Domain Id"
+          },
+          "boundary": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Boundary",
+            "type": "string"
+          },
+          "current_dri_principal_id": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Dri Principal Id"
+          },
+          "definition": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Definition",
+            "type": "string"
+          },
+          "interfaces": {
+            "items": {
+              "minLength": 1,
+              "pattern": "\\S",
+              "type": "string"
+            },
+            "title": "Interfaces",
+            "type": "array"
+          },
+          "name": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Name",
+            "type": "string"
+          },
+          "strategic_basis": {
+            "items": {
+              "minLength": 1,
+              "pattern": "\\S",
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Strategic Basis",
+            "type": "array"
+          },
+          "unit_id": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Unit Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "unit_id",
+          "name",
+          "definition",
+          "strategic_basis",
+          "boundary"
+        ],
+        "title": "BattlefieldDefinition",
         "type": "object"
       },
       "BindingSpec": {
@@ -1781,6 +2332,47 @@
         "title": "CheckMemoParams",
         "type": "object"
       },
+      "Citation": {
+        "additionalProperties": false,
+        "properties": {
+          "payload_hash": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Payload Hash",
+            "type": "string"
+          },
+          "quote": {
+            "maxLength": 4000,
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Quote",
+            "type": "string"
+          },
+          "segment_index": {
+            "minimum": 0.0,
+            "title": "Segment Index",
+            "type": "integer"
+          },
+          "source_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Source Id",
+            "type": "string"
+          },
+          "version_event_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Version Event Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source_id",
+          "version_event_id",
+          "payload_hash",
+          "segment_index",
+          "quote"
+        ],
+        "title": "Citation",
+        "type": "object"
+      },
       "ClarificationParams": {
         "additionalProperties": false,
         "properties": {
@@ -1851,38 +2443,6 @@
         "title": "CloseWindow",
         "type": "object"
       },
-      "Comment": {
-        "additionalProperties": false,
-        "properties": {
-          "content": {
-            "minLength": 1,
-            "pattern": "\\S",
-            "title": "Content",
-            "type": "string"
-          },
-          "replaces_record_id": {
-            "anyOf": [
-              {
-                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Replaces Record Id"
-          },
-          "target_ref": {
-            "$ref": "#/components/schemas/memory_service_runtime__governed__method_m1b_models__ExactRef"
-          }
-        },
-        "required": [
-          "target_ref",
-          "content"
-        ],
-        "title": "Comment",
-        "type": "object"
-      },
       "CommentAnchor": {
         "additionalProperties": false,
         "properties": {
@@ -1913,6 +2473,26 @@
           "field_path"
         ],
         "title": "CommentAnchor",
+        "type": "object"
+      },
+      "CommitCandidate": {
+        "additionalProperties": false,
+        "properties": {
+          "responsibility_ref": {
+            "$ref": "#/components/schemas/ObjectRef"
+          },
+          "statement": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Statement",
+            "type": "string"
+          }
+        },
+        "required": [
+          "responsibility_ref",
+          "statement"
+        ],
+        "title": "CommitCandidate",
         "type": "object"
       },
       "CommitmentPayload": {
@@ -1956,6 +2536,63 @@
           "upstream_refs"
         ],
         "title": "CommitmentPayload",
+        "type": "object"
+      },
+      "CompanyChange": {
+        "additionalProperties": false,
+        "description": "One exact company change; unchanged objects keep their revision explicitly.",
+        "properties": {
+          "applicability_rationale": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Applicability Rationale",
+            "type": "string"
+          },
+          "architecture": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StrategicArchitecturePayload"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "architecture_target_ref": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ObjectRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "strategy": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/memory_service_runtime__governed__method_v04_models__StrategyPayload"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "strategy_target_ref": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ObjectRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "applicability_rationale"
+        ],
+        "title": "CompanyChange",
         "type": "object"
       },
       "CompanyReferencePayload": {
@@ -2064,6 +2701,22 @@
           "feedback_revision_id"
         ],
         "title": "ConfirmAdjustmentParams",
+        "type": "object"
+      },
+      "ConfirmAgreement": {
+        "additionalProperties": false,
+        "properties": {
+          "statement": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Statement",
+            "type": "string"
+          }
+        },
+        "required": [
+          "statement"
+        ],
+        "title": "ConfirmAgreement",
         "type": "object"
       },
       "ConfirmAgreementParams": {
@@ -2195,6 +2848,22 @@
         "title": "ConfirmCompanyCompositionParams",
         "type": "object"
       },
+      "ConfirmConstraint": {
+        "additionalProperties": false,
+        "properties": {
+          "statement": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Statement",
+            "type": "string"
+          }
+        },
+        "required": [
+          "statement"
+        ],
+        "title": "ConfirmConstraint",
+        "type": "object"
+      },
       "ConfirmMinutesParams": {
         "additionalProperties": false,
         "properties": {
@@ -2213,6 +2882,71 @@
           "statement"
         ],
         "title": "ConfirmMinutesParams",
+        "type": "object"
+      },
+      "ConfirmReview": {
+        "additionalProperties": false,
+        "properties": {
+          "findings": {
+            "anyOf": [
+              {
+                "items": {
+                  "minLength": 1,
+                  "pattern": "\\S",
+                  "type": "string"
+                },
+                "minItems": 1,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Findings"
+          },
+          "implications": {
+            "anyOf": [
+              {
+                "items": {
+                  "minLength": 1,
+                  "pattern": "\\S",
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Implications"
+          },
+          "learnings": {
+            "anyOf": [
+              {
+                "items": {
+                  "minLength": 1,
+                  "pattern": "\\S",
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Learnings"
+          },
+          "statement": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Statement",
+            "type": "string"
+          }
+        },
+        "required": [
+          "statement"
+        ],
+        "title": "ConfirmReview",
         "type": "object"
       },
       "ConfirmState": {
@@ -2277,6 +3011,22 @@
         "title": "ConfirmStrategicIssueParams",
         "type": "object"
       },
+      "ConfirmUpdate": {
+        "additionalProperties": false,
+        "properties": {
+          "statement": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Statement",
+            "type": "string"
+          }
+        },
+        "required": [
+          "statement"
+        ],
+        "title": "ConfirmUpdate",
+        "type": "object"
+      },
       "ConfirmUpdateParams": {
         "additionalProperties": false,
         "properties": {
@@ -2297,6 +3047,133 @@
         "title": "ConfirmUpdateParams",
         "type": "object"
       },
+      "ConstraintPayload": {
+        "additionalProperties": false,
+        "properties": {
+          "applies_to": {
+            "$ref": "#/components/schemas/ConstraintScope"
+          },
+          "architecture_ref": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ObjectRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "authority": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Authority",
+            "type": "string"
+          },
+          "constraint_type": {
+            "enum": [
+              "people",
+              "money",
+              "capacity",
+              "policy",
+              "dependency",
+              "other"
+            ],
+            "title": "Constraint Type",
+            "type": "string"
+          },
+          "effective": {
+            "$ref": "#/components/schemas/Period"
+          },
+          "evidence_refs": {
+            "items": {
+              "$ref": "#/components/schemas/ObjectRef"
+            },
+            "title": "Evidence Refs",
+            "type": "array"
+          },
+          "severity": {
+            "enum": [
+              "hard",
+              "soft"
+            ],
+            "title": "Severity",
+            "type": "string"
+          },
+          "source": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Source",
+            "type": "string"
+          },
+          "statement": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Statement",
+            "type": "string"
+          },
+          "title": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "applies_to",
+          "statement",
+          "constraint_type",
+          "effective",
+          "source",
+          "authority",
+          "severity"
+        ],
+        "title": "ConstraintPayload",
+        "type": "object"
+      },
+      "ConstraintScope": {
+        "additionalProperties": false,
+        "description": "适用范围三选一：company；scope（Battlefield / Domain 稳定 unit_id）；mission（确切 Mission 版本）。",
+        "properties": {
+          "kind": {
+            "enum": [
+              "company",
+              "scope",
+              "mission"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "mission_ref": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ObjectRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "scope_id": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "pattern": "\\S",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scope Id"
+          }
+        },
+        "required": [
+          "kind"
+        ],
+        "title": "ConstraintScope",
+        "type": "object"
+      },
       "ContextRequest": {
         "additionalProperties": false,
         "properties": {
@@ -2306,7 +3183,9 @@
                 "enum": [
                   "tkos.method/0.1",
                   "tkos.method/0.2",
-                  "tkos.method/0.3"
+                  "tkos.method/0.3",
+                  "tkos.method/0.4",
+                  "tkos.method/0.5"
                 ],
                 "type": "string"
               },
@@ -2466,6 +3345,25 @@
           "payload"
         ],
         "title": "CreateFact",
+        "type": "object"
+      },
+      "CreateIssue": {
+        "additionalProperties": false,
+        "properties": {
+          "domain_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Domain Id",
+            "type": "string"
+          },
+          "payload": {
+            "$ref": "#/components/schemas/memory_service_runtime__governed__method_v04_models__StrategicIssuePayload"
+          }
+        },
+        "required": [
+          "domain_id",
+          "payload"
+        ],
+        "title": "CreateIssue",
         "type": "object"
       },
       "CreateObjectParams": {
@@ -2721,7 +3619,7 @@
             "type": "string"
           },
           "payload": {
-            "$ref": "#/components/schemas/StrategicIssuePayload"
+            "$ref": "#/components/schemas/memory_service_runtime__governed__method_v02_models__StrategicIssuePayload"
           }
         },
         "required": [
@@ -2731,10 +3629,193 @@
         "title": "DirectIssue",
         "type": "object"
       },
+      "DomainDefinition": {
+        "additionalProperties": false,
+        "properties": {
+          "auth_domain_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Auth Domain Id",
+            "type": "string"
+          },
+          "current_dri_principal_id": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Dri Principal Id"
+          },
+          "definition": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Definition",
+            "type": "string"
+          },
+          "name": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Name",
+            "type": "string"
+          },
+          "responsibility": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Responsibility",
+            "type": "string"
+          },
+          "unit_id": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Unit Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "unit_id",
+          "name",
+          "definition",
+          "responsibility",
+          "auth_domain_id"
+        ],
+        "title": "DomainDefinition",
+        "type": "object"
+      },
+      "DraftAgreement": {
+        "additionalProperties": false,
+        "properties": {
+          "payload": {
+            "$ref": "#/components/schemas/AgreementPayload"
+          }
+        },
+        "required": [
+          "payload"
+        ],
+        "title": "DraftAgreement",
+        "type": "object"
+      },
+      "DraftDecision": {
+        "additionalProperties": false,
+        "properties": {
+          "decision": {
+            "enum": [
+              "accepted",
+              "rejected",
+              "noted"
+            ],
+            "title": "Decision",
+            "type": "string"
+          },
+          "draft_event_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Draft Event Id",
+            "type": "string"
+          },
+          "item_index": {
+            "minimum": 0.0,
+            "title": "Item Index",
+            "type": "integer"
+          },
+          "kind": {
+            "const": "draft_decision",
+            "title": "Kind",
+            "type": "string"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "pattern": "\\S",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "required": [
+          "kind",
+          "draft_event_id",
+          "item_index",
+          "decision"
+        ],
+        "title": "DraftDecision",
+        "type": "object"
+      },
+      "DraftItem": {
+        "additionalProperties": false,
+        "properties": {
+          "citations": {
+            "items": {
+              "$ref": "#/components/schemas/Citation"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Citations",
+            "type": "array"
+          },
+          "item_kind": {
+            "enum": [
+              "fact",
+              "request",
+              "suggestion",
+              "accepted"
+            ],
+            "title": "Item Kind",
+            "type": "string"
+          },
+          "text": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "item_kind",
+          "text",
+          "citations"
+        ],
+        "title": "DraftItem",
+        "type": "object"
+      },
       "EmptyParams": {
         "additionalProperties": false,
         "properties": {},
         "title": "EmptyParams",
+        "type": "object"
+      },
+      "EvidenceRef": {
+        "additionalProperties": false,
+        "description": "Exact EvidenceAsset revision under its active domain protocol.\n\nDeliberately protocol-neutral: any registered 0.3+ (or later) EvidenceAsset\nis accepted. The Runtime never converts it into a Method object.",
+        "properties": {
+          "object_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Object Id",
+            "type": "string"
+          },
+          "payload_hash": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Payload Hash",
+            "type": "string"
+          },
+          "revision_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Revision Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "object_id",
+          "revision_id",
+          "payload_hash"
+        ],
+        "title": "EvidenceRef",
         "type": "object"
       },
       "EvidenceRequest": {
@@ -2912,6 +3993,50 @@
           "description"
         ],
         "title": "FeedbackPayload",
+        "type": "object"
+      },
+      "FollowupDraft": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/DraftItem"
+            },
+            "maxItems": 50,
+            "minItems": 1,
+            "title": "Items",
+            "type": "array"
+          },
+          "kind": {
+            "const": "followup_draft",
+            "title": "Kind",
+            "type": "string"
+          },
+          "run_event_id": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Event Id"
+          },
+          "title": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "title",
+          "items"
+        ],
+        "title": "FollowupDraft",
         "type": "object"
       },
       "FormCompanyCompositionParams": {
@@ -3338,6 +4463,44 @@
         "title": "InitiateIssue",
         "type": "object"
       },
+      "IssueParticipant": {
+        "additionalProperties": false,
+        "properties": {
+          "assignment_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Assignment Id",
+            "type": "string"
+          },
+          "personal_agent_id": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Personal Agent Id"
+          },
+          "principal_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Principal Id",
+            "type": "string"
+          },
+          "research": {
+            "default": false,
+            "title": "Research",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "principal_id",
+          "assignment_id"
+        ],
+        "title": "IssueParticipant",
+        "type": "object"
+      },
       "JsonValue": {},
       "JudgmentChange": {
         "additionalProperties": false,
@@ -3532,55 +4695,6 @@
           "criteria"
         ],
         "title": "LTCOOutcome",
-        "type": "object"
-      },
-      "LTCOPayload": {
-        "additionalProperties": false,
-        "properties": {
-          "advice_ref": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/memory_service_runtime__governed__method_m1b_models__ExactRef"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "outcomes": {
-            "items": {
-              "$ref": "#/components/schemas/LTCOOutcome"
-            },
-            "minItems": 1,
-            "title": "Outcomes",
-            "type": "array"
-          },
-          "owner_principal_id": {
-            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
-            "title": "Owner Principal Id",
-            "type": "string"
-          },
-          "period": {
-            "$ref": "#/components/schemas/Period"
-          },
-          "strategy_ref": {
-            "$ref": "#/components/schemas/memory_service_runtime__governed__method_m1b_models__ExactRef"
-          },
-          "title": {
-            "minLength": 1,
-            "pattern": "\\S",
-            "title": "Title",
-            "type": "string"
-          }
-        },
-        "required": [
-          "title",
-          "period",
-          "strategy_ref",
-          "owner_principal_id",
-          "outcomes"
-        ],
-        "title": "LTCOPayload",
         "type": "object"
       },
       "LTCOReviewAdvicePayload": {
@@ -4038,79 +5152,59 @@
         "title": "Mission",
         "type": "object"
       },
-      "MissionPayload": {
+      "MissionDependency": {
         "additionalProperties": false,
         "properties": {
-          "acceptance_criteria": {
-            "items": {
-              "minLength": 1,
-              "pattern": "\\S",
-              "type": "string"
-            },
-            "minItems": 1,
-            "title": "Acceptance Criteria",
-            "type": "array"
-          },
-          "boundary": {
-            "minLength": 1,
-            "pattern": "\\S",
-            "title": "Boundary",
+          "kind": {
+            "enum": [
+              "mission",
+              "scope"
+            ],
+            "title": "Kind",
             "type": "string"
           },
-          "deliverable": {
-            "minLength": 1,
-            "pattern": "\\S",
-            "title": "Deliverable",
-            "type": "string"
+          "mission_ref": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ObjectRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
-          "hard_deadline": {
+          "needed_by": {
             "format": "date-time",
             "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?(Z|[+-]\\d{2}:\\d{2})$",
-            "title": "Hard Deadline",
+            "title": "Needed By",
             "type": "string"
           },
-          "owner_principal_id": {
-            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
-            "title": "Owner Principal Id",
-            "type": "string"
-          },
-          "participants": {
-            "items": {
-              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
-              "type": "string"
-            },
-            "title": "Participants",
-            "type": "array"
-          },
-          "pco_ref": {
-            "$ref": "#/components/schemas/memory_service_runtime__governed__method_m1b_models__ExactRef"
-          },
-          "supports": {
-            "items": {
-              "$ref": "#/components/schemas/MissionSupport"
-            },
-            "minItems": 1,
-            "title": "Supports",
-            "type": "array"
-          },
-          "title": {
+          "note": {
             "minLength": 1,
             "pattern": "\\S",
-            "title": "Title",
+            "title": "Note",
             "type": "string"
+          },
+          "scope_id": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "pattern": "\\S",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scope Id"
           }
         },
         "required": [
-          "title",
-          "pco_ref",
-          "owner_principal_id",
-          "supports",
-          "deliverable",
-          "acceptance_criteria",
-          "boundary",
-          "hard_deadline"
+          "kind",
+          "needed_by",
+          "note"
         ],
-        "title": "MissionPayload",
+        "title": "MissionDependency",
         "type": "object"
       },
       "MissionSpec": {
@@ -4178,6 +5272,53 @@
           "contribution"
         ],
         "title": "MissionSupport",
+        "type": "object"
+      },
+      "ModelSpec": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Name",
+            "type": "string"
+          },
+          "parameters": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/JsonValue"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parameters"
+          },
+          "provider": {
+            "maxLength": 200,
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Provider",
+            "type": "string"
+          },
+          "version": {
+            "maxLength": 200,
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider",
+          "name",
+          "version"
+        ],
+        "title": "ModelSpec",
         "type": "object"
       },
       "MonthlyMaterial": {
@@ -4957,43 +6098,6 @@
         "title": "PCOOutcome",
         "type": "object"
       },
-      "PCOPayload": {
-        "additionalProperties": false,
-        "properties": {
-          "ltco_ref": {
-            "$ref": "#/components/schemas/memory_service_runtime__governed__method_m1b_models__ExactRef"
-          },
-          "period": {
-            "$ref": "#/components/schemas/Period"
-          },
-          "strategy_ref": {
-            "$ref": "#/components/schemas/memory_service_runtime__governed__method_m1b_models__ExactRef"
-          },
-          "title": {
-            "minLength": 1,
-            "pattern": "\\S",
-            "title": "Title",
-            "type": "string"
-          },
-          "unit_outcomes": {
-            "items": {
-              "$ref": "#/components/schemas/PCOOutcome"
-            },
-            "minItems": 1,
-            "title": "Unit Outcomes",
-            "type": "array"
-          }
-        },
-        "required": [
-          "title",
-          "period",
-          "strategy_ref",
-          "ltco_ref",
-          "unit_outcomes"
-        ],
-        "title": "PCOPayload",
-        "type": "object"
-      },
       "PdoSpec": {
         "additionalProperties": false,
         "properties": {
@@ -5135,85 +6239,6 @@
           "state_refs"
         ],
         "title": "PeriodReview",
-        "type": "object"
-      },
-      "PeriodReviewPayload": {
-        "additionalProperties": false,
-        "properties": {
-          "fact_refs": {
-            "items": {
-              "$ref": "#/components/schemas/memory_service_runtime__governed__method_m1b_models__ExactRef"
-            },
-            "title": "Fact Refs",
-            "type": "array"
-          },
-          "findings": {
-            "items": {
-              "minLength": 1,
-              "pattern": "\\S",
-              "type": "string"
-            },
-            "minItems": 1,
-            "title": "Findings",
-            "type": "array"
-          },
-          "generation_version": {
-            "minLength": 1,
-            "pattern": "\\S",
-            "title": "Generation Version",
-            "type": "string"
-          },
-          "implications": {
-            "items": {
-              "minLength": 1,
-              "pattern": "\\S",
-              "type": "string"
-            },
-            "title": "Implications",
-            "type": "array"
-          },
-          "learnings": {
-            "items": {
-              "minLength": 1,
-              "pattern": "\\S",
-              "type": "string"
-            },
-            "title": "Learnings",
-            "type": "array"
-          },
-          "period": {
-            "$ref": "#/components/schemas/Period"
-          },
-          "review_id": {
-            "minLength": 1,
-            "pattern": "\\S",
-            "title": "Review Id",
-            "type": "string"
-          },
-          "target_refs": {
-            "items": {
-              "$ref": "#/components/schemas/memory_service_runtime__governed__method_m1b_models__ExactRef"
-            },
-            "minItems": 1,
-            "title": "Target Refs",
-            "type": "array"
-          },
-          "title": {
-            "minLength": 1,
-            "pattern": "\\S",
-            "title": "Title",
-            "type": "string"
-          }
-        },
-        "required": [
-          "review_id",
-          "title",
-          "period",
-          "target_refs",
-          "findings",
-          "generation_version"
-        ],
-        "title": "PeriodReviewPayload",
         "type": "object"
       },
       "PeriodWindow": {
@@ -5618,35 +6643,6 @@
         "title": "ProposeRevisionParams",
         "type": "object"
       },
-      "ProposeState": {
-        "additionalProperties": false,
-        "properties": {
-          "domain_id": {
-            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
-            "title": "Domain Id",
-            "type": "string"
-          },
-          "payload": {
-            "$ref": "#/components/schemas/StatePayload"
-          },
-          "previous_state_ref": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/ObjectRef"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          }
-        },
-        "required": [
-          "domain_id",
-          "payload"
-        ],
-        "title": "ProposeState",
-        "type": "object"
-      },
       "ProposeUpdateParams": {
         "additionalProperties": false,
         "properties": {
@@ -5939,6 +6935,25 @@
         "title": "RecordAcceptanceParams",
         "type": "object"
       },
+      "RecordConstraint": {
+        "additionalProperties": false,
+        "properties": {
+          "domain_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Domain Id",
+            "type": "string"
+          },
+          "payload": {
+            "$ref": "#/components/schemas/ConstraintPayload"
+          }
+        },
+        "required": [
+          "domain_id",
+          "payload"
+        ],
+        "title": "RecordConstraint",
+        "type": "object"
+      },
       "RecordOutcomeAssessmentParams": {
         "additionalProperties": false,
         "properties": {
@@ -6009,6 +7024,19 @@
         "title": "RecordSignalParams",
         "type": "object"
       },
+      "ReframeIssue": {
+        "additionalProperties": false,
+        "properties": {
+          "payload": {
+            "$ref": "#/components/schemas/memory_service_runtime__governed__method_v04_models__StrategicIssuePayload"
+          }
+        },
+        "required": [
+          "payload"
+        ],
+        "title": "ReframeIssue",
+        "type": "object"
+      },
       "RefreshSources": {
         "additionalProperties": false,
         "properties": {
@@ -6031,6 +7059,32 @@
         "title": "RefreshSources",
         "type": "object"
       },
+      "ReplaceComment": {
+        "additionalProperties": false,
+        "properties": {
+          "content": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Content",
+            "type": "string"
+          },
+          "replaces_record_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Replaces Record Id",
+            "type": "string"
+          },
+          "target_ref": {
+            "$ref": "#/components/schemas/ObjectRef"
+          }
+        },
+        "required": [
+          "target_ref",
+          "content",
+          "replaces_record_id"
+        ],
+        "title": "ReplaceComment",
+        "type": "object"
+      },
       "RequestFeedbackAcceptanceParams": {
         "additionalProperties": false,
         "properties": {
@@ -6043,6 +7097,53 @@
           "decision_revision_id"
         ],
         "title": "RequestFeedbackAcceptanceParams",
+        "type": "object"
+      },
+      "RequiredCapability": {
+        "additionalProperties": false,
+        "description": "Strategy analysis semantics assigned to a Domain primary responsibility.",
+        "properties": {
+          "analysis_fields": {
+            "items": {
+              "minLength": 1,
+              "pattern": "\\S",
+              "type": "string"
+            },
+            "title": "Analysis Fields",
+            "type": "array"
+          },
+          "capability_id": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Capability Id",
+            "type": "string"
+          },
+          "definition": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Definition",
+            "type": "string"
+          },
+          "name": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Name",
+            "type": "string"
+          },
+          "primary_domain_id": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Primary Domain Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "capability_id",
+          "name",
+          "definition",
+          "primary_domain_id"
+        ],
+        "title": "RequiredCapability",
         "type": "object"
       },
       "ResearchBriefPayload": {
@@ -6117,7 +7218,9 @@
             "default": "tkos.method/0.2",
             "enum": [
               "tkos.method/0.2",
-              "tkos.method/0.3"
+              "tkos.method/0.3",
+              "tkos.method/0.4",
+              "tkos.method/0.5"
             ],
             "title": "Contract Version",
             "type": "string"
@@ -6426,6 +7529,31 @@
         "title": "ReviewDeliverableParams",
         "type": "object"
       },
+      "ReviewUpdate": {
+        "additionalProperties": false,
+        "properties": {
+          "accepted": {
+            "title": "Accepted",
+            "type": "boolean"
+          },
+          "findings": {
+            "items": {
+              "minLength": 1,
+              "pattern": "\\S",
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Findings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "accepted",
+          "findings"
+        ],
+        "title": "ReviewUpdate",
+        "type": "object"
+      },
       "ReviewUpdateParams": {
         "additionalProperties": false,
         "properties": {
@@ -6465,6 +7593,19 @@
         "title": "ReviewUpdateParams",
         "type": "object"
       },
+      "ReviseAgreement": {
+        "additionalProperties": false,
+        "properties": {
+          "payload": {
+            "$ref": "#/components/schemas/AgreementPayload"
+          }
+        },
+        "required": [
+          "payload"
+        ],
+        "title": "ReviseAgreement",
+        "type": "object"
+      },
       "ReviseArchitecture": {
         "additionalProperties": false,
         "properties": {
@@ -6476,6 +7617,19 @@
           "payload"
         ],
         "title": "ReviseArchitecture",
+        "type": "object"
+      },
+      "ReviseConstraint": {
+        "additionalProperties": false,
+        "properties": {
+          "payload": {
+            "$ref": "#/components/schemas/ConstraintPayload"
+          }
+        },
+        "required": [
+          "payload"
+        ],
+        "title": "ReviseConstraint",
         "type": "object"
       },
       "RevisePotentialIssueParams": {
@@ -6626,6 +7780,71 @@
           "note"
         ],
         "title": "RunReason",
+        "type": "object"
+      },
+      "SceneCreate": {
+        "additionalProperties": false,
+        "properties": {
+          "agent_bindings": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/AgentBinding"
+            },
+            "maxItems": 100,
+            "title": "Agent Bindings",
+            "type": "array"
+          },
+          "external_id": {
+            "maxLength": 200,
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "External Id",
+            "type": "string"
+          },
+          "kind": {
+            "const": "scene_create",
+            "title": "Kind",
+            "type": "string"
+          },
+          "owner_principal_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Owner Principal Id",
+            "type": "string"
+          },
+          "participant_principal_ids": {
+            "default": [],
+            "items": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+              "type": "string"
+            },
+            "maxItems": 100,
+            "title": "Participant Principal Ids",
+            "type": "array"
+          },
+          "scene_type": {
+            "enum": [
+              "meeting",
+              "document",
+              "selected_conversation"
+            ],
+            "title": "Scene Type",
+            "type": "string"
+          },
+          "title": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "scene_type",
+          "external_id",
+          "title",
+          "owner_principal_id"
+        ],
+        "title": "SceneCreate",
         "type": "object"
       },
       "SceneEventView": {
@@ -7033,6 +8252,64 @@
         "title": "SceneView",
         "type": "object"
       },
+      "Segment": {
+        "additionalProperties": false,
+        "properties": {
+          "occurred_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?(Z|[+-]\\d{2}:\\d{2})$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Occurred At"
+          },
+          "speaker": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "pattern": "\\S",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Speaker"
+          },
+          "text": {
+            "maxLength": 8000,
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "title": "Segment",
+        "type": "object"
+      },
+      "SetParticipants": {
+        "additionalProperties": false,
+        "properties": {
+          "participants": {
+            "items": {
+              "$ref": "#/components/schemas/IssueParticipant"
+            },
+            "title": "Participants",
+            "type": "array"
+          }
+        },
+        "title": "SetParticipants",
+        "type": "object"
+      },
       "SignalDisposition": {
         "additionalProperties": false,
         "properties": {
@@ -7092,74 +8369,942 @@
         "title": "SignalPayload",
         "type": "object"
       },
-      "StatePayload": {
+      "SourceAdd": {
         "additionalProperties": false,
         "properties": {
-          "as_of": {
+          "acquired_at": {
             "format": "date-time",
             "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?(Z|[+-]\\d{2}:\\d{2})$",
-            "title": "As Of",
+            "title": "Acquired At",
             "type": "string"
           },
-          "baseline_refs": {
-            "items": {
-              "$ref": "#/components/schemas/ObjectRef"
-            },
-            "minItems": 1,
-            "title": "Baseline Refs",
-            "type": "array"
-          },
-          "data_gaps": {
-            "items": {
-              "minLength": 1,
-              "pattern": "\\S",
-              "type": "string"
-            },
-            "title": "Data Gaps",
-            "type": "array"
-          },
-          "evidence_refs": {
-            "items": {
-              "$ref": "#/components/schemas/ObjectRef"
-            },
-            "title": "Evidence Refs",
-            "type": "array"
-          },
-          "generation_version": {
+          "external_id": {
+            "maxLength": 300,
             "minLength": 1,
             "pattern": "\\S",
-            "title": "Generation Version",
+            "title": "External Id",
             "type": "string"
           },
-          "rag": {
-            "enum": [
-              "green",
-              "yellow",
-              "red",
-              "unknown"
+          "kind": {
+            "const": "source_add",
+            "title": "Kind",
+            "type": "string"
+          },
+          "media_type": {
+            "maxLength": 120,
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Media Type",
+            "type": "string"
+          },
+          "origin_label": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "pattern": "\\S",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
             ],
-            "title": "Rag",
+            "title": "Origin Label"
+          },
+          "sensitivity": {
+            "const": "private",
+            "default": "private",
+            "title": "Sensitivity",
             "type": "string"
           },
-          "subject_ref": {
-            "$ref": "#/components/schemas/StateSubject"
+          "source_revision": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "pattern": "\\S",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Revision"
           },
-          "summary": {
+          "system": {
+            "maxLength": 100,
             "minLength": 1,
             "pattern": "\\S",
-            "title": "Summary",
+            "title": "System",
+            "type": "string"
+          },
+          "title": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Title",
             "type": "string"
           }
         },
         "required": [
-          "subject_ref",
-          "as_of",
-          "summary",
-          "rag",
-          "baseline_refs",
-          "generation_version"
+          "kind",
+          "system",
+          "external_id",
+          "title",
+          "media_type",
+          "acquired_at"
         ],
-        "title": "StatePayload",
+        "title": "SourceAdd",
+        "type": "object"
+      },
+      "SourceContextCreate": {
+        "additionalProperties": false,
+        "properties": {
+          "contract_version": {
+            "const": "tkos.workspace/0.2",
+            "title": "Contract Version",
+            "type": "string"
+          },
+          "idempotency_key": {
+            "maxLength": 128,
+            "minLength": 16,
+            "pattern": "\\S",
+            "title": "Idempotency Key",
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/SourceContextItem"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Items",
+            "type": "array"
+          },
+          "purpose": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Purpose",
+            "type": "string"
+          },
+          "scene_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Scene Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "contract_version",
+          "scene_id",
+          "idempotency_key",
+          "purpose",
+          "items"
+        ],
+        "title": "SourceContextCreate",
+        "type": "object"
+      },
+      "SourceContextItem": {
+        "additionalProperties": false,
+        "properties": {
+          "payload_hash": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Payload Hash",
+            "type": "string"
+          },
+          "source_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Source Id",
+            "type": "string"
+          },
+          "version_event_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Version Event Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source_id",
+          "version_event_id",
+          "payload_hash"
+        ],
+        "title": "SourceContextItem",
+        "type": "object"
+      },
+      "SourceContextView": {
+        "additionalProperties": false,
+        "properties": {
+          "complete": {
+            "title": "Complete",
+            "type": "boolean"
+          },
+          "context_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Context Id",
+            "type": "string"
+          },
+          "contract_version": {
+            "const": "tkos.workspace/0.2",
+            "title": "Contract Version",
+            "type": "string"
+          },
+          "created_by_principal_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Created By Principal Id",
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "additionalProperties": {
+                "$ref": "#/components/schemas/JsonValue"
+              },
+              "type": "object"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "purpose": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Purpose"
+          },
+          "recorded_at": {
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?(Z|[+-]\\d{2}:\\d{2})$",
+            "title": "Recorded At",
+            "type": "string"
+          },
+          "scene_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Scene Id",
+            "type": "string"
+          },
+          "withheld": {
+            "default": false,
+            "title": "Withheld",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "contract_version",
+          "context_id",
+          "scene_id",
+          "created_by_principal_id",
+          "recorded_at",
+          "complete",
+          "items"
+        ],
+        "title": "SourceContextView",
+        "type": "object"
+      },
+      "SourceCorrect": {
+        "additionalProperties": false,
+        "properties": {
+          "acquired_at": {
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?(Z|[+-]\\d{2}:\\d{2})$",
+            "title": "Acquired At",
+            "type": "string"
+          },
+          "corrects_event_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Corrects Event Id",
+            "type": "string"
+          },
+          "evidence_ref": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EvidenceRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "fingerprint": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Fingerprint",
+            "type": "string"
+          },
+          "kind": {
+            "const": "source_correct",
+            "title": "Kind",
+            "type": "string"
+          },
+          "media_type": {
+            "maxLength": 120,
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Media Type",
+            "type": "string"
+          },
+          "origin_label": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "pattern": "\\S",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Origin Label"
+          },
+          "reason": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Reason",
+            "type": "string"
+          },
+          "segments": {
+            "items": {
+              "$ref": "#/components/schemas/Segment"
+            },
+            "maxItems": 2000,
+            "minItems": 1,
+            "title": "Segments",
+            "type": "array"
+          },
+          "source_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Source Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "source_id",
+          "corrects_event_id",
+          "reason",
+          "fingerprint",
+          "media_type",
+          "acquired_at",
+          "segments"
+        ],
+        "title": "SourceCorrect",
+        "type": "object"
+      },
+      "SourceSceneCommand": {
+        "additionalProperties": false,
+        "properties": {
+          "contract_version": {
+            "const": "tkos.workspace/0.2",
+            "title": "Contract Version",
+            "type": "string"
+          },
+          "event": {
+            "discriminator": {
+              "mapping": {
+                "agent_run": "#/components/schemas/AgentRun",
+                "draft_decision": "#/components/schemas/DraftDecision",
+                "followup_draft": "#/components/schemas/FollowupDraft",
+                "scene_create": "#/components/schemas/SceneCreate",
+                "source_add": "#/components/schemas/SourceAdd",
+                "source_correct": "#/components/schemas/SourceCorrect",
+                "source_share": "#/components/schemas/SourceShare",
+                "source_unshare": "#/components/schemas/SourceUnshare",
+                "source_version": "#/components/schemas/SourceVersion",
+                "source_withdraw": "#/components/schemas/SourceWithdraw"
+              },
+              "propertyName": "kind"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/SceneCreate"
+              },
+              {
+                "$ref": "#/components/schemas/SourceAdd"
+              },
+              {
+                "$ref": "#/components/schemas/SourceVersion"
+              },
+              {
+                "$ref": "#/components/schemas/SourceCorrect"
+              },
+              {
+                "$ref": "#/components/schemas/SourceWithdraw"
+              },
+              {
+                "$ref": "#/components/schemas/SourceShare"
+              },
+              {
+                "$ref": "#/components/schemas/SourceUnshare"
+              },
+              {
+                "$ref": "#/components/schemas/AgentRun"
+              },
+              {
+                "$ref": "#/components/schemas/FollowupDraft"
+              },
+              {
+                "$ref": "#/components/schemas/DraftDecision"
+              }
+            ],
+            "title": "Event"
+          },
+          "expected_version": {
+            "minimum": 0.0,
+            "title": "Expected Version",
+            "type": "integer"
+          },
+          "idempotency_key": {
+            "maxLength": 128,
+            "minLength": 16,
+            "pattern": "\\S",
+            "title": "Idempotency Key",
+            "type": "string"
+          },
+          "scene_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Scene Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "contract_version",
+          "scene_id",
+          "expected_version",
+          "idempotency_key",
+          "event"
+        ],
+        "title": "SourceSceneCommand",
+        "type": "object"
+      },
+      "SourceSceneList": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/SourceSceneSummary"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_after": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next After"
+          }
+        },
+        "required": [
+          "items",
+          "next_after"
+        ],
+        "title": "SourceSceneList",
+        "type": "object"
+      },
+      "SourceSceneReceipt": {
+        "additionalProperties": false,
+        "properties": {
+          "action_type": {
+            "title": "Action Type",
+            "type": "string"
+          },
+          "actor_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Actor Id",
+            "type": "string"
+          },
+          "auth_epoch": {
+            "title": "Auth Epoch",
+            "type": "integer"
+          },
+          "effect_task_ids": {
+            "items": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "title": "Effect Task Ids",
+            "type": "array"
+          },
+          "object_versions": {
+            "items": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "title": "Object Versions",
+            "type": "array"
+          },
+          "receipt_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Receipt Id",
+            "type": "string"
+          },
+          "recorded_at": {
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?(Z|[+-]\\d{2}:\\d{2})$",
+            "title": "Recorded At",
+            "type": "string"
+          },
+          "result": {
+            "$ref": "#/components/schemas/SourceSceneResult"
+          },
+          "status": {
+            "const": "committed",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "receipt_id",
+          "action_type",
+          "actor_id",
+          "auth_epoch",
+          "status",
+          "result",
+          "object_versions",
+          "effect_task_ids",
+          "recorded_at"
+        ],
+        "title": "SourceSceneReceipt",
+        "type": "object"
+      },
+      "SourceSceneResult": {
+        "additionalProperties": false,
+        "properties": {
+          "contract_version": {
+            "const": "tkos.workspace/0.2",
+            "title": "Contract Version",
+            "type": "string"
+          },
+          "event_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Event Id",
+            "type": "string"
+          },
+          "evidence_linked": {
+            "default": false,
+            "title": "Evidence Linked",
+            "type": "boolean"
+          },
+          "formal_effect": {
+            "const": "none",
+            "title": "Formal Effect",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "payload_hash": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Payload Hash",
+            "type": "string"
+          },
+          "scene_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Scene Id",
+            "type": "string"
+          },
+          "source_id": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Id"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "contract_version",
+          "scene_id",
+          "event_id",
+          "version",
+          "kind",
+          "payload_hash",
+          "formal_effect"
+        ],
+        "title": "SourceSceneResult",
+        "type": "object"
+      },
+      "SourceSceneSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?(Z|[+-]\\d{2}:\\d{2})$",
+            "title": "Created At",
+            "type": "string"
+          },
+          "external_id": {
+            "title": "External Id",
+            "type": "string"
+          },
+          "owner_principal_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Owner Principal Id",
+            "type": "string"
+          },
+          "participant_principal_ids": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Participant Principal Ids",
+            "type": "array"
+          },
+          "scene_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Scene Id",
+            "type": "string"
+          },
+          "scene_type": {
+            "title": "Scene Type",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "scene_id",
+          "scene_type",
+          "external_id",
+          "title",
+          "owner_principal_id",
+          "participant_principal_ids",
+          "version",
+          "created_at"
+        ],
+        "title": "SourceSceneSummary",
+        "type": "object"
+      },
+      "SourceSceneView": {
+        "additionalProperties": false,
+        "properties": {
+          "contract_version": {
+            "const": "tkos.workspace/0.2",
+            "title": "Contract Version",
+            "type": "string"
+          },
+          "decisions": {
+            "items": {
+              "additionalProperties": {
+                "$ref": "#/components/schemas/JsonValue"
+              },
+              "type": "object"
+            },
+            "title": "Decisions",
+            "type": "array"
+          },
+          "drafts": {
+            "items": {
+              "additionalProperties": {
+                "$ref": "#/components/schemas/JsonValue"
+              },
+              "type": "object"
+            },
+            "title": "Drafts",
+            "type": "array"
+          },
+          "formal_effect": {
+            "const": "none",
+            "title": "Formal Effect",
+            "type": "string"
+          },
+          "operations": {
+            "items": {
+              "additionalProperties": {
+                "$ref": "#/components/schemas/JsonValue"
+              },
+              "type": "object"
+            },
+            "title": "Operations",
+            "type": "array"
+          },
+          "runs": {
+            "items": {
+              "additionalProperties": {
+                "$ref": "#/components/schemas/JsonValue"
+              },
+              "type": "object"
+            },
+            "title": "Runs",
+            "type": "array"
+          },
+          "scene": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "title": "Scene",
+            "type": "object"
+          },
+          "scene_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Scene Id",
+            "type": "string"
+          },
+          "sources": {
+            "items": {
+              "additionalProperties": {
+                "$ref": "#/components/schemas/JsonValue"
+              },
+              "type": "object"
+            },
+            "title": "Sources",
+            "type": "array"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "contract_version",
+          "scene_id",
+          "version",
+          "scene",
+          "sources",
+          "runs",
+          "drafts",
+          "decisions",
+          "operations",
+          "formal_effect"
+        ],
+        "title": "SourceSceneView",
+        "type": "object"
+      },
+      "SourceShare": {
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "const": "source_share",
+            "title": "Kind",
+            "type": "string"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "pattern": "\\S",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "payload_hash": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Payload Hash",
+            "type": "string"
+          },
+          "share_to_principal_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Share To Principal Id",
+            "type": "string"
+          },
+          "source_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Source Id",
+            "type": "string"
+          },
+          "version_event_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Version Event Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "source_id",
+          "version_event_id",
+          "payload_hash",
+          "share_to_principal_id"
+        ],
+        "title": "SourceShare",
+        "type": "object"
+      },
+      "SourceUnshare": {
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "const": "source_unshare",
+            "title": "Kind",
+            "type": "string"
+          },
+          "reason": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Reason",
+            "type": "string"
+          },
+          "share_event_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Share Event Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "share_event_id",
+          "reason"
+        ],
+        "title": "SourceUnshare",
+        "type": "object"
+      },
+      "SourceVersion": {
+        "additionalProperties": false,
+        "properties": {
+          "acquired_at": {
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?(Z|[+-]\\d{2}:\\d{2})$",
+            "title": "Acquired At",
+            "type": "string"
+          },
+          "evidence_ref": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EvidenceRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "fingerprint": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Fingerprint",
+            "type": "string"
+          },
+          "kind": {
+            "const": "source_version",
+            "title": "Kind",
+            "type": "string"
+          },
+          "media_type": {
+            "maxLength": 120,
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Media Type",
+            "type": "string"
+          },
+          "origin_label": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "pattern": "\\S",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Origin Label"
+          },
+          "segments": {
+            "items": {
+              "$ref": "#/components/schemas/Segment"
+            },
+            "maxItems": 2000,
+            "minItems": 1,
+            "title": "Segments",
+            "type": "array"
+          },
+          "source_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Source Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "source_id",
+          "fingerprint",
+          "media_type",
+          "acquired_at",
+          "segments"
+        ],
+        "title": "SourceVersion",
+        "type": "object"
+      },
+      "SourceVersionRef": {
+        "additionalProperties": false,
+        "properties": {
+          "payload_hash": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Payload Hash",
+            "type": "string"
+          },
+          "source_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Source Id",
+            "type": "string"
+          },
+          "version_event_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Version Event Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source_id",
+          "version_event_id",
+          "payload_hash"
+        ],
+        "title": "SourceVersionRef",
+        "type": "object"
+      },
+      "SourceWithdraw": {
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "const": "source_withdraw",
+            "title": "Kind",
+            "type": "string"
+          },
+          "reason": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Reason",
+            "type": "string"
+          },
+          "source_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Source Id",
+            "type": "string"
+          },
+          "version_event_id": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version Event Id"
+          }
+        },
+        "required": [
+          "kind",
+          "source_id",
+          "reason"
+        ],
+        "title": "SourceWithdraw",
         "type": "object"
       },
       "StateSubject": {
@@ -7202,31 +9347,26 @@
         "title": "StateSubject",
         "type": "object"
       },
-      "StrategicIssuePayload": {
+      "StrategicArchitecturePayload": {
         "additionalProperties": false,
         "properties": {
-          "business_scope": {
-            "enum": [
-              "strategic",
-              "battlefield"
-            ],
-            "title": "Business Scope",
-            "type": "string"
-          },
-          "confirmation_reason": {
-            "minLength": 1,
-            "pattern": "\\S",
-            "title": "Confirmation Reason",
-            "type": "string"
-          },
-          "direct_source_refs": {
+          "battlefields": {
             "items": {
-              "$ref": "#/components/schemas/ObjectRef"
+              "$ref": "#/components/schemas/BattlefieldDefinition"
             },
-            "title": "Direct Source Refs",
+            "minItems": 1,
+            "title": "Battlefields",
             "type": "array"
           },
-          "potential_issue_ref": {
+          "domains": {
+            "items": {
+              "$ref": "#/components/schemas/DomainDefinition"
+            },
+            "minItems": 1,
+            "title": "Domains",
+            "type": "array"
+          },
+          "source_agreement_ref": {
             "anyOf": [
               {
                 "$ref": "#/components/schemas/ObjectRef"
@@ -7236,49 +9376,39 @@
               }
             ]
           },
-          "summary": {
-            "minLength": 1,
-            "pattern": "\\S",
-            "title": "Summary",
-            "type": "string"
+          "source_proposal_ref": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ObjectRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "strategy_ref": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ObjectRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "title": {
             "minLength": 1,
             "pattern": "\\S",
             "title": "Title",
             "type": "string"
-          },
-          "urgency": {
-            "enum": [
-              "red",
-              "yellow",
-              "gray"
-            ],
-            "title": "Urgency",
-            "type": "string"
-          },
-          "urgency_reason": {
-            "anyOf": [
-              {
-                "minLength": 1,
-                "pattern": "\\S",
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Urgency Reason"
           }
         },
         "required": [
-          "business_scope",
-          "urgency",
           "title",
-          "summary",
-          "confirmation_reason"
+          "battlefields",
+          "domains"
         ],
-        "title": "StrategicIssuePayload",
+        "title": "StrategicArchitecturePayload",
         "type": "object"
       },
       "StrategicJudgmentPayload": {
@@ -7526,6 +9656,96 @@
           "text"
         ],
         "title": "TranscriptLine",
+        "type": "object"
+      },
+      "TransferProblem": {
+        "additionalProperties": false,
+        "properties": {
+          "evidence_refs": {
+            "items": {
+              "$ref": "#/components/schemas/ObjectRef"
+            },
+            "title": "Evidence Refs",
+            "type": "array"
+          },
+          "problem_ref": {
+            "$ref": "#/components/schemas/ObjectRef"
+          },
+          "reason": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "problem_ref",
+          "reason"
+        ],
+        "title": "TransferProblem",
+        "type": "object"
+      },
+      "UnresolvedDifference": {
+        "additionalProperties": false,
+        "properties": {
+          "critical": {
+            "title": "Critical",
+            "type": "boolean"
+          },
+          "statement": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Statement",
+            "type": "string"
+          },
+          "topic": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Topic",
+            "type": "string"
+          }
+        },
+        "required": [
+          "topic",
+          "statement",
+          "critical"
+        ],
+        "title": "UnresolvedDifference",
+        "type": "object"
+      },
+      "UpdateProposalPayload": {
+        "additionalProperties": false,
+        "properties": {
+          "agreement_ref": {
+            "$ref": "#/components/schemas/ObjectRef"
+          },
+          "change": {
+            "$ref": "#/components/schemas/CompanyChange"
+          },
+          "issue_ref": {
+            "$ref": "#/components/schemas/ObjectRef"
+          },
+          "rationale": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Rationale",
+            "type": "string"
+          },
+          "title": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "issue_ref",
+          "agreement_ref",
+          "rationale",
+          "change"
+        ],
+        "title": "UpdateProposalPayload",
         "type": "object"
       },
       "ValidationError": {
@@ -8318,6 +10538,46 @@
         "title": "StrategyUnit",
         "type": "object"
       },
+      "memory_service_runtime__governed__method_m1b_models__AssistReview": {
+        "additionalProperties": false,
+        "properties": {
+          "analysis": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Analysis",
+            "type": "string"
+          },
+          "generation_version": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Generation Version",
+            "type": "string"
+          },
+          "owner_principal_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Owner Principal Id",
+            "type": "string"
+          },
+          "source_refs": {
+            "items": {
+              "$ref": "#/components/schemas/memory_service_runtime__governed__method_m1b_models__ExactRef"
+            },
+            "title": "Source Refs",
+            "type": "array"
+          },
+          "target_ref": {
+            "$ref": "#/components/schemas/memory_service_runtime__governed__method_m1b_models__ExactRef"
+          }
+        },
+        "required": [
+          "target_ref",
+          "owner_principal_id",
+          "analysis",
+          "generation_version"
+        ],
+        "title": "AssistReview",
+        "type": "object"
+      },
       "memory_service_runtime__governed__method_m1b_models__CandidateMission": {
         "additionalProperties": false,
         "description": "Server binds the generated PCO revision atomically, never a guessed ID.",
@@ -8396,6 +10656,38 @@
         "title": "CandidateMission",
         "type": "object"
       },
+      "memory_service_runtime__governed__method_m1b_models__Comment": {
+        "additionalProperties": false,
+        "properties": {
+          "content": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Content",
+            "type": "string"
+          },
+          "replaces_record_id": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Replaces Record Id"
+          },
+          "target_ref": {
+            "$ref": "#/components/schemas/memory_service_runtime__governed__method_m1b_models__ExactRef"
+          }
+        },
+        "required": [
+          "target_ref",
+          "content"
+        ],
+        "title": "Comment",
+        "type": "object"
+      },
       "memory_service_runtime__governed__method_m1b_models__DraftMission": {
         "additionalProperties": false,
         "properties": {
@@ -8405,7 +10697,7 @@
             "type": "string"
           },
           "payload": {
-            "$ref": "#/components/schemas/MissionPayload"
+            "$ref": "#/components/schemas/memory_service_runtime__governed__method_m1b_models__MissionPayload"
           }
         },
         "required": [
@@ -8424,7 +10716,7 @@
             "type": "string"
           },
           "payload": {
-            "$ref": "#/components/schemas/PCOPayload"
+            "$ref": "#/components/schemas/memory_service_runtime__governed__method_m1b_models__PCOPayload"
           }
         },
         "required": [
@@ -8470,7 +10762,7 @@
             "type": "string"
           },
           "payload": {
-            "$ref": "#/components/schemas/PeriodReviewPayload"
+            "$ref": "#/components/schemas/memory_service_runtime__governed__method_m1b_models__PeriodReviewPayload"
           }
         },
         "required": [
@@ -8478,6 +10770,130 @@
           "payload"
         ],
         "title": "GenerateReview",
+        "type": "object"
+      },
+      "memory_service_runtime__governed__method_m1b_models__LTCOPayload": {
+        "additionalProperties": false,
+        "properties": {
+          "advice_ref": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/memory_service_runtime__governed__method_m1b_models__ExactRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "outcomes": {
+            "items": {
+              "$ref": "#/components/schemas/LTCOOutcome"
+            },
+            "minItems": 1,
+            "title": "Outcomes",
+            "type": "array"
+          },
+          "owner_principal_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Owner Principal Id",
+            "type": "string"
+          },
+          "period": {
+            "$ref": "#/components/schemas/Period"
+          },
+          "strategy_ref": {
+            "$ref": "#/components/schemas/memory_service_runtime__governed__method_m1b_models__ExactRef"
+          },
+          "title": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "period",
+          "strategy_ref",
+          "owner_principal_id",
+          "outcomes"
+        ],
+        "title": "LTCOPayload",
+        "type": "object"
+      },
+      "memory_service_runtime__governed__method_m1b_models__MissionPayload": {
+        "additionalProperties": false,
+        "properties": {
+          "acceptance_criteria": {
+            "items": {
+              "minLength": 1,
+              "pattern": "\\S",
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Acceptance Criteria",
+            "type": "array"
+          },
+          "boundary": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Boundary",
+            "type": "string"
+          },
+          "deliverable": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Deliverable",
+            "type": "string"
+          },
+          "hard_deadline": {
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?(Z|[+-]\\d{2}:\\d{2})$",
+            "title": "Hard Deadline",
+            "type": "string"
+          },
+          "owner_principal_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Owner Principal Id",
+            "type": "string"
+          },
+          "participants": {
+            "items": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+              "type": "string"
+            },
+            "title": "Participants",
+            "type": "array"
+          },
+          "pco_ref": {
+            "$ref": "#/components/schemas/memory_service_runtime__governed__method_m1b_models__ExactRef"
+          },
+          "supports": {
+            "items": {
+              "$ref": "#/components/schemas/MissionSupport"
+            },
+            "minItems": 1,
+            "title": "Supports",
+            "type": "array"
+          },
+          "title": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "pco_ref",
+          "owner_principal_id",
+          "supports",
+          "deliverable",
+          "acceptance_criteria",
+          "boundary",
+          "hard_deadline"
+        ],
+        "title": "MissionPayload",
         "type": "object"
       },
       "memory_service_runtime__governed__method_m1b_models__OpenWindow": {
@@ -8499,6 +10915,122 @@
         "title": "OpenWindow",
         "type": "object"
       },
+      "memory_service_runtime__governed__method_m1b_models__PCOPayload": {
+        "additionalProperties": false,
+        "properties": {
+          "ltco_ref": {
+            "$ref": "#/components/schemas/memory_service_runtime__governed__method_m1b_models__ExactRef"
+          },
+          "period": {
+            "$ref": "#/components/schemas/Period"
+          },
+          "strategy_ref": {
+            "$ref": "#/components/schemas/memory_service_runtime__governed__method_m1b_models__ExactRef"
+          },
+          "title": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Title",
+            "type": "string"
+          },
+          "unit_outcomes": {
+            "items": {
+              "$ref": "#/components/schemas/PCOOutcome"
+            },
+            "minItems": 1,
+            "title": "Unit Outcomes",
+            "type": "array"
+          }
+        },
+        "required": [
+          "title",
+          "period",
+          "strategy_ref",
+          "ltco_ref",
+          "unit_outcomes"
+        ],
+        "title": "PCOPayload",
+        "type": "object"
+      },
+      "memory_service_runtime__governed__method_m1b_models__PeriodReviewPayload": {
+        "additionalProperties": false,
+        "properties": {
+          "fact_refs": {
+            "items": {
+              "$ref": "#/components/schemas/memory_service_runtime__governed__method_m1b_models__ExactRef"
+            },
+            "title": "Fact Refs",
+            "type": "array"
+          },
+          "findings": {
+            "items": {
+              "minLength": 1,
+              "pattern": "\\S",
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Findings",
+            "type": "array"
+          },
+          "generation_version": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Generation Version",
+            "type": "string"
+          },
+          "implications": {
+            "items": {
+              "minLength": 1,
+              "pattern": "\\S",
+              "type": "string"
+            },
+            "title": "Implications",
+            "type": "array"
+          },
+          "learnings": {
+            "items": {
+              "minLength": 1,
+              "pattern": "\\S",
+              "type": "string"
+            },
+            "title": "Learnings",
+            "type": "array"
+          },
+          "period": {
+            "$ref": "#/components/schemas/Period"
+          },
+          "review_id": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Review Id",
+            "type": "string"
+          },
+          "target_refs": {
+            "items": {
+              "$ref": "#/components/schemas/memory_service_runtime__governed__method_m1b_models__ExactRef"
+            },
+            "minItems": 1,
+            "title": "Target Refs",
+            "type": "array"
+          },
+          "title": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "review_id",
+          "title",
+          "period",
+          "target_refs",
+          "findings",
+          "generation_version"
+        ],
+        "title": "PeriodReviewPayload",
+        "type": "object"
+      },
       "memory_service_runtime__governed__method_m1b_models__ProposeLTCO": {
         "additionalProperties": false,
         "properties": {
@@ -8508,7 +11040,7 @@
             "type": "string"
           },
           "payload": {
-            "$ref": "#/components/schemas/LTCOPayload"
+            "$ref": "#/components/schemas/memory_service_runtime__governed__method_m1b_models__LTCOPayload"
           }
         },
         "required": [
@@ -8522,7 +11054,7 @@
         "additionalProperties": false,
         "properties": {
           "payload": {
-            "$ref": "#/components/schemas/PeriodReviewPayload"
+            "$ref": "#/components/schemas/memory_service_runtime__governed__method_m1b_models__PeriodReviewPayload"
           }
         },
         "required": [
@@ -8608,7 +11140,7 @@
             "type": "array"
           },
           "pco_payload": {
-            "$ref": "#/components/schemas/PCOPayload"
+            "$ref": "#/components/schemas/memory_service_runtime__governed__method_m1b_models__PCOPayload"
           },
           "remaining_differences": {
             "items": {
@@ -8701,7 +11233,7 @@
         "additionalProperties": false,
         "properties": {
           "payload": {
-            "$ref": "#/components/schemas/LTCOPayload"
+            "$ref": "#/components/schemas/memory_service_runtime__governed__method_m1b_models__LTCOPayload"
           },
           "response": {
             "minLength": 1,
@@ -8721,7 +11253,7 @@
         "additionalProperties": false,
         "properties": {
           "payload": {
-            "$ref": "#/components/schemas/MissionPayload"
+            "$ref": "#/components/schemas/memory_service_runtime__governed__method_m1b_models__MissionPayload"
           }
         },
         "required": [
@@ -8734,7 +11266,7 @@
         "additionalProperties": false,
         "properties": {
           "payload": {
-            "$ref": "#/components/schemas/PCOPayload"
+            "$ref": "#/components/schemas/memory_service_runtime__governed__method_m1b_models__PCOPayload"
           }
         },
         "required": [
@@ -9012,6 +11544,85 @@
           "payload"
         ],
         "title": "RevisePotential",
+        "type": "object"
+      },
+      "memory_service_runtime__governed__method_v02_models__StrategicIssuePayload": {
+        "additionalProperties": false,
+        "properties": {
+          "business_scope": {
+            "enum": [
+              "strategic",
+              "battlefield"
+            ],
+            "title": "Business Scope",
+            "type": "string"
+          },
+          "confirmation_reason": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Confirmation Reason",
+            "type": "string"
+          },
+          "direct_source_refs": {
+            "items": {
+              "$ref": "#/components/schemas/ObjectRef"
+            },
+            "title": "Direct Source Refs",
+            "type": "array"
+          },
+          "potential_issue_ref": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ObjectRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "summary": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Summary",
+            "type": "string"
+          },
+          "title": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Title",
+            "type": "string"
+          },
+          "urgency": {
+            "enum": [
+              "red",
+              "yellow",
+              "gray"
+            ],
+            "title": "Urgency",
+            "type": "string"
+          },
+          "urgency_reason": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "pattern": "\\S",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Urgency Reason"
+          }
+        },
+        "required": [
+          "business_scope",
+          "urgency",
+          "title",
+          "summary",
+          "confirmation_reason"
+        ],
+        "title": "StrategicIssuePayload",
         "type": "object"
       },
       "memory_service_runtime__governed__method_v02_models__StrategyChange": {
@@ -9389,6 +12000,35 @@
         "title": "ProposeLTCO",
         "type": "object"
       },
+      "memory_service_runtime__governed__method_v03_models__ProposeState": {
+        "additionalProperties": false,
+        "properties": {
+          "domain_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Domain Id",
+            "type": "string"
+          },
+          "payload": {
+            "$ref": "#/components/schemas/memory_service_runtime__governed__method_v03_models__StatePayload"
+          },
+          "previous_state_ref": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ObjectRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "domain_id",
+          "payload"
+        ],
+        "title": "ProposeState",
+        "type": "object"
+      },
       "memory_service_runtime__governed__method_v03_models__ProposeUpdate": {
         "additionalProperties": false,
         "properties": {
@@ -9526,6 +12166,76 @@
         "title": "RevisePotential",
         "type": "object"
       },
+      "memory_service_runtime__governed__method_v03_models__StatePayload": {
+        "additionalProperties": false,
+        "properties": {
+          "as_of": {
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?(Z|[+-]\\d{2}:\\d{2})$",
+            "title": "As Of",
+            "type": "string"
+          },
+          "baseline_refs": {
+            "items": {
+              "$ref": "#/components/schemas/ObjectRef"
+            },
+            "minItems": 1,
+            "title": "Baseline Refs",
+            "type": "array"
+          },
+          "data_gaps": {
+            "items": {
+              "minLength": 1,
+              "pattern": "\\S",
+              "type": "string"
+            },
+            "title": "Data Gaps",
+            "type": "array"
+          },
+          "evidence_refs": {
+            "items": {
+              "$ref": "#/components/schemas/ObjectRef"
+            },
+            "title": "Evidence Refs",
+            "type": "array"
+          },
+          "generation_version": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Generation Version",
+            "type": "string"
+          },
+          "rag": {
+            "enum": [
+              "green",
+              "yellow",
+              "red",
+              "unknown"
+            ],
+            "title": "Rag",
+            "type": "string"
+          },
+          "subject_ref": {
+            "$ref": "#/components/schemas/StateSubject"
+          },
+          "summary": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Summary",
+            "type": "string"
+          }
+        },
+        "required": [
+          "subject_ref",
+          "as_of",
+          "summary",
+          "rag",
+          "baseline_refs",
+          "generation_version"
+        ],
+        "title": "StatePayload",
+        "type": "object"
+      },
       "memory_service_runtime__governed__method_v03_models__StrategyChange": {
         "additionalProperties": false,
         "properties": {
@@ -9604,6 +12314,1874 @@
           "changes"
         ],
         "title": "UpdateProposal",
+        "type": "object"
+      },
+      "memory_service_runtime__governed__method_v04_models__AssistReview": {
+        "additionalProperties": false,
+        "properties": {
+          "analysis": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Analysis",
+            "type": "string"
+          },
+          "generation_version": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Generation Version",
+            "type": "string"
+          },
+          "owner_principal_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Owner Principal Id",
+            "type": "string"
+          },
+          "source_refs": {
+            "items": {
+              "$ref": "#/components/schemas/ObjectRef"
+            },
+            "title": "Source Refs",
+            "type": "array"
+          },
+          "target_ref": {
+            "$ref": "#/components/schemas/ObjectRef"
+          }
+        },
+        "required": [
+          "target_ref",
+          "owner_principal_id",
+          "analysis",
+          "generation_version"
+        ],
+        "title": "AssistReview",
+        "type": "object"
+      },
+      "memory_service_runtime__governed__method_v04_models__CandidateMission": {
+        "additionalProperties": false,
+        "properties": {
+          "criteria": {
+            "items": {
+              "minLength": 1,
+              "pattern": "\\S",
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Criteria",
+            "type": "array"
+          },
+          "evidence_refs": {
+            "items": {
+              "$ref": "#/components/schemas/ObjectRef"
+            },
+            "title": "Evidence Refs",
+            "type": "array"
+          },
+          "object_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Object Id",
+            "type": "string"
+          },
+          "owner_principal_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Owner Principal Id",
+            "type": "string"
+          },
+          "period": {
+            "$ref": "#/components/schemas/Period"
+          },
+          "primary_scope_id": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Primary Scope Id",
+            "type": "string"
+          },
+          "requirements": {
+            "items": {
+              "minLength": 1,
+              "pattern": "\\S",
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Requirements",
+            "type": "array"
+          },
+          "title": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Title",
+            "type": "string"
+          },
+          "why": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Why",
+            "type": "string"
+          }
+        },
+        "required": [
+          "object_id",
+          "title",
+          "owner_principal_id",
+          "primary_scope_id",
+          "why",
+          "requirements",
+          "criteria",
+          "period"
+        ],
+        "title": "CandidateMission",
+        "type": "object"
+      },
+      "memory_service_runtime__governed__method_v04_models__CandidatePCO": {
+        "additionalProperties": false,
+        "description": "Server binds the generated PCO revision atomically, never a guessed ID.",
+        "properties": {
+          "object_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Object Id",
+            "type": "string"
+          },
+          "payload": {
+            "$ref": "#/components/schemas/memory_service_runtime__governed__method_v04_models__PCOPayload"
+          }
+        },
+        "required": [
+          "object_id",
+          "payload"
+        ],
+        "title": "CandidatePCO",
+        "type": "object"
+      },
+      "memory_service_runtime__governed__method_v04_models__Comment": {
+        "additionalProperties": false,
+        "properties": {
+          "content": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Content",
+            "type": "string"
+          },
+          "target_ref": {
+            "$ref": "#/components/schemas/ObjectRef"
+          }
+        },
+        "required": [
+          "target_ref",
+          "content"
+        ],
+        "title": "Comment",
+        "type": "object"
+      },
+      "memory_service_runtime__governed__method_v04_models__ConfirmLTCO": {
+        "additionalProperties": false,
+        "properties": {
+          "statement": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Statement",
+            "type": "string"
+          }
+        },
+        "required": [
+          "statement"
+        ],
+        "title": "ConfirmLTCO",
+        "type": "object"
+      },
+      "memory_service_runtime__governed__method_v04_models__DraftMission": {
+        "additionalProperties": false,
+        "properties": {
+          "domain_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Domain Id",
+            "type": "string"
+          },
+          "payload": {
+            "$ref": "#/components/schemas/memory_service_runtime__governed__method_v04_models__MissionPayload"
+          }
+        },
+        "required": [
+          "domain_id",
+          "payload"
+        ],
+        "title": "DraftMission",
+        "type": "object"
+      },
+      "memory_service_runtime__governed__method_v04_models__DraftPCO": {
+        "additionalProperties": false,
+        "properties": {
+          "domain_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Domain Id",
+            "type": "string"
+          },
+          "payload": {
+            "$ref": "#/components/schemas/memory_service_runtime__governed__method_v04_models__PCOPayload"
+          }
+        },
+        "required": [
+          "domain_id",
+          "payload"
+        ],
+        "title": "DraftPCO",
+        "type": "object"
+      },
+      "memory_service_runtime__governed__method_v04_models__GenerateReview": {
+        "additionalProperties": false,
+        "properties": {
+          "domain_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Domain Id",
+            "type": "string"
+          },
+          "payload": {
+            "$ref": "#/components/schemas/memory_service_runtime__governed__method_v04_models__PeriodReviewPayload"
+          }
+        },
+        "required": [
+          "domain_id",
+          "payload"
+        ],
+        "title": "GenerateReview",
+        "type": "object"
+      },
+      "memory_service_runtime__governed__method_v04_models__LTCOPayload": {
+        "additionalProperties": false,
+        "properties": {
+          "architecture_ref": {
+            "$ref": "#/components/schemas/ObjectRef"
+          },
+          "baseline_refs": {
+            "items": {
+              "$ref": "#/components/schemas/ObjectRef"
+            },
+            "minItems": 1,
+            "title": "Baseline Refs",
+            "type": "array"
+          },
+          "boundary": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Boundary",
+            "type": "string"
+          },
+          "criteria": {
+            "items": {
+              "minLength": 1,
+              "pattern": "\\S",
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Criteria",
+            "type": "array"
+          },
+          "horizon": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Horizon",
+            "type": "string"
+          },
+          "period": {
+            "$ref": "#/components/schemas/Period"
+          },
+          "primary_scope_id": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Primary Scope Id",
+            "type": "string"
+          },
+          "result_statement": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Result Statement",
+            "type": "string"
+          },
+          "strategy_ref": {
+            "$ref": "#/components/schemas/ObjectRef"
+          },
+          "title": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Title",
+            "type": "string"
+          },
+          "why": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Why",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "primary_scope_id",
+          "period",
+          "architecture_ref",
+          "strategy_ref",
+          "result_statement",
+          "criteria",
+          "boundary",
+          "horizon",
+          "why",
+          "baseline_refs"
+        ],
+        "title": "LTCOPayload",
+        "type": "object"
+      },
+      "memory_service_runtime__governed__method_v04_models__MissionPayload": {
+        "additionalProperties": false,
+        "properties": {
+          "criteria": {
+            "items": {
+              "minLength": 1,
+              "pattern": "\\S",
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Criteria",
+            "type": "array"
+          },
+          "evidence_refs": {
+            "items": {
+              "$ref": "#/components/schemas/ObjectRef"
+            },
+            "title": "Evidence Refs",
+            "type": "array"
+          },
+          "owner_principal_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Owner Principal Id",
+            "type": "string"
+          },
+          "parent_pco_ref": {
+            "$ref": "#/components/schemas/ObjectRef"
+          },
+          "period": {
+            "$ref": "#/components/schemas/Period"
+          },
+          "primary_scope_id": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Primary Scope Id",
+            "type": "string"
+          },
+          "requirements": {
+            "items": {
+              "minLength": 1,
+              "pattern": "\\S",
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Requirements",
+            "type": "array"
+          },
+          "title": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Title",
+            "type": "string"
+          },
+          "why": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Why",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "owner_principal_id",
+          "primary_scope_id",
+          "parent_pco_ref",
+          "why",
+          "requirements",
+          "criteria",
+          "period"
+        ],
+        "title": "MissionPayload",
+        "type": "object"
+      },
+      "memory_service_runtime__governed__method_v04_models__OpenWindow": {
+        "additionalProperties": false,
+        "properties": {
+          "domain_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Domain Id",
+            "type": "string"
+          },
+          "payload": {
+            "$ref": "#/components/schemas/memory_service_runtime__governed__method_v04_models__ReviewWindowPayload"
+          }
+        },
+        "required": [
+          "domain_id",
+          "payload"
+        ],
+        "title": "OpenWindow",
+        "type": "object"
+      },
+      "memory_service_runtime__governed__method_v04_models__PCOPayload": {
+        "additionalProperties": false,
+        "properties": {
+          "architecture_ref": {
+            "$ref": "#/components/schemas/ObjectRef"
+          },
+          "criteria": {
+            "items": {
+              "minLength": 1,
+              "pattern": "\\S",
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Criteria",
+            "type": "array"
+          },
+          "current_reality": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Current Reality",
+            "type": "string"
+          },
+          "expected_lt_advance": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Expected Lt Advance",
+            "type": "string"
+          },
+          "parent_ltco_ref": {
+            "$ref": "#/components/schemas/ObjectRef"
+          },
+          "period": {
+            "$ref": "#/components/schemas/Period"
+          },
+          "primary_scope_id": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Primary Scope Id",
+            "type": "string"
+          },
+          "result_statement": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Result Statement",
+            "type": "string"
+          },
+          "strategy_ref": {
+            "$ref": "#/components/schemas/ObjectRef"
+          },
+          "title": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Title",
+            "type": "string"
+          },
+          "why": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Why",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "primary_scope_id",
+          "period",
+          "parent_ltco_ref",
+          "architecture_ref",
+          "strategy_ref",
+          "current_reality",
+          "result_statement",
+          "criteria",
+          "expected_lt_advance",
+          "why"
+        ],
+        "title": "PCOPayload",
+        "type": "object"
+      },
+      "memory_service_runtime__governed__method_v04_models__PeriodReviewPayload": {
+        "additionalProperties": false,
+        "properties": {
+          "fact_refs": {
+            "items": {
+              "$ref": "#/components/schemas/ObjectRef"
+            },
+            "title": "Fact Refs",
+            "type": "array"
+          },
+          "findings": {
+            "items": {
+              "minLength": 1,
+              "pattern": "\\S",
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Findings",
+            "type": "array"
+          },
+          "generation_version": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Generation Version",
+            "type": "string"
+          },
+          "implications": {
+            "items": {
+              "minLength": 1,
+              "pattern": "\\S",
+              "type": "string"
+            },
+            "title": "Implications",
+            "type": "array"
+          },
+          "learnings": {
+            "items": {
+              "minLength": 1,
+              "pattern": "\\S",
+              "type": "string"
+            },
+            "title": "Learnings",
+            "type": "array"
+          },
+          "period": {
+            "$ref": "#/components/schemas/Period"
+          },
+          "review_id": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Review Id",
+            "type": "string"
+          },
+          "state_refs": {
+            "items": {
+              "$ref": "#/components/schemas/ObjectRef"
+            },
+            "minItems": 1,
+            "title": "State Refs",
+            "type": "array"
+          },
+          "target_refs": {
+            "items": {
+              "$ref": "#/components/schemas/ObjectRef"
+            },
+            "minItems": 1,
+            "title": "Target Refs",
+            "type": "array"
+          },
+          "title": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "review_id",
+          "title",
+          "period",
+          "target_refs",
+          "state_refs",
+          "findings",
+          "generation_version"
+        ],
+        "title": "PeriodReviewPayload",
+        "type": "object"
+      },
+      "memory_service_runtime__governed__method_v04_models__ProposeLTCO": {
+        "additionalProperties": false,
+        "properties": {
+          "domain_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Domain Id",
+            "type": "string"
+          },
+          "payload": {
+            "$ref": "#/components/schemas/memory_service_runtime__governed__method_v04_models__LTCOPayload"
+          }
+        },
+        "required": [
+          "domain_id",
+          "payload"
+        ],
+        "title": "ProposeLTCO",
+        "type": "object"
+      },
+      "memory_service_runtime__governed__method_v04_models__ProposeState": {
+        "additionalProperties": false,
+        "properties": {
+          "domain_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Domain Id",
+            "type": "string"
+          },
+          "payload": {
+            "$ref": "#/components/schemas/memory_service_runtime__governed__method_v04_models__StatePayload"
+          },
+          "previous_state_ref": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ObjectRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "domain_id",
+          "payload"
+        ],
+        "title": "ProposeState",
+        "type": "object"
+      },
+      "memory_service_runtime__governed__method_v04_models__ProposeUpdate": {
+        "additionalProperties": false,
+        "properties": {
+          "payload": {
+            "$ref": "#/components/schemas/UpdateProposalPayload"
+          }
+        },
+        "required": [
+          "payload"
+        ],
+        "title": "ProposeUpdate",
+        "type": "object"
+      },
+      "memory_service_runtime__governed__method_v04_models__RegenerateReview": {
+        "additionalProperties": false,
+        "properties": {
+          "payload": {
+            "$ref": "#/components/schemas/memory_service_runtime__governed__method_v04_models__PeriodReviewPayload"
+          }
+        },
+        "required": [
+          "payload"
+        ],
+        "title": "RegenerateReview",
+        "type": "object"
+      },
+      "memory_service_runtime__governed__method_v04_models__ReopenCandidates": {
+        "additionalProperties": false,
+        "properties": {
+          "mission_refs": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ObjectRef"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mission Refs"
+          },
+          "participants": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/WindowParticipant"
+                },
+                "minItems": 1,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Participants"
+          },
+          "pco_refs": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ObjectRef"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pco Refs"
+          },
+          "reason": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Reason",
+            "type": "string"
+          },
+          "rebase_architecture_ref": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ObjectRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "rebase_strategy_ref": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ObjectRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason",
+          "title"
+        ],
+        "title": "ReopenCandidates",
+        "type": "object"
+      },
+      "memory_service_runtime__governed__method_v04_models__ResolveWindow": {
+        "additionalProperties": false,
+        "properties": {
+          "dispositions": {
+            "items": {
+              "$ref": "#/components/schemas/OpinionDisposition"
+            },
+            "title": "Dispositions",
+            "type": "array"
+          },
+          "missions": {
+            "items": {
+              "$ref": "#/components/schemas/memory_service_runtime__governed__method_v04_models__CandidateMission"
+            },
+            "minItems": 1,
+            "title": "Missions",
+            "type": "array"
+          },
+          "pcos": {
+            "items": {
+              "$ref": "#/components/schemas/memory_service_runtime__governed__method_v04_models__CandidatePCO"
+            },
+            "minItems": 1,
+            "title": "Pcos",
+            "type": "array"
+          },
+          "summary": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Summary",
+            "type": "string"
+          },
+          "title": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Title",
+            "type": "string"
+          },
+          "unresolved_differences": {
+            "items": {
+              "$ref": "#/components/schemas/UnresolvedDifference"
+            },
+            "title": "Unresolved Differences",
+            "type": "array"
+          }
+        },
+        "required": [
+          "title",
+          "pcos",
+          "missions",
+          "summary"
+        ],
+        "title": "ResolveWindow",
+        "type": "object"
+      },
+      "memory_service_runtime__governed__method_v04_models__ReviewWindowPayload": {
+        "additionalProperties": false,
+        "properties": {
+          "architecture_ref": {
+            "$ref": "#/components/schemas/ObjectRef"
+          },
+          "ltco_refs": {
+            "items": {
+              "$ref": "#/components/schemas/ObjectRef"
+            },
+            "minItems": 1,
+            "title": "Ltco Refs",
+            "type": "array"
+          },
+          "mission_refs": {
+            "items": {
+              "$ref": "#/components/schemas/ObjectRef"
+            },
+            "minItems": 1,
+            "title": "Mission Refs",
+            "type": "array"
+          },
+          "participants": {
+            "items": {
+              "$ref": "#/components/schemas/WindowParticipant"
+            },
+            "minItems": 1,
+            "title": "Participants",
+            "type": "array"
+          },
+          "pco_refs": {
+            "items": {
+              "$ref": "#/components/schemas/ObjectRef"
+            },
+            "minItems": 1,
+            "title": "Pco Refs",
+            "type": "array"
+          },
+          "period": {
+            "$ref": "#/components/schemas/Period"
+          },
+          "previous_window_ref": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ObjectRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "strategy_ref": {
+            "$ref": "#/components/schemas/ObjectRef"
+          },
+          "title": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "period",
+          "architecture_ref",
+          "strategy_ref",
+          "ltco_refs",
+          "pco_refs",
+          "mission_refs",
+          "participants"
+        ],
+        "title": "ReviewWindowPayload",
+        "type": "object"
+      },
+      "memory_service_runtime__governed__method_v04_models__ReviseLTCO": {
+        "additionalProperties": false,
+        "properties": {
+          "payload": {
+            "$ref": "#/components/schemas/memory_service_runtime__governed__method_v04_models__LTCOPayload"
+          },
+          "response": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Response",
+            "type": "string"
+          }
+        },
+        "required": [
+          "payload",
+          "response"
+        ],
+        "title": "ReviseLTCO",
+        "type": "object"
+      },
+      "memory_service_runtime__governed__method_v04_models__ReviseMission": {
+        "additionalProperties": false,
+        "properties": {
+          "payload": {
+            "$ref": "#/components/schemas/memory_service_runtime__governed__method_v04_models__MissionPayload"
+          }
+        },
+        "required": [
+          "payload"
+        ],
+        "title": "ReviseMission",
+        "type": "object"
+      },
+      "memory_service_runtime__governed__method_v04_models__RevisePCO": {
+        "additionalProperties": false,
+        "properties": {
+          "payload": {
+            "$ref": "#/components/schemas/memory_service_runtime__governed__method_v04_models__PCOPayload"
+          }
+        },
+        "required": [
+          "payload"
+        ],
+        "title": "RevisePCO",
+        "type": "object"
+      },
+      "memory_service_runtime__governed__method_v04_models__StatePayload": {
+        "additionalProperties": false,
+        "properties": {
+          "as_of": {
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?(Z|[+-]\\d{2}:\\d{2})$",
+            "title": "As Of",
+            "type": "string"
+          },
+          "baseline_refs": {
+            "items": {
+              "$ref": "#/components/schemas/ObjectRef"
+            },
+            "minItems": 1,
+            "title": "Baseline Refs",
+            "type": "array"
+          },
+          "data_gaps": {
+            "items": {
+              "minLength": 1,
+              "pattern": "\\S",
+              "type": "string"
+            },
+            "title": "Data Gaps",
+            "type": "array"
+          },
+          "evidence_refs": {
+            "items": {
+              "$ref": "#/components/schemas/ObjectRef"
+            },
+            "title": "Evidence Refs",
+            "type": "array"
+          },
+          "generation_version": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Generation Version",
+            "type": "string"
+          },
+          "rag": {
+            "enum": [
+              "green",
+              "yellow",
+              "red",
+              "unknown"
+            ],
+            "title": "Rag",
+            "type": "string"
+          },
+          "subject_ref": {
+            "$ref": "#/components/schemas/ObjectRef"
+          },
+          "summary": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Summary",
+            "type": "string"
+          }
+        },
+        "required": [
+          "subject_ref",
+          "as_of",
+          "summary",
+          "rag",
+          "baseline_refs",
+          "generation_version"
+        ],
+        "title": "StatePayload",
+        "type": "object"
+      },
+      "memory_service_runtime__governed__method_v04_models__StrategicIssuePayload": {
+        "additionalProperties": false,
+        "properties": {
+          "architecture_ref": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ObjectRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "business_scope": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Business Scope",
+            "type": "string"
+          },
+          "core_question": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Core Question",
+            "type": "string"
+          },
+          "reframe_of_ref": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ObjectRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "source_refs": {
+            "items": {
+              "$ref": "#/components/schemas/ObjectRef"
+            },
+            "title": "Source Refs",
+            "type": "array"
+          },
+          "strategy_ref": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ObjectRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "summary": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Summary",
+            "type": "string"
+          },
+          "title": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Title",
+            "type": "string"
+          },
+          "urgency": {
+            "enum": [
+              "red",
+              "yellow",
+              "green"
+            ],
+            "title": "Urgency",
+            "type": "string"
+          },
+          "urgency_reason": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "pattern": "\\S",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Urgency Reason"
+          }
+        },
+        "required": [
+          "title",
+          "summary",
+          "core_question",
+          "business_scope",
+          "urgency"
+        ],
+        "title": "StrategicIssuePayload",
+        "type": "object"
+      },
+      "memory_service_runtime__governed__method_v04_models__StrategyPayload": {
+        "additionalProperties": false,
+        "properties": {
+          "required_capabilities": {
+            "items": {
+              "$ref": "#/components/schemas/RequiredCapability"
+            },
+            "title": "Required Capabilities",
+            "type": "array"
+          },
+          "source_agreement_ref": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ObjectRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "source_proposal_ref": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ObjectRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "statement": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Statement",
+            "type": "string"
+          },
+          "title": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "statement"
+        ],
+        "title": "StrategyPayload",
+        "type": "object"
+      },
+      "memory_service_runtime__governed__method_v05_models__CandidateMission": {
+        "additionalProperties": false,
+        "properties": {
+          "boundary": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Boundary",
+            "type": "string"
+          },
+          "constraint_refs": {
+            "items": {
+              "$ref": "#/components/schemas/ObjectRef"
+            },
+            "title": "Constraint Refs",
+            "type": "array"
+          },
+          "contributes_to_scope_ids": {
+            "items": {
+              "minLength": 1,
+              "pattern": "\\S",
+              "type": "string"
+            },
+            "title": "Contributes To Scope Ids",
+            "type": "array"
+          },
+          "criteria": {
+            "items": {
+              "minLength": 1,
+              "pattern": "\\S",
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Criteria",
+            "type": "array"
+          },
+          "dependencies": {
+            "items": {
+              "$ref": "#/components/schemas/MissionDependency"
+            },
+            "title": "Dependencies",
+            "type": "array"
+          },
+          "evidence_refs": {
+            "items": {
+              "$ref": "#/components/schemas/ObjectRef"
+            },
+            "title": "Evidence Refs",
+            "type": "array"
+          },
+          "object_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Object Id",
+            "type": "string"
+          },
+          "owner_principal_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Owner Principal Id",
+            "type": "string"
+          },
+          "period": {
+            "$ref": "#/components/schemas/Period"
+          },
+          "primary_scope_id": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Primary Scope Id",
+            "type": "string"
+          },
+          "requirements": {
+            "items": {
+              "minLength": 1,
+              "pattern": "\\S",
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Requirements",
+            "type": "array"
+          },
+          "resource_needs": {
+            "items": {
+              "minLength": 1,
+              "pattern": "\\S",
+              "type": "string"
+            },
+            "title": "Resource Needs",
+            "type": "array"
+          },
+          "title": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Title",
+            "type": "string"
+          },
+          "why": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Why",
+            "type": "string"
+          }
+        },
+        "required": [
+          "boundary",
+          "object_id",
+          "title",
+          "owner_principal_id",
+          "primary_scope_id",
+          "why",
+          "requirements",
+          "criteria",
+          "period"
+        ],
+        "title": "CandidateMission",
+        "type": "object"
+      },
+      "memory_service_runtime__governed__method_v05_models__CandidatePCO": {
+        "additionalProperties": false,
+        "properties": {
+          "object_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Object Id",
+            "type": "string"
+          },
+          "payload": {
+            "$ref": "#/components/schemas/memory_service_runtime__governed__method_v05_models__PCOPayload"
+          }
+        },
+        "required": [
+          "object_id",
+          "payload"
+        ],
+        "title": "CandidatePCO",
+        "type": "object"
+      },
+      "memory_service_runtime__governed__method_v05_models__ConfirmLTCO": {
+        "additionalProperties": false,
+        "properties": {
+          "conclusion": {
+            "enum": [
+              "established",
+              "revised",
+              "maintained"
+            ],
+            "title": "Conclusion",
+            "type": "string"
+          },
+          "statement": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Statement",
+            "type": "string"
+          }
+        },
+        "required": [
+          "conclusion",
+          "statement"
+        ],
+        "title": "ConfirmLTCO",
+        "type": "object"
+      },
+      "memory_service_runtime__governed__method_v05_models__DraftMission": {
+        "additionalProperties": false,
+        "properties": {
+          "domain_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Domain Id",
+            "type": "string"
+          },
+          "payload": {
+            "$ref": "#/components/schemas/memory_service_runtime__governed__method_v05_models__MissionPayload"
+          }
+        },
+        "required": [
+          "domain_id",
+          "payload"
+        ],
+        "title": "DraftMission",
+        "type": "object"
+      },
+      "memory_service_runtime__governed__method_v05_models__DraftPCO": {
+        "additionalProperties": false,
+        "properties": {
+          "domain_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Domain Id",
+            "type": "string"
+          },
+          "payload": {
+            "$ref": "#/components/schemas/memory_service_runtime__governed__method_v05_models__PCOPayload"
+          }
+        },
+        "required": [
+          "domain_id",
+          "payload"
+        ],
+        "title": "DraftPCO",
+        "type": "object"
+      },
+      "memory_service_runtime__governed__method_v05_models__LTCOPayload": {
+        "additionalProperties": false,
+        "properties": {
+          "architecture_ref": {
+            "$ref": "#/components/schemas/ObjectRef"
+          },
+          "baseline_refs": {
+            "items": {
+              "$ref": "#/components/schemas/ObjectRef"
+            },
+            "minItems": 1,
+            "title": "Baseline Refs",
+            "type": "array"
+          },
+          "boundary": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Boundary",
+            "type": "string"
+          },
+          "constraint_refs": {
+            "items": {
+              "$ref": "#/components/schemas/ObjectRef"
+            },
+            "title": "Constraint Refs",
+            "type": "array"
+          },
+          "criteria": {
+            "items": {
+              "minLength": 1,
+              "pattern": "\\S",
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Criteria",
+            "type": "array"
+          },
+          "horizon": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Horizon",
+            "type": "string"
+          },
+          "key_assumptions": {
+            "items": {
+              "minLength": 1,
+              "pattern": "\\S",
+              "type": "string"
+            },
+            "title": "Key Assumptions",
+            "type": "array"
+          },
+          "period": {
+            "$ref": "#/components/schemas/Period"
+          },
+          "primary_scope_id": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Primary Scope Id",
+            "type": "string"
+          },
+          "realization_logic": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Realization Logic",
+            "type": "string"
+          },
+          "result_statement": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Result Statement",
+            "type": "string"
+          },
+          "strategy_ref": {
+            "$ref": "#/components/schemas/ObjectRef"
+          },
+          "title": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Title",
+            "type": "string"
+          },
+          "why": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Why",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "primary_scope_id",
+          "period",
+          "architecture_ref",
+          "strategy_ref",
+          "result_statement",
+          "criteria",
+          "boundary",
+          "horizon",
+          "why",
+          "baseline_refs",
+          "realization_logic"
+        ],
+        "title": "LTCOPayload",
+        "type": "object"
+      },
+      "memory_service_runtime__governed__method_v05_models__MissionPayload": {
+        "additionalProperties": false,
+        "properties": {
+          "boundary": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Boundary",
+            "type": "string"
+          },
+          "constraint_refs": {
+            "items": {
+              "$ref": "#/components/schemas/ObjectRef"
+            },
+            "title": "Constraint Refs",
+            "type": "array"
+          },
+          "contributes_to_scope_ids": {
+            "items": {
+              "minLength": 1,
+              "pattern": "\\S",
+              "type": "string"
+            },
+            "title": "Contributes To Scope Ids",
+            "type": "array"
+          },
+          "criteria": {
+            "items": {
+              "minLength": 1,
+              "pattern": "\\S",
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Criteria",
+            "type": "array"
+          },
+          "dependencies": {
+            "items": {
+              "$ref": "#/components/schemas/MissionDependency"
+            },
+            "title": "Dependencies",
+            "type": "array"
+          },
+          "evidence_refs": {
+            "items": {
+              "$ref": "#/components/schemas/ObjectRef"
+            },
+            "title": "Evidence Refs",
+            "type": "array"
+          },
+          "owner_principal_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Owner Principal Id",
+            "type": "string"
+          },
+          "parent_pco_ref": {
+            "$ref": "#/components/schemas/ObjectRef"
+          },
+          "period": {
+            "$ref": "#/components/schemas/Period"
+          },
+          "primary_scope_id": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Primary Scope Id",
+            "type": "string"
+          },
+          "requirements": {
+            "items": {
+              "minLength": 1,
+              "pattern": "\\S",
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Requirements",
+            "type": "array"
+          },
+          "resource_needs": {
+            "items": {
+              "minLength": 1,
+              "pattern": "\\S",
+              "type": "string"
+            },
+            "title": "Resource Needs",
+            "type": "array"
+          },
+          "title": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Title",
+            "type": "string"
+          },
+          "why": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Why",
+            "type": "string"
+          }
+        },
+        "required": [
+          "boundary",
+          "title",
+          "owner_principal_id",
+          "primary_scope_id",
+          "parent_pco_ref",
+          "why",
+          "requirements",
+          "criteria",
+          "period"
+        ],
+        "title": "MissionPayload",
+        "type": "object"
+      },
+      "memory_service_runtime__governed__method_v05_models__PCOPayload": {
+        "additionalProperties": false,
+        "properties": {
+          "architecture_ref": {
+            "$ref": "#/components/schemas/ObjectRef"
+          },
+          "boundary": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Boundary",
+            "type": "string"
+          },
+          "constraint_refs": {
+            "items": {
+              "$ref": "#/components/schemas/ObjectRef"
+            },
+            "title": "Constraint Refs",
+            "type": "array"
+          },
+          "criteria": {
+            "items": {
+              "minLength": 1,
+              "pattern": "\\S",
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Criteria",
+            "type": "array"
+          },
+          "current_reality": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Current Reality",
+            "type": "string"
+          },
+          "expected_lt_advance": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Expected Lt Advance",
+            "type": "string"
+          },
+          "parent_ltco_ref": {
+            "$ref": "#/components/schemas/ObjectRef"
+          },
+          "period": {
+            "$ref": "#/components/schemas/Period"
+          },
+          "period_review_ref": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ObjectRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "primary_scope_id": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Primary Scope Id",
+            "type": "string"
+          },
+          "result_statement": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Result Statement",
+            "type": "string"
+          },
+          "strategy_ref": {
+            "$ref": "#/components/schemas/ObjectRef"
+          },
+          "title": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Title",
+            "type": "string"
+          },
+          "why": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Why",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "primary_scope_id",
+          "period",
+          "parent_ltco_ref",
+          "architecture_ref",
+          "strategy_ref",
+          "current_reality",
+          "result_statement",
+          "criteria",
+          "expected_lt_advance",
+          "why",
+          "boundary"
+        ],
+        "title": "PCOPayload",
+        "type": "object"
+      },
+      "memory_service_runtime__governed__method_v05_models__ProposeLTCO": {
+        "additionalProperties": false,
+        "properties": {
+          "domain_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Domain Id",
+            "type": "string"
+          },
+          "payload": {
+            "$ref": "#/components/schemas/memory_service_runtime__governed__method_v05_models__LTCOPayload"
+          }
+        },
+        "required": [
+          "domain_id",
+          "payload"
+        ],
+        "title": "ProposeLTCO",
+        "type": "object"
+      },
+      "memory_service_runtime__governed__method_v05_models__ProposeState": {
+        "additionalProperties": false,
+        "properties": {
+          "domain_id": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "title": "Domain Id",
+            "type": "string"
+          },
+          "payload": {
+            "$ref": "#/components/schemas/memory_service_runtime__governed__method_v05_models__StatePayload"
+          },
+          "previous_state_ref": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ObjectRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "domain_id",
+          "payload"
+        ],
+        "title": "ProposeState",
+        "type": "object"
+      },
+      "memory_service_runtime__governed__method_v05_models__ResolveWindow": {
+        "additionalProperties": false,
+        "properties": {
+          "dispositions": {
+            "items": {
+              "$ref": "#/components/schemas/OpinionDisposition"
+            },
+            "title": "Dispositions",
+            "type": "array"
+          },
+          "missions": {
+            "items": {
+              "$ref": "#/components/schemas/memory_service_runtime__governed__method_v05_models__CandidateMission"
+            },
+            "minItems": 1,
+            "title": "Missions",
+            "type": "array"
+          },
+          "pcos": {
+            "items": {
+              "$ref": "#/components/schemas/memory_service_runtime__governed__method_v05_models__CandidatePCO"
+            },
+            "minItems": 1,
+            "title": "Pcos",
+            "type": "array"
+          },
+          "summary": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Summary",
+            "type": "string"
+          },
+          "title": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Title",
+            "type": "string"
+          },
+          "unresolved_differences": {
+            "items": {
+              "$ref": "#/components/schemas/UnresolvedDifference"
+            },
+            "title": "Unresolved Differences",
+            "type": "array"
+          }
+        },
+        "required": [
+          "title",
+          "pcos",
+          "missions",
+          "summary"
+        ],
+        "title": "ResolveWindow",
+        "type": "object"
+      },
+      "memory_service_runtime__governed__method_v05_models__ReviseLTCO": {
+        "additionalProperties": false,
+        "properties": {
+          "payload": {
+            "$ref": "#/components/schemas/memory_service_runtime__governed__method_v05_models__LTCOPayload"
+          },
+          "response": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Response",
+            "type": "string"
+          }
+        },
+        "required": [
+          "payload",
+          "response"
+        ],
+        "title": "ReviseLTCO",
+        "type": "object"
+      },
+      "memory_service_runtime__governed__method_v05_models__ReviseMission": {
+        "additionalProperties": false,
+        "properties": {
+          "payload": {
+            "$ref": "#/components/schemas/memory_service_runtime__governed__method_v05_models__MissionPayload"
+          }
+        },
+        "required": [
+          "payload"
+        ],
+        "title": "ReviseMission",
+        "type": "object"
+      },
+      "memory_service_runtime__governed__method_v05_models__RevisePCO": {
+        "additionalProperties": false,
+        "properties": {
+          "payload": {
+            "$ref": "#/components/schemas/memory_service_runtime__governed__method_v05_models__PCOPayload"
+          }
+        },
+        "required": [
+          "payload"
+        ],
+        "title": "RevisePCO",
+        "type": "object"
+      },
+      "memory_service_runtime__governed__method_v05_models__StatePayload": {
+        "additionalProperties": false,
+        "properties": {
+          "as_of": {
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,6})?(Z|[+-]\\d{2}:\\d{2})$",
+            "title": "As Of",
+            "type": "string"
+          },
+          "baseline_refs": {
+            "items": {
+              "$ref": "#/components/schemas/ObjectRef"
+            },
+            "minItems": 1,
+            "title": "Baseline Refs",
+            "type": "array"
+          },
+          "data_gaps": {
+            "items": {
+              "minLength": 1,
+              "pattern": "\\S",
+              "type": "string"
+            },
+            "title": "Data Gaps",
+            "type": "array"
+          },
+          "drilldown_refs": {
+            "items": {
+              "$ref": "#/components/schemas/ObjectRef"
+            },
+            "title": "Drilldown Refs",
+            "type": "array"
+          },
+          "evidence_refs": {
+            "items": {
+              "$ref": "#/components/schemas/ObjectRef"
+            },
+            "title": "Evidence Refs",
+            "type": "array"
+          },
+          "generation_version": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Generation Version",
+            "type": "string"
+          },
+          "period": {
+            "$ref": "#/components/schemas/Period"
+          },
+          "rag": {
+            "enum": [
+              "green",
+              "yellow",
+              "red",
+              "unknown"
+            ],
+            "title": "Rag",
+            "type": "string"
+          },
+          "subject_ref": {
+            "$ref": "#/components/schemas/ObjectRef"
+          },
+          "summary": {
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Summary",
+            "type": "string"
+          }
+        },
+        "required": [
+          "subject_ref",
+          "as_of",
+          "summary",
+          "rag",
+          "baseline_refs",
+          "generation_version",
+          "period"
+        ],
+        "title": "StatePayload",
         "type": "object"
       },
       "memory_service_runtime__governed__models__AcceptanceCriterion": {
@@ -10638,6 +15216,64 @@
           }
         },
         "summary": "Ontology Catalog Route",
+        "tags": [
+          "dashboard"
+        ]
+      }
+    },
+    "/v1/dashboard/ontology/method-map": {
+      "get": {
+        "operationId": "ontology_method_map_route_v1_dashboard_ontology_method_map_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "availability",
+            "required": false,
+            "schema": {
+              "default": "none",
+              "maxLength": 16,
+              "title": "Availability",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Ontology Method Map Route",
         "tags": [
           "dashboard"
         ]

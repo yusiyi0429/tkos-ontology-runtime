@@ -67,11 +67,40 @@ def test_ids_are_unique_relations_name_registered_objects_and_statuses_are_known
             assert item[key]["status"] in STATUSES, (item["id"], key)
 
 
+# Registered object types that deliberately have no entry in a Method PAYLOAD_MODELS
+# dict: CompanyReference is Contract-A's payload (a2_models.py, a different protocol),
+# and EvidenceAsset stores raw-byte hashes with no payload schema (evidence.py).
+NOT_METHOD_PAYLOAD_MODELS = {"CompanyReference", "EvidenceAsset"}
+
+
 def test_runtime_0_4_fields_exist_on_the_0_4_models():
     paths = {kind: model_paths(model) for kind, model in v4.PAYLOAD_MODELS.items()}
     for item in registry()["objects"]:
         runtime = item["runtime_0_4"]
         kind = runtime.get("object_type")
-        if kind in paths:
-            for field in runtime.get("fields", []):
-                assert field in paths[kind], (item["id"], field)
+        if kind is None or kind in NOT_METHOD_PAYLOAD_MODELS:
+            continue
+        assert kind in paths, (item["id"], kind)
+        for field in runtime.get("fields", []):
+            assert field in paths[kind], (item["id"], field)
+
+
+def test_runtime_0_5_fields_exist_on_the_0_5_models_and_tallies_match_the_plan():
+    from memory_service_runtime.governed import method_v05_models as v5
+    data = registry()
+    paths = {kind: model_paths(model) for kind, model in v5.PAYLOAD_MODELS.items()}
+    for item in data["objects"]:
+        runtime = item["runtime_0_5"]
+        kind = runtime.get("object_type")
+        if kind is None or kind in NOT_METHOD_PAYLOAD_MODELS:
+            continue
+        assert kind in paths, (item["id"], kind)
+        for field in runtime.get("fields", []):
+            assert field in paths[kind], (item["id"], field)
+    for kind in ("Constraint", "LTCO", "PCO", "Mission", "OperatingState", "PeriodReview"):
+        registered = next(o for o in data["objects"] if o["runtime_0_5"].get("object_type") == kind)
+        assert registered["runtime_0_5"]["status"] in {"exists", "partial"}
+    tally = lambda items, key: {s: sum(1 for i in items if i[key]["status"] == s) for s in ("exists", "partial", "missing")}
+    assert tally(data["objects"], "runtime_0_5") == {"exists": 9, "partial": 7, "missing": 4}
+    assert tally(data["relations"], "runtime_0_5") == {"exists": 27, "partial": 4, "missing": 2}
+    assert all(g["runtime_0_5"]["status"] == "exists" for g in data["gates"])

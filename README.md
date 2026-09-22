@@ -48,6 +48,10 @@ Runtime 提供 Clark 现有月度核对、周进展和会议工作面的 Runtime
 - 原容器访问：[Runtime 经营看板](http://127.0.0.1:58802/dashboard/)。API/Worker 已按 `eccc346` 重建，保留现有 0.1 数据、Clark 及 PostgreSQL/MinIO 数据卷；当前仍为五容器。
 - 原列表看板独立浏览器与本机部署通过，见[验收报告与截图](docs/runtime-dashboard-acceptance.md)；[复跑与回滚](docs/runtime-dashboard-deployment.md)。业务同事理解度、Clark 接线/浏览器及真实模型另行验证；本增量已纳入 v0.3.0。旧的 `workbench/` 四页原型与 `/docs` 保留不变。
 
+## Method 0.5：本体 v0.7 对齐
+
+`tkos.method/0.5` 按《TKOS 本体结构 v0.7（M1 范围）》把本期 M1 对象落进正式链：Constraint 一级对象与按范围确认、LTCO 审视结论、CEO 确认复盘并由下期 PCO 承接、Mission 的贡献／依赖／资源与责任域 DRI 唯一承诺、生成即正式的带起止时间状态，以及公司集合视图与确认记录投影。契约见 [tkos-method-0.5.md](docs/contracts/tkos-method-0.5.md)，profile 同时钉定 [本体登记 0.7.1](docs/contracts/ontology-registry-0.7.json)；动作注册表见 [0.5 注册表](docs/runtime-method-registry-0.5.json)；实施与验收状态见 [Method 0.5 状态](docs/method-05-implementation-status.md)；复跑入口在 `acceptance/method_v05/`。迁移头到 0029；0.1–0.4 对象保留原协议绑定与原生效规则。
+
 ## Method 0.4：正式链收口与独立来源
 
 - **CEO Agent 直接立项**：绑定 Agent 可直接提出 issue、reframe 或关联既有议题；立项本身不授予战略确认权，CEO 本人仍独立指派研究。
@@ -136,6 +140,7 @@ WorkItem 固定承诺版本、指定 DRI、指定验收人及标准。Deliverabl
 | `src/adapter/` | 保留的 Clark 只读兼容接口 |
 | `acceptance/anchors_v03/`、`acceptance/lifecycle_v02/`、`acceptance/workspace_scenes/` | 0.3 Anchor、0.2 生命周期和 Clark 场景接口隔离验收 |
 | `acceptance/method_v04/`、`acceptance/workspace_v02/` | Method 0.4 正式链与 workspace 0.2 独立来源隔离验收 |
+| `acceptance/method_v05/` | Method 0.5 本体对齐链隔离验收 |
 | `acceptance/governance_workbench/` | 本机治理工作台会话、权限与真实 HTTP/数据库验收 |
 | `acceptance/method_independent/` | M1A＋M1B 完整 API、权限、并发、恢复与历史兼容验收 |
 | `acceptance/composition_a2_independent/`、`acceptance/execution_a3_independent/` | A2 公司组合与 A3 执行交接独立验收 |

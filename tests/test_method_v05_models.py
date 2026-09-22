@@ -219,3 +219,9 @@ def test_envelope_does_not_gate_a_0_5_only_action_under_an_older_declared_versio
         'reason': 'Documents the envelope gap, not a bug', 'contract_version': 'tkos.method/0.4',
         'params': {'payload': constraint_payload()}})
     assert type(accepted.params) is m.ReviseConstraint
+
+
+def test_migration_pins_the_same_contract_and_registry_bytes():
+    sql = (ROOT / 'src/memory_service_app/migrations/0029_method_v05.sql').read_text()
+    assert profile.CONTRACT_SHA256 in sql and profile.ONTOLOGY_REGISTRY_SHA256 in sql
+    assert "'tkos.method/0.5'" in sql and "'Constraint'" in sql

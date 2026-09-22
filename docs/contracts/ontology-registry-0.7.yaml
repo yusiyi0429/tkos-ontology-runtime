@@ -1,0 +1,521 @@
+# TKOS 本体登记（草案）v0.7
+# 把《TKOS 本体结构 v0.7（M1 范围）｜CEO 对齐稿 2026-09-22》写成机器可读：一级对象、关系、人工门、不进矩阵的项、待定问题。
+# 用途：① 文档的 A1 / A2 / 表 B 以后从这里生成；② 测试断言它与运行时模型、数据库 CHECK 约束一致；
+#       ③ 0.5 契约的关系投影表按这里的 relations 派生。它不改变任何运行时语义。
+# 冻结方式：status 改为 frozen，算 tkos-json-v1 规范化后的 SHA-256，钉进 gov_method_profile_revisions.content.ontology_ref。
+registry_id: tkos.ontology-registry
+revision: "0.7.0"
+status: draft
+checked_date: "2026-09-22"
+based_on:
+  section: 《TKOS 本体结构 v0.7（M1 范围）｜CEO 对齐稿 2026-09-22》，docx KuU8d7rq6oozKDxtZqkcHI0nnJa，revision 3；前一版第八节 v0.6 留在评审汇总 docx NpMCdkhOKoYIsPxOXfUcqnOQnPf（revision 190），会上评论附在那里
+  inventory: TKOS Method Artifact Master Inventory v0.8（田田确认即 v0.8.1），wiki bitable V3sTbyCzPaKhIUs8GOacVcXSnec，六页签
+  methods: [M1-A v3.1, M1-B v5.1, M2 v3.1, M3 v1.2, MF v1.1]
+  discussion_draft: 《TKOS 本体业务语义与数据对象讨论稿》v0.3，docx V9QTdbEAuokgohxSJSvcGwGPn6b，revision 9
+  meeting: 9/22 14:00 内部对齐会（斯一、田田、人豪），妙记 obcn629472ww9266s9qy47l4；会上评审汇总文档的评论 7688238641633561572（田田，PCO 补 Expected LT Progress Advance）与 7688240234856827849 / 7688241714342988728 / 7688242121442069468 / 7688242588582824910（斯一）
+  product_spec: 《M1B L5 需求文档》3.1 到 3.13，只取字段形状；田田 9/22 会上说产品 L5 目前没有，不作为对齐对象
+  runtime_contract: tkos.method/0.4（对照用，登记不改它）
+conventions:
+  ids: 对象与关系的 id 用英文，说明用中文；doc_name / doc 三元组与 CEO 对齐稿 A2 / 表 B / 附 1 原文逐字一致，供文档一致性检查。
+  m1_scope: this_period 本期落地 | reference_only 本期只读入 | optional 可选 | later 本期不做（标所属方法）
+  runtime_status: exists 已有 | partial 部分（字段或语义有差） | missing 没有 | product_mechanism 产品或运行机制，不是经营对象
+  pinned_ref: 引用是否钉到确切版本（object_id + revision_id + payload_hash）；Operating State 的引用改为主体加起止时间
+  doc_columns: 文档 A2 只列 大白话 / 属性 / 边界 / 谁确认 / 更新节奏 / 本期；总表页签（inventory_tab）与默认承载（carrier_default）按 9/22 会议不进文档，只留在登记里
+
+axes:
+  responsibility_scopes:
+    - {id: company_strategy, label: 公司 / 战略}
+    - {id: battlefield_domain, label: 责任域（战场 / 域）}
+    - {id: mission, label: Mission}
+    - {id: cross_cutting, label: 跨层}
+  business_semantics:
+    - {id: structure_responsibility, label: 经营结构与责任, question: 谁在什么责任空间里经营}
+    - {id: intent_commitment, label: 意图与承诺, question: 我们选择什么、必须实现什么}
+    - {id: conditions_constraints, label: 经营条件与约束, question: 在什么限制下选择与承诺}
+    - {id: realization_design, label: 实现设计, question: 准备怎么做成}
+    - {id: reality_results, label: 经营现实与结果, question: 实际怎么样、实现了什么}
+    - {id: issues_judgment, label: 问题与判断, question: 什么要重新判断、结论是什么}
+    - {id: facts_traceability, label: 事实、证据与追溯, question: 依据什么、如何追溯}
+  inventory_tabs: [Anchor, Reference, Business Artifact, Evidence & Runtime Record]
+  cadence:
+    - {id: low_frequency_versioned, label: 低频版本化}
+    - {id: cross_period_stable, label: 跨周期稳定}
+    - {id: period_formed, label: 周期形成}
+    - {id: continuous, label: 持续更新}
+    - {id: event_append, label: 事件追加}
+
+objects:
+  - id: Company
+    doc_name: Company
+    label: 公司是谁、为什么存在
+    scope: company_strategy
+    semantic: structure_responsibility
+    inventory_tab: Reference          # 总表拆成 8 条 Reference，讨论稿 Q1 建议整合为一级对象
+    cadence: low_frequency_versioned
+    m1_scope: reference_only
+    confirmed_by: [CEO]
+    identity: {versioned: true, unit: 公司, current_pointer: true}
+    content_dimensions: [使命, 愿景, 价值观与原则, 商业模式, 客户定义, 产品与服务定义, 组织角色与决策权定义, 必要的稳定政策与口径]
+    boundary: [不等于 Strategy, 不把短期经营现实写进公司定义]
+    carrier_default: 一个 Company 对象整合稳定公司 Context，各内容项可分别版本化
+    runtime_0_4: {status: partial, object_type: CompanyReference, notes: 属于 tkos.contract-a 协议（A2），逐条陈述 title/statement/period/terms；公司本身是 gov_scopes 的 scope}
+  - id: Strategy
+    doc_name: Strategy
+    label: 公司往哪走、靠什么赢
+    scope: company_strategy
+    semantic: intent_commitment
+    inventory_tab: Anchor             # Root Anchor
+    cadence: low_frequency_versioned
+    m1_scope: this_period
+    confirmed_by: [CEO]
+    identity: {versioned: true, unit: 公司, current_pointer: true}
+    content_dimensions: [战略方向, 战略选择, 取舍与不做什么, 价值实现逻辑, 战略路径, 所需能力, 关键假设, 适用范围与约束]
+    boundary: [要有真实选择与取舍, 关键假设可验证, 单周期执行偏差不自动改 Strategy, 不内嵌 Architecture, 不放经营约束]
+    carrier_default: 整体版本化；新版本生效后本周期 M1B.3 判断已确认承诺是否仍成立、只做最低必要调整，下一周期 M1B.1 按新版本重新审视 LTCO 与 PCO
+    runtime_0_4: {status: exists, object_type: Strategy, fields: [statement, "required_capabilities[]", source_agreement_ref, source_proposal_ref], notes: 方向、选择、取舍等维度都在 statement 一段里，没有分字段}
+  - id: StrategicArchitecture
+    doc_name: Strategic Architecture
+    label: 用哪几块责任域去打
+    scope: company_strategy
+    semantic: structure_responsibility
+    inventory_tab: Anchor
+    cadence: low_frequency_versioned
+    m1_scope: this_period
+    confirmed_by: [CEO]
+    identity: {versioned: true, unit: 公司, current_pointer: true}
+    content_dimensions: [引用某一版 Strategy, 战场结构（定义、战略依据、边界与接口）, 域结构（定义、承接的所需能力、战略依据、边界与接口）]
+    boundary: [只定义责任空间，不定义 LTCO / PCO, War Map 只是它的视图]
+    carrier_default: 整体版本化；责任域是其中带稳定 unit_id 的定义项
+    runtime_0_4: {status: exists, object_type: StrategicArchitecture, fields: ["battlefields[]", "domains[]", strategy_ref, source_agreement_ref, source_proposal_ref]}
+  - id: BattlefieldDomain
+    doc_name: Battlefield / Domain
+    label: 一块明确的责任空间
+    scope: battlefield_domain
+    semantic: structure_responsibility
+    inventory_tab: null               # 总表未单列；M2 定为最小经营责任空间
+    cadence: low_frequency_versioned  # 随 Architecture 版本
+    m1_scope: this_period
+    confirmed_by: [CEO]               # 随 Architecture
+    identity: {versioned: false, unit: 责任域, stable_id: unit_id, notes: 不另建版本链，随 Architecture 版本}
+    content_dimensions: [名称, 定义, 责任边界与接口, 战略依据, 主责 DRI, 域另有承接的所需能力]
+    boundary: [战场承担价值创造，域承担能力建设，结构相同, 每块要有清楚的唯一主责，长期大量共担说明 Architecture 该重划]
+    carrier_default: 业务上是一级对象；技术上是 Architecture 的定义项，用稳定 unit_id 被 LTCO、PCO、Mission、State、Finding 引用；运行时对应 domain
+    runtime_0_4: {status: partial, object_type: StrategicArchitecture, fields: ["battlefields[].unit_id", "battlefields[].name", "battlefields[].definition", "battlefields[].strategic_basis[]", "battlefields[].boundary", "battlefields[].interfaces[]", "battlefields[].auth_domain_id", "battlefields[].current_dri_principal_id", "domains[].unit_id", "domains[].name", "domains[].definition", "domains[].responsibility", "domains[].auth_domain_id", "domains[].current_dri_principal_id"], notes: 授权域是 gov_domains；域定义项比战场少 strategic_basis / boundary / interfaces}
+  - id: RoleAssignment
+    doc_name: Role Assignment
+    label: 谁在什么时候对什么负责
+    scope: cross_cutting
+    semantic: structure_responsibility
+    inventory_tab: null
+    cadence: event_append
+    m1_scope: this_period
+    confirmed_by: [指派动作：CEO 指派 DRI, DRI 指派 Owner]
+    rule_owner: 谁有权指派谁的规则未来另定；是权限管理，不属方法（9/22 会议）
+    identity: {versioned: false, unit: 一次指派, effective_time: true}
+    content_dimensions: [角色, 人或 Agent, 负责的对象或范围, 生效与失效时间, 决定权]
+    boundary: [是指派规则的记录，不是方法流程, 要能区分当前责任与历史责任，不能只存“现在是谁”]
+    carrier_default: 指派记录带生效期；Confirmation Record 按它判权
+    runtime_0_4: {status: exists, table: gov_role_assignments, fields: [principal_id, domain_id, role, active, valid_from, valid_to], notes: 角色枚举 CEO / DOMAIN_DRI / MISSION_DRI / VERIFIER / IC / AGENT / CEO_AGENT / CO_AGENT / PERSONAL_AGENT；Mission Owner 记在 Mission.owner_principal_id，没有单独的 Owner 角色}
+  - id: Constraint
+    doc_name: Constraint
+    label: 资源、人、钱等真实限制
+    scope: cross_cutting
+    semantic: conditions_constraints
+    inventory_tab: null               # 总表未单列；M1-B / M2 / M3 反复消费；讨论稿 Q3 建议一个一级对象加适用范围
+    cadence: period_formed
+    m1_scope: this_period
+    confirmed_by: [公司级 CEO, 责任域级 DRI]
+    origin: 田田 9/21 与溪南讨论后新加，讨论稿 v0.3 升为一级对象；每个层级的责任域都有自己的约束（9/22 会议）
+    identity: {versioned: true, unit: 一条约束一个适用范围, effective_time: true}
+    content_dimensions: [适用范围（公司、责任域、Mission）, 约束陈述与类型, 生效区间, 来源与权威, 限制程度, 状态（已确认或待核实）]
+    boundary: [不等于 Strategy 的边界, 不等于 Evidence, 不等于 Operating State, 必须是会实质约束选择或执行的条件]
+    carrier_default: 一个对象加适用范围，有版本与生效期；条目按责任域和资源类型；被 LTCO 审视、PCO 与 Mission 起草与校验引用
+    runtime_0_4: {status: missing, notes: 产品 L5 3.6 有 constraint_id / version / effective_period 与条目，缺"限制程度"}
+  - id: LTCO
+    doc_name: LTCO
+    label: 这块责任域中长期要成为什么样
+    scope: battlefield_domain
+    semantic: intent_commitment
+    inventory_tab: Anchor
+    cadence: cross_period_stable
+    m1_scope: this_period
+    confirmed_by: [CEO 确认, DRI 提供本域判断]
+    identity: {versioned: true, unit: 责任域, current_pointer: true, company_view: 全部责任域 LTCO 的集合视图, horizon: 从当下起滚动的未来 6 个月}
+    content_dimensions: [责任域, 结果陈述, 成功标准, 时间范围（从当下起滚动的未来 6 个月）或阶段, 边界, 为何必要, 实现逻辑, 关键假设, Strategy 引用, 本期审视结论（维持或修订、原因，历次不覆盖）]
+    boundary: [是结果不是项目或动作, 跨多个周期稳定, 一个 LTCO 对应一个责任域, 局部失效只重开受影响责任域]
+    carrier_default: 每责任域一份、各自版本化；确认引用一条 Confirmation Record
+    runtime_0_4: {status: partial, object_type: LTCO, fields: [primary_scope_id, period, architecture_ref, strategy_ref, result_statement, "criteria[]", boundary, horizon, why, "baseline_refs[]"], notes: 已是每责任域一份；缺实现逻辑、关键假设、维持原因字段；确认动作 m1b_confirm_ltco}
+  - id: PCO
+    doc_name: PCO
+    label: 本周期这块责任域必须拿到的结果
+    scope: battlefield_domain
+    semantic: intent_commitment
+    inventory_tab: Anchor
+    cadence: period_formed
+    m1_scope: this_period
+    confirmed_by: [DRI 确认本域组合, CEO 确认公司组合]
+    identity: {versioned: true, unit: 责任域 × 周期, current_pointer: true, company_view: 全部责任域 PCO 的集合视图}
+    states: [草稿, 候选, 定稿]
+    content_dimensions: [责任域与周期（1 个月）, 承接的 LTCO 引用, Period Review 引用, 结果陈述, 成功标准, 预期推进幅度（Expected LT Progress Advance）, 为何是本周期, 边界, 锁定各 Mission 的确切版本]
+    boundary: [是周期结束时要成为真的结果, 不是 Task 或 Mission 的汇总, 周期内默认稳定]
+    carrier_default: 每责任域每周期一份；两次确认各留 Confirmation Record
+    runtime_0_4: {status: partial, object_type: PCO, fields: [primary_scope_id, period, parent_ltco_ref, architecture_ref, strategy_ref, current_reality, result_statement, "criteria[]", expected_lt_advance, why], notes: 状态走 ReviewWindow + CandidateSet，DRI commit 对应 m1b_commit_candidate，CEO 定稿对应 m1b_activate_candidates；没有 Period Review 引用；expected_lt_advance 即预期推进幅度，已有}
+  - id: Mission
+    doc_name: Mission
+    label: 为拿到本域 PCO 要打的仗
+    scope: mission
+    semantic: intent_commitment
+    inventory_tab: Anchor
+    cadence: cross_period_stable
+    m1_scope: this_period
+    confirmed_by: [DRI 拍板成立与指派, Owner 参与讨论]
+    open_question: 最终确认人是 DRI 还是 Owner，9/22 会上唯一待 CEO 定的项；两者是不同角色，可以是同一个人；本版按 DRI
+    identity: {versioned: true, unit: 一场仗, current_pointer: true}
+    states: [草案, 成立, 不成立, 待调整, 已关闭]
+    content_dimensions: [名称, 预期结果, 验收标准与证据, 为何必要, 边界, 时间窗口, DRI（决定权）, Mission Owner, 所属责任域与 PCO 引用, 约束与依赖, 资源需求（供校验）]
+    boundary: [Mission 不等于 Task, 只定义必须实现什么，不预设怎么赢, 承接一个责任域的 PCO，对其他责任域的贡献显性标注，不共担 Owner, 一个 Mission 一个 Owner，Owner 端到端对交付结果负责，实际执行可以分派]
+    carrier_default: 独立对象、版本化；Owner 正式指派在 CEO 确认公司组合后生效；关闭由 DRI 复核 Mission Result
+    runtime_0_4: {status: partial, object_type: Mission, fields: [owner_principal_id, primary_scope_id, parent_pco_ref, why, "requirements[]", "criteria[]", "evidence_refs[]", period], notes: 由 Owner commit 而非 DRI；缺贡献于其他责任域、依赖、资源需求；没有不成立 / 待调整 / 已关闭状态}
+  - id: MissionPlay
+    doc_name: Mission Play
+    label: 这场仗怎么赢
+    scope: mission
+    semantic: realization_design
+    inventory_tab: Anchor
+    cadence: cross_period_stable
+    m1_scope: later
+    method: M2.2 × M3.1
+    confirmed_by: [DRI，与 Owner 共同形成]
+    identity: {versioned: true, unit: 一场仗的打法, current_pointer: true}
+    content_dimensions: [Mission 引用, 制胜假设, 关键取舍, 关键动作, 质量要求, 关键里程碑, 关键假设与验证信号, 依赖与重判条件]
+    boundary: [比 Mission 具体、比 Plan 抽象, 不写完整分工、Task、WBS]
+    carrier_default: 独立版本对象
+    runtime_0_4: {status: missing}
+  - id: HumanAgentPlan
+    doc_name: 人 + Agent Plan
+    label: 怎么做：人和 Agent 的工作系统
+    scope: mission
+    semantic: realization_design
+    inventory_tab: Anchor
+    cadence: cross_period_stable
+    m1_scope: later
+    method: M3.2
+    confirmed_by: [Mission Owner，不设 DRI 审批]
+    identity: {versioned: true, unit: 一场仗的执行设计, current_pointer: true}
+    content_dimensions: [Play 引用, 必要的 Work Package（子结构）, 预期结果, 质量标准, 责任与判断边界, Context 与约束, 顺序与时间, 交接]
+    boundary: [不重新发明 Play, 不规定 Agent 完整思考步骤, Owner 对当前 Plan 负责]
+    carrier_default: 独立的当前执行设计；Work Package 是它的子结构，不单列
+    runtime_0_4: {status: missing}
+  - id: OperatingState
+    doc_name: Operating State
+    label: 现在实际处于什么状态
+    scope: cross_cutting
+    semantic: reality_results
+    inventory_tab: Anchor             # Runtime Anchor
+    cadence: continuous
+    m1_scope: this_period
+    confirmed_by: []                  # 无人确认，MF / Co-Agent 生成
+    identity: {versioned: false, unit: 主体 × 时间范围, reference_form: 主体加起止时间, history: 由 E&O 定}
+    subjects: [Strategy, Company, Battlefield / Domain, LTCO, PCO, Mission]
+    content_dimensions: [对象与时间范围（起止时间）, 当前现实, 相对意图的实现情况, 驱动与暴露, 含义]
+    boundary: [不是红黄绿周报, 不替代正式对象, 可以分析但不替 Owner 定义 Management Issue, Play 与 Plan 不单列 State]
+    carrier_default: 持续存在的 Current，能回到 Evidence，上层可下钻到下层 State，不是机械汇总
+    runtime_0_4: {status: partial, object_type: OperatingState, fields: [subject_ref, as_of, summary, rag, "baseline_refs[]", "evidence_refs[]", "data_gaps[]", generation_version], notes: 走 method_propose_state 加 method_confirm_state 的人工确认，与“无人确认”相悖；有 rag 红黄绿字段；主体 × outcome × as_of 的唯一键在 gov_method_state_keys；只有 as_of 截止时间，没有起始时间，9/22 会议要求起止时间}
+  - id: PeriodReview
+    doc_name: Period Review
+    label: 上个周期干得怎么样
+    scope: company_strategy
+    semantic: reality_results
+    inventory_tab: Business Artifact
+    cadence: period_formed
+    m1_scope: this_period
+    confirmed_by: [CEO，可改; Co-Agent 起草]
+    identity: {versioned: true, unit: 公司 × 周期, current_pointer: true}
+    content_dimensions: [本周期经营结果, 已确认的 Mission Result, 关键原因与新认知, 带入下期的 Management Issue 与现实, 对下一周期的含义]
+    boundary: [直接读已确认的 Operating State 与 Mission Result，不从原始数据重算, 不生成下一周期 PCO, 未完成事项不自动顺延, 责任域一级的复盘总表未定义，等 M2 workshop]
+    carrier_default: 直接读各责任域 Operating State 与 Mission Result；分域小节按 unit_id；确认留 Confirmation Record；CEO 确认后才起草 PCO
+    runtime_0_4: {status: partial, object_type: PeriodReview, fields: [review_id, period, "target_refs[]", "state_refs[]", "fact_refs[]", "findings[]", "learnings[]", "implications[]", generation_version], notes: 只有 m1b_generate_review / m1b_regenerate_review，没有 CEO 确认动作}
+  - id: MissionResult
+    doc_name: Mission Result
+    label: Mission 的完成主张
+    scope: mission
+    semantic: reality_results
+    inventory_tab: Business Artifact
+    cadence: event_append
+    m1_scope: later
+    method: M3.2.3
+    confirmed_by: [DRI 复核]
+    identity: {versioned: false, unit: 一次完成主张}
+    content_dimensions: [Mission 引用, 实际结果对预期结果, 验收证据, 重大未解决事项与残余风险, 完成主张与提交时间]
+    boundary: [围绕预期结果而非 Task 完成率, Owner 不能自行关闭 Mission]
+    carrier_default: 事件形成；复核通过才改变 Mission 生命周期；Period Review 直接消费
+    runtime_0_4: {status: missing}
+  - id: StrategicIssue
+    doc_name: Strategic Issue
+    label: 要重判战略的核心问题
+    scope: company_strategy
+    semantic: issues_judgment
+    inventory_tab: Anchor
+    cadence: event_append
+    m1_scope: later
+    method: M1-A
+    confirmed_by: [CEO]
+    identity: {versioned: true, unit: 一个核心战略问题, current_pointer: true}
+    content_dimensions: [核心战略问题, 触发与来源, 为何是现在, 最低充分的 Context, 边界]
+    boundary: [一个 Issue 一个核心问题, 有效战略存续时只在 M1A.3 判断重开后形成]
+    carrier_default: 独立业务对象
+    runtime_0_4: {status: partial, object_type: StrategicIssue, fields: [summary, core_question, business_scope, urgency, urgency_reason, "source_refs[]", strategy_ref, architecture_ref, reframe_of_ref], notes: 运行时可随时 m1a_create_issue，没有"只在 M1A.3 重开后形成"的门}
+  - id: Agreement
+    doc_name: Agreement
+    label: 战略研判后的共同结论
+    scope: company_strategy
+    semantic: issues_judgment
+    inventory_tab: Business Artifact
+    cadence: event_append
+    m1_scope: later
+    method: M1-A
+    confirmed_by: [相关责任人]
+    identity: {versioned: false, unit: 一次正式结论, immutable: true}
+    content_dimensions: [关联的 Strategic Issue 与对象, 共识内容, 依据与关键证据, 参与人与角色, 生效时间, 受影响的正式信息]
+    boundary: [不能用会议记录代替, 不必然导致 Strategy 或 Architecture 更新]
+    carrier_default: 不可变的决定记录
+    runtime_0_4: {status: exists, object_type: StrategicAgreement, fields: [issue_ref, statement, "participants[]", "evidence_refs[]", no_change], notes: 确认动作 m1a_confirm_agreement}
+  - id: Finding
+    doc_name: Finding
+    label: 状态里需要责任人重新判断的事
+    scope: cross_cutting
+    semantic: issues_judgment
+    inventory_tab: Business Artifact
+    cadence: event_append
+    m1_scope: later
+    method: MF
+    confirmed_by: []                  # MF 形成；责任人判断后 MF 退出
+    identity: {versioned: false, unit: 一条反馈, targets: 一个责任对象和一个主决策人}
+    content_dimensions: [发现陈述, 证据依据, 影响与不确定性, 需要判断什么, 关联的 State 与证据及时间]
+    boundary: [Finding 不等于 Management Issue, “实质影响”与“需要责任人判断”两个门同时成立才形成]
+    carrier_default: 反馈产物加目标对象与主决策人
+    runtime_0_4: {status: missing, notes: 最接近的是 OperatingProblem，但它带处置与责任人，更像 Management Issue}
+  - id: ManagementIssue
+    doc_name: Management Issue
+    label: 责任人确认要处理的经营问题
+    scope: cross_cutting
+    semantic: issues_judgment
+    inventory_tab: Anchor             # Runtime Anchor
+    cadence: event_append
+    m1_scope: later
+    method: M1B.3 / M2.3 / M3.3
+    confirmed_by: [CEO, DRI, Owner]
+    identity: {versioned: true, unit: 一个正式问题, current_pointer: true}
+    dispositions: [保持, 观察, 临时缓解, 返回, 路由, 升级, 关闭]
+    content_dimensions: [问题陈述, 核心判断问题, 为何重要, 影响对象, Finding 与 State 引用, 当前责任人与决定权, 当前路由, 最晚判断时点, 来源与重述历史, 处置]
+    boundary: [不能机械继承 Finding 或上游的 framing, 跨方法路由后接收人仍要重新判断, M3 的问题先到 M2.3 再到 M1B.3]
+    carrier_default: 统一问题对象加责任对象、Owner 与来源线索
+    runtime_0_4: {status: partial, object_type: OperatingProblem, fields: [state_ref, core_question, statement, why_material, level, responsible_assignment_id, "evidence_refs[]", decision_deadline], notes: 动作 method_open_problem / method_revise_problem / method_close_problem；处置枚举与 M1-B 不同}
+  - id: Evidence
+    doc_name: Evidence
+    label: 流水与事实
+    scope: cross_cutting
+    semantic: facts_traceability
+    inventory_tab: Evidence & Runtime Record
+    cadence: event_append
+    m1_scope: reference_only
+    confirmed_by: []
+    identity: {versioned: false, unit: 一条事实, immutable: true}
+    subtypes: [实际结果, 业务事实, 客户与使用事实, 外部信号, 执行证据, 实验结果, 风险 / 依赖 / 约束事实]
+    content_dimensions: [来源, 时间, 事实或结果, 关联对象, 可靠性, 子类]
+    boundary: [事实、推断、解释分开, Evidence 本身不是 Finding、Result 或判断]
+    carrier_default: 一个一级对象、子类是字段
+    runtime_0_4: {status: partial, object_type: EvidenceAsset, also: BusinessFact, notes: EvidenceAsset 存原始字节的哈希与 S3 版本，BusinessFact 有 subject_ref / source_ref / corrects_ref；没有子类字段}
+  - id: TraceabilityRecord
+    doc_name: Traceability Record
+    label: 对象怎么变、判断怎么形成、责任怎么交接
+    scope: cross_cutting
+    semantic: facts_traceability
+    inventory_tab: Evidence & Runtime Record
+    cadence: event_append
+    m1_scope: this_period             # 版本历史、Confirmation Record、来源追溯本期用
+    confirmed_by: [Confirmation Record 由人做出、系统记录]
+    identity: {versioned: false, unit: 一条记录, immutable: true}
+    subtypes:
+      - {id: VersionHistory, label: 版本历史, m1_scope: this_period, runtime: gov_object_revisions}
+      - {id: ConfirmationRecord, label: Confirmation Record, m1_scope: this_period, dimensions: [执行人, 时间, 绑定的材料确切版本, 决定与结果（维持、确认、成立、不成立、待调整）, 指派人, 说明], runtime: gov_method_reviews 的决定类记录、gov_method_commitments、gov_activation_records、gov_lifecycle_events}
+      - {id: HandoffRouting, label: 交接与路由, m1_scope: later, runtime: 部分（m1a_transfer_problem）}
+      - {id: Provenance, label: 来源追溯, m1_scope: this_period, runtime: 钉版本的 ExactRef 引用与 gov_action_receipts}
+      - {id: MeetingRecord, label: 会议记录, m1_scope: later, runtime: workspace v02 来源；0.2 另有 MeetingRound / MeetingMinutes 对象类型}
+      - {id: StepExecution, label: StepExecution, m1_scope: optional, runtime: gov_method_run_attempts（method_record_attempt）}
+      - {id: Notification, label: 通知记录, m1_scope: later, runtime: 总表标 To Define；运行时有任务 outbox 与外部派发，未作为记录对象}
+      - {id: ReopenTrigger, label: 重开条件记录, m1_scope: later, runtime: 缺；总表列为 Runtime Record / Rule}
+    boundary: [不是 Evidence，不是原始数据, 不替代 Strategy、Agreement、Management Issue 等业务对象, 只记录它们的形成、变化、确认和来源]
+    carrier_default: 业务上一个总称；技术上对应不同机制，不是一张表
+    runtime_0_4: {status: partial, notes: 见 subtypes 的 runtime 字段}
+
+relations:
+  # family: responsibility 责任 | causal_support 因果支撑 | state_issue 状态与问题 | issue_loop 议题环 | evidence_trace 证据与追溯
+  - {id: architecture_contains_unit, family: responsibility, from: StrategicArchitecture, predicate: 包含, to: BattlefieldDomain, cardinality: "1:n", pinned_ref: false, m1_scope: this_period,
+     doc: {subject: Strategic Architecture, predicate: 包含, object: Battlefield / Domain},
+     runtime_0_4: {status: exists, path: "StrategicArchitecture.battlefields[] / domains[]"}}
+  - {id: unit_dri, family: responsibility, from: BattlefieldDomain, predicate: 由谁负责, to: RoleAssignment, cardinality: "1:1 当前", pinned_ref: false, m1_scope: this_period,
+     doc: {subject: Battlefield / Domain, predicate: 由谁负责, object: DRI（Role Assignment）},
+     runtime_0_4: {status: exists, path: "battlefields[].current_dri_principal_id + gov_role_assignments(DOMAIN_DRI, domain_id)"}}
+  - {id: ltco_belongs_unit, family: responsibility, from: LTCO, predicate: 属于, to: BattlefieldDomain, cardinality: "n:1，每责任域当前一份", pinned_ref: false, m1_scope: this_period,
+     doc: {subject: LTCO, predicate: 属于, object: 一块责任域},
+     runtime_0_4: {status: exists, path: "LTCO.primary_scope_id"}}
+  - {id: pco_belongs_unit_period, family: responsibility, from: PCO, predicate: 属于, to: BattlefieldDomain, cardinality: "n:1，每责任域每周期一份", pinned_ref: false, m1_scope: this_period,
+     doc: {subject: PCO, predicate: 属于, object: 一块责任域、一个周期},
+     runtime_0_4: {status: exists, path: "PCO.primary_scope_id + PCO.period"}}
+  - {id: company_outcome_is_view, family: responsibility, from: LTCO, predicate: 集合视图, to: LTCO, cardinality: "view", pinned_ref: false, m1_scope: this_period,
+     doc: {subject: 公司 LTCO / PCO, predicate: 是, object: 各责任域 LTCO / PCO 的集合视图},
+     runtime_0_4: {status: partial, path: "读取器按 scope 汇总，没有公司视图接口"}}
+  - {id: mission_belongs_pco, family: responsibility, from: Mission, predicate: 属于, to: PCO, cardinality: "n:1", pinned_ref: true, m1_scope: this_period,
+     doc: {subject: Mission, predicate: 属于, object: 一个责任域的 PCO},
+     runtime_0_4: {status: exists, path: "Mission.parent_pco_ref + Mission.primary_scope_id"}}
+  - {id: mission_contributes_unit, family: responsibility, from: Mission, predicate: 贡献于, to: BattlefieldDomain, cardinality: "n:m，零到多", pinned_ref: false, m1_scope: this_period,
+     doc: {subject: Mission, predicate: 贡献于, object: 其他责任域},
+     runtime_0_4: {status: missing}}
+  - {id: mission_owner, family: responsibility, from: Mission, predicate: 由谁负责, to: RoleAssignment, cardinality: "1:1", pinned_ref: false, m1_scope: this_period,
+     doc: {subject: Mission, predicate: 由谁负责, object: Owner（Role Assignment）},
+     semantics: Owner 端到端对交付结果负责，实际执行可以分派（9/22 会议）,
+     runtime_0_4: {status: partial, path: "Mission.owner_principal_id", notes: 没有“CEO 确认公司组合后生效”的时点}}
+  - {id: company_owns, family: responsibility, from: Company, predicate: 拥有, to: Strategy, cardinality: "1:n 版本链", pinned_ref: false, m1_scope: this_period,
+     doc: {subject: Company, predicate: 拥有, object: Strategy、Strategic Architecture、公司级 Constraint},
+     runtime_0_4: {status: exists, path: "gov_scopes / gov_domains 的 scope 归属"}}
+  - {id: architecture_serves_strategy, family: causal_support, from: StrategicArchitecture, predicate: 承接, to: Strategy, cardinality: "n:1", pinned_ref: true, m1_scope: this_period,
+     doc: {subject: Strategic Architecture, predicate: 承接, object: Strategy（某一版）},
+     runtime_0_4: {status: exists, path: "StrategicArchitecture.strategy_ref"}}
+  - {id: ltco_serves_architecture_unit, family: causal_support, from: LTCO, predicate: 承接, to: StrategicArchitecture, cardinality: "n:1", pinned_ref: true, m1_scope: this_period,
+     doc: {subject: LTCO, predicate: 承接, object: Strategic Architecture（某一版）的责任域},
+     runtime_0_4: {status: exists, path: "LTCO.architecture_ref + LTCO.primary_scope_id"}}
+  - {id: ltco_review_refs, family: causal_support, from: LTCO, predicate: 参考, to: Constraint, cardinality: "n:m", pinned_ref: true, m1_scope: this_period,
+     doc: {subject: LTCO 审视, predicate: 参考, object: Strategy、上周期 Operating State、Constraint},
+     runtime_0_4: {status: partial, path: "LTCO.strategy_ref + LTCO.baseline_refs[]；Constraint 缺"}}
+  - {id: pco_serves_ltco_pr, family: causal_support, from: PCO, predicate: 承接, to: LTCO, cardinality: "n:1", pinned_ref: true, m1_scope: this_period,
+     doc: {subject: PCO, predicate: 承接, object: 本期已确认的本域 LTCO、上周期 Period Review},
+     runtime_0_4: {status: partial, path: "PCO.parent_ltco_ref；没有 Period Review 引用"}}
+  - {id: draft_refs_previous, family: causal_support, from: PCO, predicate: 参考, to: Constraint, cardinality: "n:m", pinned_ref: true, m1_scope: this_period,
+     doc: {subject: PCO / Mission 草稿, predicate: 参考, object: 上周期 PCO 与 Mission、Constraint},
+     semantics: PCO 也要看本域当下的 Constraint，参考不是承接（9/22 会议）,
+     runtime_0_4: {status: partial, path: "ReviewWindow.previous_window_ref；Constraint 缺"}}
+  - {id: mission_serves_pco, family: causal_support, from: Mission, predicate: 承接, to: PCO, cardinality: "n:1", pinned_ref: true, m1_scope: this_period,
+     doc: {subject: Mission, predicate: 承接, object: PCO（某一版）},
+     runtime_0_4: {status: exists, path: "Mission.parent_pco_ref"}}
+  - {id: mission_depends, family: causal_support, from: Mission, predicate: 依赖, to: Mission, cardinality: "n:m，含时点", pinned_ref: true, m1_scope: this_period,
+     doc: {subject: Mission, predicate: 依赖, object: 其他 Mission 或责任域},
+     runtime_0_4: {status: missing}}
+  - {id: mission_resources_vs_constraint, family: causal_support, from: Mission, predicate: 对照, to: Constraint, cardinality: "n:m", pinned_ref: true, m1_scope: this_period,
+     doc: {subject: Mission 的资源需求, predicate: 对照, object: Constraint},
+     runtime_0_4: {status: missing}}
+  - {id: constraint_scope, family: causal_support, from: Constraint, predicate: 适用于, to: Company, cardinality: "1:1，一条约束一个范围", pinned_ref: false, m1_scope: this_period,
+     doc: {subject: Constraint, predicate: 适用于, object: 公司 / 责任域 / Mission},
+     runtime_0_4: {status: missing}}
+  - {id: os_describes, family: state_issue, from: OperatingState, predicate: 描述, to: Strategy, cardinality: "n:1，主体加起止时间", pinned_ref: false, m1_scope: this_period,
+     doc: {subject: Operating State, predicate: 描述, object: Strategy / Company / 责任域 / LTCO / PCO / Mission},
+     runtime_0_4: {status: partial, path: "OperatingState.subject_ref + as_of；唯一键 gov_method_state_keys", notes: 只有截止时间 as_of，没有起始时间}}
+  - {id: os_from_evidence, family: state_issue, from: OperatingState, predicate: 加工自, to: Evidence, cardinality: "n:m", pinned_ref: true, m1_scope: this_period,
+     doc: {subject: Operating State, predicate: 加工自, object: Evidence},
+     runtime_0_4: {status: exists, path: "OperatingState.evidence_refs[]"}}
+  - {id: os_drilldown, family: state_issue, from: OperatingState, predicate: 下钻到, to: OperatingState, cardinality: "1:n", pinned_ref: false, m1_scope: this_period,
+     doc: {subject: 上层 Operating State, predicate: 下钻到, object: 下层 State 与直接证据},
+     runtime_0_4: {status: partial, path: "OperatingState.baseline_refs[]"}}
+  - {id: pr_based_on, family: state_issue, from: PeriodReview, predicate: 基于, to: PCO, cardinality: "1:n", pinned_ref: true, m1_scope: this_period,
+     doc: {subject: Period Review, predicate: 基于, object: 上周期各责任域 PCO、Mission、Operating State},
+     runtime_0_4: {status: exists, path: "PeriodReview.target_refs[] + state_refs[] + fact_refs[]"}}
+  - {id: pr_consumes_result, family: state_issue, from: PeriodReview, predicate: 消费, to: MissionResult, cardinality: "1:n", pinned_ref: true, m1_scope: later,
+     doc: {subject: Period Review, predicate: 消费, object: 已确认的 Mission Result},
+     runtime_0_4: {status: missing}}
+  - {id: finding_from_os, family: state_issue, from: Finding, predicate: 来自, to: OperatingState, cardinality: "n:1", pinned_ref: false, m1_scope: later,
+     doc: {subject: Finding, predicate: 来自, object: Operating State},
+     runtime_0_4: {status: partial, path: "OperatingProblem.state_ref（最接近）"}}
+  - {id: mi_from_finding, family: state_issue, from: ManagementIssue, predicate: 确认自, to: Finding, cardinality: "n:1", pinned_ref: false, m1_scope: later,
+     doc: {subject: Management Issue, predicate: 确认自, object: Finding 经责任人判断，或升级},
+     runtime_0_4: {status: missing}}
+  - {id: change_enters_m1a3, family: issue_loop, from: ManagementIssue, predicate: 进入, to: StrategicIssue, cardinality: "n:1", pinned_ref: false, m1_scope: later,
+     doc: {subject: 战略相关输入（Signal）, predicate: 进入, object: M1A.3},
+     semantics: 四类来源：外部信号、CEO 洞察、MF Finding、升级的 Management Issue（总表 v0.8 Strategic Issue 行）,
+     runtime_0_4: {status: partial, path: "m1a_transfer_problem / StrategicIssue.source_refs[]"}}
+  - {id: si_formed_after_reopen, family: issue_loop, from: StrategicIssue, predicate: 形成于, to: StrategicIssue, cardinality: "gate", pinned_ref: false, m1_scope: later,
+     doc: {subject: Strategic Issue, predicate: 形成于, object: M1A.3 判断重开之后},
+     runtime_0_4: {status: partial, notes: 没有重开门}}
+  - {id: agreement_resolves_si, family: issue_loop, from: Agreement, predicate: 解决, to: StrategicIssue, cardinality: "n:1，可多轮", pinned_ref: true, m1_scope: later,
+     doc: {subject: Agreement, predicate: 解决, object: Strategic Issue},
+     runtime_0_4: {status: exists, path: "StrategicAgreement.issue_ref"}}
+  - {id: new_version_based_on_agreement, family: issue_loop, from: Strategy, predicate: 基于, to: Agreement, cardinality: "n:1", pinned_ref: true, m1_scope: later,
+     doc: {subject: Strategy / Architecture 新版本, predicate: 基于, object: Agreement},
+     semantics: 新版本生效后本周期 M1B.3 判断已确认承诺是否仍成立、只做最低必要调整；下一周期 M1B.1 重新审视 LTCO 与 PCO；合并了总表 v0.8 与 9/22 会议口径，待田田确认,
+     runtime_0_4: {status: exists, path: "Strategy.source_agreement_ref / StrategyUpdateProposal.agreement_ref"}}
+  - {id: confirmation_points_version, family: evidence_trace, from: TraceabilityRecord, predicate: 指向, to: LTCO, cardinality: "n:1", pinned_ref: true, m1_scope: this_period,
+     doc: {subject: Confirmation Record, predicate: 指向, object: 材料的确切版本},
+     runtime_0_4: {status: exists, path: "gov_method_reviews.target_revision_id / gov_method_commitments.candidate_revision_id"}}
+  - {id: confirmation_authority, family: evidence_trace, from: TraceabilityRecord, predicate: 判权依据, to: RoleAssignment, cardinality: "n:1", pinned_ref: false, m1_scope: this_period,
+     doc: {subject: Confirmation Record, predicate: 判权依据, object: 当时有效的 Role Assignment},
+     runtime_0_4: {status: exists, path: "gov_method_commitments.assignment_id + gov_role_assignments.valid_from / valid_to"}}
+  - {id: evidence_relates, family: evidence_trace, from: Evidence, predicate: 关联, to: Strategy, cardinality: "n:m", pinned_ref: true, m1_scope: this_period,
+     doc: {subject: Evidence, predicate: 关联, object: 任一对象},
+     runtime_0_4: {status: exists, path: "EvidenceAsset.anchor_ref / BusinessFact.subject_ref"}}
+  - {id: trace_records, family: evidence_trace, from: TraceabilityRecord, predicate: 记录, to: Strategy, cardinality: "n:m", pinned_ref: true, m1_scope: this_period,
+     doc: {subject: Traceability Record, predicate: 记录, object: 对象的形成、变化、确认与来源},
+     runtime_0_4: {status: exists, path: "gov_object_revisions + gov_lifecycle_events + gov_action_receipts"}}
+
+gates:
+  - {id: gate_1_confirm_ltco, step: M1B.1.1, who: CEO, object: LTCO, unit: 每责任域, result: 维持（写原因）或修订出新版；只重开受影响责任域, record: ConfirmationRecord,
+     runtime_0_4: {status: partial, action: m1b_confirm_ltco, notes: 已按责任域；维持原因没有字段}}
+  - {id: gate_2_confirm_period_review, step: M1B.1.2, who: CEO, object: PeriodReview, unit: 公司, result: 确认，可改；确认后才起草 PCO, record: ConfirmationRecord,
+     runtime_0_4: {status: missing, notes: 只有生成动作}}
+  - {id: gate_3_dri_commit, step: M1B.2.2, who: DRI, object: PCO, unit: 每责任域, result: 确认本域组合，决定 Mission 成立与指派；窗口到期则按现状提交, record: ConfirmationRecord,
+     runtime_0_4: {status: partial, action: m1b_commit_candidate, notes: 运行时由 Owner commit}}
+  - {id: gate_4_ceo_composition, step: M1B.2.3, who: CEO, object: PCO, unit: 公司组合（全部责任域 PCO 与 Mission 的集合）, result: 定稿；Owner 正式指派此时生效；需改则回 M1B.2.2 新开窗口, record: ConfirmationRecord,
+     runtime_0_4: {status: partial, action: m1b_activate_candidates, notes: 没有指派生效时点}}
+
+non_matrix_items:
+  - {id: RequiredCapabilities, doc_name: Required Capabilities, kind: Strategy 的内容维度, carrier: 写在 Strategy 里，域结构在 Architecture 里引用, m1_scope: this_period, runtime_0_4: {status: exists, path: "Strategy.required_capabilities[]"}}
+  - {id: WorkPackage, doc_name: Work Package, kind: 人 + Agent Plan 的子结构, carrier: 随 Plan 存，不单列, m1_scope: later, runtime_0_4: {status: missing}}
+  - {id: WarMap, doc_name: War Map, kind: 视图，当前定为 Strategic Architecture 的视图，定位待田田更新（9/22 上午与明华讨论后可能上调）, carrier: 只投影已确认的 Strategy 与 Architecture 和当前经营信息，不是事实源, m1_scope: later, runtime_0_4: {status: partial, path: "工作台地图视图"}}
+  - {id: Period, doc_name: Period, kind: 时间维度, carrier: 周期编码与起止；只标对象属于哪个周期，本身不确认, m1_scope: this_period, runtime_0_4: {status: exists, path: "各对象内嵌 period{start,end}"}}
+  - {id: Dependency, doc_name: Dependency, kind: 对象间关系, carrier: Mission 的依赖字段，含需要的时点；出现独立 Owner、状态、生命周期再升格, m1_scope: this_period, runtime_0_4: {status: missing}}
+  - {id: OpinionRecord, doc_name: 意见与处理记录, kind: 产品协作记录, carrier: 意见、处理结果、撤回与被替代；不是正式确认，不进总表, m1_scope: this_period, runtime_0_4: {status: product_mechanism, path: "m1b_comment / m1b_replace_comment / m1b_withdraw_comment / m1b_resolve_window"}}
+  - {id: ReviewWindow, doc_name: ReviewWindow, kind: 产品机制, carrier: 材料的确切版本、开启与截止时间、关闭时间与原因（DRI 确认、到期、手动）；关闭不等于确认, m1_scope: this_period, runtime_0_4: {status: product_mechanism, object_type: ReviewWindow, path: "m1b_open_window / m1b_close_window / m1b_reopen_window"}}
+  - {id: MethodRun, doc_name: MethodRun, kind: 运行机制, carrier: 复用现有运行批次；总表只认 StepExecution, m1_scope: optional, runtime_0_4: {status: product_mechanism, object_type: MethodRun, path: "method_open_run / method_record_attempt"}}
+
+open_items:
+  - {id: mission_long_term_committer, text: Mission 的最终确认人是 DRI 还是 Owner，9/22 会上唯一待 CEO 定的项；本版按 DRI，承载上不把长期 Owner 逻辑写死}
+  - {id: unit_level_period_review, text: 责任域一级的 Period Review 总表未定义；等 M2 workshop}
+  - {id: l5_not_available, text: 产品 L5 目前没有（田田 9/22），原「待与 L5 作者对齐」撤下；LTCO / PCO 公司层仍按集合视图读取}
+  - {id: war_map_position, text: War Map 定位待田田更新，9/22 上午与明华讨论后可能上调，所含内容可能变}
+  - {id: role_assignment_rule_owner, text: Role Assignment 背后「谁有权指派谁」的规则由谁维护未定；属权限管理，不在方法里}
+  - {id: strategy_update_entry_wording, text: 新版本生效后的处理写法合并了总表 v0.8（M1B.3 先判断承诺）与 9/22 会议口径（进 M1B.1 影响后续 LTCO / PCO），待田田确认}
+  - {id: inventory_version, text: 总表 v0.8 即 v0.8.1，田田已确认，同一链接}
+  - {id: runtime_divergences, text: 与运行时 0.4 相悖、本期不动：Mission 由 Owner commit；Mission 缺贡献与依赖字段；Operating State 走 propose 加 confirm；没有 Period Review 确认动作；没有 Constraint 类型；确认记录未区分正式决定与意见处理；Operating State 只有 as_of 没有起始时间}
+meeting_2026_09_22:
+  minutes: obcn629472ww9266s9qy47l4
+  participants: [斯一, 田田, 人豪]
+  reviewed: 评审汇总第八节 v0.6
+  decisions:
+    - {t: "00:04", text: A1 四行七列与讨论稿 v0.3 一致；Mission Play、人 + Agent Plan、Mission Result 属 M2 / M3，本期只标位置}
+    - {t: "00:06", text: Company 属性符合预期；总表页签（Anchor / Reference 等）田田已从她的分类里去掉，文档不再标}
+    - {t: "00:07", text: Strategy 属性符合预期；对象自身的边界要单独一行，不与属性里的边界混}
+    - {t: "00:10", text: Role Assignment 是跨层指派规则的记录（CEO 指派 DRI，DRI 指派 Owner，带生效与失效时间），不是方法定义的内容；谁有权指派谁未来另定}
+    - {t: "00:11", text: Constraint 是田田 9/21 与溪南讨论后新加；每个层级的责任域都有自己的约束}
+    - {t: "00:12", text: 只剩 Mission 最终确认人待 CEO 定，其余谁确认已共识}
+    - {t: "00:14", text: Operating State 无人确认，Co-Agent 自驱生成}
+    - {t: "00:15", text: PCO 缺 Expected LT Progress Advance，田田在文档上加评论补上；CEO Agent 要展示这个信息}
+    - {t: "00:19", text: 总表 v0.8 已核对过，PCO 是特例，不再全量比对}
+    - {t: "00:21", text: War Map 定位可能上调（田田 9/22 上午与明华讨论），内容可能变；Period、Dependency 等是本体运行所需，与方法无关}
+    - {t: "00:23", text: LTCO 也有周期：从当下起滚动的未来 6 个月；PCO 1 个月}
+    - {t: "00:24", text: 一个 PCO 下多个 Mission；Mission 贡献于其他责任域多见于战场与域之间}
+    - {t: "00:25", text: Mission 一定有一个 Owner，端到端对交付结果负责，实际执行可分派；DRI 与 Owner 是两个角色，可以是同一个人}
+    - {t: "00:26", text: PCO 也要参考本域当下的 Constraint；参考与承接不同}
+    - {t: "00:28", text: Operating State 的时间属性改为起止时间，支持按任意时段取状态}
+    - {t: "00:30", text: Period Review 直接读已确认的状态与结果，不从原始数据从零生成}
+    - {t: "00:30", text: 「战略相关变化」按 Signal 写，现在分四类}
+    - {t: "00:31", text: 「更新后进 M1B.3 判断承诺，不自动重开」没人看懂；田田口径是新版本进 M1B.1 影响后续 LTCO / PCO}
+    - {t: "00:34", text: Traceability Record 是流程中产生的版本、确认记录、会议记录等的总称，不是 Evidence，保留}
+    - {t: "00:35", text: 产品 L5 目前没有；CEO 稿重写，只放两张表（类 + 对象 + 属性；关系），讨论目的写最上面，无用信息先不放}
+    - {t: "00:37", text: 结构图等与铭泽、溪南对清楚运行时后再给明华；后面要出 CEO Agent、DRI Agent 与本体的交互逻辑图}
+    - {t: "00:36", text: 下一步：斯一对着已有接口做运行时适配并与溪南、铭泽对细节；田田在大表之上补模板与质量标准进 Agent 规则；可多轮迭代}
+discussion_draft_answers:
+  - {q: Q1, topic: Company 作一级对象, answer: 同意, basis: 运行时已有 CompanyReference 承载稳定公司陈述}
+  - {q: Q2, topic: 责任域作一级对象, answer: 业务上同意, basis: 技术上仍是 Architecture 里带稳定 unit_id 的定义项，不另建版本链，运行时对应 domain}
+  - {q: Q3, topic: Constraint 跨层一级对象加适用范围, answer: 同意, basis: 产品 L5 3.6 已有六个维度里的五个，只缺限制程度；维护者按范围定，公司级 CEO、责任域级 DRI}
+  - {q: Q4, topic: Dependency 不升格, answer: 同意, basis: 留作关系}
+  - {q: Q5, topic: Evidence 一级加子类, answer: 同意, basis: 运行时 EvidenceAsset 加 BusinessFact 已是这样}
+  - {q: Q6, topic: Traceability Record 总称, answer: 业务上同意, basis: 技术上对应四种机制，不会是一张表}
+  - {q: Q7, topic: Role Assignment 一级对象, answer: 同意, basis: 运行时指派表带 valid_from / valid_to，历史判权可追溯}

@@ -89,7 +89,7 @@ PHASE_RULES = {
     'm1a_set_participants': {'issue_confirmed', 'agreement_formal', 'completed'},
     'm1a_confirm_agreement': {'draft', 'awaiting_confirmation'},
     'm1a_confirm_update': {'reviewed'},
-    'm1b_confirm_ltco': {'draft', 'confirmed'},
+    'm1b_confirm_ltco': {'draft'},
     'm1b_comment': {'open'}, 'm1b_replace_comment': {'open'}, 'm1b_withdraw_comment': {'open'},
     'm1b_commit_candidate': {'pending'},
     'm1b_activate_candidates': {'pending'},
@@ -102,6 +102,19 @@ PHASE_RULES = {
     'method_revise_problem': {'open'}, 'method_close_problem': {'open'},
     'method_open_problem': {'confirmed'},
 }
+# Per-contract overrides.  0.5 confirms an already-effective LTCO with
+# conclusion='maintained', so its offer admits 'confirmed' too; 0.4 has no such
+# conclusion and its core still gates draft (method_v04.py's m1b_confirm_ltco
+# collector), so 0.1-0.4 read semantics stay exactly as they were.
+VERSION_PHASE_RULES = {
+    'tkos.method/0.5': {'m1b_confirm_ltco': {'draft', 'confirmed'}},
+}
+
+
+def phase_rule(action, contract_version):
+    return VERSION_PHASE_RULES.get(contract_version, {}).get(action, PHASE_RULES.get(action))
+
+
 SCOPED_REASONS = {
     'm1a_confirm_agreement': 'not_required_participant',
     'm1b_comment': 'not_window_participant', 'm1b_replace_comment': 'not_window_participant',
@@ -266,7 +279,7 @@ def _availability(conn, ctx, obj, action, *, ceo):
         return False, 'human_identity_required'
     state = obj.get('method_state') or {}
     phase = state.get('phase')
-    required = PHASE_RULES.get(action)
+    required = phase_rule(action, obj['protocol']['contract_version'])
     if required is not None and phase not in required:
         return False, 'phase_not_permitted'
     if action in CEO_ONLY_ACTIONS and not ceo:

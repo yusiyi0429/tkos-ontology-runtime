@@ -114,7 +114,7 @@ class _GateCursor:
 class _GateConn:
     """Replays exactly the registration rows gate_target_action reads for a Method binding."""
 
-    def __init__(self, binding_version):
+    def __init__(self, binding_version, *, object_present=True):
         from memory_service_runtime.governed import method_v04_profile, method_v05_profile
         from memory_service_runtime.governed.method_models import registry
         source = method_v05_profile if binding_version == 'tkos.method/0.5' else method_v04_profile
@@ -133,6 +133,9 @@ class _GateConn:
                                          'evidence_upload': True, 'actions': sorted(actions),
                                          'object_types': sorted(set(payloads) | {'EvidenceAsset'}),
                                          'readonly_compat': [binding_version], 'notes': 'test'}}
+        self.object_row = {'scope_id': SCOPE, 'object_id': OID, 'object_type': 'PeriodReview',
+                           'domain_id': DOMAIN, 'object_version': 1,
+                           'latest_revision_id': None, 'effective_revision_id': None} if object_present else None
 
     def execute(self, sql, params=()):
         if 'gov_object_protocol_bindings' in sql:
@@ -142,7 +145,7 @@ class _GateConn:
         if 'gov_protocol_support_registry' in sql:
             return _GateCursor([self.registry_row])
         if 'gov_objects' in sql:
-            return _GateCursor([{'object_type': 'PeriodReview'}])
+            return _GateCursor([self.object_row] if self.object_row else [])
         raise AssertionError(f'unexpected SQL: {sql}')
 
 
@@ -203,26 +206,41 @@ def _raise(code):
 
 
 @pytest.mark.parametrize('action', ('m1b_revise_constraint', 'm1b_confirm_constraint', 'm1b_confirm_review'))
-@pytest.mark.parametrize('code', ('NOT_FOUND', 'FORBIDDEN'))
-def test_authorization_resolves_before_any_protocol_error_is_revealed(action, code, monkeypatch):
+@pytest.mark.parametrize('scenario', ('absent', 'read_denied'))
+def test_authorization_resolves_before_any_protocol_error_is_revealed(action, scenario, monkeypatch):
     """A correctly declared 0.5 action aimed at an object the caller cannot read.
 
-    ``method_access.head`` resolves existence and the domain read right — it raises
-    NOT_FOUND for a missing object and FORBIDDEN through ``db.authorize_domain(...,
-    'read')`` for an invisible one (method_access.py:184-189) — and MethodExecution
-    calls it before ``protocol.gate_target_action`` (method_service.py:45-48).  So
-    naming a 0.5-only action can never probe whether a 0.4-bound object exists.
+    The real ``method_access.head`` runs here, so each rung is tied to the code that
+    produces it: a missing row raises NOT_FOUND (method_access.py:185-186), and a
+    denied read right comes from ``db.authorize_domain(conn, ctx, domain, 'read')``
+    (method_access.py:189) which, with no scoped grant to rescue it, also answers
+    NOT_FOUND (method_access.py:207-208) rather than disclosing existence.  Both run
+    before ``protocol.gate_target_action`` (method_service.py:48), so naming a
+    0.5-only action can never probe whether a 0.4-bound object exists.
     """
+    from memory_service_runtime.governed import db as core_db, workspace_v02_guard
     execution = _dispatch(action, 'tkos.method/0.5')   # passes the membership guard
-    gate_calls = []
-    monkeypatch.setattr(protocol, 'gate_target_action', lambda *a, **k: gate_calls.append(a))
-    monkeypatch.setattr(method_access, 'head', _raise(code))
+    execution.conn = _GateConn('tkos.method/0.4', object_present=scenario != 'absent')
     execution.ctx = SimpleNamespace(scope_id=SCOPE, principal_id=str(uuid4()),
                                     principal_type='human', assignments=[])
+    gate_calls, read_checks = [], []
+    monkeypatch.setattr(protocol, 'gate_target_action', lambda *a, **k: gate_calls.append(a))
+    monkeypatch.setattr(workspace_v02_guard, 'enforce_object', lambda *a, **k: None)
+    monkeypatch.setattr(core_db, '_assignments', lambda *a, **k: [])
+
+    def denied(conn, ctx, domain_id, action_type=None, *a, **k):
+        read_checks.append((domain_id, action_type))
+        raise GovernedError('FORBIDDEN')
+
+    monkeypatch.setattr(core_db, 'authorize_domain', denied)
+    # Nothing rescues the denied read: this object carries no scoped Method grant.
+    monkeypatch.setattr(method_access, 'is_method_object', lambda *a, **k: False)
     with pytest.raises(GovernedError) as exc:
         execution.authorize()
-    assert exc.value.code == code
+    assert exc.value.code == 'NOT_FOUND'
     assert gate_calls == []
+    # The 403 rung really ran: the read right was the thing consulted and denied.
+    assert read_checks == ([(DOMAIN, 'read')] if scenario == 'read_denied' else [])
 
 
 @pytest.mark.parametrize('action', ('m1b_revise_constraint', 'm1b_confirm_constraint', 'm1b_confirm_review'))

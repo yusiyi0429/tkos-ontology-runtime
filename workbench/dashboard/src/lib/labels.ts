@@ -57,6 +57,8 @@ export const RULES_VERSION_LABELS: Record<string, string> = {
   "0.1": "业务规则 0.1",
   "0.2": "业务规则 0.2",
   "0.3": "业务规则 0.3",
+  "0.4": "业务规则 0.4",
+  "0.5": "业务规则 0.5",
 }
 
 export const BASIS_LABELS: Record<string, string> = {

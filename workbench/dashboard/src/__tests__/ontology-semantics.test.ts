@@ -189,7 +189,7 @@ describe("tkos.method/0.4 map reading is real and version-scoped", () => {
   it("exposes 0.4 while 0.1-0.3 keep their original readings", () => {
     expect(rulesOfContractVersion("tkos.method/0.4")).toBe("0.4")
     expect(contractVersionOf("0.4")).toBe("tkos.method/0.4")
-    expect(RULES_VERSIONS[0]).toBe("0.4")
+    expect(RULES_VERSIONS).toContain("0.4")
     expect(RULES_VERSIONS).toEqual(expect.arrayContaining(ALL_VERSIONS))
     for (const rules of ALL_VERSIONS) {
       expect(text(info("StrategicAgreement", rules))).not.toContain("全体当前人类")
@@ -304,5 +304,29 @@ describe("business-language boundary (R4)", () => {
         }
       }
     }
+  })
+})
+
+describe("0.5 rules", () => {
+  const registered = new Set(["LTCO", "PCO", "Mission", "OperatingState", "PeriodReview", "Constraint", "CandidateSet"])
+  it("is a first-class rules version", () => {
+    expect(RULES_VERSIONS[0]).toBe("0.5")
+    expect(rulesOfContractVersion("tkos.method/0.5")).toBe("0.5")
+    expect(contractVersionOf("0.5")).toBe("tkos.method/0.5")
+  })
+  it("reads Constraint, canonical State and DRI-only commitment in the 0.5 text", () => {
+    expect(text(typeInfo("Constraint", "0.5")!)).toContain("适用范围")
+    expect(typeInfo("Constraint", "0.4")).toBeNull()
+    expect(text(typeInfo("OperatingState", "0.5")!)).toContain("无人工确认")
+    expect(text(typeInfo("OperatingState", "0.4")!)).not.toContain("无人工确认")
+    expect(text(typeInfo("CandidateSet", "0.5")!)).toContain("DRI")
+    expect(text(typeInfo("PeriodReview", "0.5")!)).toContain("CEO 确认")
+  })
+  it("keeps every 0.4 edge under 0.5 and adds the Constraint references", () => {
+    const edges = mapEdges("0.5", registered)
+    expect(edges).toContainEqual({ from: "Constraint", to: "PCO", label: "起草参考" })
+    expect(edges.filter((edge) => edge.from === "Constraint")).toHaveLength(3)
+    expect(mapEdges("0.4", registered).every((edge) => edges.some((e) => e.from === edge.from && e.to === edge.to))).toBe(true)
+    expect(areasFor("0.5", registered).some((area) => area.types.includes("Constraint"))).toBe(true)
   })
 })

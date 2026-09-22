@@ -37,16 +37,17 @@ const STATUS: Record<string, string> = { issue_confirmed: '议题已确认', dra
   formal: 'Agreement 已正式', proposed: '待最终确认', reviewed: '已复核', returned: '已退回',
   open: '开放', closed: '已关窗', pending: '待承诺', under_review: '核对中', resolved: '候选待激活',
   confirmed: '已确认', generated: '已生成', unknown: '状态未记录', agreement_formal: 'Agreement 已正式',
-  reopened: '已重开', candidate: '候选' }
+  reopened: '已重开', candidate: '候选', recorded: '已记录（正式状态）' }
 
-// Only these 0.4 human actions may ever render in the browser.  Agent drafting,
-// review and resolution actions stay out even if a projection leaks one.
+// Only these 0.4/0.5 human actions may ever render in the browser.  Agent
+// drafting, review and resolution actions stay out even if a projection leaks one.
 const BROWSER_ACTIONS = new Set([
   'm1a_set_participants', 'm1a_confirm_agreement', 'm1a_confirm_update',
   'm1b_confirm_ltco', 'm1b_comment', 'm1b_replace_comment', 'm1b_withdraw_comment',
   'm1b_commit_candidate', 'm1b_activate_candidates', 'm1b_reopen_candidates',
   'm1b_reopen_window', 'method_confirm_state', 'method_open_problem',
   'method_revise_problem', 'method_close_problem',
+  'm1b_confirm_review', 'm1b_confirm_constraint',
 ])
 
 const REASON_LABELS: Record<string, string> = {
@@ -58,7 +59,8 @@ const REASON_LABELS: Record<string, string> = {
   not_window_participant: '不是该评审窗口的参与人',
   not_responsible_owner: '不是该责任的本人',
   not_state_owner: '不是该状态的现任责任人',
-  missing_commitment: '尚缺具名 DRI/Owner 本人承诺',
+  missing_commitment: '尚缺具名承诺人本人承诺（0.5 只需各责任域 DRI）',
+  mission_owner_invalid: '候选 Mission 的 Owner 已不是在任人员，需先恢复其任职',
   critical_difference: '存在关键未决分歧，需先重开收敛',
   stale_basis: 'Strategy/Architecture 已更新，候选依据过期，需显式重开',
   member_state_changed: '候选成员版本已变化，需重新收拢',
@@ -90,7 +92,17 @@ const PROBLEM_FIELDS: Field[] = [
 const FORMS: Record<string, Field[]> = {
   m1a_confirm_agreement: [{ kind: 'textarea', name: 'statement', label: '确认说明', required: true }],
   m1a_confirm_update: [{ kind: 'textarea', name: 'statement', label: '最终确认说明', required: true }],
-  m1b_confirm_ltco: [{ kind: 'textarea', name: 'statement', label: '确认说明', required: true }],
+  m1b_confirm_ltco: [
+    { kind: 'select', name: 'conclusion', label: '审视结论（0.5 必填；0.4 忽略）',
+      options: [{ value: 'established', label: 'established · 首次确立' }, { value: 'revised', label: 'revised · 修订为新版本' },
+                { value: 'maintained', label: 'maintained · 本期维持不变' }] },
+    { kind: 'textarea', name: 'statement', label: '确认说明', required: true }],
+  m1b_confirm_review: [
+    { kind: 'textarea', name: 'statement', label: '确认说明', required: true },
+    { kind: 'textarea', name: 'findings', label: '改写发现（每行一条，可空）' },
+    { kind: 'textarea', name: 'learnings', label: '改写学习（每行一条，可空）' },
+    { kind: 'textarea', name: 'implications', label: '改写含义（每行一条，可空）' }],
+  m1b_confirm_constraint: [{ kind: 'textarea', name: 'statement', label: '确认说明（范围责任人本人）', required: true }],
   m1b_activate_candidates: [
     { kind: 'textarea', name: 'statement', label: '整组确认说明', required: true },
     { kind: 'textarea', name: 'notes', label: '非阻塞说明（每行一条，可空）' }],
@@ -163,7 +175,21 @@ export function paramsForMethodAction(actionType: string, values: Record<string,
   switch (actionType) {
     case 'm1a_confirm_agreement':
     case 'm1a_confirm_update':
-    case 'm1b_confirm_ltco':
+      return { statement: text(values, 'statement') }
+    case 'm1b_confirm_ltco': {
+      const params: Record<string, unknown> = { statement: text(values, 'statement') }
+      if (text(values, 'conclusion')) params.conclusion = text(values, 'conclusion')
+      return params
+    }
+    case 'm1b_confirm_review': {
+      const params: Record<string, unknown> = { statement: text(values, 'statement') }
+      for (const key of ['findings', 'learnings', 'implications'] as const) {
+        const lines = text(values, key).split('\n').map((line) => line.trim()).filter(Boolean)
+        if (lines.length > 0) params[key] = lines
+      }
+      return params
+    }
+    case 'm1b_confirm_constraint':
       return { statement: text(values, 'statement') }
     case 'm1b_activate_candidates':
       return { statement: text(values, 'statement'),

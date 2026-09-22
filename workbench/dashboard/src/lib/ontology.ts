@@ -10,9 +10,9 @@
  * type and never listed as independent objects.
  */
 
-export type RulesVersion = "0.1" | "0.2" | "0.3" | "0.4"
+export type RulesVersion = "0.1" | "0.2" | "0.3" | "0.4" | "0.5"
 
-export const RULES_VERSIONS: RulesVersion[] = ["0.4", "0.3", "0.2", "0.1"]
+export const RULES_VERSIONS: RulesVersion[] = ["0.5", "0.4", "0.3", "0.2", "0.1"]
 
 export function contractVersionOf(rules: RulesVersion): string {
   return `tkos.method/${rules}`
@@ -23,6 +23,7 @@ export function rulesOfContractVersion(contractVersion: string | null | undefine
   if (contractVersion === "tkos.method/0.2") return "0.2"
   if (contractVersion === "tkos.method/0.3") return "0.3"
   if (contractVersion === "tkos.method/0.4") return "0.4"
+  if (contractVersion === "tkos.method/0.5") return "0.5"
   return null
 }
 
@@ -369,6 +370,20 @@ const BASE_TYPE_INFO: Record<string, TypeInfo> = {
     authority: "证据与授权底座；事实、状态与材料的原始依据。",
     marker: "support",
   },
+  Constraint: {
+    definition: "经营条件与约束：人、钱、产能、政策、依赖等真实限制，带适用范围（公司 / 责任域 / Mission）、生效起止、来源与权威、限制程度。",
+    keyFacts: [
+      "只能被 LTCO、PCO、Mission 以参考方式引用；引用是输入，不是承接。",
+      "登记与修订可由 Co-agent 或范围责任人发起；确认按范围：公司级 CEO，责任域级该 Scope 的当前 DRI，Mission 级为该 Mission 主 Scope 的当前 DRI。",
+      "抢人、超限、错期的校验是 Agent 分析，Runtime 不自动判定。",
+    ],
+    relations: [
+      { target: "LTCO", label: "审视参考" }, { target: "PCO", label: "起草参考" }, { target: "Mission", label: "资源对照" },
+    ],
+    lifecycle: ["登记草稿", "范围责任人确认", "生效，被目标对象引用", "修订产生新草稿"],
+    actors: "Co-agent 或范围责任人登记；范围责任人本人确认。",
+    authority: "以已确认的确切版本为准；草稿不得被引用。",
+  },
 }
 
 /** Per-version content overrides; merged shallowly over the base entry. */
@@ -508,11 +523,15 @@ const VERSION_OVERRIDES: Record<string, Partial<Record<RulesVersion, Partial<Typ
 export function typeInfo(type: string, rules: RulesVersion): TypeInfo | null {
   const base = BASE_TYPE_INFO[type]
   if (!base) return null
-  // 0.4 has its own compiled object set and curated reading; a type that only
-  // exists in 0.1-0.3 must never be labeled with the old rules under 0.4.
+  // 0.4 and 0.5 each have their own compiled object set and curated reading; a
+  // type that only exists in an earlier rules version must never be labeled
+  // with that version's rules under 0.4/0.5 (and vice versa for Constraint).
   if (rules === "0.4" && !V04_TYPES.includes(type)) return null
-  const override = rules === "0.4" ? V04_OVERRIDES[type] : VERSION_OVERRIDES[type]?.[rules]
-  return override ? { ...base, ...override } : base
+  if (rules === "0.5" && !V05_TYPES.includes(type)) return null
+  if (rules !== "0.4" && rules !== "0.5" && type === "Constraint") return null
+  const override = rules === "0.5" ? { ...V04_OVERRIDES[type], ...V05_OVERRIDES[type] }
+    : rules === "0.4" ? V04_OVERRIDES[type] : VERSION_OVERRIDES[type]?.[rules]
+  return override && Object.keys(override).length > 0 ? { ...base, ...override } : base
 }
 
 const AREAS: Area[] = [
@@ -523,7 +542,7 @@ const AREAS: Area[] = [
   { id: "joint-review", name: "共同核对", hint: "窗口、评论与整组确认",
     types: ["ReviewWindow", "CandidateSet"] },
   { id: "operations", name: "经营与复盘", hint: "状态、事实、复盘与问题",
-    types: ["OperatingState", "BusinessFact", "PeriodReview", "OperatingProblem"] },
+    types: ["OperatingState", "Constraint", "BusinessFact", "PeriodReview", "OperatingProblem"] },
   { id: "research", name: "战略研究", hint: "信号、议题、研究与会议",
     types: ["Signal", "PotentialIssue", "StrategicIssue", "ResearchBrief", "ResearchMemo",
             "ResearchPlan", "ResearchReport", "MeetingMinutes", "MeetingRound"] },
@@ -536,8 +555,8 @@ const AREAS: Area[] = [
 const MAP_EDGES: Array<MapEdge & { versions?: RulesVersion[] }> = [
   { from: "Signal", to: "PotentialIssue", label: "升级为候选议题" },
   { from: "PotentialIssue", to: "StrategicIssue", label: "确认立题" },
-  { from: "StrategicIssue", to: "StrategicAgreement", label: "进入正式人类共识", versions: ["0.4"] },
-  { from: "ReviewWindow", to: "LTCO", label: "冻结确切长期结果集合", versions: ["0.4"] },
+  { from: "StrategicIssue", to: "StrategicAgreement", label: "进入正式人类共识", versions: ["0.4", "0.5"] },
+  { from: "ReviewWindow", to: "LTCO", label: "冻结确切长期结果集合", versions: ["0.4", "0.5"] },
   { from: "StrategicIssue", to: "ResearchPlan", label: "指派深入研究" },
   { from: "StrategicIssue", to: "ResearchBrief", label: "指派研究（轻量）", versions: ["0.2", "0.3"] },
   { from: "ResearchMemo", to: "StrategicIssue", label: "澄清记录" },
@@ -548,11 +567,11 @@ const MAP_EDGES: Array<MapEdge & { versions?: RulesVersion[] }> = [
   { from: "StrategicAgreement", to: "StrategyUpdateProposal", label: "更新依据" },
   { from: "StrategyUpdateProposal", to: "StrategicJudgment", label: "确认产生域内判断" },
   { from: "StrategyUpdateProposal", to: "Strategy", label: "CEO 确认生效" },
-  { from: "Strategy", to: "StrategicArchitecture", label: "配对责任结构", versions: ["0.3", "0.4"] },
+  { from: "Strategy", to: "StrategicArchitecture", label: "配对责任结构", versions: ["0.3", "0.4", "0.5"] },
   { from: "Strategy", to: "LTCO", label: "展开为长期目标" },
-  { from: "StrategicArchitecture", to: "LTCO", label: "责任结构依据", versions: ["0.3", "0.4"] },
-  { from: "StrategicArchitecture", to: "PCO", label: "责任结构依据", versions: ["0.3", "0.4"] },
-  { from: "StrategicArchitecture", to: "Mission", label: "责任结构依据", versions: ["0.3", "0.4"] },
+  { from: "StrategicArchitecture", to: "LTCO", label: "责任结构依据", versions: ["0.3", "0.4", "0.5"] },
+  { from: "StrategicArchitecture", to: "PCO", label: "责任结构依据", versions: ["0.3", "0.4", "0.5"] },
+  { from: "StrategicArchitecture", to: "Mission", label: "责任结构依据", versions: ["0.3", "0.4", "0.5"] },
   { from: "LTCO", to: "PCO", label: "承接为当期目标" },
   { from: "PeriodReview", to: "LTCOReviewAdvice", label: "复盘支撑审视建议" },
   { from: "LTCOReviewAdvice", to: "LTCO", label: "审视建议" },
@@ -560,18 +579,21 @@ const MAP_EDGES: Array<MapEdge & { versions?: RulesVersion[] }> = [
   { from: "ReviewWindow", to: "CandidateSet", label: "关窗收拢" },
   { from: "CandidateSet", to: "PCO", label: "整组确认生效" },
   { from: "CandidateSet", to: "Mission", label: "整组确认生效" },
-  { from: "OperatingState", to: "Mission", label: "经营状态观察", versions: ["0.3", "0.4"] },
-  { from: "OperatingState", to: "LTCO", label: "经营状态观察", versions: ["0.3", "0.4"] },
-  { from: "OperatingState", to: "PCO", label: "经营状态观察", versions: ["0.3", "0.4"] },
-  { from: "OperatingProblem", to: "OperatingState", label: "来源状态", versions: ["0.3", "0.4"] },
-  { from: "OperatingProblem", to: "StrategicIssue", label: "移交战略立项", versions: ["0.3", "0.4"] },
-  { from: "PeriodReview", to: "OperatingState", label: "引用正式状态", versions: ["0.3", "0.4"] },
+  { from: "OperatingState", to: "Mission", label: "经营状态观察", versions: ["0.3", "0.4", "0.5"] },
+  { from: "OperatingState", to: "LTCO", label: "经营状态观察", versions: ["0.3", "0.4", "0.5"] },
+  { from: "OperatingState", to: "PCO", label: "经营状态观察", versions: ["0.3", "0.4", "0.5"] },
+  { from: "OperatingProblem", to: "OperatingState", label: "来源状态", versions: ["0.3", "0.4", "0.5"] },
+  { from: "OperatingProblem", to: "StrategicIssue", label: "移交战略立项", versions: ["0.3", "0.4", "0.5"] },
+  { from: "PeriodReview", to: "OperatingState", label: "引用正式状态", versions: ["0.3", "0.4", "0.5"] },
   { from: "PeriodReview", to: "PotentialIssue", label: "复盘发现进入候选池", versions: ["0.2", "0.3"] },
   { from: "PeriodReview", to: "PCO", label: "复盘目标" },
   { from: "BusinessFact", to: "Mission", label: "事实记录对象" },
   { from: "EvidenceAsset", to: "BusinessFact", label: "原始证据" },
-  { from: "EvidenceAsset", to: "OperatingState", label: "状态证据", versions: ["0.3", "0.4"] },
+  { from: "EvidenceAsset", to: "OperatingState", label: "状态证据", versions: ["0.3", "0.4", "0.5"] },
   { from: "MethodRun", to: "StrategicIssue", label: "Agent 研究运行" },
+  { from: "Constraint", to: "LTCO", label: "审视参考", versions: ["0.5"] },
+  { from: "Constraint", to: "PCO", label: "起草参考", versions: ["0.5"] },
+  { from: "Constraint", to: "Mission", label: "资源对照", versions: ["0.5"] },
 ]
 
 /** Compiled tkos.method/0.4 object types (docs/runtime-method-registry-0.4.json).
@@ -581,6 +603,43 @@ const V04_TYPES: string[] = [
   "LTCO", "PCO", "Mission", "ReviewWindow", "CandidateSet", "OperatingState",
   "OperatingProblem", "PeriodReview", "MethodRun", "EvidenceAsset",
 ]
+
+/** Compiled tkos.method/0.5 object types (docs/runtime-method-registry-0.5.json). */
+const V05_TYPES: string[] = [...V04_TYPES, "Constraint"]
+
+/** 0.5 curated readings on top of the 0.4 overrides. */
+const V05_OVERRIDES: Record<string, Partial<TypeInfo>> = {
+  OperatingState: {
+    definition: "0.5 的经营状态：带起止时间，由 Co-agent / MF 生成即为正式状态，无人工确认；上层状态可下钻到下层状态与直接证据，不自动汇总。",
+    keyFacts: ["生成即 canonical；对状态有异议走经营问题，不改写状态。", "同一主体同一截止时间只有一个身份，再次生成产生新版本。"],
+    actors: "Co-agent、CEO Agent 或主体责任人本人生成。",
+    authority: "以最新生成版本为准；不设确认人。",
+  },
+  PeriodReview: {
+    definition: "0.5 的周期复盘：Co-agent 起草，CEO 确认（可改写发现、学习、含义）后生效；下一周期 PCO 必须承接已确认的复盘。",
+    lifecycle: ["Co-agent 生成", "CEO 确认，可改", "生效，被下期 PCO 引用"],
+    actors: "Co-agent 起草，CEO 本人确认。",
+    authority: "只有 CEO 确认的版本生效。",
+  },
+  PCO: {
+    keyFacts: [
+      "承接已确认的复盘与本域 LTCO，引用已确认的约束，写明边界与预期推进幅度。",
+      "候选集合只由责任域 DRI 承诺，一次覆盖本域 PCO 与其全部 Mission。",
+    ],
+  },
+  LTCO: {
+    keyFacts: ["含实现逻辑、关键假设与约束引用；每次确认带结论：首次确立、修订或维持。"],
+  },
+  Mission: {
+    keyFacts: [
+      "记录对其他责任域的贡献、依赖（Mission 或责任域，含需要时点）、资源需求与约束引用。",
+      "Owner 端到端对交付结果负责，实际执行可分派；Owner 指派在 CEO 整组激活时生效。",
+    ],
+  },
+  CandidateSet: {
+    definition: "0.5 的候选集合：关窗收拢的完整 PCO + Mission 集合；只有各责任域 DRI 对本域 PCO 承诺，CEO 整组激活。",
+  },
+}
 
 /** 0.4 curated readings.  Only entries that differ from the base entry appear
  *  here; unlisted 0.4 types keep their base reading.  0.1-0.3 never merge
@@ -789,9 +848,13 @@ function versionTypes(rules: RulesVersion, registered: Set<string> | null): Set<
   if (registered) return registered
   // Without a catalog the map is not rendered; this fallback only keeps type
   // references internally consistent and is never presented as a directory.
+  if (rules === "0.5") return new Set(V05_TYPES)
   if (rules === "0.4") return new Set(V04_TYPES)
   const all = new Set<string>()
   for (const area of AREAS) for (const type of area.types) all.add(type)
+  // Constraint is a 0.5-only type; AREAS is shared across all versions so it
+  // must be dropped explicitly for every pre-0.4 fallback reading.
+  all.delete("Constraint")
   if (rules === "0.1" || rules === "0.2") {
     all.delete("StrategicArchitecture")
     all.delete("OperatingState")

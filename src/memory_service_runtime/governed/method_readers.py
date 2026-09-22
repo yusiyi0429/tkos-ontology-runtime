@@ -107,14 +107,26 @@ def authorize_receipt(conn, ctx, row, *, replay=False):
         db.authorize_domain(conn, ctx, domain, row["action_type"])
 
 
-# 决定类 = 有权人的正式确认 / 承诺 / 激活 / 重开 / 关闭 / 移交；意见类 = 窗口评论；分析类 = Agent 产出；其余为系统记录。
+# 决定类 = 有权人对业务对象的正式确认 / 正式化 / 激活 / 重开 / 关闭 / 移交（对象随之
+# 进入 confirmed/active/formal 等正式状态，或是该决定点唯一的另一分支，如
+# ltco_feedback 之于 ltco_confirmation）；意见类 = 参与者对他人产出发表的看法；
+# 分析类 = Agent 产出的分析 / 核验结果；其余（含窗口关闭等程序性步骤）为系统记录。
+# 本清单覆盖 method_m1a/m1b/v02/v03/v04/v05.py 里 e.review(...) 实际写过的每个
+# kind（含 method_m1a.py 里按 action 名动态拼出的三个、以及仅出现在三元表达式
+# else 分支的 ltco_feedback）；逐条依据见 tests/test_method_v05_readers.py 里的
+# EXPECTED_REVIEW_EFFECTS。
 DECISION_KINDS = frozenset({
     "ltco_confirmation", "review_confirmation", "constraint_confirmation", "candidate_set_activation",
     "agreement_confirmation", "agreement_formalized", "strategy_update_confirmation", "state_confirmation",
     "ceo_reopen", "problem_closure", "problem_transfer",
+    "strategic_issue_confirmation", "meeting_minutes_confirmation", "strategic_agreement_confirmation",
+    "strategy_adjustment_decision", "architecture_confirmation", "candidate_set_confirmation",
+    "signal_disposition", "brief_sufficiency", "ltco_feedback", "agent_issue_initiation", "issue_reframe",
 })
-OPINION_KINDS = frozenset({"window_comment", "window_opinion_withdrawal", "ltco_revision_response"})
-ANALYSIS_KINDS = frozenset({"personal_agent_analysis", "strategy_update_impact_review", "window_resolution"})
+OPINION_KINDS = frozenset({"window_comment", "window_opinion_withdrawal", "ltco_revision_response",
+                           "record_clarification", "direct_clarification"})
+ANALYSIS_KINDS = frozenset({"personal_agent_analysis", "strategy_update_impact_review", "window_resolution",
+                            "check_memo", "research_quality_precheck"})
 
 
 def review_effect(kind):
@@ -517,6 +529,13 @@ def company_view(conn, ctx, period_start, period_end):
            JOIN gov_object_revisions r ON (r.scope_id, r.object_id, r.revision_id) = (o.scope_id, o.object_id, o.effective_revision_id)
            WHERE o.scope_id=%s AND o.object_type IN ('LTCO','PCO','Mission','Constraint')
            ORDER BY o.object_type, o.object_id""", (ctx.scope_id,)).fetchall())
+    # 这条 SQL 按对象类型选出同一 scope 里所有协议版本的 LTCO/PCO/Mission/
+    # Constraint——0.1-0.4 的 Mission（A2、0.1、0.3 各自的 MissionPayload）根本
+    # 没有 period / primary_scope_id 字段。必须先按当前协议绑定把非 0.5 的行
+    # 挡在外面，再去按字段名读 payload；否则混合协议 scope 里的任何调用者都会
+    # 因为别的对象形状不同而炸 KeyError，与他自己看不看得见那个对象无关。
+    metadata = protocol.list_metadata(conn, ctx.scope_id, [str(row["object_id"]) for row in rows])
+    rows = [row for row in rows if metadata[str(row["object_id"])]["contract_version"] == "tkos.method/0.5"]
     scopes, company_constraints, mission_constraints = {}, [], {}
 
     def visible(oid):
@@ -568,9 +587,22 @@ def company_view(conn, ctx, period_start, period_end):
             record = (item.get("method_state") or {}).get("owner_activation_record_id")
             item["owner_effective_from"] = None
             if record:
-                found = conn.execute("SELECT recorded_at FROM gov_method_reviews WHERE scope_id=%s AND record_id=%s",
-                                     (ctx.scope_id, record)).fetchone()
-                item["owner_effective_from"] = db.jsonable(found["recorded_at"]) if found else None
+                found = conn.execute(
+                    "SELECT target_object_id, target_revision_id, recorded_at FROM gov_method_reviews WHERE scope_id=%s AND record_id=%s",
+                    (ctx.scope_id, record)).fetchone()
+                if found:
+                    found = db.jsonable(found)
+                    # candidate_set_activation 是针对那次被激活的 CandidateSet
+                    # 版本写的；请求方能读到这个 Mission 不代表也能读到那个
+                    # CandidateSet 版本——撤权后历史内容也要按当前权限读取，
+                    # 与 /reviews、/confirmations 对同一条记录的处理口径一致。
+                    try:
+                        access.revision(conn, ctx, found["target_object_id"], found["target_revision_id"])
+                    except GovernedError as exc:
+                        if exc.code not in {"NOT_FOUND", "FORBIDDEN"}:
+                            raise
+                    else:
+                        item["owner_effective_from"] = found["recorded_at"]
             target["missions"].append(item)
     return {"schema_version": "method-read/0.5", "period": {"start": period_start, "end": period_end},
             "scopes": [scopes[key] for key in sorted(scopes)],

@@ -498,6 +498,9 @@ def test_mission_constraint_confirmer_uses_the_missions_own_scope_not_its_pcos(m
     states = {constraint_oid: {'phase': 'draft'}}
     e = _fake_execution(refs=refs, states=states)
     e.target, e.target_revision = head, target_revision
+    # The Mission and its parent PCO are read by the server-side resolver; serve it the same fakes.
+    e.conn = None
+    monkeypatch.setattr(method_v05, 'light', lambda conn, ctx: SimpleNamespace(ref=e.ref))
 
     def require_actor(principal_id, principal_type='human'):
         if e.ctx.principal_id != principal_id or e.ctx.principal_type != principal_type:
@@ -608,6 +611,68 @@ def test_scope_constraint_basis_is_checked_server_side_not_through_the_callers_g
     with pytest.raises(GovernedError) as exc:
         method_v05._check_constraint_payload(e, payload)
     assert exc.value.code == 'STALE_DEPENDENCY'  # and that version must still be the effective one
+
+
+class _HeadsConn:
+    """Serves the server-side resolver's head lookups by object_id; nothing else is queried."""
+
+    def __init__(self, heads):
+        self.heads = heads
+
+    def execute(self, sql, params=None):
+        row = self.heads.get(str(params[1])) if 'FROM gov_objects' in sql else None
+        return SimpleNamespace(fetchone=lambda: dict(row) if row else None)
+
+
+def test_mission_constraint_confirmer_is_resolved_server_side_not_through_the_callers_grants(monkeypatch):
+    """Contract §2: a mission Constraint is confirmed by the current DRI of that Mission's primary
+    Scope.  While the Mission is still a draft (before any review window) that DRI holds no read
+    grant on the Mission or on its parent PCO, so resolving the confirmer through the caller's
+    grants answered NOT_FOUND (real HTTP/PG acceptance, Task 12).  As in the scope branch, the
+    Mission and its parent PCO are only the responsibility basis and are read server-side; the
+    Mission's own Scope DRI still resolves, and nobody else passes."""
+    mission_dri, other = str(uuid4()), str(uuid4())
+    monkeypatch.setattr(method_v04, '_pco_dri', lambda _e, payload: (
+        {'scope-a': mission_dri}.get(payload['primary_scope_id'], other), {'assignment_id': str(uuid4())}))
+    pco_oid, pco_rid, mission_oid, mission_rid = str(uuid4()), str(uuid4()), str(uuid4()), str(uuid4())
+    parent_pco_ref = {'object_id': pco_oid, 'revision_id': pco_rid, 'payload_hash': 'a' * 64}
+    mission_ref = {'object_id': mission_oid, 'revision_id': mission_rid, 'payload_hash': 'a' * 64}
+    revisions = {
+        (pco_oid, pco_rid): {'object_id': pco_oid, 'revision_id': pco_rid, 'payload_hash': 'a' * 64,
+                             'payload': {'architecture_ref': ref(), 'primary_scope_id': 'scope-b'}},
+        (mission_oid, mission_rid): {'object_id': mission_oid, 'revision_id': mission_rid, 'payload_hash': 'a' * 64,
+                                     'payload': {'parent_pco_ref': parent_pco_ref, 'primary_scope_id': 'scope-a'}},
+    }
+    heads = {pco_oid: {'object_id': pco_oid, 'object_type': 'PCO', 'effective_revision_id': None,
+                       'latest_revision_id': pco_rid},
+             mission_oid: {'object_id': mission_oid, 'object_type': 'Mission', 'effective_revision_id': None,
+                           'latest_revision_id': mission_rid}}
+    monkeypatch.setattr(method_access, 'raw_revision', lambda conn, ctx, oid, rid: dict(revisions[(str(oid), str(rid))]))
+    monkeypatch.setattr(protocol, 'current_binding', lambda conn, scope_id, oid: {'contract_version': 'tkos.method/0.5'})
+
+    def caller_cannot_read(reference, types=None, effective=False, current=True):
+        raise GovernedError('NOT_FOUND')   # the draft Mission and PCO are invisible to the Scope DRI
+
+    constraint_oid = str(uuid4())
+    e = _fake_execution(refs={}, states={constraint_oid: {'phase': 'draft'}})
+    e.ref, e.conn = caller_cannot_read, _HeadsConn(heads)
+    e.target = {'object_id': constraint_oid, 'object_type': 'Constraint'}
+    e.target_revision = {'object_id': constraint_oid, 'revision_id': str(uuid4()), 'payload_hash': 'a' * 64,
+                         'payload': {'applies_to': {'kind': 'mission', 'mission_ref': mission_ref},
+                                     'evidence_refs': []}}
+
+    def require_actor(principal_id, principal_type='human'):
+        if e.ctx.principal_id != principal_id or e.ctx.principal_type != principal_type:
+            raise GovernedError('FORBIDDEN')
+    e.require_actor = require_actor
+
+    e.ctx.principal_id = other
+    with pytest.raises(GovernedError) as exc:
+        method_v05._collect_confirm_constraint(e)
+    assert exc.value.code == 'FORBIDDEN'
+    e.ctx.principal_id = mission_dri
+    method_v05._collect_confirm_constraint(e)
+    assert e._v04['constraint_owner'] == mission_dri
 
 
 def _ltco_target(phase, effective):

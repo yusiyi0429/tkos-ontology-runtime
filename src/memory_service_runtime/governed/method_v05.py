@@ -66,8 +66,11 @@ def _constraint_responsibility(e, payload):
         principal, _role, _auth_domain, assignment = v4._pco_responsibility(
             e, {"architecture_ref": payload["architecture_ref"], "primary_scope_id": applies["scope_id"]})
         return principal, assignment
-    _mission_head, mission_revision = e.ref(applies["mission_ref"], types={"Mission"}, current=False)
-    _pco_head, pco_revision = e.ref(mission_revision["payload"]["parent_pco_ref"], types={"PCO"}, current=False)
+    # 与 scope 分支同口径：Mission 与其父级 PCO 只是责任解析的基准，在服务端读取（同
+    # constraint_assignment_static）。草稿期（尚无审视窗口）该 Mission 主 Scope 的 DRI 读不到它们，也不因此获得读取权。
+    basis = light(e.conn, e.ctx)
+    _mission_head, mission_revision = basis.ref(applies["mission_ref"], types={"Mission"})
+    _pco_head, pco_revision = basis.ref(mission_revision["payload"]["parent_pco_ref"], types={"PCO"})
     # 解析用 Mission 自身的 primary_scope_id（而非其父级 PCO 的）：该字段才是"其主 Scope"，
     # PCO 只提供解析所需的确切 Architecture 基准。
     return v4._pco_dri(e, {"architecture_ref": pco_revision["payload"]["architecture_ref"],

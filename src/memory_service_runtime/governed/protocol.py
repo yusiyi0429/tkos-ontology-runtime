@@ -728,7 +728,8 @@ def require_read_support(conn: Any, scope_id: str, object_id: str) -> dict[str, 
     # Legacy v0.2 and the existing A1 readonly label remain accepted verbatim.
     if metadata["registration_status"] != "registered" or metadata["interpretation_status"] not in (
             "legacy_v0_2", "contract_a_metadata_read_only", "contract_a_v0_1",
-            "contract_a_a3_execution", "method_v0_1", "method_v0_2", "method_v0_3", "method_v0_4"):
+            "contract_a_a3_execution", "method_v0_1", "method_v0_2", "method_v0_3", "method_v0_4",
+            "method_v0_5"):
         _fail("PROTOCOL_NOT_SUPPORTED",
               "The object's protocol registration does not support read interpretation.")
     return metadata

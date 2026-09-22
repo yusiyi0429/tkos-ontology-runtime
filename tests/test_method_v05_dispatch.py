@@ -115,10 +115,13 @@ class _GateConn:
     """Replays exactly the registration rows gate_target_action reads for a Method binding."""
 
     def __init__(self, binding_version, *, object_present=True):
-        from memory_service_runtime.governed import method_v04_profile, method_v05_profile
+        from memory_service_runtime.governed import (method_profile, method_v02_profile,
+                                                       method_v03_profile, method_v04_profile,
+                                                       method_v05_profile)
         from memory_service_runtime.governed.method_models import registry
-        source = method_v05_profile if binding_version == 'tkos.method/0.5' else method_v04_profile
-        core = source.content()
+        core = {'tkos.method/0.1': method_profile, 'tkos.method/0.2': method_v02_profile,
+                'tkos.method/0.3': method_v03_profile, 'tkos.method/0.4': method_v04_profile,
+                'tkos.method/0.5': method_v05_profile}[binding_version].content()
         actions, _targets, payloads = registry(binding_version)
         self.binding = {'scope_id': SCOPE, 'object_id': OID, 'binding_version': 1,
                         'protocol_id': 'tkos.method', 'contract_version': binding_version,
@@ -340,3 +343,52 @@ def test_no_method_action_name_of_any_version_falls_through_to_the_legacy_execut
         for kind in params:
             assert MethodExecution.handles_request(
                 None, None, SimpleNamespace(action_type=kind)), (version, kind)
+
+
+# ------------------------------- the 0.5 read gate, driven through real code
+#
+# Every read of a bound object passes protocol.require_read_support, whose
+# accepted-interpretation whitelist is enumerated per Method version.  Nothing
+# in the suite had ever driven a 0.5 binding through it, which is exactly how
+# the missing entry survived: the dispatch tests above stop at the write fence.
+
+def _readable(monkeypatch, conn):
+    """Let head_access reach require_read_support: the object exists and is readable."""
+    from memory_service_runtime.governed import db as core_db, workspace_v02_guard
+    monkeypatch.setattr(workspace_v02_guard, 'enforce_object', lambda *a, **k: None)
+    monkeypatch.setattr(workspace_v02_guard, 'object_allowed', lambda *a, **k: True)
+    monkeypatch.setattr(core_db, '_assignments', lambda *a, **k: [])
+    monkeypatch.setattr(core_db, 'authorize_domain', lambda *a, **k: [])
+    return conn, SimpleNamespace(scope_id=SCOPE, principal_id=str(uuid4()),
+                                 principal_type='human', assignments=[])
+
+
+@pytest.mark.parametrize('version,status', [('tkos.method/0.4', 'method_v0_4'),
+                                            ('tkos.method/0.5', 'method_v0_5')])
+def test_require_read_support_accepts_every_compiled_method_interpretation(version, status):
+    """0.5 must be readable on exactly the same terms as 0.4."""
+    metadata = protocol.require_read_support(_GateConn(version), SCOPE, OID)
+    assert metadata['interpretation_status'] == status
+    assert metadata['contract_version'] == version
+
+
+@pytest.mark.parametrize('version', ('tkos.method/0.4', 'tkos.method/0.5'))
+def test_method_access_head_reads_a_0_5_bound_object(monkeypatch, version):
+    """Through the real read path: head_access, then the real require_read_support."""
+    conn, ctx = _readable(monkeypatch, _GateConn(version))
+    assert method_access.head(conn, ctx, OID)['object_id'] == OID
+
+
+def test_every_compiled_method_contract_is_readable():
+    """``require_read_support`` enumerates its accepted statuses by hand, so a newly
+    compiled contract silently drops out of it.  This ties the accepted set to
+    ``SUPPORTED_PROTOCOL_CONTRACTS`` instead of to a literal list.
+    """
+    method_versions = sorted(version for protocol_id, version in protocol.SUPPORTED_PROTOCOL_CONTRACTS
+                             if protocol_id == 'tkos.method')
+    assert 'tkos.method/0.5' in method_versions
+    for version in method_versions:
+        metadata = protocol.require_read_support(_GateConn(version), SCOPE, OID)
+        assert metadata['registration_status'] == 'registered', version
+        expected = 'method_v0_' + version.rsplit('.', 1)[-1]   # tkos.method/0.4 -> method_v0_4
+        assert metadata['interpretation_status'] == expected, version

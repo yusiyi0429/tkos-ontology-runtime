@@ -24,16 +24,19 @@ FORMAL_GOVERNANCE_VERSIONS = frozenset({"tkos.method/0.4", "tkos.method/0.5"})
 class MethodExecution(ActionExecution):
     @classmethod
     def handles_request(cls, conn, ctx, request):
+        from .method_v05_models import ACTION_PARAMS as V05_PARAMS
         from .method_v04_models import ACTION_PARAMS as V04_PARAMS
         from .method_v03_models import ACTION_PARAMS
         from .method_v02_models import ACTION_PARAMS as OLD_PARAMS
-        return (request.action_type in V04_PARAMS or request.action_type in ACTION_PARAMS
-                or request.action_type in OLD_PARAMS)
+        return (request.action_type in V05_PARAMS or request.action_type in V04_PARAMS
+                or request.action_type in ACTION_PARAMS or request.action_type in OLD_PARAMS)
 
     def authorize(self):
         from .method_models import registry
         self.contract_version = self.request.contract_version
         self.action_params, self.action_targets, self.payload_models = registry(self.contract_version)
+        if self.kind not in self.action_params:
+            fail("ACTION_NOT_SUPPORTED_FOR_PROTOCOL", "This action is not part of the declared Method contract.")
         self.params = self.action_params[self.kind].model_validate(self.params).model_dump(mode="json", exclude_none=True)
         self.required_assignments = set()
         self.method_assignment_specs = {}

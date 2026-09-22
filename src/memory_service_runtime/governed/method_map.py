@@ -38,7 +38,6 @@ DOCUMENTED_CONTRACTS = ("tkos.method/0.5", "tkos.method/0.4", "tkos.workspace/0.
 AVAILABILITY_MODES = ("none", "query")
 
 # States: enabled_in_scope | compiled_not_enabled_in_scope | documented_not_compiled
-METHOD_V04 = "tkos.method/0.4"
 WORKSPACE_V02 = "tkos.workspace/0.2"
 
 

@@ -169,10 +169,13 @@ def test_a_0_5_bound_object_accepts_a_0_5_only_action_through_the_same_gate():
     assert exc.value.code == 'PROTOCOL_BINDING_CONFLICT'
 
 
-def _dispatch(action, declared, target=True):
+def _dispatch(action, declared, target=None):
     """Build the real envelope and ask the real factory which execution claims it."""
     from memory_service_runtime.governed import service
+    from memory_service_runtime.governed.method_v05_models import ACTION_TARGETS as V05_TARGETS
     from memory_service_runtime.governed.models import ActionRequest
+    if target is None:
+        target = bool(V05_TARGETS[action])
     params = {'m1b_confirm_review': {'statement': 'Reviewed', 'findings': ['One']},
               'm1b_confirm_constraint': {'statement': 'Confirmed'},
               'm1b_revise_constraint': {'payload': {
@@ -202,28 +205,18 @@ def _raise(code):
 @pytest.mark.parametrize('action', ('m1b_revise_constraint', 'm1b_confirm_constraint', 'm1b_confirm_review'))
 @pytest.mark.parametrize('code', ('NOT_FOUND', 'FORBIDDEN'))
 def test_authorization_resolves_before_any_protocol_error_is_revealed(action, code, monkeypatch):
-    """An invisible (404) or unauthorized (403) caller never reaches the protocol fence.
+    """A correctly declared 0.5 action aimed at an object the caller cannot read.
 
-    Both rungs are pinned, so naming a 0.5-only action can never be used to
-    probe whether a 0.4-bound object exists.
+    ``method_access.head`` resolves existence and the domain read right — it raises
+    NOT_FOUND for a missing object and FORBIDDEN through ``db.authorize_domain(...,
+    'read')`` for an invisible one (method_access.py:184-189) — and MethodExecution
+    calls it before ``protocol.gate_target_action`` (method_service.py:45-48).  So
+    naming a 0.5-only action can never probe whether a 0.4-bound object exists.
     """
-    from memory_service_runtime.governed import service as core
-    execution = _dispatch(action, 'tkos.method/0.4')
+    execution = _dispatch(action, 'tkos.method/0.5')   # passes the membership guard
     gate_calls = []
-    monkeypatch.setattr(protocol, 'gate_target_action',
-                        lambda *a, **k: gate_calls.append(a) or 'tkos.method/0.4')
-    if code == 'NOT_FOUND':
-        monkeypatch.setattr(method_access, 'head', _raise('NOT_FOUND'))
-        monkeypatch.setattr(core.db, 'object_row', _raise('NOT_FOUND'))
-    else:
-        head = {'object_id': OID, 'object_type': 'PeriodReview', 'domain_id': DOMAIN,
-                'latest_revision_id': execution.request.target.revision_id, 'object_version': 1}
-        monkeypatch.setattr(method_access, 'head', lambda *a, **k: dict(head))
-        monkeypatch.setattr(core.db, 'object_row', lambda *a, **k: dict(head))
-        monkeypatch.setattr(core.db, 'revision_row', lambda *a, **k: {
-            'object_id': OID, 'revision_id': execution.request.target.revision_id,
-            'payload_hash': 'a' * 64, 'payload': {}})
-        monkeypatch.setattr(core.db, 'authorize_domain', _raise('FORBIDDEN'))
+    monkeypatch.setattr(protocol, 'gate_target_action', lambda *a, **k: gate_calls.append(a))
+    monkeypatch.setattr(method_access, 'head', _raise(code))
     execution.ctx = SimpleNamespace(scope_id=SCOPE, principal_id=str(uuid4()),
                                     principal_type='human', assignments=[])
     with pytest.raises(GovernedError) as exc:
@@ -233,29 +226,99 @@ def test_authorization_resolves_before_any_protocol_error_is_revealed(action, co
 
 
 @pytest.mark.parametrize('action', ('m1b_revise_constraint', 'm1b_confirm_constraint', 'm1b_confirm_review'))
-def test_a_visible_0_4_object_reaches_the_protocol_fence_and_is_refused(action, monkeypatch):
-    """With the object visible and the domain authorized, the fence is the refusal."""
-    from memory_service_runtime.governed import service as core
-    execution = _dispatch(action, 'tkos.method/0.4')
+def test_a_readable_0_4_bound_object_is_refused_at_the_real_protocol_fence(action, monkeypatch):
+    """End to end through MethodExecution: the object is readable, so the fence runs —
+    and the 0.4 binding refuses the 0.5 declaration."""
+    execution = _dispatch(action, 'tkos.method/0.5')
     head = {'object_id': OID, 'object_type': 'PeriodReview', 'domain_id': DOMAIN,
             'latest_revision_id': execution.request.target.revision_id, 'object_version': 1}
-    gate = _GateConn('tkos.method/0.4')
-    execution.conn = gate
+    execution.conn = _GateConn('tkos.method/0.4')
     execution.ctx = SimpleNamespace(scope_id=SCOPE, principal_id=str(uuid4()),
                                     principal_type='human', assignments=[])
-    monkeypatch.setattr(core.db, 'object_row', lambda *a, **k: dict(head))
-    monkeypatch.setattr(core.db, 'revision_row', lambda *a, **k: {
+    monkeypatch.setattr(method_access, 'head', lambda *a, **k: dict(head))
+    monkeypatch.setattr(method_access, 'revision', lambda *a, **k: {
         'object_id': OID, 'revision_id': execution.request.target.revision_id,
         'payload_hash': 'a' * 64, 'payload': {}})
-    monkeypatch.setattr(core.db, 'authorize_domain',
-                        lambda *a, **k: [{'assignment_id': str(uuid4()), 'role': 'CEO',
-                                          'domain_id': DOMAIN, 'principal_id': str(uuid4())}])
     with pytest.raises(GovernedError) as exc:
-        execution.authorize()
-    assert exc.value.code == 'ACTION_NOT_SUPPORTED_FOR_PROTOCOL'
+        execution.authorize()      # real protocol.gate_target_action against a 0.4 binding
+    assert exc.value.code == 'PROTOCOL_BINDING_CONFLICT'
 
 
 def test_a_targetless_0_5_action_is_refused_by_the_0_4_envelope_itself():
     """m1b_record_constraint has no target, which no 0.4 envelope rule permits."""
     with pytest.raises(ValueError):
         _dispatch('m1b_record_constraint', 'tkos.method/0.4', target=False)
+
+
+# ----------------------------- routing: 0.5-only actions reach the 0.5 executor
+#
+# ``handles_request`` claims a request by action NAME only.  Until it learned
+# 0.5's table the four 0.5-only names fell through to the legacy execution, so
+# the 0.5 executor was unreachable even under a correct 0.5 declaration.  The
+# guard below is what makes claiming them safe: the declared version's registry
+# is the one that must contain the action.
+
+OLDER_DECLARATIONS = ('tkos.method/0.1', 'tkos.method/0.2', 'tkos.method/0.3', 'tkos.method/0.4')
+
+
+@pytest.mark.parametrize('action', V05_ONLY_ACTIONS)
+def test_a_0_5_only_action_under_a_0_5_declaration_reaches_the_method_executor(action):
+    from memory_service_runtime.governed.method_service import MethodExecution
+    assert isinstance(_dispatch(action, 'tkos.method/0.5'), MethodExecution)
+
+
+@pytest.mark.parametrize('action', ('m1b_revise_constraint', 'm1b_confirm_constraint', 'm1b_confirm_review'))
+def test_a_0_5_declared_action_reaches_the_protocol_fence_with_its_own_version(action, monkeypatch):
+    """The declared version is handed to the fence unchanged, after the object is read."""
+    execution = _dispatch(action, 'tkos.method/0.5')
+    head = {'object_id': OID, 'object_type': 'PeriodReview', 'domain_id': DOMAIN,
+            'latest_revision_id': execution.request.target.revision_id, 'object_version': 1}
+    monkeypatch.setattr(method_access, 'head', lambda *a, **k: dict(head))
+    monkeypatch.setattr(method_access, 'revision', lambda *a, **k: {
+        'object_id': OID, 'revision_id': execution.request.target.revision_id,
+        'payload_hash': 'a' * 64, 'payload': {}})
+    gate_calls = []
+    monkeypatch.setattr(protocol, 'gate_target_action',
+                        lambda *a, **k: gate_calls.append(a) or (_ for _ in ()).throw(
+                            GovernedError('PROTOCOL_BINDING_CONFLICT')))
+    execution.ctx = SimpleNamespace(scope_id=SCOPE, principal_id=str(uuid4()),
+                                    principal_type='human', assignments=[])
+    with pytest.raises(GovernedError) as exc:
+        execution.authorize()
+    assert exc.value.code == 'PROTOCOL_BINDING_CONFLICT'
+    assert [call[3:] for call in gate_calls] == [(action, 'tkos.method/0.5')]
+
+
+@pytest.mark.parametrize('action', ('m1b_revise_constraint', 'm1b_confirm_constraint', 'm1b_confirm_review'))
+@pytest.mark.parametrize('declared', OLDER_DECLARATIONS)
+def test_a_0_5_only_action_under_an_older_declaration_is_refused_not_a_crash(action, declared, monkeypatch):
+    """The action must belong to the registry of the version the caller declared.
+
+    Without the membership guard this is a bare ``KeyError`` out of
+    ``self.action_params[self.kind]`` — an unhandled 500 — rather than a
+    governed refusal.  Nothing about any object is read to decide it.
+    """
+    execution = _dispatch(action, declared)
+    probes = []
+    monkeypatch.setattr(method_access, 'head', lambda *a, **k: probes.append('head'))
+    monkeypatch.setattr(protocol, 'gate_target_action', lambda *a, **k: probes.append('gate'))
+    with pytest.raises(GovernedError) as exc:
+        execution.authorize()
+    assert exc.value.code == 'ACTION_NOT_SUPPORTED_FOR_PROTOCOL'
+    assert probes == []
+
+
+def test_no_method_action_name_of_any_version_falls_through_to_the_legacy_execution():
+    """Routing is by action NAME; the declared version is enforced later by the guard.
+
+    A name no version-aware execution claims lands on the legacy ActionExecution,
+    which is how the four 0.5-only names were unreachable before.
+    """
+    from memory_service_runtime.governed.method_service import MethodExecution
+    from memory_service_runtime.governed.method_models import registry
+    for version in (*OLDER_DECLARATIONS, 'tkos.method/0.5'):
+        params, _targets, _payloads = registry(version)
+        assert params, version
+        for kind in params:
+            assert MethodExecution.handles_request(
+                None, None, SimpleNamespace(action_type=kind)), (version, kind)

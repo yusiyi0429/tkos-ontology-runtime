@@ -613,6 +613,107 @@ def test_scope_constraint_basis_is_checked_server_side_not_through_the_callers_g
     assert exc.value.code == 'STALE_DEPENDENCY'  # and that version must still be the effective one
 
 
+class _TablesConn:
+    """Fake connection serving in-memory rows for exactly the queries that the real
+    head_access -> constraint_grants -> constraint_assignment_static path issues.  No Python
+    function is faked; any other query fails loudly, so the test cannot drift from the real path."""
+
+    row_factory = None
+
+    def __init__(self, *, objects, revisions, principals, assignments, policies):
+        self.objects, self.revisions, self.principals = objects, revisions, principals
+        self.assignments, self.policies = assignments, policies
+
+    def execute(self, sql, params=()):
+        rows = self._rows(' '.join(sql.split()), [str(value) for value in params])
+        return SimpleNamespace(fetchone=lambda: rows[0] if rows else None, fetchall=lambda: rows)
+
+    def _rows(self, s, p):
+        if 'gov_workspace_v02_assets' in s:
+            return []
+        if s.startswith('SELECT active FROM gov_principals'):
+            return [{'active': True}] if p[1] in self.principals else []
+        if 'JOIN gov_principals p' in s:                               # method_access.assignment
+            return [{**a, 'principal_type': self.principals[a['principal_id']]}
+                    for a in self.assignments if a['assignment_id'] == p[1]]
+        if 'FROM gov_role_assignments' in s:
+            if 'ORDER BY domain_id, role, assignment_id' in s:          # db._assignments
+                return [a for a in self.assignments if a['principal_id'] == p[1]]
+            if "principal_id=%s AND role='CEO'" in s:                   # company-kind resolver
+                return [a for a in self.assignments if a['principal_id'] == p[1] and a['role'] == 'CEO']
+            if "domain_id=%s AND role='DOMAIN_DRI'" in s:               # Scope DRI resolution
+                return [a for a in self.assignments if a['domain_id'] == p[1] and a['role'] == 'DOMAIN_DRI']
+            if s == 'SELECT assignment_id FROM gov_role_assignments WHERE scope_id=%s AND principal_id=%s':
+                return [a for a in self.assignments if a['principal_id'] == p[1]]
+        if 'FROM gov_activation_policies' in s:
+            return [{'policy_revision_id': str(uuid4()), 'content': self.policies[p[1]]}] if p[1] in self.policies else []
+        if any(marker in s for marker in ("'ReviewWindow'", "'StrategicIssue'", "'OperatingProblem'",
+                                          "'OperatingState'", "o.object_type='Mission'", "IN ('LTCO','PCO','Mission')")):
+            return []                   # no windows, issues, problems, states, Missions or effective results here
+        if 'FROM gov_object_protocol_bindings' in s:
+            return ([{'object_id': p[1], 'binding_version': 1, 'protocol_id': 'tkos.method',
+                      'contract_version': 'tkos.method/0.5'}] if p[1] in self.objects else [])
+        if "o.object_type='StrategicArchitecture'" in s:
+            return [o for o in self.objects.values() if o['object_type'] == 'StrategicArchitecture']
+        if s.startswith('SELECT * FROM gov_object_revisions WHERE scope_id=%s AND object_id=%s AND revision_id=%s'):
+            return [self.revisions[(p[1], p[2])]] if (p[1], p[2]) in self.revisions else []
+        if s.startswith('SELECT revision_id, payload FROM gov_object_revisions'):
+            return [row for (oid, _rid), row in self.revisions.items() if oid == p[1]]
+        if s.startswith('SELECT * FROM gov_objects WHERE scope_id=%s AND object_id=%s'):
+            return [self.objects[p[1]]] if p[1] in self.objects else []
+        raise AssertionError('query outside the head_access -> constraint_grants path: ' + s)
+
+
+def test_a_company_constraint_grants_no_read_to_a_ceo_of_another_domain(monkeypatch):
+    """The Constraint read grant exists only for the scope/mission confirmers, who hold no read on
+    the company domain.  A company Constraint's confirmer is the CEO of the Constraint's own domain,
+    who reads it through that domain.  Resolving company revisions through the scoped fallback
+    accepted the caller's first current CEO appointment in *any* domain, so a CEO appointed only
+    elsewhere (e.g. after losing the company appointment) read every company Constraint.  Driven
+    through the real head_access, constraint_grants and resolver; only SQL rows are fake."""
+    scope, company, auth_a, elsewhere = (str(uuid4()) for _ in range(4))
+    ceo_elsewhere, dri_a = str(uuid4()), str(uuid4())
+    arch, arch_r, company_c, company_r, scope_c, scope_r = (str(uuid4()) for _ in range(6))
+
+    def head(oid, kind, rid):
+        return {'object_id': oid, 'object_type': kind, 'domain_id': company,
+                'latest_revision_id': rid, 'effective_revision_id': rid}
+
+    def revision(oid, rid, payload):
+        return {'object_id': oid, 'revision_id': rid, 'payload_hash': 'a' * 64, 'payload': payload}
+
+    def appointment(principal, domain, role):
+        return {'assignment_id': str(uuid4()), 'scope_id': scope, 'principal_id': principal, 'domain_id': domain,
+                'role': role, 'active': True, 'valid_from': '2026-01-01T00:00:00+00:00', 'valid_to': None}
+
+    architecture_ref = {'object_id': arch, 'revision_id': arch_r, 'payload_hash': 'a' * 64}
+    conn = _TablesConn(
+        objects={arch: head(arch, 'StrategicArchitecture', arch_r), company_c: head(company_c, 'Constraint', company_r),
+                 scope_c: head(scope_c, 'Constraint', scope_r)},
+        revisions={(arch, arch_r): revision(arch, arch_r, {'battlefields': [], 'domains': [
+                       {'unit_id': 'scope-a', 'auth_domain_id': auth_a, 'current_dri_principal_id': dri_a}]}),
+                   (company_c, company_r): revision(company_c, company_r, {
+                       'applies_to': {'kind': 'company'}, 'evidence_refs': []}),
+                   (scope_c, scope_r): revision(scope_c, scope_r, {
+                       'applies_to': {'kind': 'scope', 'scope_id': 'scope-a'}, 'architecture_ref': architecture_ref,
+                       'evidence_refs': []})},
+        principals={ceo_elsewhere: 'human', dri_a: 'human'},
+        assignments=[appointment(ceo_elsewhere, elsewhere, 'CEO'), appointment(dri_a, auth_a, 'DOMAIN_DRI')],
+        policies={company: {'action_roles': {'read': ['CEO', 'DOMAIN_DRI', 'CO_AGENT']}}})
+
+    def ctx(principal_id):
+        return SimpleNamespace(scope_id=scope, principal_id=principal_id, principal_type='human', assignments=[])
+
+    with pytest.raises(GovernedError) as exc:   # a current CEO elsewhere, no read on the company domain
+        method_access.head_access(conn, ctx(ceo_elsewhere), company_c)
+    assert exc.value.code == 'NOT_FOUND'
+    # The skip is kind-specific: the scope Constraint still grants exactly its resolved Scope DRI ...
+    assert method_access.head_access(conn, ctx(dri_a), scope_c) == (conn.objects[scope_c], {scope_r})
+    with pytest.raises(GovernedError) as exc:   # ... and nobody else.
+        method_access.head_access(conn, ctx(ceo_elsewhere), scope_c)
+    assert exc.value.code == 'NOT_FOUND'
+
+
 class _HeadsConn:
     """Serves the server-side resolver's head lookups by object_id; nothing else is queried."""
 

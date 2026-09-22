@@ -275,7 +275,8 @@ def head_access(conn, ctx, object_id):
 def constraint_grants(conn, ctx, head):
     """0.5 Constraint：确认 / 修订它的范围责任人（scope → 该 Scope 映射授权域的 DRI，mission → 该
     Mission 主 Scope 的 DRI）只持有授权域任职，读不到公司域；按每个确切版本、用 scoped 授权回退同一个
-    服务端解析授予该版本本身——不含其来源，不是域授权。"""
+    服务端解析授予该版本本身——不含其来源，不是域授权。company 版本不授予：其确认人是该 Constraint 所在
+    域的 CEO，本就经该域读取；而回退解析接受调用者在任意域的 CEO 任职，会让别域的 CEO 读到它。"""
     binding = protocol.current_binding(conn, ctx.scope_id, str(head["object_id"]))
     if binding is None or binding["contract_version"] != "tkos.method/0.5":
         return set()
@@ -284,6 +285,8 @@ def constraint_grants(conn, ctx, head):
     rows = conn.execute("SELECT revision_id, payload FROM gov_object_revisions WHERE scope_id=%s AND object_id=%s",
                         (ctx.scope_id, head["object_id"])).fetchall()
     for row in db.jsonable(rows):
+        if row["payload"]["applies_to"]["kind"] == "company":
+            continue
         try:
             method_v05.constraint_assignment_static(conn, ctx, row["payload"])
         except GovernedError:

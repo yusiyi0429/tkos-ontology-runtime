@@ -180,6 +180,20 @@ def _collect_ltco_draft(e):
     _check_constraint_refs(e, payload["constraint_refs"], scope_id=payload["primary_scope_id"])
 
 
+def _collect_revise_ltco(e):
+    """与 0.4 的修订校验逐条相同，只把阶段放宽到 draft | confirmed。
+
+    §3 的 `revised`（对象已有正式版本，本次确认新草稿）要求能修订已确认的 LTCO；0.4 的
+    修订只收 draft，而 0.4/0.5 没有任何动作把已确认 LTCO 挪回 draft，沿用它会让 `revised`
+    永远不可达。修订产生新草稿版本，生效版本在 CEO 以 `revised` 确认前保持不变。
+    """
+    _agent(e, "CEO_AGENT")
+    _phase(e.state(e.target), "draft", "confirmed")
+    payload = e.params["payload"]
+    v4._ltco_check(e, payload)
+    _check_constraint_refs(e, payload["constraint_refs"], scope_id=payload["primary_scope_id"])
+
+
 def _collect_confirm_ltco(e):
     state = e.state(e.target)
     _phase(state, "draft", "confirmed")
@@ -236,7 +250,7 @@ def _run_confirm_ltco(e):
             "review_record_id": record}
 
 
-COLLECTORS.update({"m1b_propose_ltco": _collect_ltco_draft, "m1b_revise_ltco": _collect_ltco_draft,
+COLLECTORS.update({"m1b_propose_ltco": _collect_ltco_draft, "m1b_revise_ltco": _collect_revise_ltco,
                    "m1b_confirm_ltco": _collect_confirm_ltco})
 RUNNERS.update({"m1b_propose_ltco": _run_propose_ltco, "m1b_revise_ltco": _run_revise_ltco,
                 "m1b_confirm_ltco": _run_confirm_ltco})
@@ -604,7 +618,8 @@ def _collect_propose_state(e):
         head, revision = e.ref(reference, types={"OperatingState"}, effective=True, current=False)
         if not _same(e.state(head).get("canonical_ref"), reference):
             fail("Drill-down references must cite canonical States.", "STALE_DEPENDENCY")
-        if _same(revision["payload"]["subject_ref"], payload["subject_ref"]):
+        # 主体身份是对象（§6、v4._state_key），不是确切版本：同一主体较早版本的 State 也不能下钻。
+        if str(revision["payload"]["subject_ref"]["object_id"]) == str(payload["subject_ref"]["object_id"]):
             fail("A State cannot drill down into its own subject.", "INVALID_REQUEST")
     previous = e.params.get("previous_state_ref")
     if previous:

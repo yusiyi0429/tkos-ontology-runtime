@@ -1,6 +1,7 @@
 """0.5 delegates unchanged actions to the frozen 0.4 executor; light reads follow the caller's version (no DB)."""
 from __future__ import annotations
 
+from copy import deepcopy
 from types import SimpleNamespace
 from uuid import uuid4
 
@@ -831,6 +832,160 @@ def test_revise_ltco_state_carries_last_review_but_drops_everything_else():
     assert _revise_case({'phase': 'confirmed', 'confirmation_record_id': 'r1'}) == {'phase': 'draft'}
 
 
+# ------------------------------- C1: revising a confirmed 0.5 LTCO (§3 `revised`)
+#
+# 契约 §3：`revised` =「对象已有正式版本，本次确认新草稿」。冻结的 0.4 revise 收集器只接受
+# draft，0.4/0.5 也没有任何动作把已确认 LTCO 挪回 draft，所以在 0.5 有自己的 revise 收集器
+# 之前，确认收集器的 `revised` 分支不可达（上面的结论测试是直接造出"有生效版本的草稿"）。
+# 下面走真实 MethodExecution 的角色校验，并把真实 runner 产生的状态串起来：
+# 已确认 → CEO_AGENT 修订 → 带生效版本的草稿 → CEO 以 `revised` 确认。
+
+
+class _LtcoConn:
+    """只回放这两个收集器经真实 MethodExecution 发出的查询：方法状态、本人任职、当前 CEO。"""
+
+    def __init__(self, *, states, principals, assignments):
+        self.states, self.principals, self.assignments = states, principals, assignments
+
+    def execute(self, sql, params=()):
+        s, p = ' '.join(sql.split()), [str(value) for value in params]
+        if s.startswith('SELECT state FROM gov_method_state'):
+            rows = [{'state': deepcopy(self.states[p[1]])}] if p[1] in self.states else []
+        elif s.startswith('SELECT assignment_id,role,domain_id FROM gov_role_assignments'):   # validate_principal
+            rows = [a for a in self.assignments if a['principal_id'] == p[1]]
+        elif 'JOIN gov_principals p' in s:                                                     # method_access.assignment
+            rows = [{**a, 'principal_type': self.principals[a['principal_id']]}
+                    for a in self.assignments if a['assignment_id'] == p[1]]
+        elif "domain_id=%s AND role='CEO'" in s:                                               # _current_ceo
+            rows = [a for a in self.assignments if a['domain_id'] == p[1] and a['role'] == 'CEO']
+        else:
+            raise AssertionError('query outside the LTCO revise/confirm collectors: ' + s)
+        return SimpleNamespace(fetchone=lambda: rows[0] if rows else None, fetchall=lambda: rows)
+
+
+def _ltco_payload(**updates):
+    return {'title': 'Scope A long-term result', 'primary_scope_id': 'scope-a',
+            'period': {'start': '2026-10-01T00:00:00Z', 'end': '2027-03-31T00:00:00Z'},
+            'architecture_ref': ref(), 'strategy_ref': ref(), 'result_statement': 'Scope A doubles repeat revenue.',
+            'criteria': ['Repeat revenue is evidenced'], 'boundary': 'No execution authority.',
+            'horizon': 'Rolling six months from now', 'why': 'The scope needs an explicit long-term result.',
+            'baseline_refs': [ref()], 'realization_logic': 'Two sequenced shifts.',
+            'key_assumptions': ['Demand holds'], 'constraint_refs': [], **updates}
+
+
+def _ltco_execution(kind, params, *, conn, scope_id, principal, principal_type, head, revision):
+    """真实 MethodExecution（真实信封校验与角色校验），只替换连接与认证上下文。"""
+    from memory_service_runtime.governed import service
+    from memory_service_runtime.governed.models import ActionRequest
+    body = {'action_type': kind, 'contract_version': 'tkos.method/0.5', 'expected_versions': [],
+            'idempotency_key': 'c1-revise-confirmed-ltco', 'reason': 'Revise a confirmed LTCO',
+            'params': params,
+            'target': {'object_id': head['object_id'], 'revision_id': revision['revision_id'],
+                       'expected_version': head['object_version']}}
+    e = service._execution_factory(None, None, ActionRequest.model_validate(body))
+    assert isinstance(e, method_service.MethodExecution)
+    e.conn = conn
+    e.ctx = SimpleNamespace(scope_id=scope_id, principal_id=principal, principal_type=principal_type,
+                            assignments=[])
+    # authorize() 在真实链路里设置的字段（它的协议闸门与域授权另有测试）。
+    e.contract_version = 'tkos.method/0.5'
+    e.params = method_v05.ACTION_PARAMS[kind].model_validate(params).model_dump(mode='json', exclude_none=True)
+    e.target, e.target_revision, e.domain_id = dict(head), revision, head['domain_id']
+    e.method_scoped_domain = None
+    e.required_assignments, e.method_assignment_specs = set(), {}
+    return e
+
+
+def test_a_confirmed_ltco_is_revised_by_the_ceo_agent_and_then_confirmed_as_revised(monkeypatch):
+    scope_id, company = str(uuid4()), str(uuid4())
+    ceo, ceo_agent, co_agent = str(uuid4()), str(uuid4()), str(uuid4())
+
+    def appointment(principal, role):
+        return {'assignment_id': str(uuid4()), 'scope_id': scope_id, 'principal_id': principal,
+                'domain_id': company, 'role': role, 'active': True}
+
+    oid, r1, r2 = str(uuid4()), str(uuid4()), str(uuid4())
+    v1 = _ltco_payload()
+    v2 = _ltco_payload(result_statement='Scope A triples repeat revenue.',
+                       architecture_ref=v1['architecture_ref'], strategy_ref=v1['strategy_ref'],
+                       baseline_refs=v1['baseline_refs'])
+    head = {'object_id': oid, 'object_type': 'LTCO', 'domain_id': company, 'object_version': 3,
+            'lifecycle_status': 'confirmed', 'latest_revision_id': r1, 'effective_revision_id': r1,
+            'processing_cycle_id': None}
+    revision_1 = {'object_id': oid, 'revision_id': r1, 'payload_hash': 'a' * 64, 'payload': v1}
+    established = {'conclusion': 'established', 'record_id': 'record-established'}
+    conn = _LtcoConn(states={oid: {'phase': 'confirmed', 'confirmation_record_id': 'record-established',
+                                   'last_review': established}},
+                     principals={ceo: 'human', ceo_agent: 'agent', co_agent: 'agent'},
+                     assignments=[appointment(ceo, 'CEO'), appointment(ceo_agent, 'CEO_AGENT'),
+                                  appointment(co_agent, 'CO_AGENT')])
+    checked = []
+    monkeypatch.setattr(method_v04, '_ltco_check', lambda e, payload: checked.append(('basis', payload['title'])))
+    monkeypatch.setattr(method_v05, '_check_constraint_refs',
+                        lambda e, refs, *, scope_id, mission_ref=None: checked.append(('constraints', scope_id)))
+
+    def execution(kind, params, principal, principal_type, target_head=head, target_revision=revision_1):
+        return _ltco_execution(kind, params, conn=conn, scope_id=scope_id, principal=principal,
+                               principal_type=principal_type, head=target_head, revision=target_revision)
+
+    revise = {'payload': v2, 'response': 'Raised the result after the period review.'}
+    # 0.5 的修订收集器是它自己的，不再借用只收 draft 的 0.4 收集器；提议仍走原收集器。
+    assert method_v05.COLLECTORS['m1b_revise_ltco'] is not method_v05._collect_ltco_draft
+    assert method_v05.COLLECTORS['m1b_propose_ltco'] is method_v05._collect_ltco_draft
+    # 只有 CEO_AGENT 能修订：CO_AGENT 与人类 CEO 都被拒绝。
+    for principal, principal_type in ((co_agent, 'agent'), (ceo, 'human')):
+        with pytest.raises(GovernedError) as exc:
+            method_v05.collect(execution('m1b_revise_ltco', revise, principal, principal_type))
+        assert exc.value.code == 'FORBIDDEN', principal_type
+    # 阶段只放宽到 draft | confirmed。
+    conn.states[oid]['phase'] = 'reopened'
+    with pytest.raises(GovernedError) as exc:
+        method_v05.collect(execution('m1b_revise_ltco', revise, ceo_agent, 'agent'))
+    assert exc.value.code == 'INVALID_STATE'
+    conn.states[oid]['phase'] = 'confirmed'
+
+    e = execution('m1b_revise_ltco', revise, ceo_agent, 'agent')
+    checked.clear()
+    method_v05.collect(e)       # 已确认、已有正式版本的 LTCO 现在可以修订
+    assert checked == [('basis', v2['title']), ('constraints', 'scope-a')]
+
+    # runner：新草稿版本，不动生效指针，state 回 draft 并保留 last_review。
+    revised_head = {**head, 'object_version': 4, 'latest_revision_id': r2}
+    revision_2 = {'object_id': oid, 'revision_id': r2, 'payload_hash': 'b' * 64, 'payload': v2}
+    writes = {}
+
+    def fake_revise(target, payload, status=None, effective=False):
+        writes['revise'] = (target['object_id'], payload['result_statement'], status, effective)
+        return revised_head, revision_2
+    def fake_review(kind, target_ref, content):
+        writes['review'] = (kind, target_ref['revision_id'])
+        return 'record-response'
+    e.revise, e.review = fake_revise, fake_review
+    e.set_state = lambda target, value: conn.states.__setitem__(target['object_id'], deepcopy(value))
+    result = method_v05.RUNNERS['m1b_revise_ltco'](e)
+    assert writes['revise'] == (oid, 'Scope A triples repeat revenue.', None, False)
+    assert writes['review'] == ('ltco_revision_response', r2)
+    assert conn.states[oid] == {'phase': 'draft', 'last_review': established}
+    assert result['phase'] == 'draft' and result['revision_id'] == r2
+
+    # 这正是 §3 `revised` 所指的状态（有正式版本 + 新草稿）：CEO 只能以 `revised` 确认它。
+    for conclusion in ('maintained', 'established'):
+        with pytest.raises(GovernedError) as exc:
+            method_v05.collect(execution('m1b_confirm_ltco', {'conclusion': conclusion, 'statement': 'CEO review'},
+                                         ceo, 'human', revised_head, revision_2))
+        assert exc.value.code == 'INVALID_REQUEST', conclusion
+    confirm = execution('m1b_confirm_ltco', {'conclusion': 'revised', 'statement': 'CEO review'},
+                        ceo, 'human', revised_head, revision_2)
+    method_v05.collect(confirm)
+    transitions = []
+    confirm.review = lambda kind, target_ref, content: 'record-revised'
+    confirm.set_state = lambda target, value: conn.states.__setitem__(target['object_id'], deepcopy(value))
+    confirm.transition = lambda target, status=None, effective=False: transitions.append((status, effective))
+    assert method_v05.RUNNERS['m1b_confirm_ltco'](confirm)['conclusion'] == 'revised'
+    assert transitions == [('confirmed', True)]     # 新版本成为正式版本
+    assert conn.states[oid]['last_review'] == {'conclusion': 'revised', 'record_id': 'record-revised'}
+
+
 # ------------------------------------------------------ Period Review / PCO
 
 
@@ -1290,6 +1445,29 @@ def test_drilldown_refs_must_be_canonical_states_of_other_subjects(monkeypatch):
     assert exc.value.code == 'INVALID_REQUEST'
     assert 'method_propose_state' in method_v05.COLLECTORS and 'method_propose_state' in method_v05.RUNNERS
     assert 'method_confirm_state' not in method_v05.COLLECTORS
+
+
+def test_drilldown_same_subject_is_the_subject_object_not_its_exact_version(monkeypatch):
+    """m1：§6「不能引用与自身同主体的状态」与 v4._state_key 都以主体对象身份为准。LTCO 能重新定版
+    （C1）之后，关于同一主体较早版本的 State 不能因为 revision / hash 不同而被当作另一主体下钻进来。"""
+    monkeypatch.setattr(method_v04, '_collect_propose_state', lambda e: None)
+    subject = ref()
+    lower_id, lower_rid = str(uuid4()), str(uuid4())
+    lower_ref = {'object_id': lower_id, 'revision_id': lower_rid, 'payload_hash': 'a' * 64}
+    lower_head = {'object_id': lower_id, 'object_type': 'OperatingState'}
+    earlier_version_of_subject = {**subject, 'revision_id': str(uuid4()), 'payload_hash': 'b' * 64}
+    lower_revision = {'object_id': lower_id, 'revision_id': lower_rid, 'payload_hash': 'a' * 64,
+                      'payload': {'subject_ref': earlier_version_of_subject}}
+    e = _fake_execution(refs={lower_id: (lower_head, lower_revision)}, states={lower_id: {'canonical_ref': lower_ref}})
+    e.conn = _RowsConn([])
+    e.params = {'payload': {'subject_ref': subject, 'as_of': '2026-10-31T00:00:00Z',
+                            'period': {'start': '2026-10-01T00:00:00Z', 'end': '2026-10-31T00:00:00Z'},
+                            'drilldown_refs': [lower_ref]}}
+    with pytest.raises(GovernedError) as exc:
+        method_v05._collect_propose_state(e)
+    assert exc.value.code == 'INVALID_REQUEST'
+    lower_revision['payload']['subject_ref'] = ref()      # a genuinely different subject still drills down
+    method_v05._collect_propose_state(e)
 
 
 def test_regenerate_must_preserve_the_state_identity_and_period(monkeypatch):

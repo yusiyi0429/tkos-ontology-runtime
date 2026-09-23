@@ -11,6 +11,7 @@ from copy import deepcopy
 import json
 from pathlib import Path
 
+from acceptance.method_independent.flow import exact
 from acceptance.method_independent.harness import MethodHarness
 from acceptance.method_v04.run import _change, candidate_refs
 from acceptance.protocol_a1_independent.support import public_json, source_manifest
@@ -239,6 +240,34 @@ def happy_path(h, f, flow):
           <= {b['object_type'] for b in bindings})
     check('no_execution_or_acceptance_side_effects',
           not flow.rows('gov_execution_authorities') and not flow.rows('gov_work_receipts'))
+
+    # ------------------------------------------ LTCO 修订（契约 §3 `revised`）
+    # 放在主链末尾，前面各项检查的预期不受影响。修订待确认期间，以该 LTCO 为依据的新 PCO / State
+    # 暂停、引用它的待定候选集合失效——这是闸门 1「只重开受影响责任域」的预期效果。
+    effective_before = flow.object(ltco_a['object_id'])
+    revised_payload = {**effective_before['latest_revision']['payload'],
+                       'result_statement': 'Long-term result for scope-a, raised after the confirmed period review.'}
+    revision = exact(flow.act('ceo_agent', 'm1b_revise_ltco', {
+        'payload': revised_payload, 'response': 'Raised the long-term result after the confirmed review.'},
+        oid=ltco_a['object_id'])['result'])
+    pending = flow.object(ltco_a['object_id'])
+    check('confirmed_ltco_revises_into_a_new_draft_keeping_its_effective_version',
+          revision['revision_id'] != ltco_a['revision_id']
+          and pending['latest_revision_id'] == revision['revision_id']
+          and pending['effective_revision_id'] == ltco_a['revision_id']
+          and pending['method_state']['phase'] == 'draft'
+          and pending['method_state']['last_review']['conclusion'] == 'maintained')
+    revised = flow.confirm_ltco(revision, conclusion='revised')
+    confirmed_revision = flow.object(ltco_a['object_id'])
+    check('revised_conclusion_makes_the_new_ltco_version_effective',
+          revised['conclusion'] == 'revised'
+          and confirmed_revision['effective_revision_id'] == revision['revision_id']
+          and confirmed_revision['method_state']['phase'] == 'confirmed'
+          and confirmed_revision['method_state']['last_review']['conclusion'] == 'revised')
+    conf = flow.confirmations(ltco_a['object_id'])
+    check('confirmations_projection_lists_the_three_ltco_conclusions_in_order',
+          [item['content']['conclusion'] for item in conf['items'] if item['kind'] == 'ltco_confirmation']
+          == ['established', 'maintained', 'revised'])
     return {'checks': checks}
 
 

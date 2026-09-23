@@ -1,5 +1,7 @@
 # M0 本体对齐 · R1 前置增量（tkos.method/0.5）实施计划
 
+> **已被取代（2026-09-23 补注）：** 本计划未实施。实际交付的 `tkos.method/0.5` 是 [`2026-09-22-method-05-ontology-v07.md`](2026-09-22-method-05-ontology-v07.md)（本体 v0.7 对齐，契约 [`docs/contracts/tkos-method-0.5.md`](../../contracts/tkos-method-0.5.md)），内容与本文不同；本文里的 `tkos.method/0.5`（议题主 Scope、Scope 级 State、证据锚点）不是已实现的 0.5。正文保持原样，只作历史记录。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 在不改动 0.1–0.4 任何既有语义的前提下，交付 `tkos.method/0.5` 增量与配套读取面，使 Runtime 能回答《TKOS 本体图结构梳理 v0.1》（M0）的八个能力问题中当前答不了的三个（战场健康、按战场列议题、证据出生即归框），并把 M0 的关系表变成服务端可查询的注册表，供治理工作台与 Clark 共用。

@@ -502,16 +502,23 @@ def test_period_review_never_becomes_human_approved():
 
 
 class StateConn:
-    """只响应 gov_method_state / gov_method_strategy_heads 的最小连接。"""
+    """只响应 gov_method_state / gov_method_strategy_heads / 当前协议绑定的最小连接。
 
-    def __init__(self, states=None, strategy_head=None):
+    ``bindings`` 缺省为空：对象未登记绑定（不是 0.5），投影走 0.1-0.4 的原分支。
+    """
+
+    def __init__(self, states=None, strategy_head=None, bindings=None):
         self.states = states or {}
         self.strategy_head = strategy_head
+        self.bindings = bindings or {}
 
     def execute(self, sql, params=()):
         if "SELECT state FROM gov_method_state" in sql:
             state = self.states.get(str(params[1]))
             return Result([{"state": state}] if state is not None else [])
+        if "FROM gov_object_protocol_bindings" in sql:          # protocol.current_binding
+            version = self.bindings.get(str(params[1]))
+            return Result([{"contract_version": version}] if version else [])
         if "FROM gov_method_strategy_heads" in sql and "h.recorded_at" not in sql:
             if "SELECT object_id, revision_id FROM gov_method_strategy_heads" in sql:
                 if not self.strategy_head:
@@ -1798,3 +1805,115 @@ def test_downstream_sql_searches_research_chain_fields():
     for kind in ("StrategicIssue", "ResearchPlan", "ResearchReport", "MeetingMinutes",
                  "StrategicAgreement", "CandidateSet", "ReviewWindow", "PotentialIssue"):
         assert kind in params, kind
+
+
+# --------------------------------------------------------------------------
+# 0.5 formal state: CEO-confirmed review, confirmed Constraint, canonical State
+# --------------------------------------------------------------------------
+#
+# 0.5 的三类对象不再是 0.4 的形状：复盘经 CEO 确认才生效（§4），Constraint 经范围确认人
+# 确认才生效（§2），State 生成即正式且没有人工确认（§6）。0.1-0.4 的投影必须逐字节不变，
+# 所以每个 0.5 用例旁边都有一个按精确 dict 比对的 0.4 回归。
+
+V04, V05 = "tkos.method/0.4", "tkos.method/0.5"
+
+
+def test_confirmation_kinds_only_add_the_two_0_5_human_confirmations():
+    assert dashboard.CONFIRMATION_REVIEW_KINDS - {"review_confirmation", "constraint_confirmation"} == frozenset({
+        "strategy_update_confirmation", "ltco_confirmation", "candidate_set_confirmation",
+        "architecture_confirmation", "state_confirmation", "problem_closure",
+        "strategic_agreement_confirmation", "meeting_minutes_confirmation",
+        "strategic_issue_confirmation", "brief_sufficiency",
+        "candidate_set_activation", "agreement_confirmation", "agreement_formalized"})
+    assert {"review_confirmation", "constraint_confirmation"} <= dashboard.CONFIRMATION_REVIEW_KINDS
+
+
+def test_v05_ceo_confirmed_period_review_is_formal_and_human_approved():
+    oid, generated, confirmed = uid(350), uid(351), uid(352)
+    conn = StateConn({oid: {"phase": "confirmed", "agent_generation_ref": _ref(oid, generated)}},
+                     bindings={oid: V05})
+    head_value = head(oid, "PeriodReview", latest=confirmed, effective=confirmed)
+    record = _confirmation(kind="review_confirmation", target=oid, target_revision=confirmed)
+    formal = dashboard._formal_state(conn, CTX, head_value, revision(oid, confirmed, {"title": "Review"}), [record])
+    assert formal["status"] == "confirmed" and formal["formal"] is True and formal["human_approved"] is True
+    assert formal["authority"] == "m1b_confirm_review"
+    assert formal["applies_to_ref"]["revision_id"] == confirmed and formal["confirmation_record_id"] == "rec-1"
+    # The Agent-drafted generation the CEO rewrote stays Agent analysis, exactly as before.
+    agent_draft = dashboard._formal_state(conn, CTX, head_value, revision(oid, generated, {"title": "Review"}),
+                                          [_confirmation(kind="review_confirmation", covers=False)])
+    assert agent_draft == {"status": "recorded", "formal": False, "authority": "agent_analysis",
+                           "human_approved": False, "applies_to_ref": None, "effective_pointer": None,
+                           "lifecycle_status": "active"}
+
+
+def test_v05_generated_period_review_is_still_agent_analysis():
+    oid, rid = uid(355), uid(356)
+    conn = StateConn({oid: {"phase": "generated"}}, bindings={oid: V05})
+    assert dashboard._formal_state(conn, CTX, head(oid, "PeriodReview", latest=rid, effective=None),
+                                   revision(oid, rid, {"title": "Review"}), []) == {
+        "status": "recorded", "formal": False, "authority": "agent_analysis", "human_approved": False,
+        "applies_to_ref": None, "effective_pointer": None, "lifecycle_status": "active"}
+
+
+def test_v04_period_review_projection_is_unchanged():
+    oid, rid = uid(360), uid(361)
+    conn = StateConn({oid: {"phase": "generated"}}, bindings={oid: V04})
+    expected = {"status": "recorded", "formal": False, "authority": "agent_analysis", "human_approved": False,
+                "applies_to_ref": None, "effective_pointer": {"object_id": oid, "revision_id": rid},
+                "lifecycle_status": "active"}
+    head_value = head(oid, "PeriodReview", latest=rid, effective=rid)
+    assert dashboard._formal_state(conn, CTX, head_value, revision(oid, rid, {"title": "Review"}), []) == expected
+    # Version-aware: the 0.5 projection needs the 0.5 binding, not just a record of that kind.
+    assert dashboard._formal_state(conn, CTX, head_value, revision(oid, rid, {"title": "Review"}),
+                                   [_confirmation(kind="review_confirmation", target=oid,
+                                                  target_revision=rid)]) == expected
+
+
+def test_v05_confirmed_constraint_is_formal_and_human_approved_and_its_new_draft_is_not():
+    oid, confirmed, draft = uid(370), uid(371), uid(372)
+    conn = StateConn({oid: {"phase": "draft", "confirmation_record_id": "rec-1"}}, bindings={oid: V05})
+    head_value = head(oid, "Constraint", latest=draft, effective=confirmed)   # a revision is pending
+    record = _confirmation(kind="constraint_confirmation", target=oid, target_revision=confirmed)
+    formal = dashboard._formal_state(conn, CTX, head_value, revision(oid, confirmed, {"title": "Cash"}), [record])
+    assert formal["status"] == "confirmed" and formal["formal"] is True and formal["human_approved"] is True
+    assert formal["authority"] == "m1b_confirm_constraint"
+    assert formal["applies_to_ref"]["revision_id"] == confirmed and formal["confirmation_record_id"] == "rec-1"
+    pending = dashboard._formal_state(conn, CTX, head_value, revision(oid, draft, {"title": "Cash v2"}),
+                                      [_confirmation(kind="constraint_confirmation", covers=False)])
+    assert pending["status"] == "draft" and pending["formal"] is False and pending["human_approved"] is False
+    assert pending["applies_to_ref"] is None
+
+
+def test_v05_canonical_state_is_formal_on_generation_and_never_human_approved():
+    oid, older, rid = uid(380), uid(381), uid(382)
+    canonical = _ref(oid, rid)
+    conn = StateConn({oid: {"phase": "recorded", "canonical_ref": canonical, "recommendation_ref": canonical,
+                            "generated_by": uid(1001)}}, bindings={oid: V05})
+    head_value = head(oid, "OperatingState", latest=rid, effective=rid)
+    formal = dashboard._formal_state(conn, CTX, head_value, revision(oid, rid, {"rag": "unknown"}), [])
+    assert formal["status"] == "recorded" and formal["formal"] is True and formal["human_approved"] is False
+    assert formal["authority"] == "method_propose_state"          # 0.5 has no method_confirm_state
+    assert formal["applies_to_ref"] == canonical and formal["canonical_ref"] == canonical
+    assert formal["confirmed_by"] is None
+    superseded = dashboard._formal_state(conn, CTX, head_value, revision(oid, older, {"rag": "green"}), [])
+    assert superseded["status"] == "historical" and superseded["formal"] is False
+    assert superseded["human_approved"] is False and superseded["authority"] == "method_propose_state"
+    assert superseded["applies_to_ref"] is None
+
+
+def test_v04_state_projection_is_unchanged():
+    oid, rid, newer = uid(390), uid(391), uid(392)
+    canonical, recommendation = _ref(oid, rid), _ref(oid, newer)
+    conn = StateConn({oid: {"phase": "proposed", "canonical_ref": canonical,
+                            "recommendation_ref": recommendation, "confirmed_by": uid(1001)}},
+                     bindings={oid: V04})
+    head_value = head(oid, "OperatingState", latest=newer, effective=rid)
+    record = _confirmation(kind="state_confirmation", target=oid, target_revision=rid)
+    assert dashboard._formal_state(conn, CTX, head_value, revision(oid, rid, {"rag": "green"}), [record]) == {
+        "status": "confirmed", "formal": True, "authority": "method_confirm_state",
+        "applies_to_ref": canonical, "canonical_ref": canonical, "recommendation_ref": recommendation,
+        "confirmed_by": uid(1001), "content_confirmation": record, "lifecycle_status": "active"}
+    assert dashboard._formal_state(conn, CTX, head_value, revision(oid, newer, {"rag": "red"}), []) == {
+        "status": "recommendation", "formal": False, "authority": "method_confirm_state",
+        "applies_to_ref": None, "canonical_ref": canonical, "recommendation_ref": recommendation,
+        "confirmed_by": None, "content_confirmation": None, "lifecycle_status": "active"}

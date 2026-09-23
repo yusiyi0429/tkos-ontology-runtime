@@ -13,6 +13,13 @@ router = APIRouter(prefix='/v1/governance', tags=['governance-workbench'])
 METHOD_TASK_TYPES = ('StrategicIssue', 'StrategicAgreement', 'StrategyUpdateProposal',
                      'LTCO', 'PCO', 'Mission', 'ReviewWindow', 'CandidateSet',
                      'OperatingState', 'OperatingProblem')
+# 0.5 新增的两个人工门（CEO 确认复盘、按范围确认 Constraint）所在的类型。只有当前绑定为
+# tkos.method/0.5 的对象才进入任务扫描：0.4 也有 PeriodReview（Agent 分析，没有人工门），
+# 不按绑定过滤会占用 0.4 scope 的扫描窗口。
+V05_TASK_TYPES = ('PeriodReview', 'Constraint')
+# 计划 D7：0.5 的 Constraint 登记 / 修订走 API 或 Agent，不做浏览器表单——工作台不提供，
+# 会话门面也不接受。
+V05_API_ONLY_ACTIONS = frozenset({'m1b_record_constraint', 'm1b_revise_constraint'})
 
 HUMAN_ACTIONS = {
     'm1b_comment': '发表意见', 'm1b_withdraw_comment': '撤回本人意见',
@@ -42,8 +49,6 @@ HUMAN_ACTION_LABELS = {
     'method_confirm_state': '确认正式经营状态',
     'm1b_confirm_review': '确认周期复盘（CEO）',
     'm1b_confirm_constraint': '确认经营约束（按范围）',
-    'm1b_record_constraint': '登记经营约束',
-    'm1b_revise_constraint': '修订经营约束',
     'method_open_problem': '登记经营问题',
     'method_revise_problem': '修订经营问题',
     'method_close_problem': '关闭经营问题',
@@ -64,8 +69,6 @@ FORMAL_EFFECT = {
     'method_confirm_state': 'canonical_operating_state',
     'm1b_confirm_review': 'confirmed_period_review',
     'm1b_confirm_constraint': 'effective_constraint',
-    'm1b_record_constraint': 'constraint_draft',
-    'm1b_revise_constraint': 'constraint_draft',
     'method_open_problem': 'tracked_problem',
     'method_revise_problem': 'tracked_problem',
     'method_close_problem': 'problem_disposition',
@@ -80,7 +83,7 @@ CEO_ONLY_ACTIONS = frozenset({
 SCOPED_HUMAN_ACTIONS = frozenset({
     'm1a_confirm_agreement', 'm1b_comment', 'm1b_replace_comment', 'm1b_withdraw_comment',
     'm1b_commit_candidate', 'method_confirm_state',
-    'm1b_confirm_constraint', 'm1b_revise_constraint',
+    'm1b_confirm_constraint',
     'method_revise_problem', 'method_close_problem',
 })
 # Conservative phase gates per action, from the implemented 0.4 validators.  The
@@ -98,7 +101,6 @@ PHASE_RULES = {
     'method_confirm_state': {'proposed'},
     'm1b_confirm_review': {'generated'},
     'm1b_confirm_constraint': {'draft'},
-    'm1b_revise_constraint': {'draft', 'confirmed'},
     'method_revise_problem': {'open'}, 'method_close_problem': {'open'},
     'method_open_problem': {'confirmed'},
 }
@@ -106,8 +108,11 @@ PHASE_RULES = {
 # conclusion='maintained', so its offer admits 'confirmed' too; 0.4 has no such
 # conclusion and its core still gates draft (method_v04.py's m1b_confirm_ltco
 # collector), so 0.1-0.4 read semantics stay exactly as they were.
+# 0.5 的 State 生成即正式，阶段是 recorded（没有 confirmed）；§6 的争议路径
+# method_open_problem 因此在 0.5 按 recorded 开放，0.4 仍只对已确认的状态开放。
 VERSION_PHASE_RULES = {
-    'tkos.method/0.5': {'m1b_confirm_ltco': {'draft', 'confirmed'}},
+    'tkos.method/0.5': {'m1b_confirm_ltco': {'draft', 'confirmed'},
+                        'method_open_problem': {'recorded'}},
 }
 
 
@@ -347,7 +352,7 @@ def scenes(conn, ctx, window_id):
 def human_actions_for(version):
     if version == 'tkos.method/0.5':
         from .method_v05_models import HUMAN_ACTIONS as v05
-        return v05
+        return v05 - V05_API_ONLY_ACTIONS
     from .method_v04_models import HUMAN_ACTIONS as v04
     return v04
 
@@ -418,12 +423,21 @@ def actions(conn, ctx, object_id):
 
 
 def method_tasks(conn, ctx, after=None, limit=25):
-    """0.4 objects where this human identity is offered an allowlisted action."""
+    """0.4 / 0.5 objects where this human identity is offered an allowlisted action."""
+    # V05_TASK_TYPES 只按对象当前绑定（与 protocol.current_binding 同一排序）为 0.5 时入选，
+    # 所以 0.4 scope 的扫描行集与只扫 METHOD_TASK_TYPES 时逐行相同。
     rows = conn.execute(
-        """SELECT object_id FROM gov_objects
-           WHERE scope_id=%s AND object_type=ANY(%s) AND (%s::uuid IS NULL OR object_id>%s::uuid)
-           ORDER BY object_id LIMIT %s""",
-        (ctx.scope_id, list(METHOD_TASK_TYPES), after, after, limit * 3)).fetchall()
+        """SELECT o.object_id FROM gov_objects o
+           WHERE o.scope_id=%s AND (%s::uuid IS NULL OR o.object_id>%s::uuid)
+             AND (o.object_type=ANY(%s)
+                  OR (o.object_type=ANY(%s)
+                      AND (SELECT b.contract_version FROM gov_object_protocol_bindings b
+                            WHERE b.scope_id=o.scope_id AND b.object_id=o.object_id
+                            ORDER BY b.binding_version DESC, b.recorded_at DESC, b.binding_id DESC
+                            LIMIT 1) = %s))
+           ORDER BY o.object_id LIMIT %s""",
+        (ctx.scope_id, after, after, list(METHOD_TASK_TYPES), list(V05_TASK_TYPES), 'tkos.method/0.5',
+         limit * 3)).fetchall()
     items = []
     for row in rows:
         try:
@@ -498,10 +512,12 @@ def tasks(conn, ctx, after=None, limit=25):
         obj = value['object']
         monthly = value['monthly']
         if obj['protocol']['contract_version'] in {'tkos.method/0.4', 'tkos.method/0.5'}:
+            # 标签写对象自己的规则版本（'tkos.method/0.4' -> '0.4 人工确认事项'）。
+            version = obj['protocol']['contract_version'].rsplit('/', 1)[-1]
             items.append({'object_id': obj['object_id'],
                           'title': obj['latest_revision']['payload'].get('title', obj['object_type']),
                           'phase': obj['method_state'].get('phase', 'unknown'),
-                          'label': '0.4 人工确认事项', 'contract_version': obj['protocol']['contract_version'],
+                          'label': f'{version} 人工确认事项', 'contract_version': obj['protocol']['contract_version'],
                           'actions': [item for item in value['actions'] if item['allowed']]})
             if len(items) > limit:
                 break

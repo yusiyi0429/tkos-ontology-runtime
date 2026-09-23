@@ -12,7 +12,7 @@ from datetime import datetime
 from . import db, method_access as access, method_v04 as v4, protocol
 from .errors import GovernedError
 from .method_v04 import _agent, _current_ceo, _exact, _human_ceo, _phase, _same, _scope_definition, _source_refs
-from .method_v05_models import ACTION_PARAMS, HUMAN_ACTIONS
+from .method_v05_models import ACTION_PARAMS
 
 CONTRACT_VERSION = "tkos.method/0.5"
 COLLECTORS: dict = {}   # kind -> collect(e)
@@ -505,8 +505,10 @@ def _activation_findings(reader, conn, ctx, payload, required, candidate_ref):
         try:
             v4._mission_owner(reader, revision["payload"])
         except GovernedError:
+            # 重开只会冻结同一候选，再次收拢仍按同一 Owner 校验（FORBIDDEN）；唯一出路是恢复其任职。
             findings.append(("INVALID_STATE",
-                             "A candidate Mission's Owner is no longer a current principal; reopen and resolve again.",
+                             "A candidate Mission's Owner is no longer a current principal; "
+                             "restore the Owner's appointment before activation.",
                              "mission_owner_invalid"))
     rows = conn.execute(
         """SELECT responsibility_object_id, responsibility_revision_id, principal_id, assignment_id

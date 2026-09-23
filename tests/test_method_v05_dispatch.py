@@ -777,6 +777,115 @@ def test_mission_constraint_confirmer_is_resolved_server_side_not_through_the_ca
     assert e._v04['constraint_owner'] == mission_dri
 
 
+class _RecordPathConn(_TablesConn):
+    """_TablesConn 加上 m1b_record_constraint 在 authorize → collect → create 上还会发出的查询：
+    MethodExecution 的本人任职查询与创建时的四条写入（对象、修订、事件、方法状态）。"""
+
+    def __init__(self, **tables):
+        super().__init__(**tables)
+        self.created, self.method_states = {}, {}
+
+    def execute(self, sql, params=()):
+        s = ' '.join(sql.split())
+        if s.startswith('INSERT INTO gov_objects'):
+            scope_id, object_id, domain_id, object_type, status = params
+            self.created[object_id] = {'scope_id': scope_id, 'object_id': object_id, 'domain_id': domain_id,
+                                       'object_type': object_type, 'lifecycle_status': status, 'object_version': 1,
+                                       'latest_revision_id': None, 'effective_revision_id': None,
+                                       'processing_cycle_id': None}
+            row = dict(self.created[object_id])
+        elif s.startswith('INSERT INTO gov_object_revisions'):
+            revision_id, _scope_id, object_id, version, payload, digest = params[:6]
+            row = {'revision_id': revision_id, 'object_id': object_id, 'object_version': version,
+                   'payload': payload.obj, 'payload_hash': digest}
+        elif s.startswith('UPDATE gov_objects SET latest_revision_id'):
+            latest, effective, _scope_id, object_id = params
+            self.created[object_id].update(latest_revision_id=latest, effective_revision_id=effective)
+            row = dict(self.created[object_id])
+        elif s.startswith('INSERT INTO gov_lifecycle_events'):
+            row = None
+        elif s.startswith('INSERT INTO gov_method_state'):
+            self.method_states[str(params[1])] = params[2].obj
+            row = None
+        else:
+            return super().execute(sql, params)
+        return SimpleNamespace(fetchone=lambda: row, fetchall=lambda: [row] if row else [])
+
+    def _rows(self, s, p):
+        if s.startswith('SELECT assignment_id,role,domain_id FROM gov_role_assignments'):   # MethodExecution.validate_principal
+            return [a for a in self.assignments if a['principal_id'] == p[1]]
+        return super()._rows(s, p)
+
+
+def test_a_scope_dri_without_a_company_role_records_its_own_scope_constraint_through_the_fallback(monkeypatch):
+    """I4：company 域的策略不给 Scope DRI 登记权（它只在映射授权域任职）。authorize 的 0.5 回退
+    （method_service.py：m1b_record_constraint 分支）把调用人解析为该 Scope 的当前 DRI，在其
+    授权域重新判权；create() 因此跳过对象自身（company）域的判权，收集器再按责任人本人复核。
+    Constraint 落在调用人选的 domain_id（与 0.4 State 同一模式，0.5 不约束）。同一授权域里的 IC
+    即使该域策略允许此动作也被拒绝：回退只认解析出的 DRI 本人。只替换了 SQL 行与协议登记两个函数。"""
+    from memory_service_runtime.governed import service
+    from memory_service_runtime.governed.models import ActionRequest
+    scope, company, auth_a = (str(uuid4()) for _ in range(3))
+    dri_a, ic_a = str(uuid4()), str(uuid4())
+    arch, arch_r = str(uuid4()), str(uuid4())
+
+    def appointment(principal, domain, role):
+        return {'assignment_id': str(uuid4()), 'scope_id': scope, 'principal_id': principal, 'domain_id': domain,
+                'role': role, 'active': True, 'valid_from': '2026-01-01T00:00:00+00:00', 'valid_to': None}
+
+    conn = _RecordPathConn(
+        objects={arch: {'object_id': arch, 'object_type': 'StrategicArchitecture', 'domain_id': company,
+                        'latest_revision_id': arch_r, 'effective_revision_id': arch_r}},
+        revisions={(arch, arch_r): {'object_id': arch, 'revision_id': arch_r, 'payload_hash': 'a' * 64,
+                                    'payload': {'battlefields': [], 'domains': [
+                                        {'unit_id': 'scope-a', 'auth_domain_id': auth_a,
+                                         'current_dri_principal_id': dri_a}]}}},
+        principals={dri_a: 'human', ic_a: 'human'},
+        assignments=[appointment(dri_a, auth_a, 'DOMAIN_DRI'), appointment(ic_a, auth_a, 'IC')],
+        policies={company: {'action_roles': {'m1b_record_constraint': ['CEO', 'CO_AGENT']}},
+                  auth_a: {'action_roles': {'m1b_record_constraint': ['DOMAIN_DRI', 'IC']}}})
+    fields = {'protocol_id': 'tkos.method', 'contract_version': 'tkos.method/0.5'}
+    bindings = []
+    monkeypatch.setattr(protocol, 'resolve_creation', lambda *a, **k: dict(fields))
+    monkeypatch.setattr(protocol, 'insert_binding',
+                        lambda conn, scope_id, object_id, values, **k: bindings.append((object_id, values)))
+
+    def execution(principal, applies_to, architecture_ref):
+        payload = {'title': 'Two engineers only', 'applies_to': applies_to, 'architecture_ref': architecture_ref,
+                   'statement': 'Only two engineers are available this period.', 'constraint_type': 'people',
+                   'effective': {'start': '2026-10-01T00:00:00Z', 'end': '2026-10-31T00:00:00Z'},
+                   'source': 'Headcount plan', 'authority': 'Scope DRI', 'severity': 'hard', 'evidence_refs': []}
+        request = ActionRequest.model_validate({
+            'action_type': 'm1b_record_constraint', 'contract_version': 'tkos.method/0.5', 'target': None,
+            'expected_versions': [], 'idempotency_key': 'i4-record-constraint-fallback',
+            'reason': 'Scope DRI records its own constraint',
+            'params': {'domain_id': company, 'payload': {k: v for k, v in payload.items() if v is not None}}})
+        e = service._execution_factory(None, None, request)
+        e.conn = conn
+        e.ctx = SimpleNamespace(scope_id=scope, principal_id=principal, principal_type='human', assignments=[])
+        return e
+
+    architecture_ref = {'object_id': arch, 'revision_id': arch_r, 'payload_hash': 'a' * 64}
+    scope_a = {'kind': 'scope', 'scope_id': 'scope-a'}
+    e = execution(dri_a, scope_a, architecture_ref)
+    e.authorize()
+    assert e.domain_id == company and e.method_scoped_domain == auth_a
+    e.collect_dependencies()
+    assert e._v04['constraint_owner'] == dri_a
+    result = e.run_action()
+    created = conn.created[result['object_id']]
+    assert result['phase'] == 'draft' and conn.method_states[result['object_id']] == {'phase': 'draft'}
+    assert created['object_type'] == 'Constraint' and created['domain_id'] == company   # caller-chosen domain
+    assert bindings == [(result['object_id'], fields)]
+
+    for principal, applies_to, ref_ in ((ic_a, scope_a, architecture_ref),            # an IC of the same scope
+                                        (dri_a, {'kind': 'company'}, None)):          # the DRI is not the CEO
+        with pytest.raises(GovernedError) as exc:
+            execution(principal, applies_to, ref_).authorize()
+        assert exc.value.code == 'FORBIDDEN', (principal == ic_a, applies_to)
+    assert len(conn.created) == 1
+
+
 def _ltco_target(phase, effective):
     oid, rid = str(uuid4()), str(uuid4())
     head = {'object_id': oid, 'object_type': 'LTCO', 'domain_id': str(uuid4()),
@@ -1382,6 +1491,8 @@ def test_activate_candidates_and_blockers_agree_when_a_missions_owner_is_invalid
     with pytest.raises(GovernedError) as exc:
         method_v05._collect_activate_candidates(e)
     assert exc.value.code == 'INVALID_STATE'
+    # m2：唯一出路是恢复 Owner 的任职。重开只会冻结同一候选，再次收拢仍按同一 Owner 校验并拒绝。
+    assert "restore the Owner's appointment" in exc.value.message and 'reopen' not in exc.value.message
 
     # projection half: the same underlying scenario, through activation_blockers
     context = _fake_execution(refs=fx.refs, states=fx.states)

@@ -13,7 +13,7 @@ import uuid
 from pydantic import ValidationError
 
 from memory_service_runtime.governed import db, method_access, method_readers, service, workspace_service, dashboard
-from memory_service_runtime.governed.governance import HUMAN_ACTIONS
+from memory_service_runtime.governed.governance import HUMAN_ACTIONS, V05_API_ONLY_ACTIONS
 from memory_service_runtime.governed.models import ActionRequest
 from memory_service_runtime.governed.workspace_models import WorkspaceCommand
 from memory_service_runtime.governed.errors import GovernedError
@@ -31,6 +31,14 @@ V02_HUMAN_EVENTS = frozenset({
 def v04_human_actions():
     from memory_service_runtime.governed.method_v04_models import HUMAN_ACTIONS as v04
     return v04
+
+
+def human_actions_for(version):
+    if version == 'tkos.method/0.5':
+        from memory_service_runtime.governed.method_v05_models import HUMAN_ACTIONS as v05
+        # 计划 D7：Constraint 登记 / 修订不走浏览器会话（与工作台投影同一排除清单）。
+        return v05 - V05_API_ONLY_ACTIONS
+    return v04_human_actions()
 
 
 def root():
@@ -112,8 +120,8 @@ def parse(body):
     if version == 'tkos.method/0.3':
         if action not in HUMAN_ACTIONS:
             raise GovernedError('FORBIDDEN')
-    elif version == 'tkos.method/0.4':
-        if action not in v04_human_actions():
+    elif version in {'tkos.method/0.4', 'tkos.method/0.5'}:
+        if action not in human_actions_for(version):
             raise GovernedError('FORBIDDEN')
     else:
         raise GovernedError('FORBIDDEN')

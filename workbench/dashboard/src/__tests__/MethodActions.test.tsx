@@ -142,12 +142,36 @@ it("shows a blocked activation with the concrete missing reason and no submit pa
                 object_type: "PCO", title: "周期结果", payload: {} }],
     commitments: [], actions: [blocked] })])
   await screen.findByTestId("method-task-o1")
-  expect(screen.getByTestId("method-blocked-m1b_activate_candidates")).toHaveTextContent("尚缺具名 DRI/Owner 本人承诺")
+  expect(screen.getByTestId("method-blocked-m1b_activate_candidates")).toHaveTextContent("尚缺具名承诺人本人承诺（0.5 只需各责任域 DRI）")
   const button = screen.getByTestId("method-action-o1-m1b_activate_candidates")
   expect(button).toBeDisabled()
   fireEvent.click(button)
   expect(prepare).not.toHaveBeenCalled()
   expect(screen.getByTestId("method-content-o1")).toHaveTextContent("关键未决分歧")
+})
+
+it("reworded missing_commitment names the 0.5 remedy without implying Owners must commit", async () => {
+  const blocked = action({ action_type: "m1b_activate_candidates", label: "整组激活候选集合",
+                            allowed: false, reason: "missing_commitment" })
+  setup([defaultTask({ object_type: "CandidateSet", phase: "pending",
+    payload: { title: "候选", summary: "整组说明", unresolved_differences: [] },
+    members: [], commitments: [], actions: [blocked] })])
+  await screen.findByTestId("method-task-o1")
+  const reason = screen.getByTestId("method-blocked-m1b_activate_candidates")
+  expect(reason).toHaveTextContent("尚缺具名承诺人本人承诺（0.5 只需各责任域 DRI）")
+  expect(reason).not.toHaveTextContent("DRI/Owner")
+})
+
+it("shows the mission_owner_invalid blocker naming the appointment-restore remedy", async () => {
+  const blocked = action({ action_type: "m1b_activate_candidates", label: "整组激活候选集合",
+                            allowed: false, reason: "mission_owner_invalid" })
+  setup([defaultTask({ object_type: "CandidateSet", phase: "pending",
+    payload: { title: "候选", summary: "整组说明", unresolved_differences: [] },
+    members: [], commitments: [], actions: [blocked] })])
+  await screen.findByTestId("method-task-o1")
+  expect(screen.getByTestId("method-blocked-m1b_activate_candidates"))
+    .toHaveTextContent("候选 Mission 的 Owner 已不是在任人员，需先恢复其任职")
+  expect(screen.getByTestId("method-action-o1-m1b_activate_candidates")).toBeDisabled()
 })
 
 it("derives an exact comment target from authorized options without hash inputs", async () => {
@@ -361,4 +385,13 @@ it("omits the target for a targetless problem open and keeps the exact state ref
                core_question: "为什么偏差?", statement: "偏差持续", why_material: "影响周期结果",
                level: "domain", responsible_assignment_id: "as1", evidence_refs: [] } })
   void task
+})
+
+it("builds 0.5 confirmation params: LTCO conclusion, review overrides and constraint statement", () => {
+  expect(paramsForMethodAction('m1b_confirm_ltco', { conclusion: 'maintained', statement: 'Still valid this period' }))
+    .toEqual({ conclusion: 'maintained', statement: 'Still valid this period' })
+  expect(paramsForMethodAction('m1b_confirm_review', { statement: 'Confirmed', findings: 'a\n\nb', learnings: '', implications: '' }))
+    .toEqual({ statement: 'Confirmed', findings: ['a', 'b'] })
+  expect(paramsForMethodAction('m1b_confirm_constraint', { statement: 'Scope DRI confirms' }))
+    .toEqual({ statement: 'Scope DRI confirms' })
 })

@@ -265,9 +265,34 @@ def head_access(conn, ctx, object_id):
             continue
         if str(result["object_id"]) == oid:
             allowed.add(str(result["effective_revision_id"]))
+    if head["object_type"] == "Constraint":
+        allowed |= constraint_grants(conn, ctx, head)
     if not allowed:
         raise GovernedError("NOT_FOUND")
     return head, allowed
+
+
+def constraint_grants(conn, ctx, head):
+    """0.5 Constraint：确认 / 修订它的范围责任人（scope → 该 Scope 映射授权域的 DRI，mission → 该
+    Mission 主 Scope 的 DRI）只持有授权域任职，读不到公司域；按每个确切版本、用 scoped 授权回退同一个
+    服务端解析授予该版本本身——不含其来源，不是域授权。company 版本不授予：其确认人是该 Constraint 所在
+    域的 CEO，本就经该域读取；而回退解析接受调用者在任意域的 CEO 任职，会让别域的 CEO 读到它。"""
+    binding = protocol.current_binding(conn, ctx.scope_id, str(head["object_id"]))
+    if binding is None or binding["contract_version"] != "tkos.method/0.5":
+        return set()
+    from . import method_v05
+    allowed = set()
+    rows = conn.execute("SELECT revision_id, payload FROM gov_object_revisions WHERE scope_id=%s AND object_id=%s",
+                        (ctx.scope_id, head["object_id"])).fetchall()
+    for row in db.jsonable(rows):
+        if row["payload"]["applies_to"]["kind"] == "company":
+            continue
+        try:
+            method_v05.constraint_assignment_static(conn, ctx, row["payload"])
+        except GovernedError:
+            continue
+        allowed.add(str(row["revision_id"]))
+    return allowed
 
 
 def head(conn, ctx, object_id):
@@ -346,7 +371,7 @@ def state_subject_assignment(conn, ctx, subject):
     if not head or head['object_type'] not in {'Mission','LTCO','PCO'} or not head['effective_revision_id']:
         raise GovernedError('FORBIDDEN')
     binding = protocol.current_binding(conn, ctx.scope_id, str(subject['object_id']))
-    if binding and binding['contract_version'] == 'tkos.method/0.4' and not subject.get('outcome_id'):
+    if binding and binding['contract_version'] in {'tkos.method/0.4', 'tkos.method/0.5'} and not subject.get('outcome_id'):
         return _v04_state_subject_assignment(conn, ctx, head, subject)
     revision = raw_revision(conn,ctx,subject['object_id'],str(head['effective_revision_id']))
     payload = revision['payload']
@@ -368,10 +393,10 @@ def state_subject_assignment(conn, ctx, subject):
 
 def anchor_participant(conn,ctx,head):
     binding = protocol.current_binding(conn,ctx.scope_id,head['object_id'])
-    if binding is None or binding['contract_version'] not in {'tkos.method/0.3','tkos.method/0.4'}:
+    if binding is None or binding['contract_version'] not in {'tkos.method/0.3','tkos.method/0.4','tkos.method/0.5'}:
         raise GovernedError('FORBIDDEN')
     payload=raw_revision(conn,ctx,head['object_id'],head['latest_revision_id'])['payload']
-    if binding['contract_version']=='tkos.method/0.4':
+    if binding['contract_version'] in {'tkos.method/0.4','tkos.method/0.5'}:
         if head['object_type']=='OperatingState':
             return state_subject_assignment(conn,ctx,payload['subject_ref'])
         if head['object_type']=='OperatingProblem':

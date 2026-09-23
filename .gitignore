@@ -23,3 +23,6 @@ node_modules/
 
 # Local browser acceptance traces may contain personal session data.
 .playwright-cli/
+
+# Subagent-driven-development scratch workspace (ledger, briefs, review packages).
+.superpowers/

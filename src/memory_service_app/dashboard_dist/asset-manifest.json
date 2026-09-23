@@ -31,7 +31,7 @@
     },
     {
       "path": "workbench/dashboard/src/MethodActions.tsx",
-      "sha256": "f5550f60a090e7d210fb26bf77c02d0c7c2b69c9f16ccae0a6be4df06661ce8c"
+      "sha256": "84f82b9fd02255752ca9f7d58a0da4bffa33a3fdbf41dfe8eb99e4f47c7ea8cc"
     },
     {
       "path": "workbench/dashboard/src/SourceScenes.tsx",
@@ -83,7 +83,7 @@
     },
     {
       "path": "workbench/dashboard/src/__tests__/MethodActions.test.tsx",
-      "sha256": "d289dfef1ef4cf276ae4d13e47ba005c5ce46d585fd9cd5e0dc6059b6b98da03"
+      "sha256": "85425844f610fb903b48707cf8317507903eba0d6ea29c581d37dca2e28ee43e"
     },
     {
       "path": "workbench/dashboard/src/__tests__/MethodMap.test.tsx",
@@ -127,7 +127,7 @@
     },
     {
       "path": "workbench/dashboard/src/__tests__/ontology-semantics.test.ts",
-      "sha256": "0273feb0bcded484f1eabbcdaa326fd1f83e111b5b3c245f1662f868cc2737eb"
+      "sha256": "20e11bbcf526bdb1ef59b61f0f1548a648f7f119529b45fbea7a0a45a0a29689"
     },
     {
       "path": "workbench/dashboard/src/__tests__/setup.ts",
@@ -263,7 +263,7 @@
     },
     {
       "path": "workbench/dashboard/src/lib/labels.ts",
-      "sha256": "3ed68f5b3ba9ae447b537cb0bbfff474cc695410669843bb1e4d297643361d5b"
+      "sha256": "f6305162bccce606873123fd5515d89c8e4bf893144e74294271a093a4291a97"
     },
     {
       "path": "workbench/dashboard/src/lib/live.ts",
@@ -275,7 +275,7 @@
     },
     {
       "path": "workbench/dashboard/src/lib/ontology.ts",
-      "sha256": "958a03351415a6bb5cc5d9cfb5b79cc9d9d528caf4c9d702f66913f698ed5b39"
+      "sha256": "fdcd323f136ad42cf1d92d5e353c2ef9446a7c510ac3a4c40d2e110de752a606"
     },
     {
       "path": "workbench/dashboard/src/lib/types.ts",
@@ -300,10 +300,6 @@
     {
       "path": "workbench/dashboard/vite.config.ts",
       "sha256": "c4288cb2d28c2d313302b1e4cb3174f550c192cf50a1d52b599f7e6ff9531fa0"
-    },
-    {
-      "path": "workbench/dashboard/vite.verify.config.ts",
-      "sha256": "f3e02a7de6fb724d833ef6973b5561dd9f8d037b436b083f6f6a50ed162840b0"
     }
   ],
   "outputs": [
@@ -338,14 +334,14 @@
       "sha256": "40060ba48dabe0ec4e4dc23063f2663d7570451399def9a2fe64066310792687"
     },
     {
-      "bytes": 640842,
-      "path": "assets/index-CmNoj22c.js",
-      "sha256": "df110d34ba03a53b29bb8adb7a72221cb72fba37a496a22289f6cbf437444c79"
+      "bytes": 648235,
+      "path": "assets/index-Dds18f2R.js",
+      "sha256": "7c9e87628c3dcfcb1c3cf1871039c7f3bf8bd39407560df591ae28c87b38a3fe"
     },
     {
       "bytes": 479,
       "path": "index.html",
-      "sha256": "1486f01c79c177d8ccd51c4515198f5bf218ee01cc405f012a2ea6d4051a8fdd"
+      "sha256": "ed16074363fbfa9eed67330fb59c5e5aab9c81a7282c171ea696401487c53d22"
     }
   ],
   "schema_version": "tkos.dashboard-assets/1"

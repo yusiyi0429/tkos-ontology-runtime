@@ -105,7 +105,8 @@ def _architecture_payload(e, reference):
     # Internal responsibility derivation reads the exact basis server-side: a
     # mapping never grants the caller domain role, but the DRI/Owner still needs
     # the responsibility fact to be resolved.  The write path keeps its own CAS.
-    head, revision = _LightExecution(e.conn, e.ctx).ref(reference, types={"StrategicArchitecture"})
+    light = _LightExecution(e.conn, e.ctx, getattr(e, "contract_version", "tkos.method/0.4"))
+    head, revision = light.ref(reference, types={"StrategicArchitecture"})
     return head, revision, revision["payload"]
 
 
@@ -202,7 +203,7 @@ V04_SCOPED_ACTIONS = frozenset({
 })
 
 
-def scoped_assignment(conn, ctx, kind, target, revision):
+def scoped_assignment(conn, ctx, kind, target, revision, contract_version="tkos.method/0.4"):
     """Resolve the caller's own responsibility for a scoped 0.4 action.
 
     Called only after normal domain authorization returned FORBIDDEN; the
@@ -219,7 +220,7 @@ def scoped_assignment(conn, ctx, kind, target, revision):
         return access.window_participant(conn, ctx, payload)
     if kind == "m1b_commit_candidate":
         for reference in payload["target_refs"]:
-            owner = _commitment_owner(conn, ctx, reference)
+            owner = _commitment_owner(conn, ctx, reference, contract_version)
             if owner is not None:
                 for row in db._assignments(conn, ctx):
                     if row["principal_id"] == owner:
@@ -230,7 +231,7 @@ def scoped_assignment(conn, ctx, kind, target, revision):
         raise GovernedError("FORBIDDEN")
     if kind == "method_confirm_state":
         subject = payload["subject_ref"]
-        owner = _state_subject_owner_static(conn, ctx, subject)
+        owner = _state_subject_owner_static(conn, ctx, subject, contract_version)
         for row in db._assignments(conn, ctx):
             if row["principal_id"] == owner:
                 try:
@@ -243,7 +244,7 @@ def scoped_assignment(conn, ctx, kind, target, revision):
     raise GovernedError("FORBIDDEN")
 
 
-def _commitment_owner(conn, ctx, reference):
+def _commitment_owner(conn, ctx, reference, contract_version="tkos.method/0.4"):
     """Required committer for one candidate target, using live appointments."""
     row = conn.execute("SELECT object_id FROM gov_objects WHERE scope_id=%s AND object_id=%s",
                        (ctx.scope_id, reference["object_id"])).fetchone()
@@ -252,7 +253,7 @@ def _commitment_owner(conn, ctx, reference):
     head = db.jsonable(conn.execute("SELECT * FROM gov_objects WHERE scope_id=%s AND object_id=%s",
                                     (ctx.scope_id, reference["object_id"])).fetchone())
     revision = access.raw_revision(conn, ctx, reference["object_id"], reference["revision_id"])
-    context = _LightExecution(conn, ctx)
+    context = _LightExecution(conn, ctx, contract_version)
     if head["object_type"] == "PCO":
         return _pco_dri(context, revision["payload"])[0]
     if head["object_type"] == "Mission":
@@ -260,14 +261,14 @@ def _commitment_owner(conn, ctx, reference):
     return None
 
 
-def _state_subject_owner_static(conn, ctx, subject):
+def _state_subject_owner_static(conn, ctx, subject, contract_version="tkos.method/0.4"):
     """Read-only responsibility lookup used only by the scoped-authorization fallback."""
     head = db.jsonable(conn.execute("SELECT * FROM gov_objects WHERE scope_id=%s AND object_id=%s",
                                     (ctx.scope_id, subject["object_id"])).fetchone())
     if head is None or not head.get("effective_revision_id"):
         raise GovernedError("FORBIDDEN")
     revision = access.raw_revision(conn, ctx, subject["object_id"], str(head["effective_revision_id"]))
-    context = _LightExecution(conn, ctx)
+    context = _LightExecution(conn, ctx, contract_version)
     if head["object_type"] == "LTCO":
         return _current_ceo(context, head["domain_id"])[0]
     if head["object_type"] == "PCO":
@@ -285,8 +286,9 @@ class _LightExecution:
     protocol object or a guessed revision.
     """
 
-    def __init__(self, conn, ctx):
+    def __init__(self, conn, ctx, contract_version="tkos.method/0.4"):
         self.conn, self.ctx = conn, ctx
+        self.contract_version = contract_version
         self.domain_id = None
         self.required_assignments = set()
         self.heads = {}
@@ -304,7 +306,7 @@ class _LightExecution:
         if types and head["object_type"] not in types:
             raise GovernedError("NOT_FOUND")
         binding = protocol.current_binding(self.conn, self.ctx.scope_id, reference["object_id"])
-        if binding is None or binding["contract_version"] != "tkos.method/0.4":
+        if binding is None or binding["contract_version"] != self.contract_version:
             raise GovernedError("PROTOCOL_BINDING_CONFLICT")
         if effective and str(head.get("effective_revision_id")) != str(revision["revision_id"]):
             raise GovernedError("STALE_DEPENDENCY")
@@ -323,7 +325,7 @@ class _LightExecution:
             if head is None:
                 raise GovernedError("NOT_FOUND")
             binding = protocol.current_binding(self.conn, self.ctx.scope_id, object_id)
-            if binding is None or binding["contract_version"] != "tkos.method/0.4":
+            if binding is None or binding["contract_version"] != self.contract_version:
                 raise GovernedError("PROTOCOL_BINDING_CONFLICT")
             self.heads[object_id] = head
         return self.heads[object_id]
@@ -912,7 +914,7 @@ def _candidate_basis_current(e, payload, *, lock=False):
     a company-domain read grant; ``lock=True`` additionally serializes against
     a concurrent formal Strategy update in the write handler.
     """
-    light = _LightExecution(e.conn, e.ctx)
+    light = _LightExecution(e.conn, e.ctx, getattr(e, "contract_version", "tkos.method/0.4"))
     strategy_head, _ = light.ref(payload["strategy_ref"], types={"Strategy"})
     head_row = e.conn.execute(
         "SELECT object_id, revision_id FROM gov_method_strategy_heads WHERE scope_id=%s",
@@ -1016,7 +1018,7 @@ def _collect_activate_candidates(e):
                             "window_revision": window_revision, "required": required}
 
 
-def activation_blockers(conn, ctx, obj):
+def activation_blockers(conn, ctx, obj, contract_version="tkos.method/0.4"):
     """Read-only blocker codes for m1b_activate_candidates, in priority order.
 
     Reuses the same basis / member / commitment validators as the write path so
@@ -1025,7 +1027,7 @@ def activation_blockers(conn, ctx, obj):
     """
     payload = (obj.get("latest_revision") or {}).get("payload") or {}
     candidate_revision_id = (obj.get("latest_revision") or {}).get("revision_id")
-    light = _LightExecution(conn, ctx)
+    light = _LightExecution(conn, ctx, contract_version)
     blockers = []
     try:
         _candidate_basis_current(light, payload)

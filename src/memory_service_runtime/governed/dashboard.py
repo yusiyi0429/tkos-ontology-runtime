@@ -67,12 +67,17 @@ BASES = ("current", "historical", "unattached", "all")
 # and records Agreement signer confirmations/formalization under
 # ``agreement_confirmation``/``agreement_formalized``; those kinds only exist in
 # the 0.4 registry, so naming them here cannot change any 0.1-0.3 projection.
+# ``tkos.method/0.5`` adds the CEO's Period Review confirmation
+# (``review_confirmation``) and the per-scope Constraint confirmation
+# (``constraint_confirmation``); only the 0.5 executor writes them, so they
+# cannot change any 0.1-0.4 projection either.
 CONFIRMATION_REVIEW_KINDS = frozenset({
     "strategy_update_confirmation", "ltco_confirmation", "candidate_set_confirmation",
     "architecture_confirmation", "state_confirmation", "problem_closure",
     "strategic_agreement_confirmation", "meeting_minutes_confirmation",
     "strategic_issue_confirmation", "brief_sufficiency",
     "candidate_set_activation", "agreement_confirmation", "agreement_formalized",
+    "review_confirmation", "constraint_confirmation",
 })
 
 # Reference errors that degrade to an explicit unavailable relationship.
@@ -87,10 +92,12 @@ DOWNSTREAM_FIELDS: dict[str, tuple[str, ...]] = {
     "Strategy": ("source_agreement_ref", "source_proposal_ref"),
     "StrategicArchitecture": ("strategy_ref", "source_agreement_ref", "source_proposal_ref"),
     "StrategicJudgment": ("strategy_ref", "source_agreement_ref", "source_proposal_ref"),
-    "LTCO": ("strategy_ref", "architecture_ref", "advice_ref", "baseline_refs"),
-    "PCO": ("strategy_ref", "ltco_ref", "parent_ltco_ref", "architecture_ref"),
-    "Mission": ("pco_ref", "parent_pco_ref", "architecture_ref", "evidence_refs"),
-    "OperatingState": ("subject_ref", "baseline_refs", "evidence_refs"),
+    "LTCO": ("strategy_ref", "architecture_ref", "advice_ref", "baseline_refs", "constraint_refs"),
+    "PCO": ("strategy_ref", "ltco_ref", "parent_ltco_ref", "architecture_ref",
+            "period_review_ref", "constraint_refs"),
+    "Mission": ("pco_ref", "parent_pco_ref", "architecture_ref", "evidence_refs", "constraint_refs"),
+    "Constraint": ("architecture_ref", "evidence_refs"),
+    "OperatingState": ("subject_ref", "baseline_refs", "evidence_refs", "drilldown_refs"),
     "OperatingProblem": ("state_ref", "evidence_refs"),
     "BusinessFact": ("subject_ref", "corrects_ref", "source_ref"),
     "PeriodReview": ("state_refs", "target_refs", "fact_refs"),
@@ -115,7 +122,7 @@ DOWNSTREAM_FIELDS: dict[str, tuple[str, ...]] = {
 DOWNSTREAM_ARRAY_FIELDS = frozenset({
     "state_refs", "target_refs", "fact_refs", "source_refs", "signal_refs",
     "direct_source_refs", "evidence_refs", "baseline_refs", "material_refs",
-    "ltco_refs", "pco_refs", "mission_refs",
+    "ltco_refs", "pco_refs", "mission_refs", "constraint_refs", "drilldown_refs",
 })
 DOWNSTREAM_LIMIT = 25
 DOWNSTREAM_MAX_LIMIT = 100
@@ -421,6 +428,7 @@ MISSION_PARENT_REF_FIELDS: dict[str, str] = {
     "tkos.method/0.2": "pco_ref",
     "tkos.method/0.3": "pco_ref",
     "tkos.method/0.4": "parent_pco_ref",
+    "tkos.method/0.5": "parent_pco_ref",
 }
 
 
@@ -991,6 +999,12 @@ def _candidate_authority(record: dict[str, Any] | None) -> str:
             else "m1b_confirm_candidates")
 
 
+def _bound_contract_version(conn: Any, ctx: Any, head: dict[str, Any]) -> str | None:
+    """对象当前协议绑定的契约版本；未登记即 None，从不按载荷形状猜测。"""
+    binding = protocol.current_binding(conn, ctx.scope_id, str(head["object_id"]))
+    return binding["contract_version"] if binding else None
+
+
 def _formal_state(conn: Any, ctx: Any, head: dict[str, Any], revision: dict[str, Any],
                   confirmations: list[dict[str, Any]]) -> dict[str, Any]:
     """Formal state for the *selected exact revision*.
@@ -1052,6 +1066,18 @@ def _formal_state(conn: Any, ctx: Any, head: dict[str, Any], revision: dict[str,
     if kind == "OperatingState":
         canonical = state.get("canonical_ref")
         matches = _same_ref(canonical, selected)
+        if _bound_contract_version(conn, ctx, head) == "tkos.method/0.5":
+            # 0.5（契约 §6）：生成即正式（canonical），没有人工确认，也没有
+            # method_confirm_state；被再次生成取代的旧版本只是历史。
+            return {"status": "recorded" if matches else recorded_status(),
+                    "formal": matches, "authority": "method_propose_state",
+                    "human_approved": False,
+                    "applies_to_ref": canonical if matches else None,
+                    "canonical_ref": canonical, "recommendation_ref": state.get("recommendation_ref"),
+                    "confirmed_by": None,
+                    "content_confirmation": confirmed_by_record,
+                    "lifecycle_status": head["lifecycle_status"],
+                    "note": "Canonical on generation (contract §6); no human confirmation exists for a 0.5 State."}
         recommendation = _same_ref(state.get("recommendation_ref"), selected)
         if matches:
             status = "confirmed"
@@ -1094,10 +1120,37 @@ def _formal_state(conn: Any, ctx: Any, head: dict[str, Any], revision: dict[str,
                                 "correction_reason": revision["payload"].get("correction_reason")}
                                if revision["payload"].get("corrects_ref") else None)}
     if kind == "PeriodReview":
+        review_record = next((record for record in confirmations
+                              if record["kind"] == "review_confirmation" and record["covers_selected_revision"]),
+                             None)
+        if review_record is not None and _bound_contract_version(conn, ctx, head) == "tkos.method/0.5":
+            # 0.5（契约 §4）：只有 CEO 的确认使复盘生效；确认记录覆盖的确切版本是 CEO 批准的
+            # 正式复盘。Agent 起草版与尚未确认的生成版仍按下面的 Agent 分析投影。
+            formal = effective
+            return {"status": "confirmed" if formal else recorded_status(),
+                    "formal": formal, "authority": "m1b_confirm_review",
+                    "human_approved": True,
+                    "applies_to_ref": selected if formal else None,
+                    "confirmation_record_id": review_record["record_id"],
+                    "content_confirmation": review_record,
+                    "lifecycle_status": head["lifecycle_status"]}
         # Agent analysis: the effective pointer does not make it human-approved.
         return {"status": "recorded", "formal": False, "authority": "agent_analysis",
                 "human_approved": False, "applies_to_ref": None,
                 "effective_pointer": _ref(head["object_id"], revision["revision_id"]) if effective else None,
+                "lifecycle_status": head["lifecycle_status"]}
+    if kind == "Constraint":
+        # 只在 0.5 注册表里存在的类型（契约 §2）：范围确认人的确认记录覆盖、且是当前生效版本
+        # 才是正式；草稿与修订中的新版本都不是。
+        record = next((item for item in confirmations
+                       if item["kind"] == "constraint_confirmation" and item["covers_selected_revision"]), None)
+        formal = bool(effective and record)
+        return {"status": "confirmed" if formal else recorded_status(),
+                "formal": formal, "authority": "m1b_confirm_constraint",
+                "human_approved": bool(record),
+                "applies_to_ref": selected if formal else None,
+                "confirmation_record_id": (record or {}).get("record_id"),
+                "content_confirmation": record,
                 "lifecycle_status": head["lifecycle_status"]}
     if kind in {"StrategicAgreement", "MeetingMinutes", "CandidateSet"}:
         # Types outside the six navigation groups still have real human

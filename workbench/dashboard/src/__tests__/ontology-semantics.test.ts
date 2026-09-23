@@ -189,7 +189,7 @@ describe("tkos.method/0.4 map reading is real and version-scoped", () => {
   it("exposes 0.4 while 0.1-0.3 keep their original readings", () => {
     expect(rulesOfContractVersion("tkos.method/0.4")).toBe("0.4")
     expect(contractVersionOf("0.4")).toBe("tkos.method/0.4")
-    expect(RULES_VERSIONS[0]).toBe("0.4")
+    expect(RULES_VERSIONS).toContain("0.4")
     expect(RULES_VERSIONS).toEqual(expect.arrayContaining(ALL_VERSIONS))
     for (const rules of ALL_VERSIONS) {
       expect(text(info("StrategicAgreement", rules))).not.toContain("全体当前人类")
@@ -304,5 +304,64 @@ describe("business-language boundary (R4)", () => {
         }
       }
     }
+  })
+})
+
+describe("0.5 rules", () => {
+  const registered = new Set(["LTCO", "PCO", "Mission", "OperatingState", "PeriodReview", "Constraint", "CandidateSet"])
+  it("is a first-class rules version", () => {
+    expect(RULES_VERSIONS[0]).toBe("0.5")
+    expect(rulesOfContractVersion("tkos.method/0.5")).toBe("0.5")
+    expect(contractVersionOf("0.5")).toBe("tkos.method/0.5")
+  })
+  it("reads Constraint, canonical State and DRI-only commitment in the 0.5 text", () => {
+    expect(text(typeInfo("Constraint", "0.5")!)).toContain("适用范围")
+    expect(typeInfo("Constraint", "0.4")).toBeNull()
+    expect(text(typeInfo("OperatingState", "0.5")!)).toContain("无人工确认")
+    expect(text(typeInfo("OperatingState", "0.4")!)).not.toContain("无人工确认")
+    expect(text(typeInfo("CandidateSet", "0.5")!)).toContain("DRI")
+    expect(text(typeInfo("PeriodReview", "0.5")!)).toContain("CEO 确认")
+  })
+  it("keeps every 0.4 edge under 0.5 and adds the Constraint references", () => {
+    const edges = mapEdges("0.5", registered)
+    expect(edges).toContainEqual({ from: "Constraint", to: "PCO", label: "起草参考" })
+    expect(edges.filter((edge) => edge.from === "Constraint")).toHaveLength(3)
+    expect(mapEdges("0.4", registered).every((edge) => edges.some((e) => e.from === edge.from && e.to === edge.to))).toBe(true)
+    expect(areasFor("0.5", registered).some((area) => area.types.includes("Constraint"))).toBe(true)
+  })
+
+  // Regression guard: typeInfo("X", "0.5") shallow-merges V05_OVERRIDES over
+  // V04_OVERRIDES per field, so any field a 0.5 override does not name still
+  // falls through as literal 0.4 text.  These pin the specific 0.4 phrases
+  // that are actually wrong under the 0.5 contract, not a blanket ban on
+  // words ("确认" is legitimate elsewhere — e.g. Constraint below).
+  const V05 = ["StrategicIssue", "StrategicAgreement", "Strategy", "StrategicArchitecture",
+    "StrategyUpdateProposal", "LTCO", "PCO", "Mission", "ReviewWindow", "CandidateSet",
+    "OperatingState", "OperatingProblem", "PeriodReview", "MethodRun", "EvidenceAsset", "Constraint"]
+
+  it("no 0.5 reading falls back to a 0.4-labeled definition", () => {
+    for (const type of V05) {
+      expect(text(info(type, "0.5")), `${type} still reads "0.4 的"`).not.toContain("0.4 的")
+    }
+  })
+
+  it("Mission and CandidateSet's 0.5 readings drop the 0.4 Owner-commitment wording", () => {
+    const mission = text(info("Mission", "0.5"))
+    expect(mission).not.toContain("Owner 本人承诺")
+    expect(mission).not.toContain("具名 Owner")
+    expect(mission).toContain("DRI")
+    const candidateSet = text(info("CandidateSet", "0.5"))
+    expect(candidateSet).not.toContain("Owner 本人承诺")
+    expect(candidateSet).not.toContain("结果 Owner")
+    expect(candidateSet).toContain("DRI")
+  })
+
+  it("OperatingState's 0.5 lifecycle has no human confirmation step (Constraint still legitimately does)", () => {
+    const lifecycle = info("OperatingState", "0.5").lifecycle.join("\n")
+    expect(lifecycle).not.toContain("推荐")
+    expect(lifecycle).not.toContain("确认")
+    // "确认" is not banned globally: Constraint's own 0.5 text legitimately
+    // requires a human confirmer by scope (contract §2).
+    expect(text(info("Constraint", "0.5"))).toContain("确认")
   })
 })

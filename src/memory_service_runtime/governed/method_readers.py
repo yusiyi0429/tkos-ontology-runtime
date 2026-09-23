@@ -93,7 +93,7 @@ def authorize_receipt(conn, ctx, row, *, replay=False):
             elif head["object_type"] == "StrategicIssue":
                 state = conn.execute("SELECT state FROM gov_method_state WHERE scope_id=%s AND object_id=%s", (ctx.scope_id, target)).fetchone()
                 binding = protocol.current_binding(conn, ctx.scope_id, target)
-                if binding is not None and binding["contract_version"] == "tkos.method/0.4":
+                if binding is not None and binding["contract_version"] in {"tkos.method/0.4", "tkos.method/0.5"}:
                     # 0.4 direct issue initiation has no research assignment gate;
                     # replay still requires a current role in the issue's own domain.
                     domain = head["domain_id"]
@@ -105,6 +105,38 @@ def authorize_receipt(conn, ctx, row, *, replay=False):
                 elif state:
                     domain = access.research_participant(conn, ctx, state["state"])["domain_id"]
         db.authorize_domain(conn, ctx, domain, row["action_type"])
+
+
+# 决定类 = 有权人对业务对象的正式确认 / 正式化 / 激活 / 重开 / 关闭 / 移交（对象随之
+# 进入 confirmed/active/formal 等正式状态，或是该决定点唯一的另一分支，如
+# ltco_feedback 之于 ltco_confirmation）；意见类 = 参与者对他人产出发表的看法；
+# 分析类 = Agent 产出的分析 / 核验结果；其余（含窗口关闭等程序性步骤）为系统记录。
+# 本清单覆盖 method_m1a/m1b/v02/v03/v04/v05.py 里 e.review(...) 实际写过的每个
+# kind（含 method_m1a.py 里按 action 名动态拼出的三个、以及仅出现在三元表达式
+# else 分支的 ltco_feedback）；逐条依据见 tests/test_method_v05_readers.py 里的
+# EXPECTED_REVIEW_EFFECTS。
+DECISION_KINDS = frozenset({
+    "ltco_confirmation", "review_confirmation", "constraint_confirmation", "candidate_set_activation",
+    "agreement_confirmation", "agreement_formalized", "strategy_update_confirmation", "state_confirmation",
+    "ceo_reopen", "problem_closure", "problem_transfer",
+    "strategic_issue_confirmation", "meeting_minutes_confirmation", "strategic_agreement_confirmation",
+    "strategy_adjustment_decision", "architecture_confirmation", "candidate_set_confirmation",
+    "signal_disposition", "brief_sufficiency", "ltco_feedback", "agent_issue_initiation", "issue_reframe",
+})
+OPINION_KINDS = frozenset({"window_comment", "window_opinion_withdrawal", "ltco_revision_response",
+                           "record_clarification", "direct_clarification"})
+ANALYSIS_KINDS = frozenset({"personal_agent_analysis", "strategy_update_impact_review", "window_resolution",
+                            "check_memo", "research_quality_precheck"})
+
+
+def review_effect(kind):
+    if kind in DECISION_KINDS:
+        return "decision"
+    if kind in OPINION_KINDS:
+        return "opinion"
+    if kind in ANALYSIS_KINDS:
+        return "analysis"
+    return "record"
 
 
 def review_records(conn, ctx, object_id, *, effective_only=False):
@@ -122,6 +154,7 @@ def review_records(conn, ctx, object_id, *, effective_only=False):
             access.revision(conn, ctx, row["target_object_id"], row["target_revision_id"])
         except GovernedError:
             continue
+        row["effect"] = review_effect(row["kind"])
         row["effective_opinion"] = active is not None and row["record_id"] in active
         if not effective_only or row["effective_opinion"]:
             items.append(row)
@@ -281,7 +314,7 @@ def _state_references(state, keys):
 
 def context_pack(conn, ctx, object_ids, valid_at, known_at, stage, purpose, include_drafts=False,
                  contract_version=CONTRACT_VERSION, *, research_run=None):
-    if contract_version in {"tkos.method/0.2", "tkos.method/0.3", "tkos.method/0.4"}:
+    if contract_version in {"tkos.method/0.2", "tkos.method/0.3", "tkos.method/0.4", "tkos.method/0.5"}:
         if stage not in CONTEXT_STAGE_KEYS or purpose not in CONTEXT_PURPOSES | {"dialogue", "research"}:
             raise GovernedError("INVALID_REQUEST", "Unknown lifecycle Context stage or purpose.", status=422)
         if purpose == "research" and research_run is None:
@@ -290,13 +323,13 @@ def context_pack(conn, ctx, object_ids, valid_at, known_at, stage, purpose, incl
             research_gate(conn, ctx, research_run, object_ids, contract_version)
     selected, excluded, seen = [], [], set()
     selected_stage, selected_purpose, state_keys, selection_notes = _context_selection(stage, purpose)
-    if contract_version in {"tkos.method/0.2", "tkos.method/0.3", "tkos.method/0.4"}:
+    if contract_version in {"tkos.method/0.2", "tkos.method/0.3", "tkos.method/0.4", "tkos.method/0.5"}:
         selected_purpose, selection_notes = purpose, []
         if stage in {"general", "research", "meeting", "confirmation"}:
             state_keys = state_keys | {"brief_ref"}
-    if contract_version in {"tkos.method/0.3", "tkos.method/0.4"}:
+    if contract_version in {"tkos.method/0.3", "tkos.method/0.4", "tkos.method/0.5"}:
         state_keys = state_keys | {"architecture_ref", "canonical_ref", "recommendation_ref", "source_refs", "issue_ref"}
-    if contract_version == "tkos.method/0.4":
+    if contract_version in {"tkos.method/0.4", "tkos.method/0.5"}:
         state_keys = state_keys | {"participants", "strategy_ref", "transferred_problems"}
     context = {"contract_version": contract_version, "stage": stage, "purpose": purpose,
                "actor_id": ctx.principal_id, "actor_type": ctx.principal_type,
@@ -320,7 +353,7 @@ def context_pack(conn, ctx, object_ids, valid_at, known_at, stage, purpose, incl
             if metadata["protocol_id"] != "tkos.method" or metadata["contract_version"] != contract_version:
                 excluded.append({"object_id": oid if explicit else None, "reason": "different_protocol", "context_request": context})
                 continue
-            if contract_version in {"tkos.method/0.2", "tkos.method/0.3", "tkos.method/0.4"} and head["object_type"] == "Signal" and research_run is None:
+            if contract_version in {"tkos.method/0.2", "tkos.method/0.3", "tkos.method/0.4", "tkos.method/0.5"} and head["object_type"] == "Signal" and research_run is None:
                 excluded.append({"object_id": oid if explicit else None, "reason": "signal_not_for_dialogue", "context_request": context})
                 continue
             if rid is None:
@@ -395,7 +428,7 @@ def research_gate(conn, ctx, run_ref, roots, contract_version="tkos.method/0.2")
     assignments = db.authorize_domain(conn, ctx, head["domain_id"], "method_record_attempt")
     if not any(a["role"] in {"CEO_AGENT", "CO_AGENT", "PERSONAL_AGENT"} for a in assignments):
         raise GovernedError("FORBIDDEN")
-    if contract_version in {"tkos.method/0.3", "tkos.method/0.4"} and any(a['role']=='CEO_AGENT' for a in assignments):
+    if contract_version in {"tkos.method/0.3", "tkos.method/0.4", "tkos.method/0.5"} and any(a['role']=='CEO_AGENT' for a in assignments):
         bindings=conn.execute('SELECT owner_principal_id FROM gov_method_agent_bindings WHERE scope_id=%s AND agent_principal_id=%s',(ctx.scope_id,ctx.principal_id)).fetchall()
         owners=set()
         for binding in db.jsonable(bindings):
@@ -425,7 +458,7 @@ def research_gate(conn, ctx, run_ref, roots, contract_version="tkos.method/0.2")
 
 def snapshot(conn, ctx, row, *, research=False):
     context = next((item.get("context_request") for item in row["selected"] + row["excluded"] if item.get("context_request")), {})
-    if context.get("contract_version") in {"tkos.method/0.2", "tkos.method/0.3", "tkos.method/0.4"}:
+    if context.get("contract_version") in {"tkos.method/0.2", "tkos.method/0.3", "tkos.method/0.4", "tkos.method/0.5"}:
         if context.get("purpose") == "research":
             if not research or context.get("actor_id") != ctx.principal_id:
                 raise GovernedError("FORBIDDEN", "Research snapshots are not dialogue Context.")
@@ -443,3 +476,134 @@ def snapshot(conn, ctx, row, *, research=False):
     # was generated as the fetching caller or under today's role context.
     return db.jsonable({"context_snapshot_id": row["snapshot_id"], "valid_at": row["valid_at"], "known_at": row["known_at"],
                        "selected": row["selected"], "excluded": row["excluded"], "context_request": context, "recorded_at": row["recorded_at"]})
+
+
+def confirmations(conn, ctx, object_id):
+    """一个对象的决定类记录与承诺行；不可见对象按 head 的 NOT_FOUND / FORBIDDEN 处理，
+    承诺行还要按责任版本与候选版本两侧各自的当前可见性过滤：一行承诺带着另一个
+    人的 principal_id、assignment_id 与承诺文本，请求对象自身的 head 校验并不能
+    代表另一侧引用的可见性（撤权后历史内容也要按当前权限读取）。"""
+    access.head(conn, ctx, object_id)
+    rows = conn.execute(
+        "SELECT * FROM gov_method_reviews WHERE scope_id=%s AND target_object_id=%s ORDER BY recorded_at, record_id",
+        (ctx.scope_id, object_id)).fetchall()
+    items = []
+    for row in db.jsonable(rows):
+        if review_effect(row["kind"]) != "decision":
+            continue
+        try:
+            access.revision(conn, ctx, row["target_object_id"], row["target_revision_id"])
+        except GovernedError as exc:
+            if exc.code in {"NOT_FOUND", "FORBIDDEN"}:
+                continue
+            raise
+        row["effect"] = "decision"
+        items.append(row)
+    commitment_rows = db.jsonable(conn.execute(
+        """SELECT commitment_id, candidate_object_id, candidate_revision_id, responsibility_object_id,
+                  responsibility_revision_id, principal_id, assignment_id, statement, recorded_at
+           FROM gov_method_commitments WHERE scope_id=%s AND (responsibility_object_id=%s OR candidate_object_id=%s)
+           ORDER BY recorded_at, commitment_id""",
+        (ctx.scope_id, object_id, object_id)).fetchall())
+    commitments = []
+    for row in commitment_rows:
+        try:
+            access.revision(conn, ctx, row["responsibility_object_id"], row["responsibility_revision_id"])
+            access.revision(conn, ctx, row["candidate_object_id"], row["candidate_revision_id"])
+        except GovernedError as exc:
+            if exc.code in {"NOT_FOUND", "FORBIDDEN"}:
+                continue
+            raise
+        commitments.append(row)
+    return {"items": items, "commitments": commitments}
+
+
+def _overlaps(period, start, end):
+    return _time(period["start"]) < _time(end) and _time(period["end"]) > _time(start)
+
+
+def company_view(conn, ctx, period_start, period_end):
+    """按主 Scope 汇总当前正式 LTCO、时段内 PCO / Mission 与生效 Constraint；投影，不是对象。"""
+    rows = db.jsonable(conn.execute(
+        """SELECT o.object_id, o.object_type, r.payload FROM gov_objects o
+           JOIN gov_object_revisions r ON (r.scope_id, r.object_id, r.revision_id) = (o.scope_id, o.object_id, o.effective_revision_id)
+           WHERE o.scope_id=%s AND o.object_type IN ('LTCO','PCO','Mission','Constraint')
+           ORDER BY o.object_type, o.object_id""", (ctx.scope_id,)).fetchall())
+    # 这条 SQL 按对象类型选出同一 scope 里所有协议版本的 LTCO/PCO/Mission/
+    # Constraint——0.1-0.4 的 Mission（A2、0.1、0.3 各自的 MissionPayload）根本
+    # 没有 period / primary_scope_id 字段。必须先按当前协议绑定把非 0.5 的行
+    # 挡在外面，再去按字段名读 payload；否则混合协议 scope 里的任何调用者都会
+    # 因为别的对象形状不同而炸 KeyError，与他自己看不看得见那个对象无关。
+    metadata = protocol.list_metadata(conn, ctx.scope_id, [str(row["object_id"]) for row in rows])
+    rows = [row for row in rows if metadata[str(row["object_id"])]["contract_version"] == "tkos.method/0.5"]
+    scopes, company_constraints, mission_constraints = {}, [], {}
+
+    def visible(oid):
+        if not access.is_method_object(conn, ctx, oid):
+            return None
+        try:
+            item = object_state(conn, ctx, oid)
+        except GovernedError as exc:
+            if exc.code in {"NOT_FOUND", "FORBIDDEN"}:
+                return None
+            raise
+        # 只认 0.5 自身的投影：scope 内若还留有 0.4 对象，按 0.5 摆放等于就地
+        # 重解释历史（合同 §1）；生效版本对调用者不可读时，也不能用它的载荷
+        # 判定所属 Scope / 时段（SQL 是按 payload 原样读取的）。
+        if item["protocol"]["contract_version"] != "tkos.method/0.5" or item["effective_revision_id"] is None:
+            return None
+        return item
+
+    def bucket(unit):
+        return scopes.setdefault(unit, {"scope_id": unit, "ltco": None, "pcos": [], "missions": [], "constraints": []})
+
+    for row in rows:
+        oid, kind, payload = str(row["object_id"]), row["object_type"], row["payload"]
+        if kind == "Constraint":
+            if not _overlaps(payload["effective"], period_start, period_end):
+                continue
+            item = visible(oid)
+            if item is None:
+                continue
+            applies = payload["applies_to"]
+            if applies["kind"] == "company":
+                company_constraints.append(item)
+            elif applies["kind"] == "scope":
+                bucket(applies["scope_id"])["constraints"].append(item)
+            else:
+                mission_constraints.setdefault(str(applies["mission_ref"]["object_id"]), []).append(item)
+            continue
+        if kind != "LTCO" and not _overlaps(payload["period"], period_start, period_end):
+            continue
+        item = visible(oid)
+        if item is None:
+            continue
+        target = bucket(payload["primary_scope_id"])
+        if kind == "LTCO":
+            target["ltco"] = item
+        elif kind == "PCO":
+            target["pcos"].append(item)
+        else:
+            record = (item.get("method_state") or {}).get("owner_activation_record_id")
+            item["owner_effective_from"] = None
+            if record:
+                found = conn.execute(
+                    "SELECT target_object_id, target_revision_id, recorded_at FROM gov_method_reviews WHERE scope_id=%s AND record_id=%s",
+                    (ctx.scope_id, record)).fetchone()
+                if found:
+                    found = db.jsonable(found)
+                    # candidate_set_activation 是针对那次被激活的 CandidateSet
+                    # 版本写的；请求方能读到这个 Mission 不代表也能读到那个
+                    # CandidateSet 版本——撤权后历史内容也要按当前权限读取，
+                    # 与 /reviews、/confirmations 对同一条记录的处理口径一致。
+                    try:
+                        access.revision(conn, ctx, found["target_object_id"], found["target_revision_id"])
+                    except GovernedError as exc:
+                        if exc.code not in {"NOT_FOUND", "FORBIDDEN"}:
+                            raise
+                    else:
+                        item["owner_effective_from"] = found["recorded_at"]
+            target["missions"].append(item)
+    return {"schema_version": "method-read/0.5", "period": {"start": period_start, "end": period_end},
+            "scopes": [scopes[key] for key in sorted(scopes)],
+            "company_constraints": company_constraints, "mission_constraints": mission_constraints}

@@ -110,8 +110,9 @@ def install_profile(conn: psycopg.Connection, args: argparse.Namespace) -> dict[
     if contract_sha != core.action_contract_ref.content_sha256:
         _fail("PROFILE_CONTENT_CONFLICT",
               "action_contract_ref.content_sha256 does not match the supplied contract file bytes.")
-    from . import method_profile, method_v02_profile, method_v03_profile, method_v04_profile
-    pinned_sha = (method_v04_profile.CONTRACT_SHA256 if core.profile_core_schema_version == method_v04_profile.SCHEMA_VERSION
+    from . import method_profile, method_v02_profile, method_v03_profile, method_v04_profile, method_v05_profile
+    pinned_sha = (method_v05_profile.CONTRACT_SHA256 if core.profile_core_schema_version == method_v05_profile.SCHEMA_VERSION
+                  else method_v04_profile.CONTRACT_SHA256 if core.profile_core_schema_version == method_v04_profile.SCHEMA_VERSION
                   else method_v03_profile.CONTRACT_SHA256 if core.profile_core_schema_version == method_v03_profile.SCHEMA_VERSION
                   else method_v02_profile.CONTRACT_SHA256 if core.profile_core_schema_version == method_v02_profile.SCHEMA_VERSION
                   else method_profile.CONTRACT_SHA256 if core.profile_core_schema_version == method_profile.SCHEMA_VERSION
@@ -120,6 +121,14 @@ def install_profile(conn: psycopg.Connection, args: argparse.Namespace) -> dict[
         _fail("PROFILE_CONTENT_CONFLICT",
               "The compiled tkos.contract-a/0.1 support is bound to the pinned main-contract "
               "SHA256; changed contract bytes require a new contract revision.")
+    if core.profile_core_schema_version == method_v05_profile.SCHEMA_VERSION:
+        if not args.ontology_registry_file:
+            _fail("PROFILE_CONTENT_CONFLICT",
+                  "Method 0.5 profiles require --ontology-registry-file to verify ontology_registry_ref.")
+        registry_sha = hashlib.sha256(Path(args.ontology_registry_file).read_bytes()).hexdigest()
+        if registry_sha != core.ontology_registry_ref.content_sha256 or registry_sha != method_v05_profile.ONTOLOGY_REGISTRY_SHA256:
+            _fail("PROFILE_CONTENT_CONFLICT",
+                  "ontology_registry_ref.content_sha256 does not match the supplied registry bytes or the compiled pin.")
     scope_id = args.scope_id
     _begin(conn)  # cross-scope conflict check needs control-plane visibility
     # Serialize concurrent installs of the same profile identity across scopes:
@@ -481,6 +490,8 @@ def main() -> None:
     p.add_argument("--contract-file", default=None,
                    help="Path to the exact main-contract bytes named by action_contract_ref; "
                         "defaults to the bundled pinned contract artifact.")
+    p.add_argument("--ontology-registry-file", default=None,
+                   help="Path to the exact ontology registry JSON bytes named by ontology_registry_ref (Method 0.5).")
     p.add_argument("--reason", required=True)
 
     p = base("install-policy")

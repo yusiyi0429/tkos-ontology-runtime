@@ -35,7 +35,7 @@ class ContextRequest(BaseModel):
     object_ids: list[uuid.UUID] = Field(min_length=1, max_length=100)
     valid_at: AwareDatetime
     known_at: AwareDatetime
-    contract_version: Literal["tkos.method/0.1", "tkos.method/0.2", "tkos.method/0.3", "tkos.method/0.4"] | None = None
+    contract_version: Literal["tkos.method/0.1", "tkos.method/0.2", "tkos.method/0.3", "tkos.method/0.4", "tkos.method/0.5"] | None = None
     stage: str | None = Field(default=None, min_length=1, max_length=200)
     purpose: str | None = Field(default=None, min_length=1, max_length=500)
     include_drafts: StrictBool = False
@@ -151,7 +151,7 @@ Limit = Annotated[int, Query(ge=1, le=100)]
 
 
 class ResearchContextRequest(ContextRequest):
-    contract_version: Literal["tkos.method/0.2", "tkos.method/0.3", "tkos.method/0.4"] = "tkos.method/0.2"
+    contract_version: Literal["tkos.method/0.2", "tkos.method/0.3", "tkos.method/0.4", "tkos.method/0.5"] = "tkos.method/0.2"
     stage: Literal["research"] = "research"
     purpose: Literal["research"] = "research"
     run_ref: ObjectRef
@@ -186,7 +186,7 @@ Cursor = Annotated[str | None, Query(max_length=workbench.MAX_CURSOR_LENGTH)]
 
 @router.get("/object-types")
 def object_types_list(request: Request, response: Response, token: Annotated[str, Depends(bearer)],
-                      contract_version: Literal["tkos.method/0.1", "tkos.method/0.2", "tkos.method/0.3", "tkos.method/0.4"] | None = None):
+                      contract_version: Literal["tkos.method/0.1", "tkos.method/0.2", "tkos.method/0.3", "tkos.method/0.4", "tkos.method/0.5"] | None = None):
     workbench.strict_query(request.query_params, {"contract_version"})
     with db.transaction(token) as (conn, ctx):
         result = workbench.object_types(conn, ctx, contract_version) if contract_version else workbench.object_types(conn, ctx)
@@ -360,6 +360,19 @@ def install_errors(app):
         return await request_validation_exception_handler(request, exc)
 
 
+@router.get("/method/company-view")
+def method_company_view(request: Request, response: Response, token: Annotated[str, Depends(bearer)],
+                        period_start: AwareDatetime, period_end: AwareDatetime):
+    from . import method_readers
+    workbench.strict_query(request.query_params, {"period_start", "period_end"})
+    if period_start >= period_end:
+        raise GovernedError("INVALID_REQUEST", "period_start must precede period_end", status=422)
+    with db.transaction(token) as (conn, ctx):
+        result = method_readers.company_view(conn, ctx, period_start.isoformat(), period_end.isoformat())
+    response.headers["Cache-Control"] = "no-store"
+    return result
+
+
 @router.get("/method/{collection}")
 def method_list(collection: str, request: Request, response: Response,
                 token: Annotated[str, Depends(bearer)], domain_id: uuid.UUID | None = None,
@@ -367,7 +380,8 @@ def method_list(collection: str, request: Request, response: Response,
     from . import method_readers
     kinds = {"review-windows": "ReviewWindow", "candidate-sets": "CandidateSet", "business-facts": "BusinessFact",
              "period-reviews": "PeriodReview", "strategies": "Strategy", "strategic-issues": "StrategicIssue", "runs": "MethodRun",
-             "signals": "Signal", "potential-issues": "PotentialIssue", "research-briefs": "ResearchBrief"}
+             "signals": "Signal", "potential-issues": "PotentialIssue", "research-briefs": "ResearchBrief",
+             "ltcos": "LTCO", "pcos": "PCO", "missions": "Mission", "constraints": "Constraint", "operating-states": "OperatingState"}
     if collection not in kinds:
         raise GovernedError("NOT_FOUND")
     workbench.strict_query(request.query_params, {"domain_id", "after", "limit"})
@@ -385,6 +399,15 @@ def method_reviews(object_id: uuid.UUID, request: Request, response: Response,
     workbench.strict_query(request.query_params, {"effective_only"})
     with db.transaction(token) as (conn, ctx):
         result = method_readers.review_records(conn, ctx, str(object_id), effective_only=effective_only)
+    response.headers["Cache-Control"] = "no-store"
+    return result
+
+
+@router.get("/method/objects/{object_id}/confirmations")
+def method_confirmations(object_id: uuid.UUID, response: Response, token: Annotated[str, Depends(bearer)]):
+    from . import method_readers
+    with db.transaction(token) as (conn, ctx):
+        result = method_readers.confirmations(conn, ctx, str(object_id))
     response.headers["Cache-Control"] = "no-store"
     return result
 

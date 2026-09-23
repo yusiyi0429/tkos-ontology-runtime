@@ -13,6 +13,13 @@ router = APIRouter(prefix='/v1/governance', tags=['governance-workbench'])
 METHOD_TASK_TYPES = ('StrategicIssue', 'StrategicAgreement', 'StrategyUpdateProposal',
                      'LTCO', 'PCO', 'Mission', 'ReviewWindow', 'CandidateSet',
                      'OperatingState', 'OperatingProblem')
+# 0.5 新增的两个人工门（CEO 确认复盘、按范围确认 Constraint）所在的类型。只有当前绑定为
+# tkos.method/0.5 的对象才进入任务扫描：0.4 也有 PeriodReview（Agent 分析，没有人工门），
+# 不按绑定过滤会占用 0.4 scope 的扫描窗口。
+V05_TASK_TYPES = ('PeriodReview', 'Constraint')
+# 计划 D7：0.5 的 Constraint 登记 / 修订走 API 或 Agent，不做浏览器表单——工作台不提供，
+# 会话门面也不接受。
+V05_API_ONLY_ACTIONS = frozenset({'m1b_record_constraint', 'm1b_revise_constraint'})
 
 HUMAN_ACTIONS = {
     'm1b_comment': '发表意见', 'm1b_withdraw_comment': '撤回本人意见',
@@ -40,6 +47,8 @@ HUMAN_ACTION_LABELS = {
     'm1b_commit_candidate': '提交本人责任承诺',
     'm1b_activate_candidates': '整组激活候选集合',
     'method_confirm_state': '确认正式经营状态',
+    'm1b_confirm_review': '确认周期复盘（CEO）',
+    'm1b_confirm_constraint': '确认经营约束（按范围）',
     'method_open_problem': '登记经营问题',
     'method_revise_problem': '修订经营问题',
     'method_close_problem': '关闭经营问题',
@@ -58,6 +67,8 @@ FORMAL_EFFECT = {
     'm1b_reopen_candidates': 'new_review_window',
     'm1b_reopen_window': 'new_review_window',
     'method_confirm_state': 'canonical_operating_state',
+    'm1b_confirm_review': 'confirmed_period_review',
+    'm1b_confirm_constraint': 'effective_constraint',
     'method_open_problem': 'tracked_problem',
     'method_revise_problem': 'tracked_problem',
     'method_close_problem': 'problem_disposition',
@@ -67,10 +78,12 @@ FORMAL_EFFECT = {
 CEO_ONLY_ACTIONS = frozenset({
     'm1a_set_participants', 'm1a_confirm_update', 'm1b_confirm_ltco',
     'm1b_activate_candidates', 'm1b_reopen_candidates', 'm1b_reopen_window',
+    'm1b_confirm_review',
 })
 SCOPED_HUMAN_ACTIONS = frozenset({
     'm1a_confirm_agreement', 'm1b_comment', 'm1b_replace_comment', 'm1b_withdraw_comment',
     'm1b_commit_candidate', 'method_confirm_state',
+    'm1b_confirm_constraint',
     'method_revise_problem', 'method_close_problem',
 })
 # Conservative phase gates per action, from the implemented 0.4 validators.  The
@@ -86,9 +99,27 @@ PHASE_RULES = {
     'm1b_reopen_candidates': {'pending'},
     'm1b_reopen_window': {'open', 'closed', 'resolved'},
     'method_confirm_state': {'proposed'},
+    'm1b_confirm_review': {'generated'},
+    'm1b_confirm_constraint': {'draft'},
     'method_revise_problem': {'open'}, 'method_close_problem': {'open'},
     'method_open_problem': {'confirmed'},
 }
+# Per-contract overrides.  0.5 confirms an already-effective LTCO with
+# conclusion='maintained', so its offer admits 'confirmed' too; 0.4 has no such
+# conclusion and its core still gates draft (method_v04.py's m1b_confirm_ltco
+# collector), so 0.1-0.4 read semantics stay exactly as they were.
+# 0.5 的 State 生成即正式，阶段是 recorded（没有 confirmed）；§6 的争议路径
+# method_open_problem 因此在 0.5 按 recorded 开放，0.4 仍只对已确认的状态开放。
+VERSION_PHASE_RULES = {
+    'tkos.method/0.5': {'m1b_confirm_ltco': {'draft', 'confirmed'},
+                        'method_open_problem': {'recorded'}},
+}
+
+
+def phase_rule(action, contract_version):
+    return VERSION_PHASE_RULES.get(contract_version, {}).get(action, PHASE_RULES.get(action))
+
+
 SCOPED_REASONS = {
     'm1a_confirm_agreement': 'not_required_participant',
     'm1b_comment': 'not_window_participant', 'm1b_replace_comment': 'not_window_participant',
@@ -143,9 +174,13 @@ def action_options(conn, ctx, obj, action):
     if action == 'm1b_withdraw_comment':
         return {'opinions': _my_opinions(conn, ctx, obj)}
     if action == 'm1b_commit_candidate':
-        from . import method_v04
         try:
-            required = method_v04._required_committers(method_v04._LightExecution(conn, ctx), payload)
+            if obj['protocol']['contract_version'] == 'tkos.method/0.5':
+                from . import method_v05
+                required = method_v05.required_committers(method_v05.light(conn, ctx), payload)
+            else:
+                from . import method_v04
+                required = method_v04._required_committers(method_v04._LightExecution(conn, ctx), payload)
         except GovernedError:
             return {'responsibilities': []}
         mine = [spec for spec in required.values() if str(spec['owner']) == str(ctx.principal_id)]
@@ -249,7 +284,7 @@ def _availability(conn, ctx, obj, action, *, ceo):
         return False, 'human_identity_required'
     state = obj.get('method_state') or {}
     phase = state.get('phase')
-    required = PHASE_RULES.get(action)
+    required = phase_rule(action, obj['protocol']['contract_version'])
     if required is not None and phase not in required:
         return False, 'phase_not_permitted'
     if action in CEO_ONLY_ACTIONS and not ceo:
@@ -258,23 +293,44 @@ def _availability(conn, ctx, obj, action, *, ceo):
         confirmed = set(state.get('confirmed_principal_ids') or [])
         if ctx.principal_id in confirmed:
             return False, 'already_confirmed'
+    executor = _executor(obj)
     if action in SCOPED_HUMAN_ACTIONS:
-        from . import method_v04
         try:
-            method_v04.scoped_assignment(conn, ctx, action, obj, obj['latest_revision'])
+            executor.scoped_assignment(conn, ctx, action, obj, obj['latest_revision'])
         except GovernedError:
             return False, SCOPED_REASONS.get(action, 'not_responsible_owner')
     if action == 'method_open_problem':
-        from . import method_v04
-        owner = method_v04._state_subject_owner_static(conn, ctx, obj['latest_revision']['payload']['subject_ref'])
+        owner = executor.state_subject_owner_static(conn, ctx, obj['latest_revision']['payload']['subject_ref'])
         if owner != ctx.principal_id or not db._assignments(conn, ctx):
             return False, 'not_state_owner'
     if action == 'm1b_activate_candidates' and conn is not None:
-        from . import method_v04
-        blockers = method_v04.activation_blockers(conn, ctx, obj)
+        blockers = executor.activation_blockers(conn, ctx, obj)
         if blockers:
             return False, blockers[0]
     return True, None
+
+
+def _executor(obj):
+    """0.5 对象用 0.5 执行器的只读投影；其余沿用 0.4。"""
+    if obj['protocol']['contract_version'] == 'tkos.method/0.5':
+        from . import method_v05
+        return method_v05
+    from . import method_v04
+    return _V04Facade(method_v04)
+
+
+class _V04Facade:
+    def __init__(self, module):
+        self.module = module
+
+    def scoped_assignment(self, conn, ctx, action, obj, revision):
+        return self.module.scoped_assignment(conn, ctx, action, obj, revision)
+
+    def state_subject_owner_static(self, conn, ctx, subject):
+        return self.module._state_subject_owner_static(conn, ctx, subject)
+
+    def activation_blockers(self, conn, ctx, obj):
+        return self.module.activation_blockers(conn, ctx, obj)
 
 
 def reference(obj):
@@ -293,14 +349,25 @@ def scenes(conn, ctx, window_id):
     return result
 
 
+def human_actions_for(version):
+    if version == 'tkos.method/0.5':
+        from .method_v05_models import HUMAN_ACTIONS as v05
+        return v05 - V05_API_ONLY_ACTIONS
+    from .method_v04_models import HUMAN_ACTIONS as v04
+    return v04
+
+
 def method_object_actions(conn, ctx, obj):
-    """Allowlisted human actions for one 0.4 object with current availability."""
-    from .method_v04_models import ACTION_TARGETS, HUMAN_ACTIONS as V04_HUMAN_ACTIONS
-    if obj['protocol']['contract_version'] != 'tkos.method/0.4':
+    """Allowlisted human actions for one 0.4 / 0.5 object with current availability."""
+    version = obj['protocol']['contract_version']
+    if version not in {'tkos.method/0.4', 'tkos.method/0.5'}:
         return {'items': []}
+    from .method_models import registry
+    _params, targets, _payloads = registry(version)
+    human = human_actions_for(version)
     ceo = ctx.principal_type == 'human' and _caller_is_ceo(ctx, obj['domain_id'])
-    offered = [action for action in sorted(V04_HUMAN_ACTIONS)
-               if obj['object_type'] in ACTION_TARGETS.get(action, frozenset())]
+    offered = [action for action in sorted(human)
+               if obj['object_type'] in targets.get(action, frozenset())]
     if obj['object_type'] == 'OperatingState':
         # Problem opening has no target object; the state in the form is the
         # exact subject.  Availability is still checked now, not only at submit.
@@ -321,7 +388,7 @@ def method_object_actions(conn, ctx, obj):
 
 def actions(conn, ctx, object_id):
     obj = method_readers.object_state(conn, ctx, object_id)
-    if obj['protocol']['contract_version'] == 'tkos.method/0.4':
+    if obj['protocol']['contract_version'] in {'tkos.method/0.4', 'tkos.method/0.5'}:
         return method_object_actions(conn, ctx, obj)
     kind = obj['object_type']
     if kind == 'CandidateSet':
@@ -356,12 +423,21 @@ def actions(conn, ctx, object_id):
 
 
 def method_tasks(conn, ctx, after=None, limit=25):
-    """0.4 objects where this human identity is offered an allowlisted action."""
+    """0.4 / 0.5 objects where this human identity is offered an allowlisted action."""
+    # V05_TASK_TYPES 只按对象当前绑定（与 protocol.current_binding 同一排序）为 0.5 时入选，
+    # 所以 0.4 scope 的扫描行集与只扫 METHOD_TASK_TYPES 时逐行相同。
     rows = conn.execute(
-        """SELECT object_id FROM gov_objects
-           WHERE scope_id=%s AND object_type=ANY(%s) AND (%s::uuid IS NULL OR object_id>%s::uuid)
-           ORDER BY object_id LIMIT %s""",
-        (ctx.scope_id, list(METHOD_TASK_TYPES), after, after, limit * 3)).fetchall()
+        """SELECT o.object_id FROM gov_objects o
+           WHERE o.scope_id=%s AND (%s::uuid IS NULL OR o.object_id>%s::uuid)
+             AND (o.object_type=ANY(%s)
+                  OR (o.object_type=ANY(%s)
+                      AND (SELECT b.contract_version FROM gov_object_protocol_bindings b
+                            WHERE b.scope_id=o.scope_id AND b.object_id=o.object_id
+                            ORDER BY b.binding_version DESC, b.recorded_at DESC, b.binding_id DESC
+                            LIMIT 1) = %s))
+           ORDER BY o.object_id LIMIT %s""",
+        (ctx.scope_id, after, after, list(METHOD_TASK_TYPES), list(V05_TASK_TYPES), 'tkos.method/0.5',
+         limit * 3)).fetchall()
     items = []
     for row in rows:
         try:
@@ -370,7 +446,7 @@ def method_tasks(conn, ctx, after=None, limit=25):
             if exc.code in {'NOT_FOUND', 'FORBIDDEN'}:
                 continue
             raise
-        if obj['protocol']['contract_version'] != 'tkos.method/0.4':
+        if obj['protocol']['contract_version'] not in {'tkos.method/0.4', 'tkos.method/0.5'}:
             continue
         offered_all = method_object_actions(conn, ctx, obj)['items']
         offered = [item for item in offered_all if item['allowed']]
@@ -398,7 +474,7 @@ def method_tasks(conn, ctx, after=None, limit=25):
 
 def window(conn, ctx, window_id):
     obj = method_readers.object_state(conn, ctx, window_id)
-    if obj['protocol']['contract_version'] == 'tkos.method/0.4':
+    if obj['protocol']['contract_version'] in {'tkos.method/0.4', 'tkos.method/0.5'}:
         # 0.4 windows are Method objects; no 0.1 monthly scene is involved.
         return {'identity': workspace_readers.identity(conn, ctx), 'object': obj,
                 'monthly': None, 'scenes': [],
@@ -435,11 +511,13 @@ def tasks(conn, ctx, after=None, limit=25):
             raise
         obj = value['object']
         monthly = value['monthly']
-        if obj['protocol']['contract_version'] == 'tkos.method/0.4':
+        if obj['protocol']['contract_version'] in {'tkos.method/0.4', 'tkos.method/0.5'}:
+            # 标签写对象自己的规则版本（'tkos.method/0.4' -> '0.4 人工确认事项'）。
+            version = obj['protocol']['contract_version'].rsplit('/', 1)[-1]
             items.append({'object_id': obj['object_id'],
                           'title': obj['latest_revision']['payload'].get('title', obj['object_type']),
                           'phase': obj['method_state'].get('phase', 'unknown'),
-                          'label': '0.4 人工确认事项', 'contract_version': obj['protocol']['contract_version'],
+                          'label': f'{version} 人工确认事项', 'contract_version': obj['protocol']['contract_version'],
                           'actions': [item for item in value['actions'] if item['allowed']]})
             if len(items) > limit:
                 break

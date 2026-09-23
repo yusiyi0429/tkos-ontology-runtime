@@ -213,8 +213,41 @@ def test_source_read_routes_are_registered():
     assert '/v1/governance/method/tasks' in paths
 
 
-def test_phase_rules_confirm_ltco_uses_implemented_draft_phase():
+def test_confirm_ltco_offer_matches_each_contract_version_implemented_phase():
+    """The 0.4 offer table still matches 0.4's own implemented phase gate.
+
+    ``/v1/governance/objects/{id}/actions`` answers from ``_availability``, so the
+    phase set is a public 0.4 read semantic, not an internal hint.  0.5 confirms an
+    already-effective LTCO with ``conclusion='maintained'``; 0.4 has no such
+    conclusion and its collector admits only drafts, so a *0.4* LTCO that is already
+    confirmed must keep answering ``phase_not_permitted``.
+    """
+    from pydantic import ValidationError
+    from memory_service_runtime.governed.method_v04_models import ConfirmLTCO as V04ConfirmLTCO
+    from memory_service_runtime.governed.method_v05_models import ConfirmLTCO as V05ConfirmLTCO
+
+    def ltco(version, phase):
+        return {'object_id': str(uuid4()), 'object_type': 'LTCO', 'object_version': 1,
+                'domain_id': 'd', 'latest_revision': {'revision_id': str(uuid4()),
+                                                      'payload_hash': 'a' * 64, 'payload': {}},
+                'protocol': {'contract_version': version}, 'method_state': {'phase': phase}}
+
+    ceo = _human(roles=('CEO',))
+    # The 0.4 read surface is unchanged by 0.5's arrival.
+    assert governance._availability(None, ceo, ltco('tkos.method/0.4', 'confirmed'),
+                                    'm1b_confirm_ltco', ceo=True) == (False, 'phase_not_permitted')
+    assert governance._availability(None, ceo, ltco('tkos.method/0.4', 'draft'),
+                                    'm1b_confirm_ltco', ceo=True) == (True, None)
+    # 0.5 is the only version that offers confirmation of an effective LTCO.
+    assert governance._availability(None, ceo, ltco('tkos.method/0.5', 'confirmed'),
+                                    'm1b_confirm_ltco', ceo=True) == (True, None)
     assert governance.PHASE_RULES['m1b_confirm_ltco'] == {'draft'}
+    assert governance.phase_rule('m1b_confirm_ltco', 'tkos.method/0.5') == {'draft', 'confirmed'}
+    # 0.4 cannot even express the conclusion the widened 0.5 phase exists for.
+    assert 'conclusion' not in V04ConfirmLTCO.model_fields
+    assert V05ConfirmLTCO.model_fields['conclusion'].is_required()
+    with pytest.raises(ValidationError):
+        V04ConfirmLTCO.model_validate({'statement': '本人确认', 'conclusion': 'maintained'})
 
 
 def test_activation_availability_reports_the_backend_blocker(monkeypatch):

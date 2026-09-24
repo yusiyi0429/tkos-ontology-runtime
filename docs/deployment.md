@@ -11,13 +11,16 @@ Dockerfile 已提供两个构建目标。构建有两个前提：
 - 一个 wheelhouse 目录，里面有本版本的 `tkos-memory-service` wheel 与 `requirements.lock` 的全部依赖；
 - 显式传入与那个 wheel 相同的 `VERSION`。
 
-官方离线包的做法见 `deploy/offline-release/`：先用 `prepare_wheelhouse.py` 准备 wheelhouse，再用 `prepare_images.py` 构建。手工构建时：
+官方离线包的做法见 `deploy/offline-release/`：先用 `prepare_wheelhouse.py` 准备 wheelhouse，再用 `prepare_images.py` 构建。`prepare_images.py` 只接受与 `deploy/offline-release/images.json` 一致的三段式发布号（现为 v0.4.0），它是切正式发布用的。
+
+开发版本（如当前的 `0.5.0.dev0`）不走 `prepare_images.py`：用 `prepare_wheelhouse.py --release v<版本>` 准备 wheelhouse，再按下面的命令手工构建，`acceptance/delivery_candidate/` 就是这样做的。正式发布时先把版本改成三段式、更新 `images.json` 的发布号，再走官方流程。
 
 ```bash
+VERSION=$(python3 -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['project']['version'])")
 docker buildx build --load --build-context wheelhouse=/path/to/wheelhouse \
-  --build-arg VERSION=0.5.0.dev0 --target runtime -t tkos-ontology-runtime:local .
+  --build-arg VERSION="$VERSION" --target runtime -t tkos-ontology-runtime:local .
 docker buildx build --load --build-context wheelhouse=/path/to/wheelhouse \
-  --build-arg VERSION=0.5.0.dev0 --target worker -t tkos-ontology-worker:local .
+  --build-arg VERSION="$VERSION" --target worker -t tkos-ontology-worker:local .
 ```
 
 镜像里的 `/opt/tkos/docs/` 带着本版本支持的全部协议安装材料：Method 0.1–0.5 与 world 0.1 的 profile、它们钉定的契约字节、本体与 world 登记，以及支持登记。所以用 `tkos-governed-control install-profile`/`set-registry` 装任一协议，都不需要仓库检出。

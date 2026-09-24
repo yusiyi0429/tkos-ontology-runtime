@@ -144,8 +144,8 @@
     "文档链接都用占位域名：飞书文档为 feishu.example，仓库文件为 repo.example（不带个人账号）。真实链接不入库，要不要换。"
   ],
   "approval": {
-    "approved_by": null,
-    "approved_at": null,
-    "content_sha256": null
+    "approved_by": "E&O DRI",
+    "approved_at": "2026-09-24T11:09:58.229681+00:00",
+    "content_sha256": "9ce66139bf61b589d748479cee405581f73a3c29bbdd853c0167aa44f5218be5"
   }
 }

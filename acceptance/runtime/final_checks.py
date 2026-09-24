@@ -15,8 +15,10 @@ from acceptance.runtime import infra
 def run_regression(harness) -> dict:
     output = harness.output
     junit = output / "regression.xml"
+    # 与 infra.py run --migration 相同：以迁移所有者身份跑，另给应用角色的 DSN（凭证测试要用它核对 RLS）。
     environment = harness.process_environment({
         "DATABASE_URL": harness.env["MIGRATION_DATABASE_URL"],
+        "APP_DATABASE_URL": harness.env["APP_DATABASE_URL"],
         "TEST_ADMIN_DATABASE_URL": infra.test_admin_url(),
     })
     command = [harness.python, "-m", "pytest", "tests", "-q", "-rs", f"--junitxml={junit}"]

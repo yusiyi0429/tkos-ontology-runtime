@@ -68,8 +68,11 @@ def migration_upgrade(book, h, source, database_evidence, upgrade_evidence):
     check('repeating_either_migration_applies_nothing', created['repeat_applied'] == [] and upgraded['repeat_applied'] == [])
     with h.app_connection() as conn:
         applied = [row['name'] for row in conn.execute('SELECT name FROM schema_migrations ORDER BY name')]
+    # 冻结之后追加的迁移与 world 语义无关（#32 的授权修复与凭证有效期），排在 world 迁移之后；新增一个就要在这里写明。
+    after_freeze = {'0037_append_only_grant_repair.sql', '0038_credential_lifecycle.sql'}
     check('the_world_migration_is_the_newest_applied_migration',
-          applied[-len(expected):] == list(expected) and all('_world_' in name for name in expected))
+          applied[-len(expected):] == list(expected) and any('_world_' in name for name in expected)
+          and all('_world_' in name or name in after_freeze for name in expected))
 
 
 def control_plane(book, h, source, f):
@@ -1536,11 +1539,15 @@ def mcp_end_to_end(book, h, f, flow, made, url, source):
           sorted(names) == sorted(['world_get_object', 'world_get_context', 'world_get_events', 'world_get_state',
                                    'world_revise_object', 'world_refresh_state', 'world_record_event']))
     reads_ok = all(not done[key][0] for key in ('object', 'context', 'events', 'state'))
-    packs = flow.rows('SELECT principal_id FROM gov_world_context_packs WHERE scope_id=%s ORDER BY created_at, context_pack_id',
+    packs = flow.rows('SELECT context_pack_id, principal_id, pack FROM gov_world_context_packs WHERE scope_id=%s ORDER BY created_at, context_pack_id',
                       (f['scope_id'],))
     check('the_four_reads_reach_the_real_api_with_the_agent_credential',
           reads_ok and done['object'][1]['object_id'] == activity['object_id']
-          and done['context'][1]['context_pack']['layers'][0]['object']['object_id'] == activity['object_id']
+          # MCP 只把包 id、Markdown、覆盖与预算交给模型（#32 批次 D），分层内容按包 id 到落表的那一行里核对。
+          and sorted(done['context'][1]) == ['budget', 'context_pack_id', 'coverage', 'markdown']
+          and str(packs[-1]['context_pack_id']) == done['context'][1]['context_pack_id']
+          and packs[-1]['pack']['layers'][0]['object']['object_id'] == activity['object_id']
+          and done['context'][1]['markdown'] == packs[-1]['pack']['markdown']
           and len(packs) == context_rows + 1 and str(packs[-1]['principal_id']) == f['actors']['agent_a']['principal_id']
           and done['events'][1]['events'] and all(e['subject_refs'] for e in done['events'][1]['events'])
           and done['state'][1]['snapshot'] is not None)
@@ -1568,7 +1575,7 @@ def mcp_end_to_end(book, h, f, flow, made, url, source):
           len(lines) == 13 and [line['seq'] for line in lines] == list(range(1, 14))
           and lines[0]['tool'] == 'world_get_object' and _ref(activity) in lines[0]['refs']
           and lines[1].get('context_pack_id') == done['context'][1]['context_pack_id']
-          and lines[1]['used_chars'] == len(done['context'][1]['context_pack']['markdown'])
+          and lines[1]['used_chars'] == len(done['context'][1]['markdown'])
           and all(line.get('idempotency_key') for line in lines[4:])
           and [line['status'] for line in lines[7:]] == [422] * 6 and token not in files[0].read_text())
 

@@ -3,7 +3,8 @@
 # 0.7.1：为 tkos.method/0.5 补 runtime_0_5（交付后的目标状态），JSON 导出后钉进 method-profile-0.5.json 的 ontology_registry_ref。
 # 用途：① 文档的 A1 / A2 / 表 B 以后从这里生成；② 测试断言它与运行时模型、数据库 CHECK 约束一致；
 #       ③ 0.5 契约的关系投影表按这里的 relations 派生。它不改变任何运行时语义。
-# 冻结方式：status 改为 frozen，算 tkos-json-v1 规范化后的 SHA-256，钉进 gov_method_profile_revisions.content.ontology_ref。
+# 冻结方式：status 改为 frozen，用 scripts/export_ontology_registry.py 导出 JSON，钉的是导出文件字节的 SHA-256
+#（不是 tkos-json-v1 规范化摘要），写进 method-profile-0.5.json（即 gov_method_profile_revisions.content）的 ontology_registry_ref。
 registry_id: tkos.ontology-registry
 revision: "0.7.1"
 status: draft

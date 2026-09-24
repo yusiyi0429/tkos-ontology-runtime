@@ -179,7 +179,7 @@ def test_tasks_projection_handles_04_windows_without_monthly(monkeypatch):
     window_id = str(uuid4())
     value = {
         'object': {'object_id': window_id, 'object_type': 'ReviewWindow',
-                   'method_state': {'phase': 'pending'},
+                   'method_state': {'phase': 'resolved'},
                    'latest_revision': {'payload': {'title': '0.4 window'}},
                    'protocol': {'contract_version': 'tkos.method/0.4'}},
         'monthly': None,

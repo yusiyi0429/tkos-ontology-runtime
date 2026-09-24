@@ -10,6 +10,7 @@ import argparse
 from contextlib import closing
 from datetime import datetime, timezone
 import hashlib
+import hmac
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 import os
@@ -188,6 +189,10 @@ class ReceiverHandler(BaseHTTPRequestHandler):
         if urlsplit(self.path).path != "/effects":
             self.send_json(404, {"error": {"code": "NOT_FOUND"}})
             return
+        if self.server.tokens is not None and not authorized(self.headers.get("Authorization", ""),
+                                                            self.server.tokens):
+            self.send_json(401, {"error": {"code": "UNAUTHENTICATED"}})
+            return
         try:
             length = int(self.headers.get("Content-Length", "-1"))
         except ValueError:
@@ -210,6 +215,19 @@ class ReceiverHandler(BaseHTTPRequestHandler):
         self.send_json(status, result)
 
 
+def load_tokens(path: Path) -> list[str]:
+    """令牌文件每行一个，空行忽略。"""
+    return [line.strip() for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+
+
+def authorized(header: str, tokens: list[str]) -> bool:
+    """Authorization 头与任一当前令牌相符。逐个做常量时间比对，不因先命中而提前返回；没有令牌就一律拒绝。"""
+    matched = False
+    for token in tokens:
+        matched |= hmac.compare_digest(header, f"Bearer {token}")
+    return matched
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--host", choices=["127.0.0.1"], default="127.0.0.1")
@@ -217,10 +235,14 @@ def main() -> None:
     parser.add_argument("--ledger", type=Path, required=True)
     parser.add_argument("--events", type=Path)
     parser.add_argument("--ready-file", type=Path)
+    parser.add_argument("--token-file", type=Path,
+                        help="要求 Authorization: Bearer <令牌>；文件每行一个令牌，任一相符即通过。轮换时先加新令牌、"
+                             "再换派发端的 GOVERNED_EFFECT_TOKEN，最后删掉旧令牌")
     args = parser.parse_args()
     server = ThreadingHTTPServer((args.host, args.port), ReceiverHandler)
     server.daemon_threads = True
     server.ledger = Ledger(args.ledger, args.events)
+    server.tokens = load_tokens(args.token_file) if args.token_file else None
     ready = {"kind": "receiver", "pid": os.getpid(), "host": args.host,
              "port": server.server_port, "url": f"http://{args.host}:{server.server_port}",
              "ledger": str(args.ledger.resolve())}

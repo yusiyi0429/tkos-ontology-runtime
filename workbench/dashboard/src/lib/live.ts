@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useReducer, useRef } from "react"
-import { isAbort, isAccessDenial } from "@/lib/errors"
+import { isAbort, isAccessDenial, isNotFound } from "@/lib/errors"
 
 /** Live read state with foreground polling, abort/epoch guarding and update prompts. */
 export interface LiveState<T> {
@@ -18,6 +18,7 @@ export type LiveAction<T> =
   | { type: "start" }
   | { type: "success"; data: T }
   | { type: "failure"; error: unknown }
+  | { type: "gone"; error: unknown }
   | { type: "acceptPending" }
   | { type: "dismissPending" }
   | { type: "reset" }
@@ -52,6 +53,10 @@ export function liveReducer<T>(
     }
     case "failure":
       return { ...state, error: action.error, stale: state.data !== null, loading: false }
+    case "gone":
+      // The item is gone or no longer visible: drop its content (never stale),
+      // keep the reason; the next successful read restores it.
+      return { ...initialLiveState<T>(), error: action.error }
     case "acceptPending":
       return state.pending === null ? state : { ...state, data: state.pending, pending: null }
     case "dismissPending":
@@ -65,7 +70,8 @@ export function liveReducer<T>(
 
 export interface LiveResourceOptions<T> {
   key: string | null
-  fetcher: (key: string, signal: AbortSignal) => Promise<T>
+  /** `background` is true only for the timer-driven poll, which is not the person's activity. */
+  fetcher: (key: string, signal: AbortSignal, background: boolean) => Promise<T>
   identity: (data: T) => string
   intervalMs?: number
   enabled?: boolean
@@ -95,7 +101,7 @@ export function useLiveResource<T>(options: LiveResourceOptions<T>): LiveResourc
   identityRef.current = identity
   onAccessDeniedRef.current = onAccessDenied
 
-  const run = useCallback(async (silent: boolean) => {
+  const run = useCallback(async (silent: boolean, background = false) => {
     const currentKey = key
     if (!currentKey || !enabled) return
     const epoch = ++epochRef.current
@@ -104,7 +110,7 @@ export function useLiveResource<T>(options: LiveResourceOptions<T>): LiveResourc
     abortRef.current = controller
     if (!silent) rawDispatch({ type: "start" })
     try {
-      const data = await fetcherRef.current(currentKey, controller.signal)
+      const data = await fetcherRef.current(currentKey, controller.signal, background)
       if (epoch !== epochRef.current) return // a late obsolete result is ignored
       rawDispatch({ type: "success", data })
     } catch (error) {
@@ -116,6 +122,10 @@ export function useLiveResource<T>(options: LiveResourceOptions<T>): LiveResourc
         abortRef.current?.abort()
         onAccessDeniedRef.current?.()
         rawDispatch({ type: "reset" })
+        return
+      }
+      if (isNotFound(error)) {
+        rawDispatch({ type: "gone", error })
         return
       }
       rawDispatch({ type: "failure", error })
@@ -139,10 +149,14 @@ export function useLiveResource<T>(options: LiveResourceOptions<T>): LiveResourc
 
   useEffect(() => {
     if (!enabled) return
+    // Returning to the tab is the person's own activity; the interval is not.
     const tick = () => {
       if (document.visibilityState === "visible") void run(true)
     }
-    const interval = window.setInterval(tick, intervalMs)
+    const poll = () => {
+      if (document.visibilityState === "visible") void run(true, true)
+    }
+    const interval = window.setInterval(poll, intervalMs)
     window.addEventListener("focus", tick)
     document.addEventListener("visibilitychange", tick)
     return () => {

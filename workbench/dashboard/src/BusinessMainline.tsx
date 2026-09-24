@@ -134,14 +134,18 @@ export function BusinessMainline({ onOpen, onAuthLost }: MainlineProps) {
     () => ({ strategy: EMPTY_LANE, ltco: EMPTY_LANE, pco: EMPTY_LANE, mission: EMPTY_LANE }))
   const [pcoEdges, setPcoEdges] = useState<EdgeSet | null>(null)
   const [missionEdges, setMissionEdges] = useState<EdgeSet | null>(null)
+  // A failed edge read is shown with a retry; the lane never waits on it forever.
+  const [pcoEdgeError, setPcoEdgeError] = useState<string | null>(null)
+  const [missionEdgeError, setMissionEdgeError] = useState<string | null>(null)
+  const [edgeRetry, setEdgeRetry] = useState(0)
   const mounted = useRef(true)
   useEffect(() => { mounted.current = true; return () => { mounted.current = false } }, [])
 
-  // Same rule the shell uses: only a lost identity ends the session.  A 404 on
-  // one lane read is that lane's business result, not a reason to sign out.
+  // Same rule the shell uses: only a lost session (401) ends it.  A 403/404 on
+  // one read is that read's result: the lane says so, not a reason to sign out.
   const fail = useCallback((error: unknown): string | null => {
     if (isAbort(error)) return null
-    if (error instanceof ApiError && [401, 403].includes(error.status)) { onAuthLost(); return null }
+    if (error instanceof ApiError && error.status === 401) { onAuthLost(); return null }
     return errorLabel(error)
   }, [onAuthLost])
 
@@ -172,8 +176,10 @@ export function BusinessMainline({ onOpen, onAuthLost }: MainlineProps) {
       }).catch((error: unknown) => {
         if (!mounted.current || controller.signal.aborted) return
         const message = fail(error)
+        // Cards this identity may no longer read are dropped, not kept as stale content.
+        const denied = error instanceof ApiError && [403, 404].includes(error.status)
         setLanes((current) => ({ ...current, [lane.key]: {
-          ...current[lane.key], loading: false, error: message,
+          ...current[lane.key], ...(denied ? { items: [], hasMore: false } : {}), loading: false, error: message,
         } }))
       })
     }
@@ -185,23 +191,29 @@ export function BusinessMainline({ onOpen, onAuthLost }: MainlineProps) {
   // a lane never shows a previous parent's children while the read is in flight.
   useEffect(() => {
     setPcoEdges(null)
+    setPcoEdgeError(null)
     if (!ltco) return
     const controller = new AbortController()
     void childRefs(ltco, "PCO", controller.signal).then((edges) => {
       if (mounted.current && !controller.signal.aborted) setPcoEdges(edges)
-    }).catch((error: unknown) => { if (mounted.current) fail(error) })
+    }).catch((error: unknown) => {
+      if (mounted.current && !controller.signal.aborted) setPcoEdgeError(fail(error))
+    })
     return () => controller.abort()
-  }, [ltco, reload, fail])
+  }, [ltco, reload, edgeRetry, fail])
 
   useEffect(() => {
     setMissionEdges(null)
+    setMissionEdgeError(null)
     if (!pco) return
     const controller = new AbortController()
     void childRefs(pco, "Mission", controller.signal).then((edges) => {
       if (mounted.current && !controller.signal.aborted) setMissionEdges(edges)
-    }).catch((error: unknown) => { if (mounted.current) fail(error) })
+    }).catch((error: unknown) => {
+      if (mounted.current && !controller.signal.aborted) setMissionEdgeError(fail(error))
+    })
     return () => controller.abort()
-  }, [pco, reload, fail])
+  }, [pco, reload, edgeRetry, fail])
 
   const select = (lane: LaneKey, item: ObjectListItem) => {
     const next: Selection = {
@@ -235,10 +247,14 @@ export function BusinessMainline({ onOpen, onAuthLost }: MainlineProps) {
     return byStatus.filter((item) => edges.keys.has(refKey(item.object_id, item.basis_revision_id)))
   }, [lanes, status, ltco, pco, pcoEdges, missionEdges])
 
+  /** Why this lane cannot be narrowed to its selected parent right now. */
+  const edgeFailure = (lane: Lane): string | null =>
+    lane.key === "pco" && ltco ? pcoEdgeError : lane.key === "mission" && pco ? missionEdgeError : null
+
   const pending = (lane: Lane): boolean =>
     lanes[lane.key].loading
-    || (lane.key === "pco" && !!ltco && pcoEdges === null)
-    || (lane.key === "mission" && !!pco && missionEdges === null)
+    || (lane.key === "pco" && !!ltco && pcoEdges === null && !pcoEdgeError)
+    || (lane.key === "mission" && !!pco && missionEdges === null && !missionEdgeError)
 
   /** What narrowed this lane, in the user's terms — or what would. */
   const hint = (lane: Lane): { text: string; kind: "exact" | "advice" } | null => {
@@ -326,6 +342,7 @@ export function BusinessMainline({ onOpen, onAuthLost }: MainlineProps) {
           const items = visible(lane)
           const selected = selectionOf(lane.key)
           const note = hint(lane)
+          const edgeError = edgeFailure(lane)
           return (
             <section key={lane.key} className="gov-lane" aria-label={`${lane.name} ${lane.en}`}>
               <h3>{lane.name} <span className="gov-lane-en">{lane.en}</span></h3>
@@ -334,7 +351,14 @@ export function BusinessMainline({ onOpen, onAuthLost }: MainlineProps) {
                 <p className="gov-lane-advice">下游引用较多，这里只读取了前 {EDGE_PAGE_LIMIT} 页；请选择更靠下的一层继续收窄。</p>
               )}
               {state.error && <p className="gov-lane-advice">{state.error}</p>}
-              {pending(lane) ? <p className="gov-lane-empty">正在读取…</p>
+              {edgeError ? (
+                <div className="gov-lane-empty" role="alert" data-testid={`lane-${lane.key}-edge-error`}>
+                  <p>未能读取所选上层的精确下游关联，本栏暂不显示。</p>
+                  <p className="mt-1 text-[11px]">{edgeError}</p>
+                  <Button size="sm" variant="outline" className="mt-3"
+                          onClick={() => setEdgeRetry((value) => value + 1)}>重试</Button>
+                </div>
+              ) : pending(lane) ? <p className="gov-lane-empty">正在读取…</p>
                 : items.length === 0 ? (
                   <p className="gov-lane-empty">
                     暂无{lane.company ? "可读战略" : `${STATUS_LABEL[status]}对象`}。

@@ -4,9 +4,13 @@ peer 开工前先跑这个文件；它红说明共享夹具坏了，报主会话
 """
 from __future__ import annotations
 
+import pytest
+
 from tests.conftest import Scope, connect
 
 from memory_service import working
+
+pytestmark = pytest.mark.db
 
 
 def test_seed_chain_confirms_and_cleans_up():

@@ -5,12 +5,14 @@
 world_record_event），名称与参数和 HTTP 面一一对应；门动作、指派与建关系不暴露（契约第 9 节）。
 这里只校验工具参数的形状（未知参数、缺少的定位字段），写入内容与三项声明由 HTTP 面校验，
 HTTP 的拒绝原样返回。写入先 prepare 再 commit，同一条命令、同一个幂等键；不替调用方补目标、不重试。
+取上下文成功时只把上下文包 id、渲染后的 Markdown、六问覆盖与预算裁剪摘要交给调用方（实验报告建议 1）；
+分层 JSON、检索计划与钉定信息留在 HTTP 面与上下文包表里。其余返回原样交出。
 
 每次工具调用在运行日志（JSONL，每个进程一个文件）里记一行：时间、会话、序号、工具、参数、HTTP 状态
-与错误码、返回里的引用与事件 id、返回字符数；读工具另记带着内容回来的引用与事件 id（read_refs、
+与错误码、返回里的引用与事件 id、交给调用方的字符数；读工具另记带着内容回来的引用与事件 id（read_refs、
 read_event_ids，只以引用形式出现的不算）；写入另记幂等键，取上下文另记上下文包 id 与渲染后 Markdown 的
-字符数，且引用只取上下文包本身（检索计划里裁掉的条目与主干上钉定的旧版本不计入）。
-凭证不进日志；日志写不进去只在 stderr 提示，不影响已完成的调用。
+字符数，且引用与读到的内容按 HTTP 面返回的上下文包本身算：交出去的 Markdown 就是这个包渲染的，检索计划里
+裁掉的条目与主干上钉定的旧版本不计入。凭证不进日志；日志写不进去只在 stderr 提示，不影响已完成的调用。
 
 环境变量：TKOS_WORLD_API_URL（HTTP 面的地址）、TKOS_WORLD_AGENT_TOKEN（Agent 身份的凭证）、
 TKOS_WORLD_MCP_LOG_DIR（运行日志目录，默认 artifacts/world-mcp-runs）。
@@ -56,8 +58,12 @@ TOOLS: dict[str, tuple[str, dict[str, Any]]] = {
         "取对象（GET /v1/world/objects/{object_id}）：块、属性、关系引用、生命周期、最新状态快照；version 取指定修订。",
         _schema({"object_id": _OBJECT_ID, "version": {"type": "integer", "minimum": 1}}, ["object_id"])),
     "world_get_context": (
-        "取上下文（POST /v1/world/objects/{object_id}/context）：沿主干向上的上下文包、检索计划与六问覆盖，每次调用落一行。",
-        _schema({"object_id": _OBJECT_ID, "question": {"type": "string", "minLength": 1},
+        "取上下文（POST /v1/world/objects/{object_id}/context）：从该对象沿主干向上组装上下文，返回上下文包 id、"
+        "Markdown（开头的六问指引按问题给出处，下文分层列块、最新状态快照与近期事件）、六问覆盖与预算裁剪摘要，"
+        "每次调用落一行。question 只做记录，不改变返回的内容：同一问题取一次即可；budget.trimmed 为空说明没裁，"
+        "调大预算也不会多出内容。",
+        _schema({"object_id": _OBJECT_ID, "question": {"type": "string", "minLength": 1,
+                                                       "description": "要回答的问题，只做记录，不影响返回的内容"},
                  "budget": _schema({"max_chars": {"type": "integer", "minimum": 1},
                                     "max_events_per_object": {"type": "integer", "minimum": 1}}, []),
                  "recent_days": {"type": "integer", "minimum": 1}}, ["object_id", "question"])),
@@ -186,6 +192,19 @@ def _error(code: str, message: str, **detail: Any) -> str:
     return json.dumps({"error": {"code": code, "message": message, **detail}}, ensure_ascii=False)
 
 
+def _shown(name: str, body: Any) -> dict[str, Any] | None:
+    """取上下文成功时交给调用方的部分：包 id、Markdown、六问覆盖，以及预算加上按原因、按类计的裁剪条数。
+    其余工具与不成形的返回为 None，原样交出。"""
+    if name != "world_get_context" or not isinstance(body, dict) or not isinstance(body.get("context_pack"), dict):
+        return None
+    trimmed: dict[str, dict[str, int]] = {}
+    for entry in (body.get("plan") or {}).get("trimmed") or []:
+        counted = trimmed.setdefault(str(entry.get("reason")), {})
+        counted[str(entry.get("kind"))] = counted.get(str(entry.get("kind")), 0) + 1
+    return {"context_pack_id": body.get("context_pack_id"), "markdown": body["context_pack"].get("markdown"),
+            "coverage": body.get("coverage"), "budget": {**(body.get("budget") or {}), "trimmed": trimmed}}
+
+
 class WorldTools:
     def __init__(self, http: httpx.AsyncClient, log: RunLog) -> None:
         self.http, self.log = http, log
@@ -229,7 +248,8 @@ class WorldTools:
 
     def finish(self, name: str, arguments: dict[str, Any], status: int | None, text: str,
                idempotency_key: str | None = None) -> types.CallToolResult:
-        """把 HTTP 的返回（或本层的错误）原样交给调用方，并记一行运行日志。status 为 None 表示没有拿到 HTTP 的答复。"""
+        """把 HTTP 的返回（或本层的错误）交给调用方，并记一行运行日志：取上下文成功时只交出 _shown 的部分，其余原样。
+        status 为 None 表示没有拿到 HTTP 的答复。"""
         try:
             body = json.loads(text)
         except ValueError:
@@ -237,9 +257,13 @@ class WorldTools:
         error = body.get("error") if isinstance(body, dict) else None
         code = error.get("code") if isinstance(error, dict) else None
         failed = status is None or status >= 400 or code is not None
+        shown = None if failed else _shown(name, body)
+        if shown is not None:
+            text = json.dumps(shown, ensure_ascii=False, separators=(",", ":"))
         self.log.write(name, arguments, status, code if failed else None, text, body, idempotency_key)
+        structured = shown if shown is not None else body if isinstance(body, dict) else None
         return types.CallToolResult(content=[types.TextContent(type="text", text=text)],
-                                    structured_content=body if isinstance(body, dict) else None, is_error=failed)
+                                    structured_content=structured, is_error=failed)
 
 
 async def _serve(url: str, token: str, log_dir: Path) -> None:

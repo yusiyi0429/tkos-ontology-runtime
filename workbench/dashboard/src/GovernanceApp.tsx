@@ -11,9 +11,12 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { formatPeriod, formatTime } from '@/lib/format'
+import { BACKGROUND_HEADERS } from '@/lib/api'
 import { ApiError } from '@/lib/errors'
-import { MethodActions } from '@/MethodActions'
+import { PAGE_SIZE, pageQuery, readWindow, type CursorPage } from '@/lib/paging'
+import { METHOD_WINDOW_VERSIONS, MethodActions } from '@/MethodActions'
 import { SourceScenes } from '@/SourceScenes'
 
 // This boundary consumes versioned Runtime projections; no browser credential or sample data.
@@ -24,16 +27,18 @@ type Payload = Record<string, unknown>
 type Revision = { revision_id: string; payload_hash: string; payload: Payload }
 type Responsibility = { principal?: { principal_id: string; display_name: string } }
 type Obj = { responsibilities?: Responsibility[]; object_id: string; domain_id: string; object_version: number; latest_revision: Revision; effective_revision?: Revision; method_state: { phase: string }; protocol: { contract_version: string }; handoff?: Payload }
-type Operation = { action_type: string; label: string; allowed: boolean; reason: string | null; target: Ref & { expected_version: number }; formal_effect: string }
+type Operation = { action_type: string; label: string; allowed: boolean; reason: string | null; target: Ref & { expected_version: number }; formal_effect: string; contract_version: string }
 type Review = { record_id: string; kind: string; principal_id: string; effective_opinion: boolean; target_object_id: string; target_revision_id: string; content?: Payload; payload?: Payload }
 type Scene = { scene_id: string; version: number; definition: { title: string }; monthly: { reviewed_current_candidate: boolean }; events: Payload[] }
-type WindowData = { identity: Identity; object: Obj; monthly: { window: Obj; business_period: { start: string; end: string }; feedback_deadline: { value?: string }; targets: Array<{ ref: Ref; revision: Revision; responsibilities?: Responsibility[] }>; candidate_targets: Array<{ ref: Ref; revision: Revision; responsibilities?: Responsibility[] }>; candidate: { status: string; ref?: Ref; revision?: Revision }; differences: Array<{ before_ref: Ref; after_ref: Ref; fields: Array<{ field_path: string; before: unknown; after: unknown }> }>; reviews: Review[]; my_reviews: Review[]; visible_effective_opinion_count: number; members: Array<{ principal_id: string; assignment_id: string }>; member_details: Array<{ display_name?: string; current?: boolean; role?: string }> }; scenes: Scene[]; actions: Operation[]; can_create_scene: boolean; recovery: Payload }
+type WindowData = { identity: Identity; object: Obj; monthly: { window: Obj; business_period: { start: string; end: string }; feedback_deadline: { value?: string }; targets: Array<{ ref: Ref; revision: Revision; responsibilities?: Responsibility[] }>; candidate_targets: Array<{ ref: Ref; revision: Revision; responsibilities?: Responsibility[] }>; candidate: { status: string; ref?: Ref; revision?: Revision }; differences: Array<{ before_ref: Ref; after_ref: Ref; fields: Array<{ field_path: string; before: unknown; after: unknown }> }>; reviews: Review[]; my_reviews: Review[]; visible_effective_opinion_count: number; members: Array<{ principal_id: string; assignment_id: string }>; member_details: Array<{ display_name?: string; current?: boolean; role?: string }> } | null; scenes: Scene[]; actions: Operation[]; can_create_scene: boolean; recovery: Payload }
 type Command = { preview?: { title: string; members: Array<{ title: string; ref: Ref; payload: Payload; responsibilities?: Responsibility[] }> }; command_id: string; status: string; kind: string; envelope: Payload | null; receipt?: Payload | null; receipt_status?: string; payload_withheld?: string; error?: string }
 type Task = { object_id: string; title: string; phase: string; label: string; contract_version: string }
 type Basis = { title: string; object_type: string; ref: Ref; strategy_ref?: Ref }
 const BASE = '/dashboard/api/v1'
 const STATUS: Record<string, string> = { prepared: '等待本人提交', unknown: '结果不明，请核对并恢复', committed: '已生效', rejected: '已拒绝，需重新判断', open: '评论开放', closed: '等待 Co-agent 收拢', resolved: '候选待确认', confirmed: '已确认' }
-const REASONS: Record<string, string> = { current_role_not_permitted: '当前任职无权操作', window_state_not_permitted: '当前窗口阶段不允许', review_deadline_passed: '评论期限已过', read_only_contract_version: '此历史规则版本仅供读取', VERSION_CONFLICT: '版本已变化，请刷新后重新判断', STALE_DEPENDENCY: '依据已变化，请核对最新版本', FORBIDDEN: '当前权限不允许', UNAUTHENTICATED: '会话已失效，请重新登录', DEPENDENCY_MISSING: '缺少必要依据', INVALID_REQUEST: '请检查必填内容和版本引用', RESULT_UNKNOWN: '结果尚未确定，请到我的提交恢复', IDEMPOTENCY_CONFLICT: '该提交编号已用于其他内容', LOGIN_RATE_LIMITED: '登录尝试过多，请稍后重试' }
+const REASONS: Record<string, string> = { current_role_not_permitted: '当前任职无权操作', window_state_not_permitted: '当前窗口阶段不允许', review_deadline_passed: '评论期限已过', read_only_contract_version: '此历史规则版本仅供读取', VERSION_CONFLICT: '版本已变化，请刷新后重新判断', STALE_DEPENDENCY: '依据已变化，请核对最新版本', FORBIDDEN: '当前权限不允许', UNAUTHENTICATED: '会话已失效，请重新登录', DEPENDENCY_MISSING: '缺少必要依据', INVALID_REQUEST: '请检查必填内容和版本引用', RESULT_UNKNOWN: '结果尚未确定，请到我的提交恢复', IDEMPOTENCY_CONFLICT: '该提交编号已用于其他内容', LOGIN_RATE_LIMITED: '登录尝试过多，请稍后重试', LOGIN_FAILED: '登录码不正确，请核对用户名与个人登录码', CSRF_TOKEN_INVALID: '页面安全令牌已过期：请先更新安全令牌，再重新提交；已填写的内容会保留', NOT_FOUND: '该事项不存在或当前不可见' }
+// At login there is no session yet: an unavailable account/credential is not an "expired session".
+const LOGIN_UNAVAILABLE = '账号当前不可用，请联系工作台管理员'
 const ACTION: Record<string, string> = { m1b_comment: '发表或替代意见', m1b_withdraw_comment: '撤回本人意见', m1b_confirm_candidates: '确认整个候选集合', m1b_reopen_window: '重开评论窗口', m1b_reopen_candidates: '退回并重开窗口', create: '建立月度核对场景', comment_anchor: '补充评论字段定位', diff_response: '记录本人核对完成', m1a_set_participants: '指定必要参与人', m1a_confirm_agreement: '确认 Agreement（本人）', m1a_confirm_update: '最终确认正式更新', m1b_confirm_ltco: '确认 LTCO 正式版本', m1b_replace_comment: '替代本人意见', m1b_commit_candidate: '提交本人责任承诺', m1b_activate_candidates: '整组激活候选集合', method_confirm_state: '确认正式经营状态', method_open_problem: '登记经营问题', method_revise_problem: '修订经营问题', method_close_problem: '关闭经营问题', scene_create: '建立独立来源场景', source_add: '登记来源', source_version: '登记来源新版本', source_correct: '更正来源', source_withdraw: '撤回来源', source_share: '分享来源片段', source_unshare: '取消分享', followup_draft: '提交跟进草稿', draft_decision: '本人接受或处理草稿条目' }
 const FIELD: Record<string, string> = { title: '名称', deliverable: '交付要求', acceptance_criteria: '验收标准', boundary: '边界', hard_deadline: '交付期限', supports: '成果支持关系', owner_principal_id: '责任人', dri_principal_id: '成果 DRI', participants: '参与人', contribution: '支撑贡献', disposition: '取舍', rationale: '取舍理由', adjustment: '实际修改', unit_outcomes: '周期成果', result_statement: '预期结果', criteria: '判断标准', outcomes: '成果', content: '意见', reason: '理由', dispositions: '意见取舍', remaining_differences: '未决差异', why: '为什么（Why）', requirements: '要求',
   period: '周期', start: '开始', end: '结束', primary_scope_id: '主 Scope',
@@ -110,9 +115,10 @@ function ReviewPath({ phase }: { phase?: string }) {
   return <ol className="gov-review-path" aria-label="共同核对流程">{['固定版本评论', 'Co-agent 收拢', '本人承诺', 'CEO 整组确认', '正式 Mission'].map((label, i) => <li key={label} aria-current={i === current ? 'step' : undefined}><span>{i + 1}</span>{label}</li>)}</ol>
 }
 
-export async function governanceFetch<T>(path: string, method = 'GET', body?: unknown, csrf?: string, signal?: AbortSignal): Promise<T> {
+// `background`: a timer-driven poll, which the session does not count as the person's activity.
+export async function governanceFetch<T>(path: string, method = 'GET', body?: unknown, csrf?: string, signal?: AbortSignal, background = false): Promise<T> {
   const response = await fetch(BASE + path, { method, credentials: 'same-origin', cache: 'no-store', signal,
-    headers: { Accept: 'application/json', ...(body ? { 'Content-Type': 'application/json' } : {}), ...(csrf ? { 'X-CSRF-Token': csrf } : {}) },
+    headers: { Accept: 'application/json', ...(body ? { 'Content-Type': 'application/json' } : {}), ...(csrf ? { 'X-CSRF-Token': csrf } : {}), ...(background ? BACKGROUND_HEADERS : {}) },
     ...(body ? { body: JSON.stringify(body) } : {}) })
   if (!response.ok) { const data = await response.json().catch(() => ({})); throw new ApiError(response.status, data.error?.code ?? 'UNAVAILABLE', '') }
   return response.json() as Promise<T>
@@ -129,13 +135,13 @@ export function GovernanceApp() {
   const authEpoch = useRef(0); const checkAbort = useRef<AbortController | null>(null)
   const invalidateAuth = useCallback(() => { authEpoch.current += 1; checkAbort.current?.abort() }, [])
   useEffect(() => { if (mode !== 'read') document.title = 'Runtime 治理工作台' }, [mode])
-  const check = useCallback(async () => {
+  const check = useCallback(async (background = false) => {
     const epoch = ++authEpoch.current
     checkAbort.current?.abort()
     const controller = new AbortController()
     checkAbort.current = controller
     try {
-      const s = await governanceFetch<Session>('/session', 'GET', undefined, undefined, controller.signal)
+      const s = await governanceFetch<Session>('/session', 'GET', undefined, undefined, controller.signal, background)
       if (!alive.current || epoch !== authEpoch.current) return
       setSession(s); setMode('ready'); setFailure('')
     }
@@ -143,7 +149,9 @@ export function GovernanceApp() {
       if (!alive.current || epoch !== authEpoch.current) return
       if (e instanceof DOMException && e.name === 'AbortError') return
       if (e instanceof ApiError && e.status === 404) setMode('read')
-      else if (e instanceof ApiError && [401, 403].includes(e.status)) { setSession(null); setMode('login') }
+      // Only a lost session (401) ends an open shell; a 403 keeps it and its unsent forms in place.
+      else if (e instanceof ApiError && e.status === 403 && modeRef.current === 'ready') return
+      else if (e instanceof ApiError && [401, 403].includes(e.status)) { if (modeRef.current === 'ready') setFailure(REASONS.UNAUTHENTICATED); setSession(null); setMode('login') }
       else { setSession(null); setFailure(err(e)); setMode('error') }
     }
   }, [])
@@ -151,25 +159,26 @@ export function GovernanceApp() {
   // profile object must not rebuild these callbacks and starve child timers.
   const sessionRef = useRef<Session | null>(null)
   sessionRef.current = session
-  const onAuthLost = useCallback(() => { invalidateAuth(); setSession(null); setMode('login') }, [invalidateAuth])
+  const onAuthLost = useCallback(() => { invalidateAuth(); setSession(null); setFailure(REASONS.UNAUTHENTICATED); setMode('login') }, [invalidateAuth])
   const onLogout = useCallback(async () => {
     invalidateAuth()
     await governanceFetch('/session', 'DELETE', undefined, sessionRef.current?.csrf).catch(() => undefined)
     setSession(null); setMode('login')
   }, [invalidateAuth])
 
-  useEffect(() => { alive.current = true; void check(); const refreshSession = () => { if (modeRef.current === 'ready' && !document.hidden) void check() }; const id = window.setInterval(refreshSession, 5000); window.addEventListener('focus', refreshSession); return () => { alive.current = false; clearInterval(id); window.removeEventListener('focus', refreshSession) } }, [check])
+  // The 5-second session poll is background; a focus return is the person's own activity.
+  useEffect(() => { alive.current = true; void check(); const refreshSession = (background: boolean) => { if (modeRef.current === 'ready' && !document.hidden) void check(background) }; const poll = () => refreshSession(true); const wake = () => refreshSession(false); const id = window.setInterval(poll, 5000); window.addEventListener('focus', wake); return () => { alive.current = false; clearInterval(id); window.removeEventListener('focus', wake) } }, [check])
   if (mode === 'read') return <App />
-  if (mode === 'ready' && session) return <GovernanceShell key={`${session.identity.scope_id}/${session.identity.principal_id}/${session.identity.auth_epoch}`} session={session} onAuthLost={onAuthLost} onLogout={onLogout} />
+  if (mode === 'ready' && session) return <GovernanceShell key={`${session.identity.scope_id}/${session.identity.principal_id}/${session.identity.auth_epoch}`} session={session} onAuthLost={onAuthLost} onLogout={onLogout} onRefreshSession={check} />
   return <main className="gov-login"><section className="gov-login-story"><div className="gov-wordmark"><GitBranch size={24}/> TKOS <span>RUNTIME</span></div><div><p className="gov-eyebrow">业务治理 · 有据可循</p><h2>让每一次确认，<br/>都有清晰的依据。</h2><p>从共同核对到正式 Mission，连接业务对象、责任人和每一次有据可查的决定。</p><ReviewPath /></div><p className="gov-login-foot">对象 · 关系 · 规则 · 正式效力</p></section><section className="gov-login-form"><div className="gov-login-mark"><ShieldCheck size={28}/></div><p className="gov-eyebrow">个人工作空间</p><h1>Runtime 治理工作台</h1><p className="gov-login-intro">使用个人身份登录，查看与你相关的事项。</p>
     {failure && <Alert><AlertDescription>{failure}</AlertDescription></Alert>}
-    {mode === 'loading' ? <p>正在核验会话…</p> : mode === 'error' ? <Button onClick={check}>重新连接</Button> : <form className="space-y-4" onSubmit={async e => { e.preventDefault(); setBusy(true); setFailure(''); try { invalidateAuth(); const s = await governanceFetch<Session>('/session', 'POST', { username, code }); setCode(''); setSession(s); setMode('ready') } catch (e) { setFailure(err(e)); setCode('') } finally { setBusy(false) } }}>
+    {mode === 'loading' ? <p>正在核验会话…</p> : mode === 'error' ? <Button onClick={() => void check()}>重新连接</Button> : <form className="space-y-4" onSubmit={async e => { e.preventDefault(); setBusy(true); setFailure(''); try { invalidateAuth(); const s = await governanceFetch<Session>('/session', 'POST', { username, code }); setCode(''); setSession(s); setMode('ready') } catch (e) { setFailure(e instanceof ApiError && e.code === 'UNAUTHENTICATED' ? LOGIN_UNAVAILABLE : err(e)); setCode('') } finally { setBusy(false) } }}>
       <div><Label htmlFor="username">用户名</Label><Input id="username" autoComplete="username" value={username} onChange={e => setUsername(e.target.value)} required /></div>
       <div><Label htmlFor="code">个人登录码</Label><Input id="code" type="password" autoComplete="current-password" value={code} onChange={e => setCode(e.target.value)} required /></div><Button type="submit" disabled={busy}>{busy ? '正在核验…' : '登录'}</Button></form>}
   <p className="gov-login-note"><Fingerprint size={16}/>本机隔离测试 · 操作以本人身份记录</p></section></main>
 }
 
-function GovernanceShell({ session, onAuthLost, onLogout }: { session: Session; onAuthLost: () => void; onLogout: () => Promise<void> }) {
+function GovernanceShell({ session, onAuthLost, onLogout, onRefreshSession }: { session: Session; onAuthLost: () => void; onLogout: () => Promise<void>; onRefreshSession: () => Promise<void> }) {
   const EXPLORER = ['map', 'definitions', 'graph']
   // A legacy ?view=list link still selects the explorer; the embedded App then
   // folds it into the ontology map (or object details) and rewrites the URL.
@@ -178,7 +187,11 @@ function GovernanceShell({ session, onAuthLost, onLogout }: { session: Session; 
     const view = params.get('view')
     if (view === 'list') return params.get('object') ? 'graph' : 'map'
     return view && EXPLORER.includes(view) ? view : 'tasks'
-  }); const [windowId, setWindowId] = useState<string | null>(null)
+  })
+  // An open review window is routed by the contract its object is bound to:
+  // 0.4/0.5 go to the Method action page, everything else to the 0.3 window page.
+  const [openWindow, setOpenWindow] = useState<{ id: string; version: string } | null>(null)
+  const routeWindow = useCallback((version: string) => setOpenWindow(v => v && v.version !== version ? { ...v, version } : v), [])
   const [tasks, setTasks] = useState<Task[]>([]); const [after, setAfter] = useState<string | null>(null)
   const [commands, setCommands] = useState<Command[]>([]); const [missions, setMissions] = useState<Obj[]>([])
   const [missionAfter, setMissionAfter] = useState<string | null>(null)
@@ -186,13 +199,20 @@ function GovernanceShell({ session, onAuthLost, onLogout }: { session: Session; 
   const [preview, setPreview] = useState<Command | null>(null); const [busy, setBusy] = useState(false)
   const epoch = useRef(0); const intentEpoch = useRef(0); const controller = useRef<AbortController | null>(null); const mounted = useRef(true)
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; epoch.current++; controller.current?.abort() } }, [])
-  const handleError = useCallback((e: unknown) => { if (!mounted.current || (e instanceof DOMException && e.name === 'AbortError')) return; if (e instanceof ApiError && [401, 403].includes(e.status)) onAuthLost(); else setFailure(err(e)) }, [onAuthLost])
-  const refresh = useCallback(async () => {
+  // Only a lost session (401) returns to login.  A 403 is a rejection of this
+  // one read or submission (a CSRF failure carries its own code): it is shown
+  // inline and the shell, other pages and unsent form input stay as they are.
+  const handleError = useCallback((e: unknown) => { if (!mounted.current || (e instanceof DOMException && e.name === 'AbortError')) return; if (e instanceof ApiError && e.status === 401) onAuthLost(); else setFailure(err(e)) }, [onAuthLost])
+  // How many todos/Missions the person has loaded: every refresh re-reads that
+  // whole window, and 「加载更多」 widens it, so polling never drops loaded pages.
+  const taskWindow = useRef(PAGE_SIZE); const missionWindow = useRef(PAGE_SIZE)
+  const refresh = useCallback(async (background = false) => {
     const generation = ++epoch.current; controller.current?.abort(); const c = new AbortController(); controller.current = c
+    const list = <T,>(path: string, shown: number) => readWindow<T>((after, limit) => governanceFetch<CursorPage<T>>(path + pageQuery(limit, after), 'GET', undefined, undefined, c.signal, background), shown)
     try {
-      if (tab === 'tasks') { const page = await governanceFetch<{ items: Task[]; next_after: string | null }>('/governance/tasks', 'GET', undefined, undefined, c.signal); if (generation === epoch.current && mounted.current) { setTasks(page.items); setAfter(page.next_after) } }
-      if (tab === 'submissions') { const page = await governanceFetch<{ items: Command[] }>('/commands', 'GET', undefined, undefined, c.signal); if (generation === epoch.current && mounted.current) setCommands(page.items) }
-      if (tab === 'missions') { const page = await governanceFetch<{ items: Obj[]; next_after: string | null }>('/governance/missions', 'GET', undefined, undefined, c.signal); if (generation === epoch.current && mounted.current) { setMissions(page.items); setMissionAfter(page.next_after) } }
+      if (tab === 'tasks') { const page = await list<Task>('/governance/tasks', taskWindow.current); if (generation === epoch.current && mounted.current) { setTasks(page.items); setAfter(page.next_after) } }
+      if (tab === 'submissions') { const page = await governanceFetch<{ items: Command[] }>('/commands', 'GET', undefined, undefined, c.signal, background); if (generation === epoch.current && mounted.current) setCommands(page.items) }
+      if (tab === 'missions') { const page = await list<Obj>('/governance/missions', missionWindow.current); if (generation === epoch.current && mounted.current) { setMissions(page.items); setMissionAfter(page.next_after) } }
       // Only a tab that actually performed an authorized read may clear a
       // business submission error; method/source panes keep it until success
       // or an explicit user retry/page change.
@@ -200,9 +220,13 @@ function GovernanceShell({ session, onAuthLost, onLogout }: { session: Session; 
         if (tab === 'tasks' || tab === 'submissions' || tab === 'missions') setFailure('')
         setLoading(false)
       }
-    } catch (e) { if (generation === epoch.current) { handleError(e); setLoading(false) } }
+    } catch (e) { if (generation === epoch.current) {
+      // A list this identity may no longer read is dropped, not kept as stale content.
+      if (e instanceof ApiError && [403, 404].includes(e.status)) { if (tab === 'tasks') { setTasks([]); setAfter(null) } if (tab === 'submissions') setCommands([]); if (tab === 'missions') { setMissions([]); setMissionAfter(null) } }
+      handleError(e); setLoading(false) } }
   }, [tab, handleError])
-  useEffect(() => { setLoading(true); void refresh(); const timer = setInterval(() => { if (!document.hidden) void refresh() }, 5000); window.addEventListener('focus', refresh); return () => { clearInterval(timer); window.removeEventListener('focus', refresh); epoch.current++; controller.current?.abort() } }, [refresh])
+  const renewToken = async () => { await onRefreshSession(); if (mounted.current) setFailure('') }
+  useEffect(() => { setLoading(true); void refresh(); const timer = setInterval(() => { if (!document.hidden) void refresh(true) }, 5000); const wake = () => void refresh(); window.addEventListener('focus', wake); return () => { clearInterval(timer); window.removeEventListener('focus', wake); epoch.current++; controller.current?.abort() } }, [refresh])
   const prepare = async (body: Payload) => { if (busy) return; const intent = intentEpoch.current; setBusy(true); try { const data = await governanceFetch<Command>('/commands/prepare', 'POST', body, session.csrf); if (mounted.current && intent === intentEpoch.current) { setPreview(data); setFailure('') } } catch (e) { handleError(e); throw e } finally { if (mounted.current) setBusy(false) } }
   const submit = async (command: Command, retry = false) => { if (busy) return; const intent = intentEpoch.current; setBusy(true); try { const data = await governanceFetch<Command>(`/commands/${command.command_id}/${retry ? 'retry' : 'commit'}`, 'POST', undefined, session.csrf); if (mounted.current && intent === intentEpoch.current) { setPreview(data); if (data.status === 'committed') { setFailure(''); window.dispatchEvent(new CustomEvent('governance-committed',
             { detail: { context_id: (data.receipt as Payload | undefined)?.context_id } })); void refresh() } } } catch (e) { handleError(e) } finally { if (mounted.current) setBusy(false) } }
@@ -211,27 +235,34 @@ function GovernanceShell({ session, onAuthLost, onLogout }: { session: Session; 
     let active = true
     const controller = new AbortController()
     const commandId = preview.command_id
-    const refreshCommitted = async () => {
+    const refreshCommitted = async (background = false) => {
       try {
         const fresh = await governanceFetch<Command>(`/commands/${commandId}`, 'GET', undefined,
-                                                     undefined, controller.signal)
+                                                     undefined, controller.signal, background)
         if (active && mounted.current) setPreview(fresh)
       } catch (e) { if (active) handleError(e) }
     }
     void refreshCommitted()
-    const timer = setInterval(() => { if (!document.hidden) void refreshCommitted() }, 5000)
-    window.addEventListener('focus', refreshCommitted)
+    const timer = setInterval(() => { if (!document.hidden) void refreshCommitted(true) }, 5000)
+    const wake = () => void refreshCommitted()
+    window.addEventListener('focus', wake)
     return () => { active = false; controller.abort(); clearInterval(timer)
-      window.removeEventListener('focus', refreshCommitted) }
+      window.removeEventListener('focus', wake) }
   }, [preview?.command_id, preview?.status, handleError])
 
-  const switchTab = (value: string) => { const legacy = value === 'list'; const object = new URLSearchParams(location.search).get('object'); const next = legacy ? (object ? 'graph' : 'map') : value; intentEpoch.current++; setWindowId(null); setPreview(null); setTab(next); const url = new URL(location.href); if (EXPLORER.includes(next)) url.searchParams.set('view', next); else url.searchParams.delete('view'); history.replaceState(null, '', url); window.dispatchEvent(new PopStateEvent('popstate')) }
+  const switchTab = (value: string) => { const legacy = value === 'list'; const object = new URLSearchParams(location.search).get('object'); const next = legacy ? (object ? 'graph' : 'map') : value; intentEpoch.current++; setOpenWindow(null); setPreview(null); setTab(next); const url = new URL(location.href); if (EXPLORER.includes(next)) url.searchParams.set('view', next); else url.searchParams.delete('view'); history.replaceState(null, '', url); window.dispatchEvent(new PopStateEvent('popstate')) }
+  const closeWindow = () => { intentEpoch.current++; setPreview(null); setOpenWindow(null); void refresh() }
+  const explore = (objectId: string) => { const url = new URL(location.href); url.searchParams.set('object', objectId); url.searchParams.delete('rev'); history.replaceState(null, '', url); switchTab('graph') }
   const activeNav = NAV.find(n => n.id === tab) ?? NAV[0]
   return <div className="gov-shell"><aside className="gov-sidebar"><div className="gov-wordmark"><GitBranch size={26}/><span>TKOS <small>RUNTIME</small></span></div><p className="gov-sidebar-caption">治理工作台</p><nav aria-label="工作台导航">{NAV.map(({id, label, icon: Icon, group}, i) => <div key={id}>{group && group !== NAV[i - 1]?.group && <p className="gov-nav-group">{group}</p>}<button aria-current={tab === id ? 'page' : undefined} className="gov-nav-item" onClick={() => switchTab(id)}><Icon size={18}/><span>{label}</span>{tab === id && <span className="gov-nav-dot"/>}</button></div>)}</nav><div className="gov-sidebar-foot"><ShieldCheck size={17}/><span>本人权限 · 正式回执</span></div></aside><div className="gov-body"><header className="gov-topbar"><div><span className="gov-breadcrumb">工作空间 / </span><span>{activeNav.label}</span></div><div className="gov-user"><span className="gov-environment">本机隔离测试</span><span className="gov-avatar">{session.identity.display_name.slice(0,1)}</span><div><strong>{session.identity.display_name}</strong><small>{[...new Set(session.identity.assignments.map(a => ({CEO:'CEO', DOMAIN_DRI:'域负责人', MISSION_DRI:'Mission 负责人'}[a.role] ?? a.role)))].join(' / ')}</small></div><Button variant="ghost" size="icon" aria-label="退出登录" onClick={() => void onLogout().catch(handleError)}><LogOut size={17}/></Button></div></header>
-    {failure && <Alert className="mx-auto my-4 max-w-5xl"><AlertDescription>{failure} <Button variant="link" onClick={refresh}>刷新核对</Button></AlertDescription></Alert>}
+    {failure && <Alert className="mx-auto my-4 max-w-5xl"><AlertDescription>{failure} {failure === REASONS.CSRF_TOKEN_INVALID ? <Button variant="link" onClick={() => void renewToken()}>更新安全令牌</Button> : <Button variant="link" onClick={() => void refresh()}>刷新核对</Button>}</AlertDescription></Alert>}
+    {/* A render error inside the page shows a recoverable panel; the sidebar, header and forms elsewhere stay mounted. */}
+    <ErrorBoundary resetKey={`${tab}#${openWindow?.id ?? ''}`} onBack={openWindow ? closeWindow : () => switchTab('home')} backLabel={openWindow ? '← 返回我的待办' : '返回目的首页'}>
     {EXPLORER.includes(tab) ? <div className="gov-explorer"><App embedded /></div> : <main className="gov-main">
-      {tab === 'mainline' ? <BusinessMainline onAuthLost={onAuthLost} onOpen={(objectId, revisionId) => { const url = new URL(location.href); url.searchParams.set('object', objectId); url.searchParams.set('rev', revisionId); history.replaceState(null, '', url); switchTab('graph') }} /> : tab === 'sources' ? <SourceScenes session={session} prepare={prepare} onError={handleError} /> : tab === 'method' ? <MethodActions session={session} prepare={prepare} onError={handleError} onExplore={(objectId) => { const url = new URL(location.href); url.searchParams.set('object', objectId); url.searchParams.delete('rev'); history.replaceState(null, '', url); switchTab('graph') }} /> : windowId && tab === 'tasks' ? <WindowPane key={windowId} id={windowId} session={session} prepare={prepare} busy={busy || !!failure} onError={handleError} onBack={() => { intentEpoch.current++; setPreview(null); setWindowId(null) }} /> : <>
-        <div className="gov-page-heading"><div><p className="gov-eyebrow">{tab === 'home' ? 'RUNTIME · 治理型业务内核' : tab === 'tasks' ? '共同核对 / M1B' : tab === 'missions' ? '正式成果 / MISSION' : '操作追溯 / RECEIPTS'}</p><h2>{tab === 'home' ? '看懂治理：从战略到任务的每一步都留痕' : tab === 'tasks' ? '需要我处理的事项' : tab === 'missions' ? '正式 Mission · 待执行承接' : '提交记录与恢复'}</h2><p className="gov-page-description">{activeNav.description}。所有内容按你当前的权限展示。</p></div><Button variant="outline" onClick={refresh}><RefreshCw size={15}/>刷新</Button></div>{tab === 'tasks' && <div className="gov-flow-panel"><div><span className="gov-section-label">从核对到生效</span><p>每一步保留责任与依据</p></div><ReviewPath /></div>}
+      {tab === 'mainline' ? <BusinessMainline onAuthLost={onAuthLost} onOpen={(objectId, revisionId) => { const url = new URL(location.href); url.searchParams.set('object', objectId); url.searchParams.set('rev', revisionId); history.replaceState(null, '', url); switchTab('graph') }} /> : tab === 'sources' ? <SourceScenes session={session} prepare={prepare} onError={handleError} /> : tab === 'method' ? <MethodActions session={session} prepare={prepare} onError={handleError} onExplore={explore} /> : openWindow && tab === 'tasks' ? (METHOD_WINDOW_VERSIONS.includes(openWindow.version)
+        ? <MethodActions key={openWindow.id} windowId={openWindow.id} session={session} prepare={prepare} onError={handleError} onExplore={explore} onBack={closeWindow} onVersion={routeWindow} />
+        : <WindowPane key={openWindow.id} id={openWindow.id} session={session} prepare={prepare} busy={busy || !!failure} onError={handleError} onBack={closeWindow} onVersion={routeWindow} />) : <>
+        <div className="gov-page-heading"><div><p className="gov-eyebrow">{tab === 'home' ? 'RUNTIME · 治理型业务内核' : tab === 'tasks' ? '共同核对 / M1B' : tab === 'missions' ? '正式成果 / MISSION' : '操作追溯 / RECEIPTS'}</p><h2>{tab === 'home' ? '看懂治理：从战略到任务的每一步都留痕' : tab === 'tasks' ? '需要我处理的事项' : tab === 'missions' ? '正式 Mission · 待执行承接' : '提交记录与恢复'}</h2><p className="gov-page-description">{activeNav.description}。所有内容按你当前的权限展示。</p></div><Button variant="outline" onClick={() => void refresh()}><RefreshCw size={15}/>刷新</Button></div>{tab === 'tasks' && <div className="gov-flow-panel"><div><span className="gov-section-label">从核对到生效</span><p>每一步保留责任与依据</p></div><ReviewPath /></div>}
         {loading && tab !== 'home' && <p>正在读取…</p>}
         {tab === 'home' && PURPOSES.map(({ group, intent, items }) => (
           <section key={group} className="gov-task-card">
@@ -247,12 +278,13 @@ function GovernanceShell({ session, onAuthLost, onLogout }: { session: Session; 
             </div>
           </section>
         ))}
-        {tab === 'tasks' && !loading && !failure && <>{tasks.length === 0 && <EmptyState title="当前没有待处理事项">新的共同核对或候选审阅事项出现后，会显示在这里。已生效的任务可在“正式 Mission”中查看。</EmptyState>}{tasks.map(t => <section key={t.object_id} className="gov-task-card"><div className="gov-task-symbol"><Inbox size={22}/></div><div className="gov-task-copy"><div className="gov-card-kicker"><span>{STATUS[t.phase]}</span><small>{t.contract_version}</small></div><h3>{t.title}</h3><p>{t.label}</p></div><Button variant="outline" onClick={() => { intentEpoch.current++; setPreview(null); setWindowId(t.object_id) }}>查看并办理<ArrowUpRight size={15}/></Button></section>)}{after && <Button variant="outline" onClick={async () => { const e = epoch.current; try { const page = await governanceFetch<{ items: Task[]; next_after: string | null }>(`/governance/tasks?after=${after}`); if (mounted.current && e === epoch.current) { setTasks(v => [...v, ...page.items]); setAfter(page.next_after) } } catch (e) { handleError(e) } }}>加载更多</Button>}</>}
+        {tab === 'tasks' && !loading && !failure && <>{tasks.length === 0 && <EmptyState title="当前没有待处理事项">新的共同核对或候选审阅事项出现后，会显示在这里。已生效的任务可在“正式 Mission”中查看。</EmptyState>}{tasks.map(t => <section key={t.object_id} className="gov-task-card"><div className="gov-task-symbol"><Inbox size={22}/></div><div className="gov-task-copy"><div className="gov-card-kicker"><span>{STATUS[t.phase]}</span><small>{t.contract_version}</small></div><h3>{t.title}</h3><p>{t.label}</p></div><Button variant="outline" onClick={() => { intentEpoch.current++; setPreview(null); setOpenWindow({ id: t.object_id, version: t.contract_version }) }}>查看并办理<ArrowUpRight size={15}/></Button></section>)}{after && <Button variant="outline" onClick={() => { taskWindow.current += PAGE_SIZE; void refresh() }}>加载更多</Button>}</>}
         {tab === 'submissions' && <>{!commands.length && !loading && !failure && <EmptyState title="还没有提交记录">办理事项后，可以在这里查看正式回执或恢复结果不明的提交。</EmptyState>}{commands.map(c => <section key={c.command_id} className="gov-submission-card"><div className="flex items-center justify-between"><p>{(() => { const envelope = (c.envelope as Payload | null) ?? {}; return ACTION[String(envelope.action_type ?? (envelope.event as Payload)?.kind ?? '')] ?? '提交' })()} · {STATUS[c.status]}{c.payload_withheld ? ' · 正文已按当前授权撤下' : ''}</p><Button variant="outline" onClick={() => setPreview(c)}>查看结果／恢复</Button></div>{c.receipt === null ? <p className="mt-2 text-xs text-muted-foreground">回执已按当前授权隐藏</p>
               : c.receipt ? <p className="mt-2 text-xs text-muted-foreground">回执 {String((c.receipt as Payload).receipt_id ?? '未记录')}</p> : null}</section>)}</>}
-        {tab === 'missions' && <>{!missions.length && !loading && !failure && <EmptyState title="尚无正式 Mission">CEO 确认完整候选集合后，你有权查看的正式 Mission 会显示在这里。</EmptyState>}{missions.map(m => <section key={m.object_id} className="gov-mission-card"><h3 className="text-lg font-medium">{String(m.effective_revision?.payload.title ?? '')}</h3><Badge variant="secondary">正式内容 · 待执行承接</Badge><Facts payload={m.effective_revision?.payload ?? {}} responsibilities={m.responsibilities} /><details><summary>确认依据与下游承接</summary><pre className="overflow-auto text-xs">{JSON.stringify(m.handoff, null, 2)}</pre></details><Button variant="outline" onClick={() => { const url = new URL(location.href); url.searchParams.set('object', m.object_id); url.searchParams.delete('rev'); history.replaceState(null, '', url); switchTab('graph') }}>查看对象来源</Button></section>)}{missionAfter && <Button onClick={async () => { const e = epoch.current; try { const p = await governanceFetch<{ items: Obj[]; next_after: string | null }>(`/governance/missions?after=${missionAfter}`); if (mounted.current && e === epoch.current) { setMissions(v => [...v, ...p.items]); setMissionAfter(p.next_after) } } catch (e) { handleError(e) } }}>加载更多</Button>}</>}
+        {tab === 'missions' && <>{!missions.length && !loading && !failure && <EmptyState title="尚无正式 Mission">CEO 确认完整候选集合后，你有权查看的正式 Mission 会显示在这里。</EmptyState>}{missions.map(m => <section key={m.object_id} className="gov-mission-card"><h3 className="text-lg font-medium">{String(m.effective_revision?.payload.title ?? '')}</h3><Badge variant="secondary">正式内容 · 待执行承接</Badge><Facts payload={m.effective_revision?.payload ?? {}} responsibilities={m.responsibilities} /><details><summary>确认依据与下游承接</summary><pre className="overflow-auto text-xs">{JSON.stringify(m.handoff, null, 2)}</pre></details><Button variant="outline" onClick={() => { const url = new URL(location.href); url.searchParams.set('object', m.object_id); url.searchParams.delete('rev'); history.replaceState(null, '', url); switchTab('graph') }}>查看对象来源</Button></section>)}{missionAfter && <Button onClick={() => { missionWindow.current += PAGE_SIZE; void refresh() }}>加载更多</Button>}</>}
       </>}
     </main>}
+    </ErrorBoundary>
     </div><Sheet open={!!preview} onOpenChange={open => { if (!open) setPreview(null) }}><SheetContent className="overflow-y-auto sm:max-w-xl"><SheetHeader><SheetTitle>核对本次操作</SheetTitle></SheetHeader>{preview && <div className="gov-command-preview space-y-5 p-6"><Badge>{STATUS[preview.status]}</Badge><p>操作人：{session.identity.display_name}</p><p>操作：{(() => { const envelope = (preview.envelope as Payload | null) ?? {}; return ACTION[String(envelope.action_type ?? (envelope.event as Payload)?.kind)] ?? (envelope.items !== undefined ? '生成来源 Context 快照' : '操作') })()}</p>{(preview.envelope as Payload | null)?.action_type === 'm1b_confirm_candidates' && <Alert><AlertDescription>将确认整个 PCO 与 Mission 候选集合。核对完成不等于正式确认；本次确认不产生执行授权。</AlertDescription></Alert>}<Facts payload={(((preview.envelope as Payload | null)?.params ?? (preview.envelope as Payload | null)?.event ?? {}) as Payload)} /><p>对象：{preview.preview?.title ?? "查看确切引用"}</p>{preview.preview?.members.map(m => <details key={m.ref.object_id} open><summary>{m.title}</summary><Facts payload={m.payload} responsibilities={m.responsibilities} /></details>)}<details><summary>技术溯源：确切对象、版本与本次输入</summary><pre className="mt-3 overflow-auto whitespace-pre-wrap break-all text-xs">{JSON.stringify(preview.envelope, null, 2)}</pre></details>{preview.error && <Alert><AlertDescription>{REASONS[preview.error] ?? preview.error}</AlertDescription></Alert>}{preview.envelope === null ? (
             <Alert><AlertDescription data-testid="envelope-withheld">此提交的正文已按当前来源授权撤下，只能查看状态；原信封仍可用于安全重试。</AlertDescription></Alert>
           ) : null}
@@ -264,15 +296,20 @@ function GovernanceShell({ session, onAuthLost, onLogout }: { session: Session; 
   </div>
 }
 
-function WindowPane({ id, session, prepare, busy, onError, onBack }: { id: string; session: Session; prepare: (v: Payload) => Promise<void>; busy: boolean; onError: (e: unknown) => void; onBack: () => void }) {
-  const [data, setData] = useState<WindowData | null>(null); const [stale, setStale] = useState(false)
+function WindowPane({ id, session, prepare, busy, onError, onBack, onVersion }: { id: string; session: Session; prepare: (v: Payload) => Promise<void>; busy: boolean; onError: (e: unknown) => void; onBack: () => void; onVersion: (version: string) => void }) {
+  const [data, setData] = useState<WindowData | null>(null); const [stale, setStale] = useState(false); const [gone, setGone] = useState(false)
   const [operation, setOperation] = useState<Operation | null>(null); const [content, setContent] = useState(''); const [reason, setReason] = useState('')
   const [target, setTarget] = useState(''); const [replaceId, setReplaceId] = useState(''); const [title, setTitle] = useState(''); const [deadline, setDeadline] = useState('')
   const [sceneId, setSceneId] = useState(''); const [bases, setBases] = useState<Basis[]>([]); const [ltcoId, setLtcoId] = useState('original')
   const [anchorReview, setAnchorReview] = useState(''); const [field, setField] = useState(''); const [snapshot, setSnapshot] = useState(''); const [context, setContext] = useState<unknown>(null)
-  useEffect(() => { let active = true; let c: AbortController | null = null; const load = async () => { c?.abort(); c = new AbortController(); try { const d = await governanceFetch<WindowData>(`/governance/review-windows/${id}`, 'GET', undefined, undefined, c.signal); if (active) { setData(d); setStale(false); setSceneId(v => v || (d.scenes.length === 1 ? d.scenes[0].scene_id : '')); setTarget(v => v || d.monthly.targets[0]?.ref.object_id || '') } } catch (e) { if (active && !(e instanceof DOMException && e.name === 'AbortError')) { setStale(true); if (e instanceof ApiError && [401, 403, 404].includes(e.status)) setData(null); onError(e) } } }; void load(); const timer = setInterval(() => { if (!document.hidden) void load() }, 5000); window.addEventListener('focus', load); window.addEventListener('governance-committed', load); return () => { active = false; c?.abort(); clearInterval(timer); window.removeEventListener('focus', load); window.removeEventListener('governance-committed', load) } }, [id, onError])
-  if (!data) return <p>正在读取当前有权访问的窗口…</p>
-  const m = data.monthly; const scene = data.scenes.find(s => s.scene_id === sceneId)
+  // The loaded binding is authoritative: a 0.4/0.5 window is handed to the Method page, never handled here.
+  const versionRef = useRef(onVersion); versionRef.current = onVersion
+  useEffect(() => { let active = true; let c: AbortController | null = null; const load = async (background = false) => { c?.abort(); c = new AbortController(); try { const d = await governanceFetch<WindowData>(`/governance/review-windows/${id}`, 'GET', undefined, undefined, c.signal, background); if (!active) return; if (METHOD_WINDOW_VERSIONS.includes(d.object.protocol.contract_version)) { versionRef.current(d.object.protocol.contract_version); return } setData(d); setStale(false); setGone(false); setSceneId(v => v || (d.scenes.length === 1 ? d.scenes[0].scene_id : '')); setTarget(v => v || d.monthly?.targets[0]?.ref.object_id || '') } catch (e) { if (active && !(e instanceof DOMException && e.name === 'AbortError')) { setStale(true); if (e instanceof ApiError && [401, 403, 404].includes(e.status)) { setData(null); setGone(e.status !== 401) } onError(e) } } }; const reload = () => void load(); void load(); const timer = setInterval(() => { if (!document.hidden) void load(true) }, 5000); window.addEventListener('focus', reload); window.addEventListener('governance-committed', reload); return () => { active = false; c?.abort(); clearInterval(timer); window.removeEventListener('focus', reload); window.removeEventListener('governance-committed', reload) } }, [id, onError])
+  // A window this identity can no longer read is hidden; the page keeps polling and returns if it becomes readable again.
+  if (!data) return gone ? <div className="gov-window space-y-6"><Button variant="ghost" onClick={onBack}>← 返回我的待办</Button><EmptyState title="该事项不存在或当前不可见">可能已被关闭，或当前任职不再允许查看。返回我的待办刷新后再判断。</EmptyState></div> : <p>正在读取当前有权访问的窗口…</p>
+  const m = data.monthly
+  if (!m) return <div className="gov-window space-y-6"><Button variant="ghost" onClick={onBack}>← 返回我的待办</Button><Alert><AlertDescription>这个窗口没有共同核对内容（绑定规则 {data.object.protocol.contract_version}），此处不办理；请返回我的待办刷新后重新打开。</AlertDescription></Alert></div>
+  const scene = data.scenes.find(s => s.scene_id === sceneId)
   const disabled = busy || stale
   const sceneCommand = (event: Payload) => { if (scene) void prepare({ contract_version: 'tkos.workspace/0.1', scene_id: scene.scene_id, expected_version: scene.version, idempotency_key: crypto.randomUUID(), event }) }
   const begin = async (o: Operation, review?: Review) => { setOperation(o); setReason(''); setContent(String(review?.content?.content ?? review?.payload?.content ?? '')); setReplaceId(review?.record_id ?? ''); if (review) setTarget(review.target_object_id); setTitle(`${String(data.object.latest_revision.payload.title)} · 新一轮`); setDeadline(''); setLtcoId('original'); if (o.action_type.startsWith('m1b_reopen')) { try { setBases((await governanceFetch<{ items: Basis[] }>('/governance/bases')).items) } catch (e) { onError(e) } } }
@@ -282,7 +319,8 @@ function WindowPane({ id, session, prepare, busy, onError, onBack }: { id: strin
     else if (kind.startsWith('m1b_reopen')) { params = { reason, title, feedback_deadline: new Date(deadline).toISOString() }; if (ltcoId !== 'original') { const b = bases.find(b => b.ref.object_id === ltcoId); if (!b?.strategy_ref) return; params.rebase_strategy_ref = b.strategy_ref; params.rebase_ltco_ref = b.ref } }
     else params = { reason }
     const { payload_hash: _hash, ...targetRef } = operation.target
-    await prepare({ action_type: kind, contract_version: 'tkos.method/0.3', target: targetRef, expected_versions: [], idempotency_key: crypto.randomUUID(), reason: reason || '本人提交共同核对意见', params })
+    // Declare the version the action's target is bound to, as the server reports it; a mismatch is a 409.
+    await prepare({ action_type: kind, contract_version: operation.contract_version, target: targetRef, expected_versions: [], idempotency_key: crypto.randomUUID(), reason: reason || '本人提交共同核对意见', params })
   }
   const commentAction = data.actions.find(a => a.action_type === 'm1b_comment')
   const withdrawAction = data.actions.find(a => a.action_type === 'm1b_withdraw_comment')

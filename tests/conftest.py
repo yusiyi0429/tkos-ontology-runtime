@@ -17,19 +17,21 @@ import pytest
 from memory_service import working
 
 
-def _database_url() -> str:
-    """Require the same explicit database URL used by the adapter process."""
-    url = os.environ.get("DATABASE_URL", "").strip()
-    if not url:
-        raise RuntimeError("DATABASE_URL 未设置")
-    return url
+# 与适配器进程同一个显式数据库地址；只在用到数据库时才要求，无库测试不设也能跑。
+DATABASE_URL = os.environ.get("DATABASE_URL", "").strip()
+NO_DATABASE = "DATABASE_URL 未设置：这条测试需要真实 PostgreSQL；只跑无库测试用 -m 'not db'"
 
 
-DATABASE_URL = _database_url()
+def pytest_runtest_setup(item: pytest.Item) -> None:
+    """标了 db 的测试在没有 DATABASE_URL 时直接失败，绝不退回本机默认库。"""
+    if item.get_closest_marker("db") and not DATABASE_URL:
+        pytest.fail(NO_DATABASE, pytrace=False)
 
 
 def connect():
     """给夹具与测试用的裸连接（autocommit=False；测试自行 with conn.transaction()）。"""
+    if not DATABASE_URL:
+        raise RuntimeError(NO_DATABASE)
     return psycopg.connect(DATABASE_URL)
 
 

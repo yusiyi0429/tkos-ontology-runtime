@@ -511,19 +511,21 @@ def tasks(conn, ctx, after=None, limit=25):
             raise
         obj = value['object']
         monthly = value['monthly']
+        phase = obj['method_state'].get('phase')
+        # 0.3 与 0.4 / 0.5 的窗口同一组阶段，只列进行中的：confirmed（整组确认 / 激活）与 reopened
+        # （已被新窗口取代）已办结。进行中的窗口本人此刻无可办动作（等 Co-agent 收拢、等他人承诺或激活）也照列。
+        if phase not in {'open', 'closed', 'resolved'}:
+            continue
         if obj['protocol']['contract_version'] in {'tkos.method/0.4', 'tkos.method/0.5'}:
             # 标签写对象自己的规则版本（'tkos.method/0.4' -> '0.4 人工确认事项'）。
             version = obj['protocol']['contract_version'].rsplit('/', 1)[-1]
             items.append({'object_id': obj['object_id'],
                           'title': obj['latest_revision']['payload'].get('title', obj['object_type']),
-                          'phase': obj['method_state'].get('phase', 'unknown'),
+                          'phase': phase,
                           'label': f'{version} 人工确认事项', 'contract_version': obj['protocol']['contract_version'],
                           'actions': [item for item in value['actions'] if item['allowed']]})
             if len(items) > limit:
                 break
-            continue
-        phase = obj['method_state'].get('phase')
-        if phase not in {'open', 'closed', 'resolved'}:
             continue
         enabled = [a['action_type'] for a in value['actions'] if a['allowed']]
         label = '等待 Co-agent 收拢'

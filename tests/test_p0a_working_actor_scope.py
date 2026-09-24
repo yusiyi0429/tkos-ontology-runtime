@@ -21,6 +21,8 @@ from memory_service import working
 from tests.conftest import Scope, connect
 from tests.fixtures_p0a import GraphRig, RecordingConn
 
+pytestmark = pytest.mark.db
+
 _SIGNAL_CONTENT = {"title": "越权信号", "description": "不应落库"}
 
 

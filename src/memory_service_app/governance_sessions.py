@@ -15,6 +15,9 @@ from memory_service_runtime.governed.errors import GovernedError
 from .settings import get_settings
 
 COOKIE = 'tkos_governance_session'
+# The page marks its timer-driven refreshes with this header.  They are not the
+# person's activity, so they never extend the idle limit; writes always do.
+BACKGROUND_HEADER = 'x-tkos-background'
 _LOCK = threading.RLock()
 _SESSIONS: dict[str, dict] = {}
 _FAILURES: dict[str, list[float]] = {}
@@ -67,7 +70,8 @@ def login(username: str, code: str, peer: str):
     account = accounts().get(username, {})
     digest = hashlib.sha256(code.encode()).hexdigest()
     if not hmac.compare_digest(digest, account.get('code_digest', '0' * 64)):
-        raise GovernedError('UNAUTHENTICATED')
+        # A failed login is not an expired session; unknown user and wrong code stay indistinguishable.
+        raise GovernedError('LOGIN_FAILED', 'The username or login code is not correct.', status=401)
     account, _, identity = resolve(username)
     sid = secrets.token_urlsafe(32)
     session = {'username': username, 'code_digest': account['code_digest'],
@@ -85,6 +89,7 @@ def authenticate(request, *, write=False):
     sid = request.cookies.get(COOKIE, '')
     key = hashlib.sha256(sid.encode()).hexdigest()
     now = time.monotonic()
+    background = not write and request.headers.get(BACKGROUND_HEADER) == '1'
     with _LOCK:
         session = _SESSIONS.get(key)
         if not session or now - session['created'] > 8 * 3600 or now - session['seen'] > 1800:
@@ -92,7 +97,10 @@ def authenticate(request, *, write=False):
             raise GovernedError('UNAUTHENTICATED')
         session = dict(session)
     if write and not hmac.compare_digest(request.headers.get('x-csrf-token', ''), session['csrf']):
-        raise GovernedError('FORBIDDEN')
+        # Still 403, but distinct from an authorization rejection: the page can
+        # re-read its token and retry without discarding the person's input.
+        raise GovernedError('CSRF_TOKEN_INVALID',
+                            'The page security token is missing or expired; refresh it and retry.', status=403)
     account, token, identity = resolve(session['username'])
     if (account['code_digest'] != session['code_digest'] or identity['scope_id'] != session['scope_id']
             or identity['principal_id'] != session['principal_id']):
@@ -101,7 +109,8 @@ def authenticate(request, *, write=False):
     with _LOCK:
         if key not in _SESSIONS:
             raise GovernedError('UNAUTHENTICATED')
-        _SESSIONS[key]['seen'] = now
+        if not background:
+            _SESSIONS[key]['seen'] = now
     return token, identity, session
 
 

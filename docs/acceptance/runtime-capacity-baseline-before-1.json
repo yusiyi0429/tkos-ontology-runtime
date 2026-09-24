@@ -1,0 +1,249 @@
+{
+  "run_id": "baseline-3fbd7b9498dc",
+  "thresholds": "docs/runtime-capacity-baseline.md",
+  "variants": {
+    "V0": {
+      "T1": {
+        "reads": {
+          "n": 50,
+          "p50_ms": 9.7,
+          "p95_ms": 12.3,
+          "max_ms": 14.9,
+          "mean_ms": 10.2
+        },
+        "writes": {
+          "n": 20,
+          "p50_ms": 13.3,
+          "p95_ms": 15.8,
+          "max_ms": 19.8,
+          "mean_ms": 13.8
+        },
+        "all_ok": true,
+        "pass": true
+      },
+      "T2": {
+        "requests": 200,
+        "throughput_per_s": 131.9,
+        "client": {
+          "n": 200,
+          "p50_ms": 59.0,
+          "p95_ms": 69.1,
+          "max_ms": 77.3,
+          "mean_ms": 59.5
+        },
+        "lock_wait": {
+          "n": 200,
+          "p50_ms": 49.1,
+          "p95_ms": 56.4,
+          "max_ms": 65.2,
+          "mean_ms": 49.0
+        },
+        "all_ok": true,
+        "pass": true
+      },
+      "T3": {
+        "b_baseline": {
+          "n": 30,
+          "p50_ms": 9.2,
+          "p95_ms": 11.8,
+          "max_ms": 12.0,
+          "mean_ms": 9.4
+        },
+        "b_during": {
+          "n": 832,
+          "p50_ms": 9.1,
+          "p95_ms": 13.1,
+          "max_ms": 122.9,
+          "mean_ms": 10.2
+        },
+        "b_errors": 0,
+        "pass": true
+      },
+      "T4": {
+        "queued_statuses": [
+          "200"
+        ],
+        "queued_client": {
+          "n": 8,
+          "p50_ms": 10109.2,
+          "p95_ms": 10160.4,
+          "max_ms": 10160.4,
+          "mean_ms": 10101.3
+        },
+        "slowest_wait_s": 10.16,
+        "pass": false
+      },
+      "T5": {
+        "upload_status": 200,
+        "upload_ms": 8156.0,
+        "reads_during_upload": {
+          "n": 1,
+          "p50_ms": 7871.8,
+          "p95_ms": 7871.8,
+          "max_ms": 7871.8,
+          "mean_ms": 7871.8
+        },
+        "pass": false,
+        "read_status_counts": {
+          "200": 1
+        }
+      },
+      "T6": {
+        "before": 200,
+        "in_flight": 200,
+        "in_flight_completed_before_revoke": true,
+        "revoke": 200,
+        "after": 403,
+        "pass": true
+      },
+      "T7": {
+        "recovered_s": 0.44,
+        "replay_same_receipt": true,
+        "burst_keys": 79,
+        "burst_replays_ok": true,
+        "receipts": 100,
+        "objects": 101,
+        "pass": true
+      },
+      "T8": {
+        "b_during": {
+          "n": 2,
+          "p50_ms": 4038.4,
+          "p95_ms": 10004.7,
+          "max_ms": 10004.7,
+          "mean_ms": 7021.6
+        },
+        "b_errors": [
+          "503"
+        ],
+        "b_slowest_s": 10.0,
+        "queued_statuses": [
+          "200",
+          "503"
+        ],
+        "pass": false
+      }
+    },
+    "V1": {
+      "T1": {
+        "reads": {
+          "n": 50,
+          "p50_ms": 9.6,
+          "p95_ms": 13.3,
+          "max_ms": 15.3,
+          "mean_ms": 10.1
+        },
+        "writes": {
+          "n": 20,
+          "p50_ms": 14.6,
+          "p95_ms": 18.2,
+          "max_ms": 18.9,
+          "mean_ms": 14.9
+        },
+        "all_ok": true,
+        "pass": true
+      },
+      "T2": {
+        "requests": 200,
+        "throughput_per_s": 56.0,
+        "client": {
+          "n": 200,
+          "p50_ms": 77.3,
+          "p95_ms": 370.4,
+          "max_ms": 645.4,
+          "mean_ms": 141.5
+        },
+        "lock_wait": {
+          "n": 200,
+          "p50_ms": 63.6,
+          "p95_ms": 320.1,
+          "max_ms": 588.7,
+          "mean_ms": 117.5
+        },
+        "all_ok": true,
+        "pass": true
+      },
+      "T3": {
+        "b_baseline": {
+          "n": 30,
+          "p50_ms": 9.4,
+          "p95_ms": 12.1,
+          "max_ms": 14.8,
+          "mean_ms": 9.9
+        },
+        "b_during": {
+          "n": 939,
+          "p50_ms": 8.8,
+          "p95_ms": 10.5,
+          "max_ms": 25.9,
+          "mean_ms": 9.0
+        },
+        "b_errors": 0,
+        "pass": true
+      },
+      "T4": {
+        "queued_statuses": [
+          "503"
+        ],
+        "queued_client": {
+          "n": 8,
+          "p50_ms": 5012.1,
+          "p95_ms": 10014.4,
+          "max_ms": 10014.4,
+          "mean_ms": 5636.7
+        },
+        "slowest_wait_s": 10.01,
+        "pass": false
+      },
+      "T5": {
+        "upload_status": 200,
+        "upload_ms": 8139.9,
+        "reads_during_upload": {
+          "n": 2,
+          "p50_ms": 2718.5,
+          "p95_ms": 5027.2,
+          "max_ms": 5027.2,
+          "mean_ms": 3872.9
+        },
+        "pass": false,
+        "read_status_counts": {
+          "200": 1,
+          "503": 1
+        }
+      },
+      "T6": {
+        "before": 200,
+        "in_flight": 200,
+        "in_flight_completed_before_revoke": true,
+        "revoke": 200,
+        "after": 403,
+        "pass": true
+      },
+      "T7": {
+        "recovered_s": 0.36,
+        "replay_same_receipt": true,
+        "burst_keys": 122,
+        "burst_replays_ok": true,
+        "receipts": 143,
+        "objects": 144,
+        "pass": true
+      },
+      "T8": {
+        "b_during": {
+          "n": 1031,
+          "p50_ms": 8.8,
+          "p95_ms": 11.6,
+          "max_ms": 4026.8,
+          "mean_ms": 13.1
+        },
+        "b_errors": [],
+        "b_slowest_s": 4.03,
+        "queued_statuses": [
+          "503"
+        ],
+        "pass": true
+      }
+    }
+  },
+  "source": "e1ca6dc（T4 按客户端总时长判定）"
+}

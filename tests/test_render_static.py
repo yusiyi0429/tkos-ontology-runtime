@@ -19,6 +19,8 @@ from adapter.wm_views import build_code_index
 
 from memory_service.actors import HumanActorRequiredError
 
+pytestmark = pytest.mark.db
+
 
 def _render(scope: Scope, conn, **kwargs):
     return render_static(

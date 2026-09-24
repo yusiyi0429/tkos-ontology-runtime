@@ -4,13 +4,11 @@ The scope authentication fence serializes CAS and idempotency. The append-only
 event and ActionReceipt commit together; no Method state or external task writes.
 """
 from dataclasses import replace
-import hashlib
-import json
 from uuid import uuid4
 
 from psycopg.types.json import Jsonb
 
-from . import db, evidence, method_access as access, method_readers
+from . import canon, db, evidence, method_access as access, method_readers
 from .errors import GovernedError
 
 CONTRACT = "tkos.workspace/0.1"
@@ -24,8 +22,10 @@ SCENE_KINDS = {
 
 
 def digest(value):
-    return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(",", ":"),
-                                     ensure_ascii=False).encode()).hexdigest()
+    try:
+        return canon.digest(value)
+    except canon.CanonError as exc:
+        raise GovernedError("INVALID_REQUEST") from exc
 
 
 def fail(code="INVALID_REQUEST", message=None):

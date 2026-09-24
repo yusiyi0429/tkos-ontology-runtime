@@ -1,0 +1,91 @@
+# 基础质量门：每次推送 main 与每个 PR 都跑同一组检查。
+# 数据库测试走 acceptance/runtime/infra.py 的 attach：在本次运行起的一次性 PostgreSQL 上
+# 建迁移所有者与应用两个角色，迁移、授权与本地 `infra.py up` 相同。
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  python-unit:
+    name: Python 无库测试与静态检查
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+      - run: uv sync --frozen --extra s3
+      - name: 无库测试
+        run: uv run --frozen pytest tests -q -m "not db"
+      - name: 静态检查（最小规则集：语法错误与未定义名称）
+        run: uvx ruff@0.16.7 check --select E9,F63,F7,F82 --output-format github src tests acceptance scripts deploy experiments hatch_build.py
+
+  python-db:
+    name: Python 数据库测试（应用角色与迁移所有者）
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+      - run: uv sync --frozen --extra s3
+      - name: 起一次性的 PostgreSQL（管理员口令每次随机生成，只绑回环地址）
+        run: |
+          password="$(openssl rand -hex 24)"
+          echo "::add-mask::$password"
+          echo "TKOS_ACCEPTANCE_ADMIN_PASSWORD=$password" >> "$GITHUB_ENV"
+          echo "TKOS_ACCEPTANCE_POSTGRES_PORT=5432" >> "$GITHUB_ENV"
+          docker run -d --name tkos-ci-postgres -p 127.0.0.1:5432:5432 \
+            -e POSTGRES_USER=tkos_acceptance_admin -e POSTGRES_PASSWORD="$password" \
+            -e POSTGRES_DB=tkos_runtime_acceptance \
+            pgvector/pgvector@sha256:7ae6051efd0e60444282c27c7e141af07f322ce033300e727a49c3dd11075e38
+          for attempt in $(seq 1 60); do
+            docker exec tkos-ci-postgres pg_isready -U tkos_acceptance_admin -d tkos_runtime_acceptance && exit 0
+            sleep 1
+          done
+          exit 1
+      - name: 建角色、迁移、授权
+        run: python3 acceptance/runtime/infra.py attach
+      - name: 应用角色（RLS 生效）
+        run: python3 acceptance/runtime/infra.py run -- .venv/bin/python -m pytest tests -q -m "db and not owner" -rs
+      - name: 迁移所有者角色
+        run: python3 acceptance/runtime/infra.py run --migration -- .venv/bin/python -m pytest tests -q -m owner -rs
+
+  dashboard:
+    name: 看板类型检查、测试与产物清单
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: workbench/dashboard/package-lock.json
+      - run: npm ci --no-audit --no-fund
+        working-directory: workbench/dashboard
+      - run: npm run typecheck
+        working-directory: workbench/dashboard
+      - run: npm test
+        working-directory: workbench/dashboard
+      - name: 已提交的构建产物与源码清单一致
+        run: python3 scripts/verify_dashboard_assets.py
+      - name: 旧版静态工作台的纯模块测试
+        run: node --test tests/workbench-ui/*.test.mjs
+
+  build:
+    name: sdist 与 wheel 构建
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+      - run: uv build

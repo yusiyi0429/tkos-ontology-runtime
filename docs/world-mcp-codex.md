@@ -55,12 +55,21 @@ TKOS_WORLD_MCP_LOG_DIR = "artifacts/world-mcp-runs"
 | `world_refresh_state` | 动作 `world_refresh_state` | `payload`（`title`、`subject_ref`、`as_of`、三块）、`declaration`，可选 `idempotency_key` |
 | `world_record_event` | 动作 `world_record_event` | `category`、`subject_refs`、`occurred_at`、`content`，更正另带 `supersedes_event_id`；`declaration`，可选 `idempotency_key` |
 
+取上下文成功时，工具只交给模型四项（实验报告建议 1）：
+
+- `context_pack_id`：这次落表的上下文包；
+- `markdown`：渲染后的上下文。开头是六问指引，按问题给出处（引用）；下文沿主干分层列块、单元长期目标经 `goal_ref` 多取一跳的公司级长期目标、最新状态快照与近期事件，事件行写出记录人与被指派者的名字；
+- `coverage`：六问覆盖；
+- `budget`：预算与用量，另加 `trimmed`，按原因、按类计的裁剪条数，例如 `{"over_budget": {"event": 3}}`，为空即没有裁剪。
+
+分层 JSON、检索计划与钉定信息不交给模型，仍在 HTTP 面的返回与上下文包表里。`question` 只做记录，不影响包的内容，同一问题取一次即可。取上下文失败时与其他工具一样原样返回。
+
 写工具在内部先 `POST /v1/actions/prepare` 再 `POST /v1/actions`，同一条命令、同一个幂等键（不给则每次调用生成一个）；不替调用方补目标、不重试。版本冲突等错误原样返回，调用方重新取对象后再写。HTTP 面不可达时返回 `HTTP_UNAVAILABLE` 并带上这次用的幂等键：写入可能已经提交，用同一个幂等键重放即可，不会重复写。
 
 `declaration` 三项：`scene`（所属 Mission 或 Task 的引用 `<id>@<版本>`）、`trigger`（触发事件的文字）、`human_acceptance`（`{required, acceptor}`，需要人工验收时 `acceptor` 是本 scope 内有效的人）。Agent 写入必须带齐；Agent 的修订只能落在无门类型上，且必须要人工验收并给出验收人。
 
 ## 运行日志
 
-每个进程一个 JSONL 文件，每次工具调用一行：`at`（UTC）、`session`、`seq`、`tool`、`arguments`、`status`（HTTP 状态；没拿到 HTTP 答复为 null）、`error_code`、`refs`（返回里出现的引用 `<id>@<版本>[#块]`）、`event_ids`、`chars`（返回给调用方的字符数）；写入另有 `idempotency_key`；取上下文另有 `context_pack_id` 与 `used_chars`（渲染后 Markdown 的字符数），其 `refs` 与 `event_ids` 只取上下文包本身，检索计划里裁掉的条目与主干上钉定的旧版本不计入。四个读工具另有 `read_refs` 与 `read_event_ids`：带着内容回来的对象版本、块与事件，也就是对象视图（取对象，连同它顺带返回的最新快照；取状态的快照；上下文包里一层的对象与状态）、块视图（空块读到的是标准句）与事件视图；块内引用、关系、`referenced_by`、`supersedes`、生命周期里钉的事件只以引用形式出现，只进 `refs` 与 `event_ids`。凭证不进日志；日志写不进去只在 stderr 提示。
+每个进程一个 JSONL 文件，每次工具调用一行：`at`（UTC）、`session`、`seq`、`tool`、`arguments`、`status`（HTTP 状态；没拿到 HTTP 答复为 null）、`error_code`、`refs`（返回里出现的引用 `<id>@<版本>[#块]`）、`event_ids`、`chars`（交给调用方的字符数；取上下文成功时是上面四项的紧凑 JSON）；写入另有 `idempotency_key`；取上下文另有 `context_pack_id` 与 `used_chars`（渲染后 Markdown 的字符数），其 `refs`、`event_ids` 与下面的 `read_refs`、`read_event_ids` 都按 HTTP 面返回的上下文包本身算：交出去的 Markdown 就是这个包渲染的，检索计划里裁掉的条目与主干上钉定的旧版本不计入。四个读工具另有 `read_refs` 与 `read_event_ids`：带着内容回来的对象版本、块与事件，也就是对象视图（取对象，连同它顺带返回的最新快照；取状态的快照；上下文包里一层的对象、状态与多取一跳的对象）、块视图（空块读到的是标准句）与事件视图；块内引用、关系、`referenced_by`、`supersedes`、生命周期里钉的事件只以引用形式出现，只进 `refs` 与 `event_ids`。凭证不进日志；日志写不进去只在 stderr 提示。
 
 实验指标（召回、可追溯、预算、确定性）从这里算，「取到」按 `read_refs` 与 `read_event_ids`。`codex exec` 每次运行都会起一个新的 server 进程，所以一次运行对应一个日志文件和一个 `session`。

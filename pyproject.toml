@@ -61,5 +61,5 @@ path = "hatch_build.py"
 # src/memory_service_app/dashboard_dist are packaged so a wheel can be built
 # from the sdist without a Node toolchain.  scripts/build_dashboard.sh rebuilds
 # and verifies the assets before Python packaging.
-include = ["src", "tests", "workbench", "docs", "contracts", "scripts", "acceptance",
+include = ["src", "tests", "workbench", "docs", "contracts", "scripts", "acceptance", "experiments",
            "pyproject.toml", "README.md", "requirements.lock", "hatch_build.py"]

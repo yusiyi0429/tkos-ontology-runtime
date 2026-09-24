@@ -1,5 +1,7 @@
 # tkos.world/0.1 静态截面实验报告：E&O 九月回放
 
+> 2026-09-24 补记：按本报告的建议 1–4 与 6 调整后的第二轮三组对照，见 [world-v01-experiment-round2.md](world-v01-experiment-round2.md)。
+
 票 #29。同一组六问、两种取法：
 
 - **A 组**：Codex CLI 经 `tkos-world-mcp` 自行遍历，每问三次；

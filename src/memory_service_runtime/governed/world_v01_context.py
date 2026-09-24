@@ -1,13 +1,14 @@
 """tkos.world/0.1 的取上下文（票 #25，B 固定路径）：从一个对象沿主干向上到 Company 做确定性遍历。
 
 每层取最新修订的定义类块与 constraint（空块用标准句）、生命周期、责任人与跨链关系（只列引用不递归）；
-当前对象向上直到 Mission（含）各层另取最新状态快照与近期事件。整包渲染成 Markdown，按字符预算裁剪，
-输出上下文包、检索计划与六问覆盖三件，每次调用在 gov_world_context_packs 落一行。从状态快照出发时，
-以它的主体为当前对象，状态取这条快照。
+当前对象向上直到 Mission（含）各层另取最新状态快照与近期事件。主干之外只多走一跳：单元长期目标沿
+goal_ref 到公司级长期目标，只取它的定义类块（实验报告建议 2），放在该层的 hop 里，检索计划记在 hops。
+整包渲染成 Markdown，按字符预算裁剪，输出上下文包、检索计划与六问覆盖三件，每次调用在
+gov_world_context_packs 落一行。从状态快照出发时，以它的主体为当前对象，状态取这条快照。
 
 trim 与 cover 是纯函数：裁剪时每层条数上限先生效（每个对象的事件取最新的若干条），仍超字符预算时
-先裁最旧的事件，再从主干最远层起逐层裁跨链关系行、块、快照，最后裁当前对象的跨链关系行；当前对象的
-块与它的最新快照不裁。覆盖只看上下文包里实际留下的内容。
+先裁最旧的事件，再从主干最远层起逐层裁跨链关系行、多取的一跳、块、快照，最后裁当前对象的跨链关系行与
+它多取的一跳；当前对象的块与它的最新快照不裁。覆盖只看上下文包里实际留下的内容。
 """
 from __future__ import annotations
 
@@ -29,6 +30,8 @@ DEFAULT_MAX_CHARS, DEFAULT_MAX_EVENTS_PER_OBJECT, DEFAULT_RECENT_DAYS = 12000, 1
 CHARS_PER_TOKEN_ESTIMATE = 2
 # 取最新快照与近期事件的层：当前对象，以及它向上直到 Mission（含）的执行链。
 _EXECUTION_TYPES = frozenset({"Activity", "Task", "Mission"})
+# 主干之外多走的一跳：类型 -> (字段, 显示名)。单元长期目标的 goal_ref 只能指向公司级长期目标（契约第 6 节）。
+_HOPS = {"LongTermGoal": ("goal_ref", "公司级长期目标")}
 QUESTIONS = {"why": "为什么", "what": "做什么", "who": "谁负责", "now": "现在怎样", "happened": "发生了什么",
              "basis": "凭什么"}
 _GAPS = {"why": "主干上层没有取到非空的定义类块", "what": "当前对象的定义类块都是空的",
@@ -62,10 +65,10 @@ def trim(items: list[dict[str, Any]], *, max_chars: int, max_events_per_object: 
             drop(item, "over_level_cap")
     order = sorted((item for item in kept if item["kind"] == "event"), key=_moment)
     for level in sorted({item["level"] for item in items if item["level"] > 0}, reverse=True):
-        order += [item for item in kept if item["level"] == level and item["kind"] == "relations"]
+        order += [item for item in kept if item["level"] == level and item["kind"] in {"relations", "hop"}]
         order += [item for item in reversed(kept) if item["level"] == level and item["kind"] == "block"]
         order += [item for item in kept if item["level"] == level and item["kind"] == "snapshot"]
-    order += [item for item in kept if item["level"] == 0 and item["kind"] == "relations"]
+    order += [item for item in kept if item["level"] == 0 and item["kind"] in {"relations", "hop"}]
     for item in order:
         if len(_markdown(kept)) <= max_chars:
             break
@@ -75,9 +78,15 @@ def trim(items: list[dict[str, Any]], *, max_chars: int, max_events_per_object: 
             "over_budget": len(markdown) > max_chars}
 
 
+def _reach(layers: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """当前对象之上的内容：上溯各层，以及各层（含当前对象）多取的一跳，由近及远。"""
+    return [part for layer in layers for part in (layer, layer.get("hop")) if part][1:]
+
+
 def cover(layers: list[dict[str, Any]]) -> dict[str, Any]:
-    """六问各自答没答（按上下文包里留下的内容判），依据哪些引用或事件，答不了的缺口。第 0 层是当前对象。"""
-    current, upper = layers[0], layers[1:]
+    """六问各自答没答（按上下文包里留下的内容判），依据哪些引用或事件，答不了的缺口。第 0 层是当前对象；
+    多取的一跳与上溯各层一样算作上层。"""
+    current, upper = layers[0], _reach(layers)
 
     def blocks(chosen: list[dict[str, Any]], test) -> list[dict[str, str]]:
         return [{"ref": block["ref"]} for layer in chosen for block in layer["blocks"] if not block["empty"] and test(block)]
@@ -137,24 +146,36 @@ def _state(snapshot: dict[str, Any]) -> dict[str, Any]:
                        for block in snapshot["blocks"]]}
 
 
+def _object(conn: Any, ctx: Any, head: dict[str, Any], revision: dict[str, Any]) -> dict[str, Any]:
+    """一个对象在上下文包里的表头：类型、标题、钉到所读修订的引用、生命周期与正式内容状态。"""
+    spec = world_registry.object_spec(head["object_type"])
+    object_id, version = head["object_id"], revision["object_version"]
+    return {"object_id": object_id, "object_type": head["object_type"], "type_display_name": spec["display_name"],
+            "title": revision["payload"]["title"], "version": version, "ref": citation(object_id, version),
+            "pinned": _pinned(object_id, version, revision["revision_id"]), "lifecycle": lifecycle(conn, ctx, head),
+            "formal": head["lifecycle_status"] == "confirmed" if spec["gated"] else None}
+
+
+def _blocks(head: dict[str, Any], revision: dict[str, Any], kinds: set[str] | None = None) -> list[dict[str, Any]]:
+    """对象的块（给了 kinds 只取这几类），空块用标准句，每块钉到所读修订。"""
+    object_id, version, payload = head["object_id"], revision["object_version"], revision["payload"]
+    return [{**block_view(object_id, version, block, payload["blocks"][block["id"]]),
+             "pinned": _pinned(object_id, version, revision["revision_id"], block["id"])}
+            for block in world_registry.object_spec(head["object_type"])["blocks"] if kinds is None or block["kind"] in kinds]
+
+
 def _layer(conn: Any, ctx: Any, head: dict[str, Any], revision: dict[str, Any], level: int, window: Any,
            seen_events: set[str], state: dict[str, Any] | None) -> dict[str, Any]:
     spec = world_registry.object_spec(head["object_type"])
-    object_id, version, payload = head["object_id"], revision["object_version"], revision["payload"]
+    object_id, payload = head["object_id"], revision["payload"]
     layer = {
         "level": level,
-        "object": {"object_id": object_id, "object_type": head["object_type"], "type_display_name": spec["display_name"],
-                   "title": payload["title"], "version": version, "ref": citation(object_id, version),
-                   "pinned": _pinned(object_id, version, revision["revision_id"]),
-                   "lifecycle": lifecycle(conn, ctx, head),
-                   "formal": head["lifecycle_status"] == "confirmed" if spec["gated"] else None,
-                   "responsible": _responsible(conn, ctx, head, revision)},
-        "blocks": [{**block_view(object_id, version, block, payload["blocks"][block["id"]]),
-                    "pinned": _pinned(object_id, version, revision["revision_id"], block["id"])} for block in spec["blocks"]],
+        "object": {**_object(conn, ctx, head, revision), "responsible": _responsible(conn, ctx, head, revision)},
+        "blocks": _blocks(head, revision),
         "relations": [{"field": field["field"], "relation": field["relation"], "refs": cited(payload.get(field["field"], []))}
                       for field in spec["relation_fields"] if field["written_by"] == "world_relate"],
         "referenced_by": referenced_by(conn, ctx, object_id),
-        "state": None, "events": [],
+        "hop": None, "state": None, "events": [],
     }
     if level == 0 or head["object_type"] in _EXECUTION_TYPES:
         snapshot = state or latest_snapshot(conn, ctx, object_id)
@@ -164,6 +185,12 @@ def _layer(conn: Any, ctx: Any, head: dict[str, Any], revision: dict[str, Any], 
                 seen_events.add(row["event_id"])
                 layer["events"].append(event_view(row))
     return layer
+
+
+def _hop(conn: Any, ctx: Any, head: dict[str, Any], revision: dict[str, Any], field: str, label: str) -> dict[str, Any]:
+    """主干之外多取的一跳：对象表头与它的定义类块，不带 constraint、责任人、状态与事件。"""
+    return {"field": field, "label": label, "object": _object(conn, ctx, head, revision),
+            "blocks": _blocks(head, revision, {"definition"})}
 
 
 def _display(group: str, value: str | None) -> str:
@@ -182,6 +209,24 @@ def _block_text(block: dict[str, Any], heading: str) -> str:
     return "\n".join(lines)
 
 
+def _status(obj: dict[str, Any]) -> list[str]:
+    """表头里的生命周期、责任人（主干各层才有）与正式内容状态。"""
+    stage = obj["lifecycle"]
+    lines = [f"生命周期：{stage['display_name']}（事件 `{stage['event_id']}`）" if stage else "生命周期：无（只有版本）"]
+    if "responsible" in obj:
+        lines.append("责任人：" + ("、".join(person["display_name"] for person in obj["responsible"]) or "未指派"))
+    if obj["formal"] is not None:
+        lines.append("正式内容：" + ("已确认" if obj["formal"] else "尚未确认"))
+    return lines
+
+
+def _hop_text(hop: dict[str, Any]) -> str:
+    obj = hop["object"]
+    lines = [f"### 沿 {hop['field']} 多取一跳：{hop['label']}《{obj['title']}》 `{obj['ref']}`", *_status(obj)]
+    lines += [_block_text(block, f"#### {block['display_name']} `{block['ref']}`") for block in hop["blocks"]]
+    return "\n".join(lines)
+
+
 def _items(question: str, start: str, layers: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """把上下文包渲染成按文档顺序排列、可逐条裁剪的 Markdown 片段。"""
     kinds = {item["kind"]: item["display_name"] for item in world_registry.registry()["event_kinds"]}
@@ -191,13 +236,9 @@ def _items(question: str, start: str, layers: list[dict[str, Any]]) -> list[dict
         return {"key": key, "kind": kind, "level": level, "object_id": object_id, "occurred_at": occurred_at, "text": text}
     items = [entry("title", "title", -1, None, f"# 上下文\n\n问题：{question}\n\n出发对象：`{start}`")]
     for layer in layers:
-        obj, level, stage = layer["object"], layer["level"], layer["object"]["lifecycle"]
+        obj, level = layer["object"], layer["level"]
         place = "当前对象" if level == 0 else f"上溯第 {level} 层"
-        lines = [f"## {place}：{obj['type_display_name']}《{obj['title']}》 `{obj['ref']}`",
-                 f"生命周期：{stage['display_name']}（事件 `{stage['event_id']}`）" if stage else "生命周期：无（只有版本）",
-                 "责任人：" + ("、".join(person["display_name"] for person in obj["responsible"]) or "未指派")]
-        if obj["formal"] is not None:
-            lines.append("正式内容：" + ("已确认" if obj["formal"] else "尚未确认"))
+        lines = [f"## {place}：{obj['type_display_name']}《{obj['title']}》 `{obj['ref']}`", *_status(obj)]
         items.append(entry(f"header:{level}", "header", level, obj["object_id"], "\n".join(lines)))
         relations = [f"{relation['field']}：" + "、".join(f"`{ref['ref']}`" for ref in relation["refs"])
                      for relation in layer["relations"] if relation["refs"]]
@@ -208,6 +249,9 @@ def _items(question: str, start: str, layers: list[dict[str, Any]]) -> list[dict
         for block in layer["blocks"]:
             items.append(entry(f"block:{block['ref']}", "block", level, obj["object_id"],
                                _block_text(block, f"### {block['display_name']} `{block['ref']}`")))
+        if layer["hop"]:
+            items.append(entry(f"hop:{layer['hop']['object']['ref']}", "hop", level, layer["hop"]["object"]["object_id"],
+                               _hop_text(layer["hop"])))
         if layer["state"]:
             state = layer["state"]
             text = [f"### 最新状态快照（未经确认，截至 {state['as_of']}） `{state['ref']}`"]
@@ -223,11 +267,12 @@ def _items(question: str, start: str, layers: list[dict[str, Any]]) -> list[dict
 
 
 def _keep(layers: list[dict[str, Any]], kept: set[str]) -> list[dict[str, Any]]:
-    """裁剪后的上下文包：只留下没被裁掉的跨链关系、块、快照与事件。"""
+    """裁剪后的上下文包：只留下没被裁掉的跨链关系、块、多取的一跳、快照与事件。"""
     return [{**layer,
              "relations": layer["relations"] if f"relations:{layer['level']}" in kept else [],
              "referenced_by": layer["referenced_by"] if f"relations:{layer['level']}" in kept else [],
              "blocks": [block for block in layer["blocks"] if f"block:{block['ref']}" in kept],
+             "hop": layer["hop"] if layer["hop"] and f"hop:{layer['hop']['object']['ref']}" in kept else None,
              "state": layer["state"] if layer["state"] and f"snapshot:{layer['state']['ref']}" in kept else None,
              "events": [event for event in layer["events"] if f"event:{event['event_id']}" in kept]}
             for layer in layers]
@@ -255,10 +300,19 @@ def build(conn: Any, ctx: Any, object_id: str, request: WorldContextRequest) -> 
         head, _ = readable(conn, ctx, subject)
     layers: list[dict[str, Any]] = []
     hops: list[tuple[str, dict[str, Any]]] = []
+    beyond: list[dict[str, Any]] = []
     seen_events: set[str] = set()
     while True:
         revision = latest(head)
-        layers.append(_layer(conn, ctx, head, revision, len(layers), window, seen_events, None if layers else state))
+        layer = _layer(conn, ctx, head, revision, len(layers), window, seen_events, None if layers else state)
+        field, label = _HOPS.get(head["object_type"], (None, None))
+        if field and revision["payload"].get(field):
+            # 同主干一样读对方的最新修订，引用字段钉定的版本只作出处。
+            target, _ = readable(conn, ctx, revision["payload"][field]["object_id"])
+            layer["hop"] = _hop(conn, ctx, target, latest(target), field, label)
+            beyond.append({"from": layer["object"]["ref"], "field": field, "pinned": cited(revision["payload"][field])["ref"],
+                           "read": layer["hop"]["object"]["ref"]})
+        layers.append(layer)
         field = world_registry.object_spec(head["object_type"])["spine_parent_field"]
         if field is None:
             break
@@ -272,12 +326,13 @@ def build(conn: Any, ctx: Any, object_id: str, request: WorldContextRequest) -> 
         # 沿主干读的是上一级的最新修订，引用字段钉定的版本只作出处。
         "walked": [{"from": layers[index]["object"]["ref"], "field": field, "pinned": cited(pinned)["ref"],
                     "read": layers[index + 1]["object"]["ref"]} for index, (field, pinned) in enumerate(hops)],
+        "hops": beyond,  # 主干之外多走的一跳（只取定义类块）
         "shown_not_followed": [{"from": layer["object"]["ref"], "field": relation["field"], "to": ref["ref"]}
                                for layer in packed for relation in layer["relations"] for ref in relation["refs"]]
         + [{"from": item["source"]["ref"], "field": item["field"], "to": layer["object"]["ref"]}
            for layer in packed for item in layer["referenced_by"]],
         "taken": [{"kind": item["kind"], "level": item["level"], "key": item["key"]} for item in result["kept"]
-                  if item["kind"] in {"relations", "block", "snapshot", "event"}],
+                  if item["kind"] in {"relations", "block", "hop", "snapshot", "event"}],
         "trimmed": [{"kind": entry["kind"], "level": entry["level"], "key": entry["key"], "reason": entry["reason"]}
                     for entry in result["trimmed"]],
         "state_and_events_from_levels": [layer["level"] for layer in packed

@@ -137,11 +137,11 @@ export function BusinessMainline({ onOpen, onAuthLost }: MainlineProps) {
   const mounted = useRef(true)
   useEffect(() => { mounted.current = true; return () => { mounted.current = false } }, [])
 
-  // Same rule the shell uses: only a lost identity ends the session.  A 404 on
-  // one lane read is that lane's business result, not a reason to sign out.
+  // Same rule the shell uses: only a lost session (401) ends it.  A 403/404 on
+  // one read is that read's result: the lane says so, not a reason to sign out.
   const fail = useCallback((error: unknown): string | null => {
     if (isAbort(error)) return null
-    if (error instanceof ApiError && [401, 403].includes(error.status)) { onAuthLost(); return null }
+    if (error instanceof ApiError && error.status === 401) { onAuthLost(); return null }
     return errorLabel(error)
   }, [onAuthLost])
 
@@ -172,8 +172,10 @@ export function BusinessMainline({ onOpen, onAuthLost }: MainlineProps) {
       }).catch((error: unknown) => {
         if (!mounted.current || controller.signal.aborted) return
         const message = fail(error)
+        // Cards this identity may no longer read are dropped, not kept as stale content.
+        const denied = error instanceof ApiError && [403, 404].includes(error.status)
         setLanes((current) => ({ ...current, [lane.key]: {
-          ...current[lane.key], loading: false, error: message,
+          ...current[lane.key], ...(denied ? { items: [], hasMore: false } : {}), loading: false, error: message,
         } }))
       })
     }

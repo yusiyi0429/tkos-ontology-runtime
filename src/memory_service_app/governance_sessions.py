@@ -67,7 +67,8 @@ def login(username: str, code: str, peer: str):
     account = accounts().get(username, {})
     digest = hashlib.sha256(code.encode()).hexdigest()
     if not hmac.compare_digest(digest, account.get('code_digest', '0' * 64)):
-        raise GovernedError('UNAUTHENTICATED')
+        # A failed login is not an expired session; unknown user and wrong code stay indistinguishable.
+        raise GovernedError('LOGIN_FAILED', 'The username or login code is not correct.', status=401)
     account, _, identity = resolve(username)
     sid = secrets.token_urlsafe(32)
     session = {'username': username, 'code_digest': account['code_digest'],
@@ -92,7 +93,10 @@ def authenticate(request, *, write=False):
             raise GovernedError('UNAUTHENTICATED')
         session = dict(session)
     if write and not hmac.compare_digest(request.headers.get('x-csrf-token', ''), session['csrf']):
-        raise GovernedError('FORBIDDEN')
+        # Still 403, but distinct from an authorization rejection: the page can
+        # re-read its token and retry without discarding the person's input.
+        raise GovernedError('CSRF_TOKEN_INVALID',
+                            'The page security token is missing or expired; refresh it and retry.', status=403)
     account, token, identity = resolve(session['username'])
     if (account['code_digest'] != session['code_digest'] or identity['scope_id'] != session['scope_id']
             or identity['principal_id'] != session['principal_id']):

@@ -55,6 +55,17 @@ function err(error: unknown) {
   return '服务暂时不可用；已发送的提交请先核对结果。'
 }
 
+/** Session read that keeps the server's error code, so a 403 stays a permission rejection. */
+async function readJson<T>(path: string, signal?: AbortSignal): Promise<T> {
+  const response = await fetch(`${BASE}${path}`, { credentials: 'same-origin', cache: 'no-store', signal,
+    headers: { Accept: 'application/json' } })
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}))
+    throw new ApiError(response.status, data.error?.code ?? 'UNAVAILABLE', '')
+  }
+  return await response.json() as T
+}
+
 export function sceneEnvelope(sceneId: string, expectedVersion: number, event: Payload, key: string) {
   return { contract_version: 'tkos.workspace/0.2', scene_id: sceneId,
            expected_version: expectedVersion, idempotency_key: key, event }
@@ -239,12 +250,14 @@ export function SourceScenes({ session, prepare, onError }: {
 
   const loadList = useCallback(async () => {
     try {
-      const response = await fetch(`${BASE}/governance/sources`, { credentials: 'same-origin',
-        cache: 'no-store', headers: { Accept: 'application/json' } })
-      if (!response.ok) throw new ApiError(response.status, 'UNAVAILABLE', '')
-      const page = await response.json() as { items: SourceSceneSummary[]; next_after: string | null }
+      const page = await readJson<{ items: SourceSceneSummary[]; next_after: string | null }>('/governance/sources')
       if (mounted.current) { setScenes(page.items); setNextAfter(page.next_after); setFailure(''); setListFailed(false) }
-    } catch (error) { if (mounted.current) { setFailure(err(error)); setListFailed(true); onError(error) } }
+    } catch (error) {
+      if (!mounted.current) return
+      // A list this identity may no longer read is dropped, not kept as stale content.
+      if (error instanceof ApiError && [403, 404].includes(error.status)) { setScenes([]); setNextAfter(null) }
+      setFailure(err(error)); setListFailed(true); onError(error)
+    }
   }, [onError])
 
   const loadDetail = useCallback(async (sceneId: string) => {
@@ -255,11 +268,8 @@ export function SourceScenes({ session, prepare, onError }: {
     const controller = new AbortController()
     detailAbort.current = controller
     try {
-      const response = await fetch(`${BASE}/governance/sources/${encodeURIComponent(sceneId)}`,
-        { credentials: 'same-origin', cache: 'no-store', signal: controller.signal,
-          headers: { Accept: 'application/json' } })
-      if (!response.ok) throw new ApiError(response.status, 'UNAVAILABLE', '')
-      const value = await response.json() as SourceSceneView
+      const value = await readJson<SourceSceneView>(`/governance/sources/${encodeURIComponent(sceneId)}`,
+                                                    controller.signal)
       if (mounted.current && generation === sceneEpoch.current && selectedRef.current === sceneId) {
         setDetail(value); setStale(false)
       }
@@ -280,11 +290,8 @@ export function SourceScenes({ session, prepare, onError }: {
     const controller = new AbortController()
     contextAbort.current = controller
     try {
-      const response = await fetch(`${BASE}/governance/sources/contexts/${encodeURIComponent(contextKey)}`,
-        { credentials: 'same-origin', cache: 'no-store', signal: controller.signal,
-          headers: { Accept: 'application/json' } })
-      if (!response.ok) throw new ApiError(response.status, 'UNAVAILABLE', '')
-      const value = await response.json() as Payload
+      const value = await readJson<Payload>(`/governance/sources/contexts/${encodeURIComponent(contextKey)}`,
+                                            controller.signal)
       if (mounted.current && generation === contextEpoch.current && selectedRef.current === sceneId) {
         setContext(value)
       }

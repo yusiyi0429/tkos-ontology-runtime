@@ -647,6 +647,9 @@ export function MethodActions({ session, prepare, onError, onExplore, windowId, 
     } catch (error) {
       if (!mounted.current || generation !== epoch.current) return
       if (error instanceof DOMException && error.name === 'AbortError') return
+      // Items this identity can no longer read are dropped, not kept as stale content
+      // (an open form hides with its item but keeps its input for when it is readable again).
+      if (error instanceof ApiError && [403, 404].includes(error.status)) { setTasks([]); setNextAfter(null) }
       onError(error); setLoading(false); setFailed(true)
     }
   }, [onError, windowId])
@@ -919,7 +922,7 @@ export function MethodActions({ session, prepare, onError, onExplore, windowId, 
         </section>
       ))}
       {nextAfter && <Button variant="outline" onClick={() => void loadMore()}>加载更多</Button>}
-      {openAction && (
+      {openAction && tasks.some((task) => task.object_id === openAction.task.object_id) && (
         <form className="space-y-3 border-t pt-4" onSubmit={submit}
               data-testid={`method-form-${openAction.action.action_type}`}>
           <h4 className="font-semibold">{openAction.action.label}</h4>

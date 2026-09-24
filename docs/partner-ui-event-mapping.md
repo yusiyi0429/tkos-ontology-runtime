@@ -6,9 +6,11 @@
 
 | 步骤 | 接口 | 结果 |
 | --- | --- | --- |
-| 登录 | `POST /dashboard/api/v1/session` `{username, code}` | `identity` + `csrf`，HttpOnly `tkos_governance_session` cookie；失败 401，60 秒内同 peer 超过 10 次登录失败返回 429 |
+| 登录 | `POST /dashboard/api/v1/session` `{username, code}` | `identity` + `csrf`，HttpOnly `tkos_governance_session` cookie；用户名或登录码不对 401 `LOGIN_FAILED`（不是会话失效），60 秒内同 peer 超过 10 次登录失败返回 429 |
 | 会话检查 | `GET /dashboard/api/v1/session` | 当前 `identity`/`csrf`；无会话 401 |
-| 写请求 | 所有 `POST`/`DELETE` | 必须带 `X-CSRF-Token`；`Origin` 必须同源，`Sec-Fetch-Site` 为 `same-origin`/`none`，否则 403 |
+| 写请求 | 所有 `POST`/`DELETE` | 必须带 `X-CSRF-Token`，不符为 403 `CSRF_TOKEN_INVALID`（重新 `GET /session` 取令牌后可重试）；`Origin` 必须同源，`Sec-Fetch-Site` 为 `same-origin`/`none`，否则 403 |
+
+只有非登录请求的 401 表示会话失效，应回登录页；403 是本次读取或提交被拒，保留页面与已填写内容，只隐藏当前身份不能再读的内容；404 只说明该条目不存在或当前不可见。
 
 所有读取与错误响应 `Cache-Control: no-store`。浏览器切换到其它身份/页面时取消旧请求并清空旧内容。
 

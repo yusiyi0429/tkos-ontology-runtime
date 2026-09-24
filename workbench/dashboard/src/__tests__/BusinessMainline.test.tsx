@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-li
 import { afterEach, beforeEach, expect, it, vi } from "vitest"
 import { BusinessMainline } from "@/BusinessMainline"
 import { fetchDownstream, fetchObjects } from "@/lib/api"
+import { ApiError } from "@/lib/errors"
 import { missionItem, objectsPage } from "./fixtures"
 import type { DownstreamEdge, ObjectListItem } from "@/lib/types"
 
@@ -106,6 +107,23 @@ it("opens a card at the exact revision the lane showed", async () => {
   render(<BusinessMainline onOpen={onOpen} onAuthLost={onAuthLost} />)
   fireEvent.click(await screen.findByTestId("lane-mission-m1"))
   expect(onOpen).toHaveBeenCalledWith("m1", "m1-r7")
+})
+
+it("a 403 on one lane is that lane's message; only a 401 ends the session", async () => {
+  lanes({ strategy: [], ltco: [], pco: [item("p1", "PCO")], mission: [] })
+  render(<BusinessMainline onOpen={onOpen} onAuthLost={onAuthLost} />)
+  expect(await within(lane("阶段目标 PCO")).findByText("PCO p1")).toBeInTheDocument()
+  list.mockImplementation((query) => query.group === "pco"
+    ? Promise.reject(new ApiError(403, "FORBIDDEN", ""))
+    : Promise.resolve(objectsPage([], { group: query.group })))
+  fireEvent.click(screen.getByRole("button", { name: "刷新" }))
+  expect(await within(lane("阶段目标 PCO")).findByText("当前身份无权读取该内容")).toBeInTheDocument()
+  // The card this identity can no longer read is dropped, not kept as stale content.
+  expect(within(lane("阶段目标 PCO")).queryByText("PCO p1")).not.toBeInTheDocument()
+  expect(onAuthLost).not.toHaveBeenCalled()
+  list.mockImplementation(() => Promise.reject(new ApiError(401, "UNAUTHENTICATED", "")))
+  fireEvent.click(screen.getByRole("button", { name: "刷新" }))
+  await waitFor(() => expect(onAuthLost).toHaveBeenCalled())
 })
 
 it("reads the historical basis from the server rather than filtering it client-side", async () => {

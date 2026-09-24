@@ -28,9 +28,18 @@ def test_session_returns_no_runtime_credential_and_csrf_required(setup):
     sid, s, identity = sessions.login('alice', 'personal-long-login-code', 'local')
     assert 'server-private-bearer' not in repr((sid, s, identity))
     assert sessions.authenticate(request(sid))[1] == identity
-    with pytest.raises(GovernedError, match='Current authority'):
+    with pytest.raises(GovernedError) as exc:
         sessions.authenticate(request(sid), write=True)
+    assert (exc.value.code, exc.value.status) == ('CSRF_TOKEN_INVALID', 403)
     assert sessions.authenticate(request(sid, s['csrf']), write=True)[0] == 'server-private-bearer'
+
+
+def test_wrong_login_code_is_a_login_failure_not_an_expired_session(setup):
+    for username, code in (('alice', 'wrong-but-long-enough-code'), ('nobody', 'personal-long-login-code')):
+        with pytest.raises(GovernedError) as exc:
+            sessions.login(username, code, 'local')
+        assert (exc.value.code, exc.value.status) == ('LOGIN_FAILED', 401)
+    assert not sessions._SESSIONS
 
 
 def test_logout_revokes_cookie(setup):

@@ -521,10 +521,17 @@ def status(conn: psycopg.Connection, args: argparse.Namespace) -> dict[str, Any]
         """SELECT event_type, actor, recorded_at FROM gov_protocol_control_events
            WHERE scope_id=%s ORDER BY recorded_at DESC, event_id DESC LIMIT 20""", (scope_id,),
     ).fetchall()
+    # 取上下文的留痕只增不删（ADR-0007）：报出行数与占用，供运维按量监控。
+    packs = conn.execute(
+        """SELECT count(*) AS rows, COALESCE(sum(pg_column_size(p.*)), 0) AS bytes,
+                  min(created_at) AS oldest, max(created_at) AS newest
+           FROM gov_world_context_packs p WHERE scope_id=%s""", (scope_id,),
+    ).fetchone()
     return jsonable({
         "scope_id": scope_id, "profiles": profiles, "policies": policies,
         "registries": registries, "bindings": bindings,
         "unbound_object_count": unbound["n"], "recent_control_events": events,
+        "context_packs": dict(packs),
     })
 
 

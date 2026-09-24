@@ -112,3 +112,4 @@ def test_a_committed_transaction_records_pool_wait_lock_wait_and_hold(seeded, ca
     [line] = _lines(caplog, "governed_transaction")
     assert line["outcome"] == "committed" and line["scope_id"] == seeded["scope_id"]
     assert all(isinstance(line[key], float) for key in ("pool_wait_ms", "lock_wait_ms", "held_ms"))
+

@@ -3,8 +3,6 @@ from __future__ import annotations
 
 import base64
 import binascii
-import hashlib
-import json
 from typing import Annotated
 import uuid
 
@@ -15,7 +13,7 @@ from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, StrictBool, fi
 from typing import Literal
 from psycopg.types.json import Jsonb
 
-from memory_service_runtime.governed import db, evidence, protocol, readers, service, workbench, workspace_v02_guard
+from memory_service_runtime.governed import canon, db, evidence, protocol, readers, service, workbench, workspace_v02_guard
 from memory_service_runtime.governed.errors import GovernedError
 from memory_service_runtime.governed.models import ActionRequest
 from .a2_models import ObjectRef
@@ -322,7 +320,7 @@ def evidence_create(body: EvidenceRequest, token: Annotated[str, Depends(bearer)
         payload = evidence.store_bytes(ctx, str(body.domain_id), body.title, content, body.media_type)
         db.authorize_domain(conn, ctx, str(body.domain_id), "upload_evidence")
         oid, rid, receipt_id = (str(uuid.uuid4()) for _ in range(3))
-        digest = hashlib.sha256(json.dumps(payload, sort_keys=True, ensure_ascii=False, separators=(",", ":"), allow_nan=False).encode()).hexdigest()
+        digest = canon.digest(payload)
         conn.execute("INSERT INTO gov_objects(object_id,scope_id,domain_id,object_type,lifecycle_status) VALUES(%s,%s,%s,'EvidenceAsset','stored')",
                      (oid, ctx.scope_id, str(body.domain_id)))
         protocol.insert_binding(conn, ctx.scope_id, oid, creation,

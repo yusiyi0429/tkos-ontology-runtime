@@ -8,8 +8,6 @@ therefore commit together, or roll back together on any exception.
 from __future__ import annotations
 
 from datetime import datetime, timezone
-import hashlib
-import json
 from typing import Any
 from uuid import uuid4
 
@@ -17,7 +15,7 @@ from psycopg.types.json import Jsonb
 from pydantic import ValidationError
 
 from memory_service_runtime.repository import enqueue_task
-from . import checkpoints, db, delivery, protocol
+from . import canon, checkpoints, db, delivery, protocol
 from .errors import GovernedError
 from .models import (
     A2_GENERIC_SOURCE_OBJECT_TYPES,
@@ -35,12 +33,12 @@ HUMAN_ACTIONS = {"accept_commitment", "activate_commitment", "confirm_adjustment
 _UNCHANGED = object()
 
 
-def _canonical(value: Any) -> str:
-    return json.dumps(db.jsonable(value), sort_keys=True, separators=(",", ":"), ensure_ascii=False, allow_nan=False)
-
-
 def _hash(value: Any) -> str:
-    return hashlib.sha256(_canonical(value).encode()).hexdigest()
+    """payload_hash 与 request_hash：tkos-json-v1 摘要；无法规范化的输入是请求错误。"""
+    try:
+        return canon.digest(db.jsonable(value))
+    except canon.CanonError as exc:
+        raise GovernedError("INVALID_REQUEST") from exc
 
 
 def _fail(code: str, message: str = "", status: int | None = None) -> None:

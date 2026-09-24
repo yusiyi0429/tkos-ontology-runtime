@@ -5,13 +5,12 @@ event, optional source-fence link and ActionReceipt commit together. No Method
 object, MethodRun, task or formal business effect is written here.
 """
 from dataclasses import replace
-import hashlib
 import json
 from uuid import uuid4
 
 from psycopg.types.json import Jsonb
 
-from . import db, method_access as access
+from . import canon, db, method_access as access
 from . import workspace_v02_collaboration as collaboration
 from .errors import GovernedError
 
@@ -19,8 +18,10 @@ CONTRACT = "tkos.workspace/0.2"
 
 
 def digest(value):
-    return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(",", ":"),
-                                     ensure_ascii=False).encode()).hexdigest()
+    try:
+        return canon.digest(value)
+    except canon.CanonError as exc:
+        raise GovernedError("INVALID_REQUEST") from exc
 
 
 def fail(code="INVALID_REQUEST", message=None):

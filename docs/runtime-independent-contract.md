@@ -33,7 +33,7 @@ Errors: `{error:{code,message}}`, with 401 UNAUTHENTICATED, 403 FORBIDDEN, 404 N
 Read endpoints:
 
 - `GET /v1/objects/{id}`: head with object_type, lifecycle_status, object_version, latest_revision_id, effective_revision_id and accessible payloads.
-- `GET /v1/objects/{id}/revisions/{revision_id}`: immutable revision, payload_hash and server recorded_at.
+- `GET /v1/objects/{id}/revisions/{revision_id}`: immutable revision, payload_hash and server recorded_at. payload_hash is the tkos-json-v1 digest of the payload (`governed/canon.py`); a receipt's request_hash is the same digest of the whole command. Input that cannot be canonicalized (lone surrogates, NaN/Infinity) is 422 INVALID_REQUEST.
 - `GET /v1/action-receipts/{id}`: frozen receipt plus separate current effects list.
 - `POST /v1/context-packs`: `{object_ids:[],valid_at:"ISO8601",known_at:"ISO8601"}`; return context_snapshot_id, exact selected revisions and source references. Historical content must be filtered using known_at, no latest-content substitution. Historical authorization always uses current rights. `GET /v1/context-packs/{id}` reauthorizes every referenced object/evidence. It may store snapshots instead of implementing a response cache initially; no cached content may bypass checks.
 - `POST /v1/evidence-assets`: `{domain_id,title,content_base64,media_type}`; validate size/encoding and actually store bytes in versioned Object-Locked S3, record bucket/key/version_id/sha256/length. Result contains evidence object and revision IDs, no presigned URL. `GET /v1/evidence-assets/{object_id}/revisions/{revision_id}` downloads exact bytes after authorization and hash verification. A failed metadata transaction may leave an unreferenced S3 version; never invent a successful evidence record.

@@ -8,9 +8,10 @@ from __future__ import annotations
 
 import argparse
 from copy import deepcopy
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import json
 from pathlib import Path
+import sys
 
 from acceptance.method_independent.fixture import uid
 from acceptance.method_independent.harness import MethodHarness
@@ -1345,6 +1346,107 @@ def context_packs(h, f, flow, made):
     return {'checks': checks}
 
 
+def mcp_end_to_end(h, f, flow, made, url, source):
+    """票 #26：tkos-world-mcp 子进程以 Agent 凭证打真 API——四读三写各一条，缺声明被 HTTP 面拒绝并原样返回。"""
+    import anyio
+    from mcp import ClientSession, StdioServerParameters
+    from mcp.client.stdio import stdio_client
+
+    checks = []
+    check = _checker(checks)
+    activity, task = made['Activity'], made['Task']
+    log_dir = h.output / 'world-mcp-runs'
+    token = f['actors']['agent_a']['token']
+    # 经安装后的命令入口启动，源码与 API 进程同一份。
+    params = StdioServerParameters(command=str(Path(sys.executable).with_name('tkos-world-mcp')), cwd=str(ROOT),
+                                   env={'PYTHONPATH': str(source), 'TKOS_WORLD_API_URL': url,
+                                        'TKOS_WORLD_AGENT_TOKEN': token, 'TKOS_WORLD_MCP_LOG_DIR': str(log_dir)})
+    declaration = {'scene': _ref(task), 'trigger': 'MCP 端到端：Agent 会后整理',
+                   'human_acceptance': {'required': True, 'acceptor': f['actors']['a']['principal_id']}}
+    moment = (datetime.now(timezone.utc) - timedelta(minutes=1)).strftime('%Y-%m-%dT%H:%M:%SZ')
+    event = {'category': 'other', 'subject_refs': [_ref(activity)], 'occurred_at': moment, 'content': {'text': 'x'}}
+    # 不带声明、或声明缺任一项的写入；三个写工具都打一遍。
+    undeclared = [('world_record_event', {**event, **({'declaration': {k: v for k, v in declaration.items() if k != missing}}
+                                                      if missing else {})})
+                  for missing in (None, 'scene', 'trigger', 'human_acceptance')]
+    undeclared += [('world_refresh_state', {'payload': {'title': 'x', 'subject_ref': _ref(activity), 'as_of': moment}}),
+                   ('world_revise_object', {'target': {'object_id': activity['object_id'], 'revision_id': activity['revision_id'],
+                                                       'expected_version': 1}, 'payload': {'title': 'x'}})]
+    context_rows = len(flow.rows('SELECT 1 FROM gov_world_context_packs WHERE scope_id=%s', (f['scope_id'],)))
+
+    async def session_run():
+        async with stdio_client(params) as (read, write), ClientSession(read, write) as session:
+            await session.initialize()
+            names = [tool.name for tool in (await session.list_tools()).tools]
+            done = {}
+
+            async def call(name, arguments):
+                result = await session.call_tool(name, arguments)
+                return result.is_error, json.loads(result.content[0].text)
+            done['object'] = await call('world_get_object', {'object_id': activity['object_id']})
+            done['context'] = await call('world_get_context', {'object_id': activity['object_id'],
+                                                               'question': '这条 Activity 现在怎样？'})
+            done['events'] = await call('world_get_events', {'object_id': activity['object_id']})
+            done['state'] = await call('world_get_state', {'object_id': activity['object_id']})
+            view = done['object'][1]
+            target = {'object_id': view['object_id'], 'revision_id': view['revision_id'],
+                      'expected_version': view['object_version']}
+            done['revise'] = await call('world_revise_object', {
+                'target': target, 'payload': {'blocks': {'instruction': {'text': '经 MCP 补齐播种脚本。'}}},
+                'declaration': declaration})
+            done['refresh'] = await call('world_refresh_state', {
+                'payload': {'title': 'MCP 快照', 'subject_ref': _ref(activity), 'as_of': moment,
+                            'blocks': {'progress': {'text': '经 MCP 写入。'}}}, 'declaration': declaration})
+            done['record'] = await call('world_record_event', {
+                'category': 'meeting', 'subject_refs': [_ref(activity)], 'occurred_at': moment,
+                'content': {'text': '经 MCP 记的会议。'}, 'declaration': declaration})
+            before = h.snapshot(f)
+            refusals = [await call(name, arguments) for name, arguments in undeclared]
+            return names, done, refusals, before == h.snapshot(f)
+
+    names, done, refusals, unchanged = anyio.run(session_run)
+    check('the_mcp_server_lists_the_four_reads_and_three_writes_and_no_gate_assignment_or_relation',
+          sorted(names) == sorted(['world_get_object', 'world_get_context', 'world_get_events', 'world_get_state',
+                                   'world_revise_object', 'world_refresh_state', 'world_record_event']))
+    reads_ok = all(not done[key][0] for key in ('object', 'context', 'events', 'state'))
+    packs = flow.rows('SELECT principal_id FROM gov_world_context_packs WHERE scope_id=%s ORDER BY created_at, context_pack_id',
+                      (f['scope_id'],))
+    check('the_four_reads_reach_the_real_api_with_the_agent_credential',
+          reads_ok and done['object'][1]['object_id'] == activity['object_id']
+          and done['context'][1]['context_pack']['layers'][0]['object']['object_id'] == activity['object_id']
+          and len(packs) == context_rows + 1 and str(packs[-1]['principal_id']) == f['actors']['agent_a']['principal_id']
+          and done['events'][1]['events'] and all(e['subject_refs'] for e in done['events'][1]['events'])
+          and done['state'][1]['snapshot'] is not None)
+    after = flow.read('outsider', activity['object_id'])
+    check('the_three_writes_commit_through_prepare_and_commit_as_the_agent',
+          all(not done[key][0] and done[key][1]['status'] == 'committed' for key in ('revise', 'refresh', 'record'))
+          and after['version'] == done['object'][1]['version'] + 1
+          and {b['id']: b['text'] for b in after['blocks']}['instruction'] == '经 MCP 补齐播种脚本。'
+          and all(str(row['principal_id']) == f['actors']['agent_a']['principal_id'] for row in flow.rows(
+              'SELECT principal_id FROM gov_action_receipts WHERE scope_id=%s AND receipt_id = ANY(%s::uuid[])',
+              (f['scope_id'], [done[key][1]['receipt_id'] for key in ('revise', 'refresh', 'record')]))))
+    # 同样的命令直接打 HTTP 面，拒绝的错误体应与经 MCP 拿到的逐字相同。
+    direct = []
+    for name, arguments in undeclared:
+        body = {'action_type': name, 'contract_version': 'tkos.world/0.1', 'target': arguments.get('target'),
+                'expected_versions': [], 'idempotency_key': 'acceptance-direct-' + uid(), 'reason': 'Direct refusal probe',
+                'params': {k: v for k, v in arguments.items() if k != 'target'}}
+        direct.append(flow.clients['agent_a'].json('POST', '/v1/actions/prepare', body, expected=422))
+    check('a_write_missing_its_declaration_or_any_of_its_three_items_is_refused_by_http_and_returned_verbatim',
+          unchanged and all(failed for failed, _ in refusals) and [body for _, body in refusals] == direct
+          and all('must declare its scene' in refusals[i][1]['error']['message'] for i in (0, 4, 5)))
+    files = sorted(log_dir.iterdir())
+    lines = [json.loads(line) for line in files[0].read_text().splitlines()] if len(files) == 1 else []
+    check('every_mcp_call_is_in_the_run_log_with_its_references_and_no_credential',
+          len(lines) == 13 and [line['seq'] for line in lines] == list(range(1, 14))
+          and lines[0]['tool'] == 'world_get_object' and _ref(activity) in lines[0]['refs']
+          and lines[1].get('context_pack_id') == done['context'][1]['context_pack_id']
+          and lines[1]['used_chars'] == len(done['context'][1]['context_pack']['markdown'])
+          and all(line.get('idempotency_key') for line in lines[4:])
+          and [line['status'] for line in lines[7:]] == [422] * 6 and token not in files[0].read_text())
+    return checks
+
+
 def revocation(h, f, flow, company_command):
     """最后撤掉 CEO 在公司域的那条 CEO 指派：CEO 在别的域还有角色，仍是 scope 成员，但原命令不能再被重放成成功。"""
     checks = []
@@ -1370,16 +1472,18 @@ def run(h: MethodHarness, source: Path):
         assigned = assign_and_lifecycle(h, f, flow, made)
         gated = gates(h, f, flow, made)
         contexts = context_packs(h, f, flow, made)
+        mcp = mcp_end_to_end(h, f, flow, made, url, source)
         checks = (policy_checks + ctx['checks'] + objects['checks'] + revisions['checks'] + states['checks']
-                  + assigned['checks'] + gated['checks'] + contexts['checks'] + revocation(h, f, flow, ctx['company_command']))
+                  + assigned['checks'] + gated['checks'] + contexts['checks'] + mcp
+                  + revocation(h, f, flow, ctx['company_command']))
         public_json(h.output / 'summary.json', {
             'world_v01_skeleton_passed': True, 'checks': checks,
-            'scope': 'Tickets #19-#25: world wiring, the Company root, the other seven creatable types, '
+            'scope': 'Tickets #19-#26: world wiring, the Company root, the other seven creatable types, '
                      'reference pinning, revisions, cross-chain relations, state snapshots, external events, '
                      'assignments, derived lifecycles, commitment and confirmation gates, the activation-policy '
-                     'control command and get-context over real HTTP/PostgreSQL; synthetic data',
+                     'control command, get-context and the MCP server over real HTTP/PostgreSQL; synthetic data',
             'world_api_accepted': False, 'world_api_accepted_note': 'set only by the finished matrix (ticket #27)',
-            'real_model': 'not_run', 'mcp': 'not_built', 'deployment': 'not_verified'})
+            'real_model': 'not_run', 'mcp': 'stdio_server_against_real_api', 'deployment': 'not_verified'})
     finally:
         flow.close()
 

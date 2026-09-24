@@ -17,6 +17,10 @@ dependencies = [
 
 [project.optional-dependencies]
 s3 = ["botocore>=1.34"]
+mcp = [
+    "jsonschema>=4.20",
+    "mcp>=2.2,<3",
+]
 
 [project.scripts]
 tkos-memory-migrate = "memory_service_app.migrate:main"
@@ -24,9 +28,11 @@ tkos-memory-worker = "memory_service_runtime.cli:worker_main"
 tkos-memory-worker-health = "memory_service_runtime.cli:health_main"
 tkos-memory-task-enqueue = "memory_service_runtime.cli:enqueue_main"
 tkos-governed-control = "memory_service_runtime.governed.control:main"
+tkos-world-mcp = "tkos_world_mcp.cli:main"
 
 [dependency-groups]
 dev = [
+    "mcp>=2.2,<3",
     "pytest>=8.0",
     "pytest-timeout>=2.4.0",
 ]
@@ -44,6 +50,7 @@ packages = [
     "src/memory_service_app",
     "src/memory_service_runtime",
     "src/adapter",
+    "src/tkos_world_mcp",
 ]
 
 [tool.hatch.build.hooks.custom]

@@ -340,9 +340,7 @@ def execute(from_state: Path | None = None, *, preserve_aw_history: bool = False
         report["migrations_replay"] = migrate(memory["migration_url"])
         if report["migrations_replay"]:
             raise RuntimeError("MIGRATION_REPLAY_NOT_EMPTY")
-        grants = infra.child_python(infra.GRANTS, {"migration_url": memory["migration_url"],
-                                                 "app_url": memory["app_url"], "app": infra.APP,
-                                                 "mutable_gov_tables": sorted(infra.GOV_MUTABLE_TABLES)})
+        grants = infra.grant_application_role(memory["migration_url"], memory["app_url"])
         report["application_role"] = {key: grants[key] for key in ("superuser", "bypassrls", "owned_tables")}
         report["foreign_keys_after_migration"] = local_foreign_keys(memory["admin_url"])
         constraints_gate(report["foreign_keys_after_migration"])

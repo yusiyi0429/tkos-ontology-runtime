@@ -33,17 +33,24 @@ def runtime_scope():
     try:
         yield tenant, organization
     finally:
-        with connect() as conn:
-            conn.execute(
-                """DELETE FROM runtime_worker_heartbeats
-                     WHERE tenant_id=%s AND organization_id=%s""",
-                (tenant, organization),
-            )
-            conn.execute(
-                """DELETE FROM runtime_tasks
-                     WHERE tenant_id=%s AND organization_id=%s""",
-                (tenant, organization),
-            )
+        # 生产里应用角色对这两张队列表没有 DELETE（least-privilege：claim/lease/retry
+        # 走状态列，不靠删行，见 deploy/offline-release/db_admin.py 的 RUNTIME_TABLES）。
+        # 清理是尽力而为，没有权限就跳过——随机 tenant/organization scope 已经保证
+        # 用例互不干扰。
+        try:
+            with connect() as conn:
+                conn.execute(
+                    """DELETE FROM runtime_worker_heartbeats
+                         WHERE tenant_id=%s AND organization_id=%s""",
+                    (tenant, organization),
+                )
+                conn.execute(
+                    """DELETE FROM runtime_tasks
+                         WHERE tenant_id=%s AND organization_id=%s""",
+                    (tenant, organization),
+                )
+        except psycopg.errors.InsufficientPrivilege:
+            pass
 
 
 def _enqueue(
@@ -97,11 +104,14 @@ def test_enqueue_is_idempotent_within_scope_and_isolated_between_scopes(runtime_
         assert foreign.created is True
         assert foreign.task.task_id != first.task.task_id
     finally:
-        with connect() as conn:
-            conn.execute(
-                "DELETE FROM runtime_tasks WHERE tenant_id=%s AND organization_id=%s",
-                (tenant, foreign_org),
-            )
+        try:
+            with connect() as conn:
+                conn.execute(
+                    "DELETE FROM runtime_tasks WHERE tenant_id=%s AND organization_id=%s",
+                    (tenant, foreign_org),
+                )
+        except psycopg.errors.InsufficientPrivilege:
+            pass
 
 
 @pytest.mark.db
@@ -138,11 +148,14 @@ def test_claim_uses_skip_locked_and_never_crosses_scope(runtime_scope) -> None:
             conn_a.close()
             conn_b.close()
     finally:
-        with connect() as conn:
-            conn.execute(
-                "DELETE FROM runtime_tasks WHERE tenant_id=%s AND organization_id=%s",
-                (tenant, foreign_org),
-            )
+        try:
+            with connect() as conn:
+                conn.execute(
+                    "DELETE FROM runtime_tasks WHERE tenant_id=%s AND organization_id=%s",
+                    (tenant, foreign_org),
+                )
+        except psycopg.errors.InsufficientPrivilege:
+            pass
 
 
 @pytest.mark.db

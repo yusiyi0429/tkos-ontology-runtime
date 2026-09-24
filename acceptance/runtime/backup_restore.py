@@ -224,11 +224,8 @@ def restore_backup() -> dict:
         restored_env[key] = database_url(env[key], restored_database)
     restored_env["TKOS_OBJECT_STORE_ENDPOINT"] = restored_endpoint
     restored_env["TKOS_ACCEPTANCE_RESTORE_ID"] = identity
-    privileges = infra.child_python(infra.GRANTS, {
-        "migration_url": restored_env["MIGRATION_DATABASE_URL"], "app_url": restored_env["APP_DATABASE_URL"],
-        "app": infra.APP, "mutable_gov_tables": sorted(infra.GOV_MUTABLE_TABLES),
-        "control_plane_tables": sorted(infra.GOV_CONTROL_PLANE_TABLES),
-    })
+    privileges = infra.grant_application_role(restored_env["MIGRATION_DATABASE_URL"],
+                                              restored_env["APP_DATABASE_URL"])
     restored_counts = infra.child_python(DB_COUNTS, {"database_url": restore_admin})
     restored_s3 = infra.child_python(S3_MANIFEST, {**s3_params, "endpoint": restored_endpoint})
     if source_counts != restored_counts:

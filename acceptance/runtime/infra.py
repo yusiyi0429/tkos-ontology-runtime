@@ -28,15 +28,10 @@ DATABASE = "tkos_runtime_acceptance"
 ADMIN = "tkos_acceptance_admin"
 OWNER = "tkos_acceptance_owner"
 APP = "tkos_acceptance_app"
-GOV_MUTABLE_TABLES = frozenset({"gov_scopes", "gov_principals", "gov_credentials",
-                                "gov_role_assignments", "gov_objects", "gov_feedback_state", "gov_work_item_state"})
-# A1 control plane: the application role may read registrations but can never
-# insert, even if a legacy deploy script re-grants INSERT — the 0018 WITH CHECK
-# (owner-verified control plane) and append-only triggers still reject it.
-GOV_CONTROL_PLANE_TABLES = frozenset({
-    "gov_method_profile_revisions", "gov_protocol_policies",
-    "gov_protocol_support_registry", "gov_protocol_control_events",
-})
+# Single source for application-role table privileges: GRANTS loads the release
+# grant step's expected_privileges in the project-Python child, so this stack
+# cannot drift from production grants.
+RELEASE_DB_ADMIN = ROOT / "deploy" / "offline-release" / "db_admin.py"
 SECRETS = STATE / "secrets.json"
 ENV_FILE = STATE / "env.json"
 COMPOSE_ENV = STATE / "compose.env"
@@ -217,24 +212,18 @@ print(json.dumps({"applied": migrate(p["migration_url"])}))
 
 
 GRANTS = r'''
-import json, sys
+import importlib.util, json, sys
 import psycopg
 from psycopg import sql
 p=json.load(sys.stdin)
+spec=importlib.util.spec_from_file_location("release_db_admin", p["release_db_admin"])
+release=importlib.util.module_from_spec(spec)
+spec.loader.exec_module(release)
 with psycopg.connect(p["migration_url"]) as conn:
     tables = conn.execute("SELECT tablename FROM pg_tables WHERE schemaname='public'").fetchall()
     for (table,) in tables:
-        if table.startswith("gov_"):
-            conn.execute(sql.SQL("REVOKE UPDATE, DELETE ON TABLE public.{} FROM {}").format(sql.Identifier(table), sql.Identifier(p["app"])))
-            if table in p["control_plane_tables"]:
-                conn.execute(sql.SQL("REVOKE INSERT ON TABLE public.{} FROM {}").format(sql.Identifier(table), sql.Identifier(p["app"])))
-                privileges = "SELECT"
-            else:
-                privileges = "SELECT, INSERT, UPDATE" if table in p["mutable_gov_tables"] else "SELECT, INSERT"
-        elif table == "schema_migrations":
-            privileges = "SELECT"
-        else:
-            privileges = "SELECT, INSERT, UPDATE, DELETE"
+        conn.execute(sql.SQL("REVOKE ALL ON TABLE public.{} FROM {}").format(sql.Identifier(table), sql.Identifier(p["app"])))
+        privileges = ", ".join(sorted(release.expected_privileges(table)))
         conn.execute(sql.SQL("GRANT " + privileges + " ON TABLE public.{} TO {}").format(sql.Identifier(table), sql.Identifier(p["app"])))
     conn.execute(sql.SQL("GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO {}").format(sql.Identifier(p["app"])))
 with psycopg.connect(p["app_url"]) as conn:
@@ -242,8 +231,12 @@ with psycopg.connect(p["app_url"]) as conn:
     owned=conn.execute("SELECT count(*) FROM pg_tables WHERE schemaname='public' AND tableowner=current_user").fetchone()[0]
     assert not any(row[1:]), row
     assert owned == 0, owned
+    verbs=("SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE")
+    effective=conn.execute("SELECT tablename, " + ", ".join("has_table_privilege(current_user, quote_ident(schemaname)||'.'||quote_ident(tablename), '" + verb + "')" for verb in verbs) + " FROM pg_tables WHERE schemaname='public' ORDER BY tablename").fetchall()
+    diverged=[x[0] for x in effective if {verb for verb, granted in zip(verbs, x[1:]) if granted} != release.expected_privileges(x[0])]
+    assert not diverged, diverged
     gov=conn.execute("SELECT tablename, has_table_privilege(current_user, quote_ident(schemaname)||'.'||quote_ident(tablename), 'UPDATE'), has_table_privilege(current_user, quote_ident(schemaname)||'.'||quote_ident(tablename), 'DELETE') FROM pg_tables WHERE schemaname='public' AND tablename LIKE 'gov_%' ORDER BY tablename").fetchall()
-    control=conn.execute("SELECT tablename, has_table_privilege(current_user, quote_ident(schemaname)||'.'||quote_ident(tablename), 'INSERT') FROM pg_tables WHERE schemaname='public' AND tablename = ANY(%s) ORDER BY tablename", (sorted(p["control_plane_tables"]),)).fetchall()
+    control=conn.execute("SELECT tablename, has_table_privilege(current_user, quote_ident(schemaname)||'.'||quote_ident(tablename), 'INSERT') FROM pg_tables WHERE schemaname='public' AND tablename = ANY(%s) ORDER BY tablename", (sorted(release.CONTROL_PLANE_TABLES),)).fetchall()
     assert all(not x[1] for x in control), control
 print(json.dumps({"app_role":row[0], "superuser":row[1], "bypassrls":row[2], "owned_tables":owned, "governed_mutation_privileges":[{"table":x[0],"update":x[1],"delete":x[2]} for x in gov], "control_plane_insert_privileges":[{"table":x[0],"insert":x[1]} for x in control]}))
 '''
@@ -264,12 +257,14 @@ client.close()
 '''
 
 
+def grant_application_role(migration_url: str, app_url: str) -> dict[str, Any]:
+    return child_python(GRANTS, {"migration_url": migration_url, "app_url": app_url, "app": APP,
+                                 "release_db_admin": str(RELEASE_DB_ADMIN)})
+
+
 def migrate_and_grant(env: dict[str, str]) -> dict[str, Any]:
     migrated = child_python(MIGRATE, {"migration_url": env["MIGRATION_DATABASE_URL"]})
-    roles = child_python(GRANTS, {"migration_url": env["MIGRATION_DATABASE_URL"],
-                                 "app_url": env["APP_DATABASE_URL"], "app": APP,
-                                 "mutable_gov_tables": sorted(GOV_MUTABLE_TABLES),
-                                 "control_plane_tables": sorted(GOV_CONTROL_PLANE_TABLES)})
+    roles = grant_application_role(env["MIGRATION_DATABASE_URL"], env["APP_DATABASE_URL"])
     return {"migrations": migrated, "roles": roles}
 
 

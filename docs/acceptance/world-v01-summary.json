@@ -1,0 +1,230 @@
+{
+  "scope": "tkos.world/0.1 APIs",
+  "sources": {
+    "protocol": "tkos.world/0.1",
+    "spec": "GitHub issue #17（测试决定：主缝）",
+    "ticket": "GitHub issue #27",
+    "contract": "docs/contracts/tkos-world-0.1.md",
+    "base_commit": "ef31b02"
+  },
+  "status": "independently_accepted_locally",
+  "world_api_accepted": true,
+  "source_commit": "0a6736ac19eca29ad2bca14099792b3d4adac133",
+  "completed_at": "2026-09-24T09:35:56.134368+00:00",
+  "groups": 12,
+  "passed_groups": 12,
+  "mandatory_checks": 248,
+  "passed_checks": 248,
+  "checks_per_group": {
+    "WORLD-01": {
+      "title": "迁移升级与幂等",
+      "checks": 4
+    },
+    "WORLD-02": {
+      "title": "控制面安装四步",
+      "checks": 14
+    },
+    "WORLD-03": {
+      "title": "13 个动作的通过与拒绝",
+      "checks": 145
+    },
+    "WORLD-04": {
+      "title": "门按目标类型判权",
+      "checks": 10
+    },
+    "WORLD-05": {
+      "title": "退回与撤回",
+      "checks": 11
+    },
+    "WORLD-06": {
+      "title": "确认写回与生效指针",
+      "checks": 18
+    },
+    "WORLD-07": {
+      "title": "快照唯一性",
+      "checks": 2
+    },
+    "WORLD-08": {
+      "title": "引用钉定",
+      "checks": 4
+    },
+    "WORLD-09": {
+      "title": "四个读投影",
+      "checks": 26
+    },
+    "WORLD-10": {
+      "title": "上下文包落表",
+      "checks": 3
+    },
+    "WORLD-11": {
+      "title": "读权限",
+      "checks": 6
+    },
+    "WORLD-12": {
+      "title": "MCP 端到端",
+      "checks": 5
+    }
+  },
+  "gates": {
+    "immutable_history": true,
+    "no_external_effects": true,
+    "ordinary_application_privileges": true,
+    "source_unchanged": true
+  },
+  "scenarios": {
+    "migration": "completed",
+    "control_plane": "completed",
+    "company_root": "completed",
+    "objects_and_refs": "completed",
+    "revise_and_relate": "completed",
+    "state_and_events": "completed",
+    "assign_and_lifecycle": "completed",
+    "gates": "completed",
+    "context_packs": "completed",
+    "mcp_end_to_end": "completed",
+    "revocation": "completed",
+    "environment": "completed"
+  },
+  "action_coverage": {
+    "world_create_object": {
+      "passes": 2,
+      "wrong_role": 6,
+      "wrong_state": 2,
+      "missing_declaration": 4,
+      "wrong_expected_version": 1,
+      "wrong_reference": 3
+    },
+    "world_revise_object": {
+      "passes": 2,
+      "wrong_role": 3,
+      "wrong_state": 2,
+      "missing_declaration": 2,
+      "wrong_expected_version": 1,
+      "wrong_reference": 2
+    },
+    "world_relate": {
+      "passes": 2,
+      "wrong_role": 1,
+      "missing_declaration": 1,
+      "wrong_expected_version": 1,
+      "wrong_reference": 3
+    },
+    "world_refresh_state": {
+      "passes": 1,
+      "wrong_role": 2,
+      "wrong_state": 1,
+      "missing_declaration": 1,
+      "wrong_expected_version": 1,
+      "wrong_reference": 2
+    },
+    "world_record_event": {
+      "passes": 3,
+      "wrong_role": 1,
+      "missing_declaration": 1,
+      "wrong_expected_version": 1,
+      "wrong_reference": 2
+    },
+    "world_assign": {
+      "passes": 3,
+      "wrong_role": 6,
+      "wrong_expected_version": 1,
+      "wrong_reference": 1
+    },
+    "world_commit_period_goal": {
+      "passes": 2,
+      "wrong_role": 1,
+      "wrong_state": 2,
+      "wrong_expected_version": 1,
+      "wrong_reference": 2
+    },
+    "world_commit_mission": {
+      "passes": 2,
+      "wrong_role": 2,
+      "wrong_state": 1,
+      "wrong_expected_version": 1,
+      "wrong_reference": 2
+    },
+    "world_confirm_long_term_goal": {
+      "passes": 1,
+      "wrong_role": 1,
+      "wrong_state": 1,
+      "wrong_expected_version": 1,
+      "wrong_reference": 2
+    },
+    "world_confirm_period_goal": {
+      "passes": 2,
+      "wrong_role": 1,
+      "wrong_state": 1,
+      "wrong_expected_version": 1,
+      "wrong_reference": 2
+    },
+    "world_confirm_mission": {
+      "passes": 2,
+      "wrong_role": 2,
+      "wrong_state": 1,
+      "wrong_expected_version": 1,
+      "wrong_reference": 2
+    },
+    "world_confirm_mission_core_battle": {
+      "passes": 1,
+      "wrong_role": 1,
+      "wrong_state": 1,
+      "wrong_expected_version": 1,
+      "wrong_reference": 2
+    },
+    "world_mark_core_battle": {
+      "passes": 1,
+      "wrong_role": 1,
+      "wrong_state": 2,
+      "wrong_expected_version": 1,
+      "wrong_reference": 2
+    }
+  },
+  "not_applicable": {
+    "world_relate": {
+      "wrong_state": "建关系不看生命周期：跨链关系不属于正式内容块，有门对象成立后建关系也不重走承诺与确认（契约第 9 节）。"
+    },
+    "world_record_event": {
+      "wrong_state": "外部事件按 scope 判权，不看任何对象的生命周期（契约第 8 节）。"
+    },
+    "world_assign": {
+      "wrong_state": "指派不看生命周期，可以改派（契约第 9 节）。",
+      "missing_declaration": "指派者都是人，指派不带写入声明（契约第 9 节）；持 DRI 角色的 Agent 指派被拒见 an_agent_holding_the_dri_role_cannot_assign。"
+    },
+    "world_commit_period_goal": {
+      "missing_declaration": "门只由人签，不带写入声明（契约第 9 节）；七个门动作共用同一处人身份检查，Agent 签门被拒见 an_agent_holding_the_dri_role_cannot_sign_a_gate。"
+    },
+    "world_commit_mission": {
+      "missing_declaration": "门只由人签，不带写入声明（契约第 9 节）；七个门动作共用同一处人身份检查，Agent 签门被拒见 an_agent_holding_the_dri_role_cannot_sign_a_gate。"
+    },
+    "world_confirm_long_term_goal": {
+      "missing_declaration": "门只由人签，不带写入声明（契约第 9 节）；七个门动作共用同一处人身份检查，Agent 签门被拒见 an_agent_holding_the_dri_role_cannot_sign_a_gate。"
+    },
+    "world_confirm_period_goal": {
+      "missing_declaration": "门只由人签，不带写入声明（契约第 9 节）；七个门动作共用同一处人身份检查，Agent 签门被拒见 an_agent_holding_the_dri_role_cannot_sign_a_gate。"
+    },
+    "world_confirm_mission": {
+      "missing_declaration": "门只由人签，不带写入声明（契约第 9 节）；七个门动作共用同一处人身份检查，Agent 签门被拒见 an_agent_holding_the_dri_role_cannot_sign_a_gate。"
+    },
+    "world_confirm_mission_core_battle": {
+      "missing_declaration": "门只由人签，不带写入声明（契约第 9 节）；七个门动作共用同一处人身份检查，Agent 签门被拒见 an_agent_holding_the_dri_role_cannot_sign_a_gate。"
+    },
+    "world_mark_core_battle": {
+      "missing_declaration": "门只由人签，不带写入声明（契约第 9 节）；七个门动作共用同一处人身份检查，Agent 签门被拒见 an_agent_holding_the_dri_role_cannot_sign_a_gate。"
+    }
+  },
+  "source_files": 182,
+  "source_manifest_sha256": "3e2bc742ab34c82a21167128760530e13508d875601364d988f52df432cf7fc9",
+  "report_sha256": "aae620bf33123793b9a58cddb72d14c031212e1207a826767c3036a83d4de487",
+  "excluded_capabilities": [
+    "raw_evidence_storage（world 0.1 不上传证据）",
+    "existing_containers_preserved",
+    "deployment",
+    "workbench_ui",
+    "real_model_and_codex_cli",
+    "concurrent_writes_and_restart_recovery",
+    "production_identity"
+  ],
+  "released": false,
+  "deployed": false
+}

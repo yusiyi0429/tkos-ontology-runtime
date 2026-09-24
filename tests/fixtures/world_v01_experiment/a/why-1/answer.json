@@ -1,0 +1,25 @@
+{
+  "claims": [
+    {
+      "claim": "Mission 要让两个 Agent 真实可用",
+      "kind": "fact",
+      "refs": [
+        "cccccccc-0000-4000-8000-000000000003@3#definition"
+      ]
+    },
+    {
+      "claim": "Task 要定建模方案",
+      "kind": "fact",
+      "refs": [
+        "bbbbbbbb-0000-4000-8000-000000000002@3#definition"
+      ]
+    },
+    {
+      "claim": "Mission 还没写验收标准",
+      "kind": "gap",
+      "refs": [
+        "cccccccc-0000-4000-8000-000000000003@3#acceptance"
+      ]
+    }
+  ]
+}

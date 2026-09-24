@@ -1,0 +1,18 @@
+{
+  "claims": [
+    {
+      "claim": "Mission 要让两个 Agent 真实可用",
+      "kind": "fact",
+      "refs": [
+        "cccccccc-0000-4000-8000-000000000003@3#definition"
+      ]
+    },
+    {
+      "claim": "Task 最初定义是写一份方案",
+      "kind": "fact",
+      "refs": [
+        "bbbbbbbb-0000-4000-8000-000000000002@1#definition"
+      ]
+    }
+  ]
+}

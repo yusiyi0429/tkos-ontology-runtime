@@ -1,0 +1,7 @@
+{
+  "full_chars": 20000,
+  "empty_blocks": [
+    "aaaaaaaa-0000-4000-8000-000000000001@2#constraint",
+    "cccccccc-0000-4000-8000-000000000003@3#acceptance"
+  ]
+}

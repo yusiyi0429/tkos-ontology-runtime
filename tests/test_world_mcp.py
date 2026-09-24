@@ -27,6 +27,50 @@ EVENT = "2b5a7e2c-7d4f-4c1e-9a55-3a4f1c2d9e06"
 DECLARATION = {"scene": f"{OBJ}@1", "trigger": "会后整理", "human_acceptance": {"required": True, "acceptor": REV}}
 REFUSAL = {"error": {"code": "INVALID_REQUEST", "message": "An Agent write must declare its scene, trigger and human acceptance."}}
 BROKEN = "9b5a7e2c-7d4f-4c1e-9a55-3a4f1c2d9e06"
+# 形状照真读投影的对象：带内容的块、块内钉定的引用、关系、referenced_by、supersedes、状态快照与事件视图。
+ACTIVITY = "3b5a7e2c-7d4f-4c1e-9a55-3a4f1c2d9e06"
+SNAPSHOT = "4b5a7e2c-7d4f-4c1e-9a55-3a4f1c2d9e06"
+OTHER = "5b5a7e2c-7d4f-4c1e-9a55-3a4f1c2d9e06"
+LIFECYCLE_EVENT = "6b5a7e2c-7d4f-4c1e-9a55-3a4f1c2d9e06"
+
+
+def pinned(object_id: str, version: int, block: str | None = None) -> dict:
+    return {"object_id": object_id, "object_version": version, "block": block,
+            "ref": f"{object_id}@{version}" + (f"#{block}" if block else "")}
+
+
+def block(object_id: str, version: int, name: str, text: str | None, refs: list | None = None) -> dict:
+    return {"id": name, "display_name": name, "kind": "definition", "empty": text is None,
+            "value": text and {"text": text, "refs": refs or [], "artifacts": []},
+            "text": text or f"当前没有{name}", "ref": f"{object_id}@{version}#{name}"}
+
+
+EVENT_VIEW = {"event_id": EVENT, "kind": "external", "category": "meeting", "occurred_at": "2026-09-23T02:23:00Z",
+              "recorded_at": "2026-09-24T00:00:00Z", "subject_refs": [pinned(ACTIVITY, 2)],
+              "content": {"text": "会上定了改法", "refs": [pinned(OTHER, 1, "definition")]}}
+SNAPSHOT_VIEW = {"object_id": SNAPSHOT, "object_type": "StateSnapshot", "version": 1, "revision_id": REV,
+                 "title": "9/23 进展", "attributes": {"subject_ref": pinned(ACTIVITY, 2)},
+                 "blocks": [block(SNAPSHOT, 1, "progress", "改了一半")], "relations": [], "referenced_by": [],
+                 "supersedes": None}
+ACTIVITY_VIEW = {"object_id": ACTIVITY, "object_type": "Activity", "version": 2, "revision_id": REV, "object_version": 4,
+                 "title": "改建模材料", "attributes": {"responsible": None},
+                 "blocks": [block(ACTIVITY, 2, "instruction", "按 9/23 会议改", [pinned(OBJ, 3, "acceptance")]),
+                            block(ACTIVITY, 2, "constraint", None)],
+                 "relations": [{"field": "parent_ref", "relation": "contains", "value": pinned(OBJ, 3)}],
+                 "referenced_by": [{**pinned(OTHER, 1), "field": "depends_on"}], "supersedes": pinned(ACTIVITY, 1),
+                 "formal": {"lifecycle_status": "draft", "effective_revision_id": None}, "state": SNAPSHOT_VIEW}
+ACTIVITY_PACK = {"question": "为什么？", "markdown": "…", "layers": [{
+    "level": 0,
+    "object": {"object_id": ACTIVITY, "version": 2, "title": "改建模材料", "ref": f"{ACTIVITY}@2",
+               "pinned": pinned(ACTIVITY, 2), "lifecycle": {"status": "assigned", "event_id": LIFECYCLE_EVENT},
+               "responsible": []},
+    "blocks": [{**block(ACTIVITY, 2, "instruction", "按 9/23 会议改", [pinned(OBJ, 3, "acceptance")]),
+                "pinned": pinned(ACTIVITY, 2, "instruction")}],
+    "relations": [{"field": "depends_on", "relation": "depends_on", "refs": [pinned(OTHER, 1)]}],
+    "referenced_by": [],
+    "state": {"ref": f"{SNAPSHOT}@1", "pinned": pinned(SNAPSHOT, 1), "as_of": "2026-09-23T10:00:00Z", "unconfirmed": True,
+              "blocks": [{**block(SNAPSHOT, 1, "progress", "改了一半"), "pinned": pinned(SNAPSHOT, 1, "progress")}]},
+    "events": [EVENT_VIEW]}]}
 REASON = "Agent write through tkos-world-mcp"
 TOOLS = {"world_get_object", "world_get_context", "world_get_events", "world_get_state",
          "world_revise_object", "world_refresh_state", "world_record_event"}
@@ -85,6 +129,16 @@ class FakeApi:
             return 200, {"object_id": OBJ, "events": [{"event_id": EVENT, "subject_refs": [{"ref": f"{OBJ}@3"}]}]}
         if path == base + "/state":
             return 200, {"object_id": OBJ, "snapshot": None}
+        activity = f"/v1/world/objects/{ACTIVITY}"
+        if path == activity:
+            return 200, ACTIVITY_VIEW
+        if path == activity + "/state":
+            return 200, {"object_id": ACTIVITY, "as_of": None, "snapshot": SNAPSHOT_VIEW}
+        if path == activity + "/events":
+            return 200, {"object_id": ACTIVITY, "events": [EVENT_VIEW]}
+        if path == activity + "/context":
+            return 200, {"context_pack_id": REV, "context_pack": ACTIVITY_PACK, "budget": {"used_chars": 1},
+                         "plan": {"walked": [{"pinned": f"{OBJ}@3"}]}}
         if path in {"/v1/actions/prepare", "/v1/actions"}:
             if not body["params"].get("declaration"):
                 return 422, REFUSAL
@@ -263,3 +317,24 @@ def test_the_context_log_counts_only_what_the_pack_holds_and_its_markdown_length
     run_session(api, tmp_path, [("world_get_context", {"object_id": OBJ, "question": "为什么？"})])
     line = json.loads(next(tmp_path.iterdir()).read_text())
     assert line["refs"] == [f"{OBJ}@3#instruction"] and line["used_chars"] == 29 and line["context_pack_id"] == EVENT
+
+
+def test_the_log_tells_what_came_back_with_its_content_from_what_was_only_cited(api, tmp_path):
+    run_session(api, tmp_path, [(name, {"object_id": ACTIVITY}) for name in
+                                ("world_get_object", "world_get_state", "world_get_events")]
+                + [("world_get_context", {"object_id": ACTIVITY, "question": "为什么？"})])
+    lines = [json.loads(line) for line in next(tmp_path.iterdir()).read_text().splitlines()]
+    # 取对象：它自己这一版和它的块（空块也读到了——读到的是标准句），连同顺带返回的最新快照；
+    # 块内引用、父级、反向引用、上一版只是引用。
+    assert lines[0]["read_refs"] == sorted([f"{ACTIVITY}@2", f"{ACTIVITY}@2#instruction", f"{ACTIVITY}@2#constraint",
+                                            f"{SNAPSHOT}@1", f"{SNAPSHOT}@1#progress"])
+    assert {f"{OBJ}@3#acceptance", f"{OBJ}@3", f"{OTHER}@1", f"{ACTIVITY}@1"} <= set(lines[0]["refs"])
+    assert lines[0]["read_event_ids"] == []
+    # 取状态：读到的是快照和它的块，不是它的主体。
+    assert lines[1]["read_refs"] == sorted([f"{SNAPSHOT}@1", f"{SNAPSHOT}@1#progress"])
+    # 取事件：列出的事件读到了；事件内容里引用的块没读到。
+    assert (lines[2]["read_refs"], lines[2]["read_event_ids"]) == ([], [EVENT])
+    # 取上下文：一层的对象、留下的块、状态与事件；生命周期里钉的事件、跨链关系只是引用。
+    assert lines[3]["read_refs"] == sorted([f"{ACTIVITY}@2", f"{ACTIVITY}@2#instruction",
+                                            f"{SNAPSHOT}@1", f"{SNAPSHOT}@1#progress"])
+    assert lines[3]["read_event_ids"] == [EVENT] and LIFECYCLE_EVENT in lines[3]["event_ids"]

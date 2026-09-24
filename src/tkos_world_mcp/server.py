@@ -7,8 +7,9 @@ world_record_event），名称与参数和 HTTP 面一一对应；门动作、�
 HTTP 的拒绝原样返回。写入先 prepare 再 commit，同一条命令、同一个幂等键；不替调用方补目标、不重试。
 
 每次工具调用在运行日志（JSONL，每个进程一个文件）里记一行：时间、会话、序号、工具、参数、HTTP 状态
-与错误码、返回里的引用与事件 id、返回字符数；写入另记幂等键，取上下文另记上下文包 id 与渲染后
-Markdown 的字符数，且引用只取上下文包本身（检索计划里裁掉的条目与主干上钉定的旧版本不算取到）。
+与错误码、返回里的引用与事件 id、返回字符数；读工具另记带着内容回来的引用与事件 id（read_refs、
+read_event_ids，只以引用形式出现的不算）；写入另记幂等键，取上下文另记上下文包 id 与渲染后 Markdown 的
+字符数，且引用只取上下文包本身（检索计划里裁掉的条目与主干上钉定的旧版本不计入）。
 凭证不进日志；日志写不进去只在 stderr 提示，不影响已完成的调用。
 
 环境变量：TKOS_WORLD_API_URL（HTTP 面的地址）、TKOS_WORLD_AGENT_TOKEN（Agent 身份的凭证）、
@@ -108,6 +109,36 @@ def _event_ids(value: Any) -> set[str]:
     return set()
 
 
+def _content(value: Any) -> tuple[set[str], set[str]]:
+    """返回里带着内容回来的引用与事件：对象视图（带块的对象、取对象顺带的最新快照、上下文包里一层的对象与状态）、
+    块视图、事件视图。块内引用、关系、referenced_by、supersedes、生命周期里钉的事件只以引用形式出现，不算读到。"""
+    refs: set[str] = set()
+    events: set[str] = set()
+
+    def walk(item: Any) -> None:
+        if isinstance(item, list):
+            for entry in item:
+                walk(entry)
+            return
+        if not isinstance(item, dict):
+            return
+        # 对象视图（带 object_id 与 version）、包里的状态（带 ref 与块）、包里一层的对象（带 ref 与标题）；
+        # 包里的一层本身也带块，但它没有 ref，也没有 object_id，不算一个对象。
+        if isinstance(item.get("blocks"), list) and {"object_id", "version"} <= item.keys():
+            refs.add(f"{item['object_id']}@{item['version']}")
+        elif isinstance(item.get("blocks"), list) and "ref" in item or {"title", "ref"} <= item.keys():
+            refs.add(str(item["ref"]))
+        if {"empty", "text", "ref"} <= item.keys() and _REF.fullmatch(str(item["ref"])):  # 块视图（空块读到的是标准句）
+            refs.add(item["ref"])
+        if isinstance(item.get("event_id"), str) and "occurred_at" in item:  # 事件视图
+            events.add(item["event_id"])
+        for entry in item.values():
+            walk(entry)
+
+    walk(value)
+    return refs, events
+
+
 class RunLog:
     """运行日志：每个进程一个 JSONL 文件，每次工具调用一行。"""
 
@@ -119,13 +150,16 @@ class RunLog:
     def write(self, tool: str, arguments: dict[str, Any], status: int | None, error_code: str | None, text: str,
               body: Any, idempotency_key: str | None) -> None:
         self.seq += 1
-        # 取上下文：引用只取上下文包本身；检索计划记的是裁掉的条目与钉定的出处，不是取到的内容。
+        # 取上下文：引用只取上下文包本身；检索计划记的是裁掉的条目与钉定的出处，不是返回的内容。
         taken = body["context_pack"] if tool == "world_get_context" and isinstance(body, dict) \
             and isinstance(body.get("context_pack"), dict) else None
         line = {"at": _utc_now(), "session": self.session, "seq": self.seq, "tool": tool, "arguments": arguments,
                 "status": status, "error_code": error_code,
                 "refs": sorted(set(_REF.findall(json.dumps(taken, ensure_ascii=False) if taken else text))),
                 "event_ids": sorted(_event_ids(taken or body)), "chars": len(text)}
+        if tool in _READS:
+            read_refs, read_event_ids = _content(taken or body) if status is not None and status < 400 else (set(), set())
+            line["read_refs"], line["read_event_ids"] = sorted(read_refs), sorted(read_event_ids)
         if idempotency_key is not None:
             line["idempotency_key"] = idempotency_key
         if taken is not None:

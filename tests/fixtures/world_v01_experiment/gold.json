@@ -1,0 +1,62 @@
+{
+  "format": "tkos-world-gold/0.1",
+  "start": "act",
+  "questions": [
+    {
+      "id": "why",
+      "question": "为什么做？",
+      "answer": "…",
+      "expected": [
+        "@mission#definition",
+        "@task#definition"
+      ]
+    },
+    {
+      "id": "who",
+      "question": "谁负责？",
+      "answer": "…",
+      "expected": [
+        "@act",
+        "event:ev_assign"
+      ]
+    },
+    {
+      "id": "now",
+      "question": "现在怎样？",
+      "answer": "…",
+      "expected": [
+        "@snap_act"
+      ]
+    }
+  ],
+  "counterexamples": [
+    {
+      "category": "old_version",
+      "rule": "…",
+      "decoys": [
+        "@task@1#definition"
+      ]
+    },
+    {
+      "category": "other_unit_constraint",
+      "rule": "…",
+      "decoys": [
+        "@agents_mission#constraint"
+      ]
+    },
+    {
+      "category": "unrelated_event",
+      "rule": "…",
+      "decoys": [
+        "event:ev_cleanup"
+      ]
+    },
+    {
+      "category": "empty_block_as_content",
+      "rule": "…",
+      "decoys": [
+        "@mission#acceptance"
+      ]
+    }
+  ]
+}

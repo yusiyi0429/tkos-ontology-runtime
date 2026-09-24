@@ -1,0 +1,15 @@
+{"type": "thread.started", "thread_id": "01a0d316-0000-7000-8000-000000000000"}
+{"type": "turn.started"}
+{"type": "item.completed", "item": {"id": "item_0", "type": "agent_message", "text": "…"}}
+{"type": "item.started", "item": {"id": "item_1", "type": "mcp_tool_call", "server": "tkos_world", "tool": "world_get_object", "arguments": {"object_id": "aaaaaaaa-0000-4000-8000-000000000001"}, "result": null, "error": null, "status": "in_progress"}}
+{"type": "item.completed", "item": {"id": "item_1", "type": "mcp_tool_call", "server": "tkos_world", "tool": "world_get_object", "arguments": {"object_id": "aaaaaaaa-0000-4000-8000-000000000001"}, "result": {"content": []}, "error": null, "status": "completed"}}
+{"type": "item.started", "item": {"id": "item_2", "type": "mcp_tool_call", "server": "tkos_world", "tool": "world_get_context", "arguments": {"object_id": "aaaaaaaa-0000-4000-8000-000000000001"}, "result": null, "error": null, "status": "in_progress"}}
+{"type": "item.completed", "item": {"id": "item_2", "type": "mcp_tool_call", "server": "tkos_world", "tool": "world_get_context", "arguments": {"object_id": "aaaaaaaa-0000-4000-8000-000000000001"}, "result": {"content": []}, "error": null, "status": "completed"}}
+{"type": "item.started", "item": {"id": "item_3", "type": "mcp_tool_call", "server": "tkos_world", "tool": "world_get_events", "arguments": {"object_id": "aaaaaaaa-0000-4000-8000-000000000001"}, "result": null, "error": null, "status": "in_progress"}}
+{"type": "item.completed", "item": {"id": "item_3", "type": "mcp_tool_call", "server": "tkos_world", "tool": "world_get_events", "arguments": {"object_id": "aaaaaaaa-0000-4000-8000-000000000001"}, "result": {"content": []}, "error": null, "status": "completed"}}
+{"type": "item.started", "item": {"id": "item_4", "type": "mcp_tool_call", "server": "tkos_world", "tool": "world_get_state", "arguments": {"object_id": "aaaaaaaa-0000-4000-8000-000000000001"}, "result": null, "error": null, "status": "in_progress"}}
+{"type": "item.completed", "item": {"id": "item_4", "type": "mcp_tool_call", "server": "tkos_world", "tool": "world_get_state", "arguments": {"object_id": "aaaaaaaa-0000-4000-8000-000000000001"}, "result": {"content": []}, "error": null, "status": "completed"}}
+{"type": "item.started", "item": {"id": "item_5", "type": "mcp_tool_call", "server": "tkos_world", "tool": "world_get_context", "arguments": {"object_id": "aaaaaaaa-0000-4000-8000-000000000001"}, "result": null, "error": null, "status": "in_progress"}}
+{"type": "item.completed", "item": {"id": "item_5", "type": "mcp_tool_call", "server": "tkos_world", "tool": "world_get_context", "arguments": {"object_id": "aaaaaaaa-0000-4000-8000-000000000001"}, "result": {"content": []}, "error": null, "status": "completed"}}
+{"type": "item.completed", "item": {"id": "item_6", "type": "agent_message", "text": "…"}}
+{"type": "turn.completed", "usage": {"input_tokens": 98200, "cached_input_tokens": 76672, "cache_write_input_tokens": 0, "output_tokens": 963, "reasoning_output_tokens": 161}}

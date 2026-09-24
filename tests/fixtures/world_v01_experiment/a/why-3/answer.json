@@ -1,0 +1,23 @@
+{
+  "claims": [
+    {
+      "claim": "Mission 要让两个 Agent 真实可用",
+      "kind": "fact",
+      "refs": [
+        "cccccccc-0000-4000-8000-000000000003@3#definition"
+      ]
+    },
+    {
+      "claim": "这条 Activity 的约束是不改对象结构",
+      "kind": "fact",
+      "refs": [
+        "aaaaaaaa-0000-4000-8000-000000000001@2#constraint"
+      ]
+    },
+    {
+      "claim": "这是九月的重点",
+      "kind": "fact",
+      "refs": []
+    }
+  ]
+}

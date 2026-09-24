@@ -61,6 +61,6 @@ TKOS_WORLD_MCP_LOG_DIR = "artifacts/world-mcp-runs"
 
 ## 运行日志
 
-每个进程一个 JSONL 文件，每次工具调用一行：`at`（UTC）、`session`、`seq`、`tool`、`arguments`、`status`（HTTP 状态；没拿到 HTTP 答复为 null）、`error_code`、`refs`（返回里出现的引用 `<id>@<版本>[#块]`）、`event_ids`、`chars`（返回给调用方的字符数）；写入另有 `idempotency_key`；取上下文另有 `context_pack_id` 与 `used_chars`（渲染后 Markdown 的字符数），其 `refs` 与 `event_ids` 只取上下文包本身，检索计划里裁掉的条目与主干上钉定的旧版本不算取到。凭证不进日志；日志写不进去只在 stderr 提示。
+每个进程一个 JSONL 文件，每次工具调用一行：`at`（UTC）、`session`、`seq`、`tool`、`arguments`、`status`（HTTP 状态；没拿到 HTTP 答复为 null）、`error_code`、`refs`（返回里出现的引用 `<id>@<版本>[#块]`）、`event_ids`、`chars`（返回给调用方的字符数）；写入另有 `idempotency_key`；取上下文另有 `context_pack_id` 与 `used_chars`（渲染后 Markdown 的字符数），其 `refs` 与 `event_ids` 只取上下文包本身，检索计划里裁掉的条目与主干上钉定的旧版本不计入。四个读工具另有 `read_refs` 与 `read_event_ids`：带着内容回来的对象版本、块与事件，也就是对象视图（取对象，连同它顺带返回的最新快照；取状态的快照；上下文包里一层的对象与状态）、块视图（空块读到的是标准句）与事件视图；块内引用、关系、`referenced_by`、`supersedes`、生命周期里钉的事件只以引用形式出现，只进 `refs` 与 `event_ids`。凭证不进日志；日志写不进去只在 stderr 提示。
 
-实验指标（召回、可追溯、预算、确定性）从这里算。`codex exec` 每次运行都会起一个新的 server 进程，所以一次运行对应一个日志文件和一个 `session`。
+实验指标（召回、可追溯、预算、确定性）从这里算，「取到」按 `read_refs` 与 `read_event_ids`。`codex exec` 每次运行都会起一个新的 server 进程，所以一次运行对应一个日志文件和一个 `session`。

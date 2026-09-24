@@ -1,0 +1,122 @@
+-- 0034: tkos.world/0.1 assignments and derived lifecycles (ticket #23).
+-- The role constraint gains OWNER (a Mission's Owner holds it in the Mission's
+-- unit; world_assign only records business responsibility and never grants
+-- roles).  Reading an object now derives its lifecycle from the events whose
+-- subject_refs contain it, so those containment lookups get a GIN index.  The
+-- binding gate is re-pinned because the contract now states who assigns whom,
+-- the roles a responsible must hold, and how the lifecycle is derived.
+-- 0030-0033 remain applied history.  No grant changes.
+ALTER TABLE gov_role_assignments DROP CONSTRAINT ck_gov_assignment_role;
+ALTER TABLE gov_role_assignments ADD CONSTRAINT ck_gov_assignment_role CHECK (
+    role IN ('CEO','DOMAIN_DRI','MISSION_DRI','VERIFIER','IC','AGENT',
+             'CEO_AGENT','CO_AGENT','PERSONAL_AGENT','OWNER')
+);
+
+CREATE INDEX ix_gov_world_events_subjects ON gov_world_events USING gin (subject_refs jsonb_path_ops);
+
+-- Preserve prior binding contracts; pin the current world 0.1 contract and registry.
+CREATE OR REPLACE FUNCTION gov_binding_insert_gate()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $gov_binding_insert_gate$
+DECLARE
+    prow record;
+BEGIN
+    IF NEW.binding_version <> 1 THEN
+        IF gov_control_plane_on() IS NOT TRUE THEN
+            RAISE EXCEPTION 'rebinding (binding_version>1) requires the control plane'
+                USING ERRCODE = '55000';
+        END IF;
+    ELSIF EXISTS (
+        SELECT 1 FROM gov_object_protocol_bindings b
+         WHERE b.scope_id = NEW.scope_id AND b.object_id = NEW.object_id
+    ) THEN
+        RAISE EXCEPTION 'object % already has a protocol binding; rebinding requires the control plane', NEW.object_id
+            USING ERRCODE = '55000';
+    END IF;
+    SELECT p.schema_version, p.content INTO prow
+      FROM gov_method_profile_revisions p
+     WHERE p.scope_id = NEW.scope_id
+       AND p.profile_id = NEW.profile_id
+       AND p.revision = NEW.profile_revision
+       AND p.canonical_hash = NEW.profile_canonical_hash;
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'bound method profile % revision % hash % is not installed in this scope',
+            NEW.profile_id, NEW.profile_revision, NEW.profile_canonical_hash
+            USING ERRCODE = '23514';
+    END IF;
+    IF NEW.protocol_id = 'tkos.legacy-governed' AND NEW.contract_version = 'tkos.governed/v0.2' THEN
+        IF (NEW.profile_id = 'urn:tkos:legacy:governed-v0.2'
+                AND NEW.profile_revision = '0.2.0'
+                AND NEW.profile_canonical_hash = '93c5278a70c70af453e2f86c6d2b298caefe15b1e14b736c006c817c8a182598'
+                AND prow.schema_version = 'tkos.legacy-interpretation-record/0.2') IS NOT TRUE THEN
+            RAISE EXCEPTION 'legacy protocol bindings require the pinned legacy interpretation record'
+                USING ERRCODE = '23514';
+        END IF;
+    ELSIF NEW.protocol_id = 'tkos.contract-a' AND NEW.contract_version = 'tkos.contract-a/0.1' THEN
+        IF (prow.schema_version = 'tkos.profile-core/0.1'
+                AND prow.content->'action_contract_ref'->>'contract_id' = 'tkos.contract-a'
+                AND prow.content->'action_contract_ref'->>'revision' = '0.1'
+                AND prow.content->'action_contract_ref'->>'content_sha256'
+                    = 'fff438ca5eb3b2c709d9911929bc0d8d393a27b42f0af62d48767a2f65388fd4') IS NOT TRUE THEN
+            RAISE EXCEPTION 'contract-a bindings require a ProfileCore bound to the exact main contract bytes'
+                USING ERRCODE = '23514';
+        END IF;
+    ELSIF NEW.protocol_id = 'tkos.method' AND NEW.contract_version = 'tkos.method/0.1' THEN
+        IF (prow.schema_version = 'tkos.method-profile/0.1'
+            AND prow.content->'action_contract_ref'->>'contract_id' = 'tkos.method'
+            AND prow.content->'action_contract_ref'->>'revision' = '0.1'
+            AND prow.content->'action_contract_ref'->>'content_sha256' = 'd108d228e903384182b6945181aa5bcafde4a3f64b4c564d897372805588d1c3'
+            AND prow.content->>'m1a_source_revision' = '21'
+            AND prow.content->>'m1b_source_revision' = '837') IS NOT TRUE THEN
+            RAISE EXCEPTION 'method bindings require the independently frozen Method profile' USING ERRCODE='23514';
+        END IF;
+    ELSIF NEW.protocol_id = 'tkos.method' AND NEW.contract_version = 'tkos.method/0.2' THEN
+        IF (prow.schema_version = 'tkos.method-profile/0.2'
+            AND prow.content->'action_contract_ref'->>'contract_id' = 'tkos.method'
+            AND prow.content->'action_contract_ref'->>'revision' = '0.2'
+            AND prow.content->'action_contract_ref'->>'content_sha256' = '82568bdff37c711207a1a010ae553f72b2f036122b1f88a3b92aec286f9fbbf3') IS NOT TRUE THEN
+            RAISE EXCEPTION 'method 0.2 requires its exact lifecycle contract' USING ERRCODE='23514';
+        END IF;
+    ELSIF NEW.protocol_id = 'tkos.method' AND NEW.contract_version = 'tkos.method/0.3' THEN
+        IF (prow.schema_version = 'tkos.method-profile/0.3'
+            AND prow.content->'action_contract_ref'->>'contract_id' = 'tkos.method'
+            AND prow.content->'action_contract_ref'->>'revision' = '0.3'
+            AND prow.content->'action_contract_ref'->>'content_sha256' = '17f0896993ac91bf232aa8d60de618ccec9b61b1d81fa68f815414943574381d') IS NOT TRUE THEN
+            RAISE EXCEPTION 'method 0.3 requires its exact Anchor contract' USING ERRCODE='23514';
+        END IF;
+    ELSIF NEW.protocol_id = 'tkos.method' AND NEW.contract_version = 'tkos.method/0.4' THEN
+        IF (prow.schema_version = 'tkos.method-profile/0.4'
+            AND prow.content->'action_contract_ref'->>'contract_id' = 'tkos.method'
+            AND prow.content->'action_contract_ref'->>'revision' = '0.4'
+            AND prow.content->'action_contract_ref'->>'content_sha256' = '984c3e09dc9771e29e26aea858d19bb4639bb3d93dc4df12841130ef4f8e44aa') IS NOT TRUE THEN
+            RAISE EXCEPTION 'method 0.4 requires its exact formal-governance contract' USING ERRCODE='23514';
+        END IF;
+    ELSIF NEW.protocol_id = 'tkos.method' AND NEW.contract_version = 'tkos.method/0.5' THEN
+        IF (prow.schema_version = 'tkos.method-profile/0.5'
+            AND prow.content->'action_contract_ref'->>'contract_id' = 'tkos.method'
+            AND prow.content->'action_contract_ref'->>'revision' = '0.5'
+            AND prow.content->'action_contract_ref'->>'content_sha256' = 'd2ea113231533862fb2aed1611608b54c00fe66db0bbb99fe904ec6c69ed6d6f'
+            AND prow.content->'ontology_registry_ref'->>'registry_id' = 'tkos.ontology-registry'
+            AND prow.content->'ontology_registry_ref'->>'revision' = '0.7.1'
+            AND prow.content->'ontology_registry_ref'->>'content_sha256' = '4f44c759d26db4e6812c60b11664add106697a1abf69935b9a9ca316e62220f8') IS NOT TRUE THEN
+            RAISE EXCEPTION 'method 0.5 requires its exact ontology-alignment contract and registry' USING ERRCODE='23514';
+        END IF;
+    ELSIF NEW.protocol_id = 'tkos.world' AND NEW.contract_version = 'tkos.world/0.1' THEN
+        IF (prow.schema_version = 'tkos.world-profile/0.1'
+            AND prow.content->'action_contract_ref'->>'contract_id' = 'tkos.world'
+            AND prow.content->'action_contract_ref'->>'revision' = '0.1'
+            AND prow.content->'action_contract_ref'->>'content_sha256' = 'a73d5a2462ce2df0cbb2d2714d4b46dbcd5e756a9bd5e8be782cbfad4a66fd09'
+            AND prow.content->'world_registry_ref'->>'registry_id' = 'tkos.world-registry'
+            AND prow.content->'world_registry_ref'->>'revision' = '0.1.3'
+            AND prow.content->'world_registry_ref'->>'content_sha256' = '62c69f1b8a388f385e86a474865d3f327df3c2c93a0e607459b4494c1610a545') IS NOT TRUE THEN
+            RAISE EXCEPTION 'world 0.1 requires its exact business-world contract and registry' USING ERRCODE='23514';
+        END IF;
+    ELSE
+        RAISE EXCEPTION 'protocol % contract version % is not implemented by this schema',
+            NEW.protocol_id, NEW.contract_version
+            USING ERRCODE = '23514';
+    END IF;
+    RETURN NEW;
+END
+$gov_binding_insert_gate$;

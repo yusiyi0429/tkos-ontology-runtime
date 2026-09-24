@@ -3,8 +3,8 @@
 每个 world 动作在同一事务里写对象修订、恰好一条 world 事件与回执（契约第 8 节）。
 授权先于协议错误：先按激活策略判权，再过协议闸门；Agent 的类型限制与声明是否带齐
 随后判；然后按主干判断调用者是不是有权的责任人（建对象从新对象的主干上一级找起，
-修订与建关系从目标对象本身找起），之后才校验其余引用、对象放在哪个域与挂在谁下面、
-声明的内容。
+修订、建关系与写快照从目标对象本身找起，指派只看往上规定的那一级），之后才校验其余
+引用、对象放在哪个域与挂在谁下面、声明的内容。
 """
 from __future__ import annotations
 
@@ -41,6 +41,8 @@ class WorldExecution(ActionExecution):
         self.referenced: dict[str, dict[str, Any]] = {}
         # 事件 subject_refs 里除新修订外还要钉的对象：建关系的列表、快照的主体、外部事件的全部主体。
         self.event_subjects: list[dict[str, Any]] = []
+        # 调用者经哪个对象的 responsible 属性成为责任人；重放时复核该属性仍指向他（契约第 4 节）。
+        self.responsible_through: str | None = None
         if self.kind == "world_create_object":
             self.authorize_create()
         elif self.kind == "world_refresh_state":
@@ -121,9 +123,24 @@ class WorldExecution(ActionExecution):
         content = self.params["content"]
         self.content = {**content, "refs": [self.pin(text) for text in content["refs"]]}
         self.declaration = self.pinned_declaration()
+        if self.params["category"] == "acceptance":
+            self.accepted_for = self.accepted_as_parent_responsible()
+
+    def accepted_as_parent_responsible(self) -> list[str]:
+        """验收推进生命周期的条件在记录时判定并随回执留存（契约第 10 节）：主体的状态机要求上一级
+        责任人记验收时，记录者当时是不是该上一级对象的责任人（含持有对应角色）。"""
+        current = db._assignments(self.conn, self.ctx)
+        accepted = []
+        for pinned in self.event_subjects:
+            node = self.current_object(pinned["object_id"])
+            spec = world_registry.registry()["lifecycles"].get(node["object_type"])
+            guarded = spec and any(item["guard"] == "spine_parent_responsible" for item in spec["transitions"])
+            if guarded and self.responsibility_assignment(self.current_object(self.spine_parent(node)), current):
+                accepted.append(node["object_id"])
+        return accepted
 
     def authorize_target(self) -> None:
-        """修订与建关系：目标须是本 scope 的 world 对象（否则 404），判权后过目标动作闸门。"""
+        """修订、建关系与指派：目标须是本 scope 的 world 对象（否则 404），判权后过目标动作闸门。"""
         self.target = world_head(self.conn, self.ctx, self.request.target.object_id)
         self.domain_id = self.target["domain_id"]
         self.action_assignments = db.authorize_domain(self.conn, self.ctx, self.domain_id, self.kind)
@@ -133,17 +150,21 @@ class WorldExecution(ActionExecution):
         if (self.kind == "world_revise_object" and self.ctx.principal_type == "agent"
                 and world_registry.object_spec(object_type)["gated"]):
             _fail("FORBIDDEN", "An Agent revises only ungated object types.")
-        self.require_declaration()
-        self.required_assignments.add(self.responsible_up_the_spine(self.target["object_id"])["assignment_id"])
-        latest = db.jsonable(self.conn.execute(
-            "SELECT object_version, payload FROM gov_object_revisions WHERE scope_id=%s AND revision_id=%s",
-            (self.ctx.scope_id, self.target["latest_revision_id"])).fetchone())
+        if self.kind == "world_assign":  # 指派者都是人（CEO、DRI、Owner），不带写入声明
+            used = self.assigner()
+        else:
+            self.require_declaration()
+            used = self.responsible_up_the_spine(self.target["object_id"])
+        self.required_assignments.add(used["assignment_id"])
+        latest = self.target_revision_row()
         # 修订序号跟着最新修订走，不用对象行的并发版本（确认之类的动作只动指针，不出修订）。
         self.next_version, current = latest["object_version"] + 1, latest["payload"]
         if self.kind == "world_revise_object":
             self.revise(object_type, current)
-        else:
+        elif self.kind == "world_relate":
             self.relate(object_type, current)
+        else:
+            self.assign(object_type, current)
         self.declaration = self.pinned_declaration()
 
     def revise(self, object_type: str, current: dict[str, Any]) -> None:
@@ -181,6 +202,24 @@ class WorldExecution(ActionExecution):
                 _invalid("A contribution goes to a period goal or unit-level goal of another unit.")
         self.payload = models.stored_model(object_type).model_validate(
             {**current, field: self.event_subjects}).model_dump(mode="json")
+
+    def assign(self, object_type: str, current: dict[str, Any]) -> None:
+        """指派只记业务责任、不授予权限（契约第 9 节）：被指派者须已在目标所在的域持有对应角色。
+        Mission、Task、Activity 出新修订写 responsible；责任单元的 DRI 仍按角色解析，只记事件。"""
+        self.assignee = self.params["principal_id"]
+        principal = self.conn.execute(
+            "SELECT principal_type FROM gov_principals WHERE scope_id=%s AND principal_id=%s AND active",
+            (self.ctx.scope_id, self.assignee)).fetchone()
+        role = principal and models.RESPONSIBLE_ROLES[object_type].get(principal["principal_type"])
+        if role is None or self.conn.execute(
+                """SELECT 1 FROM gov_role_assignments
+                    WHERE scope_id=%s AND principal_id=%s AND domain_id=%s AND role=%s AND active
+                      AND valid_from<=clock_timestamp() AND (valid_to IS NULL OR clock_timestamp()<valid_to)""",
+                (self.ctx.scope_id, self.assignee, self.domain_id, role)).fetchone() is None:
+            _invalid("The assignee does not hold the role this assignment needs in the unit.")
+        if object_type != "ResponsibilityUnit":
+            self.payload = models.stored_model(object_type).model_validate(
+                {**current, "responsible": self.assignee}).model_dump(mode="json")
 
     def open_creation(self, object_type: str) -> None:
         """在已判权的域里建一类对象：过创建闸门，看 Agent 的声明是否带齐，载荷按类型校验。"""
@@ -293,29 +332,64 @@ class WorldExecution(ActionExecution):
         return {**given, "scene": cited(scene)}
 
     # ------------------------------------------------------------ who may create
-    def responsible_up_the_spine(self, object_id: str) -> dict[str, Any]:
-        """调用者须是从 object_id 起沿主干向上某一级的责任人（契约第 9、11 节），返回让他成为责任人的那条指派。
+    def current_object(self, object_id: str) -> dict[str, Any]:
+        """对象的 id、类型、所在的域与最新修订的载荷。"""
+        return db.jsonable(self.conn.execute(
+            """SELECT o.object_id, o.object_type, o.domain_id, r.payload
+                 FROM gov_objects o JOIN gov_object_revisions r
+                   ON r.scope_id=o.scope_id AND r.revision_id=o.latest_revision_id
+                WHERE o.scope_id=%s AND o.object_id=%s""", (self.ctx.scope_id, object_id)).fetchone())
 
-        按角色解析的责任人（CEO、该单元的 DOMAIN_DRI）须是人，在那一级对象所在的域持有该角色。
-        按属性解析的责任人（Mission、Task 的 responsible）只由指派写入，随指派（票 #23）一起
-        接入，届时重放与最终复核也要复核它；在那之前沿主干越过这两级继续向上找。
+    def spine_parent(self, node: dict[str, Any]) -> str | None:
+        up = world_registry.object_spec(node["object_type"])["spine_parent_field"]
+        return node["payload"][up]["object_id"] if up else None
+
+    def responsibility_assignment(self, node: dict[str, Any], current: list[dict[str, Any]]) -> dict[str, Any] | None:
+        """调用者是不是这一级对象的责任人（契约第 4 节），是则返回让他成为责任人的那条角色指派。
+
+        按角色解析的（CEO、该单元的 DOMAIN_DRI）须是人、在该对象所在的域持有该角色；按 responsible
+        属性解析的（Mission、Task、Activity）须是该属性上的身份，且当前在该域持有对应角色。
         """
+        rule = world_registry.object_spec(node["object_type"])["responsible"]
+        if rule["source"] == "role":
+            role = rule["role"] if self.ctx.principal_type == "human" else None
+        elif rule["source"] == "attribute" and node["payload"].get("responsible") == self.ctx.principal_id:
+            role = models.RESPONSIBLE_ROLES[node["object_type"]].get(self.ctx.principal_type)
+        else:
+            role = None
+        return next((row for row in current if row["domain_id"] == node["domain_id"] and row["role"] == role), None)
+
+    def responsible_at(self, node: dict[str, Any], current: list[dict[str, Any]]) -> dict[str, Any] | None:
+        """同 responsibility_assignment；经 responsible 属性成立时记下该对象，重放时复核。"""
+        used = self.responsibility_assignment(node, current)
+        if used is not None and world_registry.object_spec(node["object_type"])["responsible"]["source"] == "attribute":
+            self.responsible_through = node["object_id"]
+        return used
+
+    def responsible_up_the_spine(self, object_id: str) -> dict[str, Any]:
+        """调用者须是从 object_id 起沿主干向上某一级的责任人（契约第 9、11 节），返回让他成为责任人的那条指派；
+        重放与最终复核都按这条指派复核。"""
         current = db._assignments(self.conn, self.ctx)
         while object_id is not None:
-            node = db.jsonable(self.conn.execute(
-                """SELECT o.object_type, o.domain_id, r.payload
-                     FROM gov_objects o JOIN gov_object_revisions r
-                       ON r.scope_id=o.scope_id AND r.revision_id=o.latest_revision_id
-                    WHERE o.scope_id=%s AND o.object_id=%s""", (self.ctx.scope_id, object_id)).fetchone())
-            spec = world_registry.object_spec(node["object_type"])
-            rule = spec["responsible"]
-            if rule["source"] == "role" and self.ctx.principal_type == "human":
-                held = [row for row in current if row["domain_id"] == node["domain_id"] and row["role"] == rule["role"]]
-                if held:
-                    return held[0]
-            up = spec["spine_parent_field"]
-            object_id = node["payload"][up]["object_id"] if up else None
+            node = self.current_object(object_id)
+            used = self.responsible_at(node, current)
+            if used is not None:
+                return used
+            object_id = self.spine_parent(node)
         _fail("FORBIDDEN", "Only a responsible person up the spine writes this object.")
+
+    def assigner(self) -> dict[str, Any]:
+        """逐级指派（契约第 9 节）：调用者须是上一级的责任人——责任单元的 DRI 由 Strategy 的责任人（CEO）
+        指派，Mission 的 Owner 由周期目标的责任人（该单元 DRI）指派，Task 与 Activity 的责任人都由所属
+        Mission 的 Owner 指派。"""
+        node = self.current_object(self.target["object_id"])
+        for _ in range(models.ASSIGNED_FROM_LEVELS_UP[node["object_type"]]):
+            node = self.current_object(self.spine_parent(node))
+        used = self.responsible_at(node, db._assignments(self.conn, self.ctx))
+        if used is None:
+            _fail("FORBIDDEN", "Only the responsible one level up assigns this object: the CEO a unit's DRI, "
+                               "the unit's DRI a Mission's Owner, the Mission's Owner its Tasks and Activities.")
+        return used
 
     def check_versions(self) -> None:
         """锁定并核对期望版本。world 读按 scope（契约第 12 节），不走内核 object_row 的域级读策略；
@@ -353,7 +427,14 @@ class WorldExecution(ActionExecution):
             return self.create_world_object(self.object_type)
         if self.kind == "world_record_event":
             return self.record_event()
+        if self.kind == "world_assign" and self.payload is None:  # 指派责任单元的 DRI：只记事件，不出修订
+            return self.written_result(self.target, self.target_revision_row())
         return self.new_revision()
+
+    def target_revision_row(self) -> dict[str, Any]:
+        return db.jsonable(self.conn.execute(
+            "SELECT * FROM gov_object_revisions WHERE scope_id=%s AND revision_id=%s",
+            (self.ctx.scope_id, self.target["latest_revision_id"])).fetchone())
 
     def world_event(self, kind: str, subject_refs: list[dict[str, Any]], *, category: str | None = None,
                     occurred_at: str | None = None, content: dict[str, Any] | None = None,
@@ -373,6 +454,8 @@ class WorldExecution(ActionExecution):
                                     supersedes_event_id=self.params.get("supersedes_event_id"))
         result = {"event_id": event_id, "occurred_at": self.params["occurred_at"],
                   "subject_refs": cited(self.event_subjects)}
+        if self.params["category"] == "acceptance":
+            result["accepted_as_parent_responsible"] = self.accepted_for
         if self.declaration is not None:
             result["declaration"] = self.declaration
         return result
@@ -425,6 +508,10 @@ class WorldExecution(ActionExecution):
         self.world_event(world_registry.action_spec(self.kind)["event_kind"], [pinned, *self.event_subjects])
         result = {"object_id": obj["object_id"], "revision_id": revision["revision_id"], "version": version,
                   "ref": citation(obj["object_id"], version)}
+        if self.kind == "world_assign":
+            result["assignee"] = self.assignee
+        if self.responsible_through is not None:
+            result["responsible_through"] = self.responsible_through
         if self.declaration is not None:
             result["declaration"] = self.declaration
         return result

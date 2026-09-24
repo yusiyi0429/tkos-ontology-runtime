@@ -11,6 +11,7 @@ from typing import Any
 from psycopg.types.json import Jsonb
 
 from . import db, protocol
+from . import world_v01_lifecycle as world_lifecycle
 from . import world_v01_registry as world_registry
 from .errors import GovernedError
 from .world_v01_models import ACTION_PARAMS, SCOPE_ACTIONS, citation, utc_text
@@ -100,6 +101,7 @@ def read_object(conn: Any, ctx: Any, object_id: str, version: int | None = None)
     supersedes = previous and {"object_id": head["object_id"], "object_version": previous["object_version"],
                                "revision_id": previous["revision_id"], "block": None}
     view = object_view(head, revision, metadata, supersedes, _referenced_by(conn, ctx, head["object_id"]))
+    view["lifecycle"] = lifecycle(conn, ctx, head)
     if head["object_type"] == "StateSnapshot":
         view["unconfirmed"] = True  # 读侧展示快照都标明它未经确认（契约第 7 节）
     else:
@@ -128,11 +130,7 @@ def events(conn: Any, ctx: Any, object_id: str, since: Any = None) -> dict[str, 
     """取事件：subject_refs 含该对象、occurred_at 不早于起始时间的全部事件，按 occurred_at 升序；
     被更正的事件列出更正它的事件（契约第 12 节）。"""
     head, _ = _readable(conn, ctx, object_id)
-    rows = [db.jsonable(row) for row in conn.execute(
-        """SELECT * FROM gov_world_events
-            WHERE scope_id=%s AND subject_refs @> %s AND (%s::timestamptz IS NULL OR occurred_at >= %s::timestamptz)
-            ORDER BY occurred_at, recorded_at, event_id""",
-        (ctx.scope_id, Jsonb([{"object_id": head["object_id"]}]), since, since)).fetchall()]
+    rows = _events_about(conn, ctx, head["object_id"], since, by_occurrence=True)
     corrected_by: dict[str, list[str]] = {}
     for row in conn.execute(
             """SELECT supersedes_event_id, event_id FROM gov_world_events
@@ -141,8 +139,8 @@ def events(conn: Any, ctx: Any, object_id: str, since: Any = None) -> dict[str, 
             (ctx.scope_id, [row["event_id"] for row in rows])).fetchall():
         corrected_by.setdefault(str(row["supersedes_event_id"]), []).append(str(row["event_id"]))
     return {"object_id": head["object_id"], "since": since and utc_text(since.isoformat()),
-            "events": [{**{key: row[key] for key in ("event_id", "kind", "phase", "category", "outcome", "principal_id",
-                                                      "action_id", "supersedes_event_id")},
+            "events": [{**{key: row[key] for key in ("event_id", "kind", "action", "phase", "category", "outcome",
+                                                      "principal_id", "assignee", "action_id", "supersedes_event_id")},
                         "occurred_at": utc_text(row["occurred_at"]), "recorded_at": utc_text(row["recorded_at"]),
                         "subject_refs": cited(row["subject_refs"]),
                         "content": row["content"] and {**row["content"], "refs": cited(row["content"]["refs"])},
@@ -188,6 +186,33 @@ def children(conn: Any, ctx: Any, object_id: str) -> dict[str, Any]:
         for row in map(db.jsonable, rows)]}
 
 
+_EVENT_ORDER = {True: "e.occurred_at, e.recorded_at, e.event_id", False: "e.recorded_at, e.event_id"}
+
+
+def _events_about(conn: Any, ctx: Any, object_id: str, since: Any = None, *,
+                  by_occurrence: bool = False) -> list[dict[str, Any]]:
+    """subject_refs 含该对象的事件（默认按记录顺序），带取自回执的产生它的动作、指派的被指派者，
+    以及验收时记录者是不是上一级责任人所对应的主体。"""
+    return [db.jsonable(row) for row in conn.execute(
+        """SELECT e.*, r.action_type AS action, r.result->>'assignee' AS assignee,
+                  r.result->'accepted_as_parent_responsible' AS accepted_as_parent_responsible
+             FROM gov_world_events e JOIN gov_action_receipts r ON r.scope_id=e.scope_id AND r.receipt_id=e.action_id
+            WHERE e.scope_id=%s AND e.subject_refs @> %s
+              AND (%s::timestamptz IS NULL OR e.occurred_at >= %s::timestamptz)
+            ORDER BY """ + _EVENT_ORDER[by_occurrence],
+        (ctx.scope_id, Jsonb([{"object_id": object_id}]), since, since)).fetchall()]
+
+
+def lifecycle(conn: Any, ctx: Any, head: dict[str, Any]) -> dict[str, Any] | None:
+    """按事件的记录顺序推导生命周期（契约第 10 节）；验收是否由上一级责任人记，取记录时随回执留存的判定。"""
+    if head["object_type"] not in world_registry.registry()["lifecycles"]:
+        return None
+    rows = _events_about(conn, ctx, head["object_id"])
+    for row in rows:
+        row["by_spine_parent_responsible"] = head["object_id"] in (row.pop("accepted_as_parent_responsible") or [])
+    return world_lifecycle.derive(head["object_type"], rows)
+
+
 def is_receipt(row: dict[str, Any]) -> bool:
     return row["action_type"] in ACTION_PARAMS
 
@@ -196,8 +221,8 @@ def authorize_receipt(conn: Any, ctx: Any, row: dict[str, Any], *, replay: bool 
     """读 world 回执按 world 读规则：调用者在 scope 内有生效指派，回执涉及的对象仍是 world 对象。
 
     重放是再次执行成功，另按当前权限复核：必须是原调用者，动作当时用到的指派仍然有效，
-    且调用者在该域仍有这个动作的角色（按 scope 判权的外部事件只要仍在 scope 内）；
-    scope 成员身份或无关角色不能复活被撤销的命令。
+    且调用者在该域仍有这个动作的角色（按 scope 判权的外部事件只要仍在 scope 内）；经某对象的
+    responsible 属性成为责任人的，该属性仍须指向他。scope 成员身份或无关角色不能复活被撤销的命令。
     """
     ids = {str(item["object_id"]) for item in row["object_versions"]}
     ids.update(str(item["object_id"]) for item in row["result"].get("subject_refs", []))
@@ -214,3 +239,9 @@ def authorize_receipt(conn: Any, ctx: Any, row: dict[str, Any], *, replay: bool 
         raise GovernedError("FORBIDDEN", "An assignment this command relied on is no longer valid.")
     if row["action_type"] not in SCOPE_ACTIONS:  # 外部事件按 scope 判权，不看各域策略
         db.authorize_domain(conn, ctx, row["result"]["domain_id"], row["action_type"])
+    through = row["result"].get("responsible_through")
+    if through is not None and db.jsonable(conn.execute(
+            """SELECT r.payload->>'responsible' AS responsible FROM gov_objects o JOIN gov_object_revisions r
+                 ON r.scope_id=o.scope_id AND r.revision_id=o.latest_revision_id
+                WHERE o.scope_id=%s AND o.object_id=%s""", (ctx.scope_id, through)).fetchone())["responsible"] != ctx.principal_id:
+        raise GovernedError("FORBIDDEN", "The responsibility this command relied on has moved to someone else.")

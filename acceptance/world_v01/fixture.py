@@ -16,7 +16,7 @@ from acceptance.protocol_a1_independent.control_adapter import ControlAdapter
 from acceptance.protocol_a1_independent.support import private_json
 
 ROOT = Path(__file__).resolve().parents[2]
-WORLD_ROLES = ['AGENT', 'CEO', 'DOMAIN_DRI', 'IC', 'MISSION_DRI', 'VERIFIER']
+WORLD_ROLES = ['AGENT', 'CEO', 'DOMAIN_DRI', 'IC', 'MISSION_DRI', 'OWNER', 'VERIFIER']
 WORLD_ACTIONS = [a['action'] for a in json.loads((ROOT / 'docs/contracts/world-registry-0.1.json').read_text())['actions']]
 
 
@@ -38,8 +38,20 @@ def seed_world(env, path: Path, label: str):
     f['actors']['ic_a'] = _seed_actor(env, f, 'IC', f['domains']['a'])
     f['actors']['agent_a'] = _seed_actor(env, f, 'AGENT', f['domains']['a'], principal_type='agent')
     f['actors']['lapsed'] = _seed_actor(env, f, 'IC', f['domains']['a'])
+    f['actors']['owner_a'] = _seed_actor(env, f, 'OWNER', f['domains']['a'])
+    _grant(env, f, f['actors']['owner_a']['principal_id'], 'IC', f['domains']['a'])
     private_json(path, f)
     return f
+
+
+def _grant(env, f, principal, role, domain):
+    """给已有身份再加一条角色指派（owner SQL，合成的控制面操作）。"""
+    with psycopg.connect(env.values['MIGRATION_DATABASE_URL'], row_factory=dict_row) as conn:
+        conn.execute("SELECT set_config('app.runtime_write_capability','tkos-runtime-a1',true)")
+        conn.execute("SELECT set_config('app.gov_control_plane','on',true)")
+        conn.execute("SELECT set_config('app.governed_scope_id',%s,true)", (f['scope_id'],))
+        conn.execute('INSERT INTO gov_role_assignments(assignment_id,scope_id,principal_id,domain_id,role) VALUES (%s,%s,%s,%s,%s)',
+                     (uid(), f['scope_id'], principal, domain, role))
 
 
 def _seed_actor(env, f, role, domain, principal_type='human'):

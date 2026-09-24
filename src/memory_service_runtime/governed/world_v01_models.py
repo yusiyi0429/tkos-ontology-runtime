@@ -287,6 +287,11 @@ class WorldRelateParams(StrictModel):
         return refs
 
 
+class WorldAssignParams(StrictModel):
+    """指派责任人（契约第 9 节）：生效时间即事件的 occurred_at，0.1 不做未来生效。指派者都是人，不带写入声明。"""
+    principal_id: CanonicalUUID
+
+
 class WorldRefreshStateParams(StrictModel):
     """写状态快照：载荷按 StateSnapshot 校验，所在域随主体（契约第 7 节）。"""
     payload: dict[str, Any]
@@ -318,9 +323,18 @@ class WorldRecordEventParams(StrictModel):
 
 ACTION_PARAMS = {"world_create_object": WorldCreateObjectParams, "world_revise_object": WorldReviseObjectParams,
                  "world_relate": WorldRelateParams, "world_refresh_state": WorldRefreshStateParams,
-                 "world_record_event": WorldRecordEventParams}
+                 "world_record_event": WorldRecordEventParams, "world_assign": WorldAssignParams}
 # 不落在某个对象上、按 scope 判权的动作（契约第 8 节）：外部事件。
 SCOPE_ACTIONS = frozenset({"world_record_event"})
+# 责任人须持的角色（契约第 1、4 节）：按身份类型。责任单元只用于指派其 DRI（DRI 仍按角色解析）。
+RESPONSIBLE_ROLES: dict[str, dict[str, str]] = {
+    "ResponsibilityUnit": {"human": "DOMAIN_DRI"},
+    "Mission": {"human": "OWNER"},
+    "Task": {"human": "IC"},
+    "Activity": {"human": "IC", "agent": "AGENT"},
+}
+# 指派由往上几级对象的责任人来做（契约第 9 节）：Activity 由其 Task 所属 Mission 的 Owner 指派。
+ASSIGNED_FROM_LEVELS_UP = {"ResponsibilityUnit": 1, "Mission": 1, "Task": 1, "Activity": 2}
 # 动作 -> 允许的目标类型；空集表示该动作不带 target。状态快照不修订（错快照用新快照），
 # 只有带跨链关系字段的 Mission、Task 能建关系。
 ACTION_TARGETS: dict[str, frozenset[str]] = {
@@ -330,4 +344,5 @@ ACTION_TARGETS: dict[str, frozenset[str]] = {
     "world_relate": frozenset({"Mission", "Task"}),
     "world_refresh_state": frozenset(),
     "world_record_event": frozenset(),
+    "world_assign": frozenset({"ResponsibilityUnit", "Mission", "Task", "Activity"}),
 }

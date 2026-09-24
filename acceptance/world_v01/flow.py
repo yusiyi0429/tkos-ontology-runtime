@@ -84,6 +84,9 @@ class Flow:
         params = {'payload': patch, **({'declaration': declaration} if declaration else {})}
         return self.commit(actor, self.prepare(actor, self.targeted('world_revise_object', oid, params)))
 
+    def assign(self, actor, oid, principal_id):
+        return self.commit(actor, self.prepare(actor, self.targeted('world_assign', oid, {'principal_id': principal_id})))
+
     def relate(self, actor, oid, field, refs, declaration=None):
         params = {'field': field, 'refs': refs, **({'declaration': declaration} if declaration else {})}
         return self.commit(actor, self.prepare(actor, self.targeted('world_relate', oid, params)))

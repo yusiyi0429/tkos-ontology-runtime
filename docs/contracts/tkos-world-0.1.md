@@ -57,6 +57,7 @@
   - Mission `core_battle`：只由 `core_battle.marked` 事件置为真。
   - StateSnapshot `subject_ref`（主体引用）、`as_of`（时间戳），可选 `period`（`YYYY-MM`）。
 - 对象级 `responsible` 只在 Mission、Task、Activity 上，只由 assign 事件写入。其余类型的责任人按角色解析：Company、Strategy、LongTermGoal 为 CEO；ResponsibilityUnit、PeriodGoal 为该单元的 DOMAIN_DRI；StateSnapshot 为写入者。
+- 按 `responsible` 解析的责任人还须当前在该对象所在的域持有对应角色才算责任人：Mission 为 OWNER，Task 为 IC，Activity 为 IC（人）或 AGENT（Agent）。
 
 ## 5. 引用
 
@@ -136,13 +137,15 @@
 | `world_confirm_mission_core_battle` | confirm | Mission | CEO | 立项 | 接受、退回、撤回 |
 | `world_mark_core_battle` | core_battle.marked | Mission | CEO | 无 | 无 |
 
+- 指派：`world_assign` 以 `{principal_id}` 指派责任人，只记业务责任、不授予权限：被指派者须已在目标所在的域持有对应角色（责任单元的 DRI 为 DOMAIN_DRI，其余见第 4 节），角色由控制面授予。逐级指派、不能越级：责任单元的 DRI 由 CEO 指派，Mission 的 Owner 由该单元的 DRI 指派，Task 与 Activity 的责任人由所属 Mission 的 Owner 指派；Task 的责任人只能是人。Mission、Task、Activity 为此出新修订写 `responsible`（可改派）；责任单元的 DRI 仍按角色解析，指派只记事件。被指派者记在回执里，取事件时随指派事件给出。指派者都是人，指派不带写入声明。
 - 写入声明三项：场景（属于哪个 Mission 或 Task）、触发事件、是否人工验收及验收人。以请求参数 `declaration` 提交：`scene` 为 Mission 或 Task 的引用 `<对象 id>@<版本号>`，写入时钉定；`trigger` 为触发事件的文字说明；`human_acceptance` 为 `{required, acceptor}`，需要人工验收时 `acceptor` 必须是本 scope 内有效的人，不需要时不带验收人。声明随回执留存。只对 Agent 身份的写入强制，缺一拒绝；人经工作台或 HTTP 写入不强制，带了按同样规则校验。三项在 HTTP 服务端校验。
 - MCP 只开放 `world_revise_object`、`world_refresh_state`、`world_record_event`；其余动作只走工作台或 HTTP。
 
 ## 10. 生命周期
 
-- 不存状态枚举。读侧按对象的事件推导 lifecycle，并给出推出它的事件 id（ADR-0002）；推导是确定性的纯函数。
-- 下文未列出的（状态，动作）组合：门动作被拒绝，撤回按本节末条规则处理；非门事件不改变生命周期。
+- 不存状态枚举。读侧按对象的事件推导 lifecycle，并给出推出它的事件 id（ADR-0002）；推导是确定性的纯函数，按事件的记录顺序逐条处理，初始段由 object.created 推出。状态机以机器可读形式登记在 world 登记的 `lifecycles`。
+- 有门对象已成立或已确认后，改动重走承诺与确认（第 11 节）不改变生命周期段：重走只作用于候选内容与确认时的写回，推出当前段的仍是原来那条门事件。
+- 下文未列出的（状态，动作）组合：门动作被拒绝（有门对象成立或确认后的重走除外，见上条），撤回按本节末条规则处理；非门事件不改变生命周期。
 - 「以某对象为主体的 state.refreshed」指 subject_refs 含该对象的状态快照写入事件；进入某一段之前的同类事件不计。
 - Company、Strategy、ResponsibilityUnit、StateSnapshot 没有生命周期，只有版本。
 - LongTermGoal：草稿 →（`world_confirm_long_term_goal` 接受）已确认；草稿时被退回仍为草稿，留下 CEO 退回的记录。
@@ -155,8 +158,8 @@
   - 进行中 →（`world_commit_mission` 交付）已交付 →（`world_confirm_mission` 交付 接受）已关闭。
   - 已交付时被退回 → 调整。调整 →（此后第一条以该 Mission 为主体的 state.refreshed）进行中；调整中也可直接再承诺交付（→ 已交付）。
   - 核心战役（`world_mark_core_battle`）只能在草稿、已承诺、已成立时标记：草稿、已承诺时标记不改变所处的段，已成立时被标记转入等 CEO 确认。CEO 只确认立项，交付只由 DRI 确认。
-- Task 与 Activity（无门）：未指派 →（`world_assign`）已指派 →（此后第一条以该对象为主体的 state.refreshed）进行中 →（event.recorded，category 为 `delivery`）已交付 →（event.recorded，category 为 `acceptance`）已关闭。验收事件由上一级对象的责任人记：Activity 由其 Task 的责任人，Task 由其 Mission 的 Owner；有 scope 权限的人都能记验收类外部事件（第 8 节），但只有上一级对象的责任人记的那条推进生命周期。
-- 撤回：只能撤回推出对象当前生命周期段的那条承诺或确认；此后若有任何事件改变过生命周期（包括 state.refreshed 这类非门事件），就不能再撤回。由与原事件相同的角色记同类事件，outcome 为 `withdrawn`，以 `supersedes_event_id` 引用原事件；生命周期回到原事件之前的那一段，被撤回的事件保留。例：Mission 已因 state.refreshed 进入进行中，就不能再撤回立项确认。
+- Task 与 Activity（无门）：未指派 →（`world_assign`）已指派 →（此后第一条以该对象为主体的 state.refreshed）进行中 →（event.recorded，category 为 `delivery`）已交付 →（event.recorded，category 为 `acceptance`）已关闭。验收事件由上一级对象的责任人记：Activity 由其 Task 的责任人，Task 由其 Mission 的 Owner；有 scope 权限的人都能记验收类外部事件（第 8 节），但只有上一级对象的责任人记的那条推进生命周期；记录者是不是上一级责任人（含持有对应角色），在记录时按当时的状态判定并随回执留存。
+- 撤回：只能撤回推出对象当前生命周期段的那条承诺或确认；此后若有任何事件改变过生命周期（包括 state.refreshed 这类非门事件），就不能再撤回。由与原事件相同的角色记同类事件（同一动作、同一 phase），outcome 为 `withdrawn`，以 `supersedes_event_id` 引用原事件；生命周期回到原事件之前的那一段，这一段改由该撤回事件推出，被撤回的事件保留；撤回事件本身不能再被撤回。例：Mission 已因 state.refreshed 进入进行中，就不能再撤回立项确认。
 
 ## 11. 修改规则、正式内容与候选内容
 
@@ -164,16 +167,16 @@
 - 修订与建关系者须是该对象本身或其主干上某一级的责任人，与建对象同一规则（第 9 节）：无门类型随时可改；Mission 的 Owner 可改其下 Task 与 Activity，Task 的责任人可改其下 Activity，单元 DRI 与 CEO 可改其下的对象。
 - 修订按合并：只改请求里给出的字段与块，块给 null 即清空，其余沿用当前版本。状态快照不修订，错快照用新快照更正。
 - Agent 身份的 object.revised 只允许无门类型，且声明里必须需要人工验收并给出验收人。
-- 内核对象的状态列与生效修订指针只承担正式内容指针：有门类型建对象为 `draft`，确认接受时改为 `confirmed` 并把生效指针挪到被确认的修订；无门类型一律 `recorded`，生效指针等于最新。修订与建关系产生新修订时，生效指针原先等于最新修订的随之移动，否则不动。这不是业务生命周期（ADR-0002）。
+- 内核对象的状态列与生效修订指针只承担正式内容指针：有门类型建对象为 `draft`，确认接受时改为 `confirmed` 并把生效指针挪到被确认的修订；无门类型一律 `recorded`，生效指针等于最新。修订、建关系与指派产生新修订时，生效指针原先等于最新修订的随之移动，否则不动。这不是业务生命周期（ADR-0002）。
 
 ## 12. 读写权限
 
 - scope 内有任一生效角色指派的责任主体，可读该 scope 全部 world 对象、事件与状态快照；scope 外不可读。0.1 不做单元级读隔离。
 - 写入按角色与门判权；Agent 以 Agent 身份写入。
 - 四个读投影（取对象、取上下文、取事件、取状态）的输出形状见规格 #17；本契约只约定其中的空块标准句、引用形式与 lifecycle。
-- 取状态按主体与时点：返回 `as_of` 不晚于该时点的最新一条快照，不给时点即最新一条；取对象附最新一条，都标明未经确认。取事件按主体与起始时间：subject_refs 含该对象、`occurred_at` 不早于起始时间的全部事件，按 `occurred_at` 升序，被更正的事件列出更正它的事件。
+- 取状态按主体与时点：返回 `as_of` 不晚于该时点的最新一条快照，不给时点即最新一条；取对象附最新一条，都标明未经确认。取事件按主体与起始时间：subject_refs 含该对象、`occurred_at` 不早于起始时间的全部事件，按 `occurred_at` 升序，被更正的事件列出更正它的事件；每条事件带产生它的动作，指派事件带被指派者。
 
 ## 13. 未交付边界与未决
 
 - 证据上传不在 0.1：artifacts 只是 URL，登记里 `evidence_upload` 关闭。看板与工作台展示、飞书接入、单元级读隔离不在 0.1。
-- 未决：有门对象在已成立或已确认后重走承诺与确认时，对生命周期的影响（在门的实现前定）；方法侧定义类块正式清单与内容质量标准；预算默认值。
+- 未决：方法侧定义类块正式清单与内容质量标准；预算默认值。

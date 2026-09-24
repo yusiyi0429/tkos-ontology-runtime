@@ -34,7 +34,7 @@ def company_root(h, f, flow):
     check = _checker(checks)
 
     last = flow.rows('SELECT name FROM schema_migrations ORDER BY name DESC LIMIT 1')[0]['name']
-    check('the_world_migration_is_the_newest_applied_migration', last == '0033_world_v01_state_events_repin.sql')
+    check('the_world_migration_is_the_newest_applied_migration', last == '0034_world_v01_assign_owner.sql')
 
     # ------------------------------------------------------------ happy path
     identity = {'text': '一家为企业做经营系统的公司。', 'artifacts': ['https://example.test/company-brief']}
@@ -667,6 +667,156 @@ def state_and_events(h, f, flow, made):
     return {'checks': checks}
 
 
+def assign_and_lifecycle(h, f, flow, made):
+    """票 #23：逐级指派留痕，生命周期由事件推导（段与推出它的事件 id），按 responsible 属性的责任人获得权限。"""
+    checks = []
+    check = _checker(checks)
+    actors = f['actors']
+    person = {name: actors[name]['principal_id'] for name in ('a', 'owner_a', 'ic_a', 'agent_a')}
+    unit, mission, task, activity = made['ResponsibilityUnit'], made['Mission'], made['Task'], made['Activity']
+
+    def lifecycle(obj):
+        return flow.read('outsider', obj['object_id'])['lifecycle']
+
+    def event_of(receipt):
+        return str(flow.rows('SELECT event_id FROM gov_world_events WHERE scope_id=%s AND action_id=%s',
+                             (f['scope_id'], receipt['receipt_id']))[0]['event_id'])
+
+    created = {row['object_id']: str(row['event_id']) for row in flow.rows(
+        "SELECT subject_refs->0->>'object_id' AS object_id, event_id FROM gov_world_events"
+        " WHERE scope_id=%s AND kind='object.created'", (f['scope_id'],))}
+    check('types_without_a_lifecycle_read_none_and_gated_objects_start_as_drafts_produced_by_creation',
+          lifecycle(unit) is None and lifecycle(made['Strategy']) is None and lifecycle(made['Company']) is None
+          and lifecycle(made['PeriodGoal']) == {'status': 'draft', 'display_name': '草稿',
+                                                'event_id': created[made['PeriodGoal']['object_id']]}
+          and lifecycle(mission)['status'] == 'draft')
+
+    # ------------------------------------------------------------ assignment, one level at a time
+    unit_before = flow.read('outsider', unit['object_id'])
+    dri = flow.assign('ceo', unit['object_id'], person['a'])
+    unit_after = flow.read('outsider', unit['object_id'])
+    check('the_ceo_assigns_the_unit_dri_as_a_record_without_a_new_version',
+          dri['result']['assignee'] == person['a'] and unit_after['version'] == unit_before['version']
+          and unit_after['revision_id'] == unit_before['revision_id']
+          and [e['assignee'] for e in flow.events('outsider', unit['object_id'])['events'] if e['kind'] == 'assign']
+          == [person['a']])
+    before = flow.read('outsider', mission['object_id'])['version']
+    flow.assign('a', mission['object_id'], person['owner_a'])
+    view = flow.read('outsider', mission['object_id'])
+    check('the_dri_assigns_the_mission_owner_as_a_new_version_without_moving_its_lifecycle',
+          view['attributes']['responsible'] == person['owner_a'] and view['version'] == before + 1
+          and view['lifecycle']['status'] == 'draft')
+    # 这条 Task 在 #22 已有快照：指派之前的快照不算，指派后是「已指派」。
+    given = flow.assign('owner_a', task['object_id'], person['ic_a'])
+    check('the_owner_assigns_the_task_and_snapshots_written_before_assignment_do_not_count',
+          lifecycle(task) == {'status': 'assigned', 'display_name': '已指派', 'event_id': event_of(given)}
+          and flow.read('outsider', task['object_id'])['attributes']['responsible'] == person['ic_a'])
+
+    # ------------------------------------------------------------ an Activity from assignment to closure
+    declaration = {'scene': _ref(task), 'trigger': 'Activity 被指派即触发执行',
+                   'human_acceptance': {'required': True, 'acceptor': person['ic_a']}}
+    # 每一步之后立即取对象，核对所处的段与推出它的事件。
+    steps = [('assigned', lambda: flow.assign('owner_a', activity['object_id'], person['agent_a'])),
+             ('in_progress', lambda: flow.refresh('agent_a', {
+                 'title': '执行中', 'subject_ref': _ref(activity), 'as_of': '2026-09-24T01:00:00Z',
+                 'blocks': {'progress': {'text': '隔离库迁移完成一半。'}}}, declaration)),
+             ('delivered', lambda: flow.record('agent_a', {
+                 'category': 'delivery', 'subject_refs': [_ref(activity)], 'occurred_at': '2026-09-24T02:00:00Z',
+                 'content': {'text': '隔离库迁移与播种完成。'}, 'declaration': declaration}))]
+    seen = []
+    for expected, act in steps:
+        receipt = act()
+        state = lifecycle(activity)
+        seen.append(state['status'] == expected and state['event_id'] == event_of(receipt))
+    flow.record('owner_a', {'category': 'acceptance', 'subject_refs': [_ref(activity)],
+                            'occurred_at': '2026-09-24T03:00:00Z', 'content': {'text': 'Owner 看过了。'}})
+    held = lifecycle(activity)
+    closing = flow.record('ic_a', {'category': 'acceptance', 'subject_refs': [_ref(activity)],
+                                   'occurred_at': '2026-09-24T03:30:00Z', 'content': {'text': 'Task 责任人验收通过。'}})
+    check('an_activity_moves_assigned_in_progress_delivered_with_each_step_naming_its_event', all(seen))
+    check('an_acceptance_by_someone_other_than_the_task_responsible_does_not_close_the_activity',
+          held['status'] == 'delivered' and held['event_id'] == event_of(receipt))
+    check('the_task_responsible_closes_the_activity_by_acceptance',
+          lifecycle(activity) == {'status': 'closed', 'display_name': '已关闭', 'event_id': event_of(closing)})
+
+    # ------------------------------------------------------------ authority through the responsible attribute
+    owner_body = flow.prepare('owner_a', flow.command('world_create_object', flow.create_params(
+        'Task', 'a', {'title': 'Owner 拆出的 Task', 'parent_ref': _ref(mission)})))
+    by_owner = flow.commit('owner_a', owner_body)
+    ic_body = flow.prepare('ic_a', flow.targeted('world_revise_object', task['object_id'], {
+        'payload': {'blocks': {'constraint': {'text': '只用隔离库。'}}}}))
+    by_ic = flow.commit('ic_a', ic_body)
+    revised = flow.revise('agent_a', activity['object_id'], {'blocks': {'instruction': {'text': '补齐播种脚本。'}}},
+                          declaration)
+    check('the_owner_creates_under_the_mission_the_task_responsible_revises_the_task_and_the_activity_agent_revises_it',
+          by_owner['result']['version'] == 1 and revised['result']['object_id'] == activity['object_id']
+          and by_ic['result']['responsible_through'] == task['object_id']
+          and by_owner['result']['responsible_through'] == mission['object_id'])
+    owner_snapshot = flow.refresh('owner_a', {'title': 'Owner 周报', 'subject_ref': _ref(mission),
+                                              'as_of': '2026-09-24T04:00:00Z',
+                                              'blocks': {'progress': {'text': '两条 Task 在推进。'}}})
+    flow.relate('owner_a', mission['object_id'], 'depends_on', [])
+    task_run = flow.refresh('ic_a', {'title': 'Task 进展', 'subject_ref': _ref(task), 'as_of': '2026-09-24T04:30:00Z',
+                                      'blocks': {'progress': {'text': '数据环境可用。'}}})
+    in_progress = lifecycle(task)
+    task_done = flow.record('ic_a', {'category': 'delivery', 'subject_refs': [_ref(task)],
+                                     'occurred_at': '2026-09-24T05:00:00Z', 'content': {'text': '数据环境交付。'}})
+    check('the_owner_writes_a_snapshot_and_relates_the_mission_and_the_task_responsible_moves_the_task_to_delivered',
+          owner_snapshot['result']['responsible_through'] == mission['object_id']
+          and in_progress == {'status': 'in_progress', 'display_name': '进行中', 'event_id': event_of(task_run)}
+          and lifecycle(task) == {'status': 'delivered', 'display_name': '已交付', 'event_id': task_done['result']['event_id']})
+
+    # ------------------------------------------------------------ rejections
+    def deny_assign(actor, obj, assignee, codes, says=None):
+        flow.deny(actor, flow.targeted('world_assign', obj['object_id'], {'principal_id': assignee}), codes=codes, says=says)
+
+    one_level_up, wrong_role = 'one level up', 'does not hold the role'
+    deny_assign('a', task, person['a'], {'FORBIDDEN'}, one_level_up)
+    check('a_dri_cannot_skip_the_owner_to_assign_a_task')
+    deny_assign('ceo', activity, person['ic_a'], {'FORBIDDEN'}, one_level_up)
+    check('the_ceo_cannot_skip_levels_to_assign_an_activity')
+    deny_assign('ic_a', activity, person['ic_a'], {'FORBIDDEN'}, one_level_up)
+    check('a_task_responsible_does_not_assign_activities')
+    deny_assign('a', mission, person['ic_a'], {'INVALID_REQUEST'}, wrong_role)
+    check('a_mission_owner_must_hold_the_owner_role')
+    deny_assign('owner_a', task, person['agent_a'], {'INVALID_REQUEST'}, wrong_role)
+    check('a_task_responsible_must_be_a_person')
+    deny_assign('owner_a', task, '00000000-0000-4000-8000-000000000000', {'INVALID_REQUEST'}, wrong_role)
+    check('an_unknown_assignee_is_refused')
+    deny_assign('ceo', made['PeriodGoal'], person['a'], {'ACTION_NOT_SUPPORTED_FOR_PROTOCOL'})
+    check('a_goal_is_not_assigned')
+
+    # 改派 Task：原责任人不能再把他凭 responsible 做过的修订重放成成功。指派本身的重放与版本冲突。
+    body = flow.prepare('owner_a', flow.targeted('world_assign', task['object_id'], {'principal_id': person['a']}))
+    reassigned = flow.commit('owner_a', body)
+    replay = flow.commit('owner_a', deepcopy(body))
+    flow.deny('ic_a', deepcopy(ic_body), codes={'FORBIDDEN'}, prepare=False, says='has moved to someone else')
+    check('a_former_task_responsible_cannot_replay_a_revision_after_the_task_is_reassigned',
+          flow.read('outsider', task['object_id'])['attributes']['responsible'] == person['a']
+          and lifecycle(task)['status'] == 'delivered')
+    changed = deepcopy(body)
+    changed['params']['principal_id'] = person['ic_a']
+    flow.deny('owner_a', changed, codes={'IDEMPOTENCY_CONFLICT'}, prepare=False)
+    stale = flow.targeted('world_assign', task['object_id'], {'principal_id': person['ic_a']}, body['target'])
+    flow.deny('owner_a', stale, codes={'VERSION_CONFLICT', 'STALE_DEPENDENCY'}, prepare=False)
+    check('a_replayed_assignment_returns_its_receipt_a_reused_key_is_refused_and_a_stale_version_conflicts',
+          replay['receipt_id'] == reassigned['receipt_id'])
+
+    # 最后撤掉 Owner 的 OWNER 角色（他在该域还有 IC 角色）：Mission 上的 responsible 还在，但他不再是责任人，
+    # 不能再建 Task，原来建 Task 的命令也不能重放成成功。
+    revoke_assignment(h.env, f, actors['owner_a']['assignment_id'])
+    flow.deny('owner_a', flow.command('world_create_object', flow.create_params(
+        'Task', 'a', {'title': 'x', 'parent_ref': _ref(mission)})), codes={'FORBIDDEN'},
+        says='Only a responsible person up the spine')
+    flow.deny('owner_a', deepcopy(owner_body), codes={'FORBIDDEN'}, prepare=False)
+    check('an_owner_who_lost_the_owner_role_can_neither_create_nor_replay_a_creation')
+    late = flow.record('owner_a', {'category': 'acceptance', 'subject_refs': [_ref(task)],
+                                   'occurred_at': '2026-09-24T06:00:00Z', 'content': {'text': '验收（已无 OWNER 角色）。'}})
+    check('an_acceptance_by_an_owner_without_the_owner_role_does_not_close_the_task',
+          late['result']['accepted_as_parent_responsible'] == [] and lifecycle(task)['status'] == 'delivered')
+    return {'checks': checks}
+
+
 def revocation(h, f, flow, company_command):
     """最后撤掉 CEO 在公司域的那条 CEO 指派：CEO 在别的域还有角色，仍是 scope 成员，但原命令不能再被重放成成功。"""
     checks = []
@@ -686,13 +836,14 @@ def run(h: MethodHarness, source: Path):
         objects = objects_and_refs(h, f, flow, ctx['company'])
         revisions = revise_and_relate(h, f, flow, ctx['company'], objects['made'])
         states = state_and_events(h, f, flow, objects['made'])
-        checks = (ctx['checks'] + objects['checks'] + revisions['checks'] + states['checks']
+        assigned = assign_and_lifecycle(h, f, flow, {**objects['made'], 'Company': ctx['company']})
+        checks = (ctx['checks'] + objects['checks'] + revisions['checks'] + states['checks'] + assigned['checks']
                   + revocation(h, f, flow, ctx['company_command']))
         public_json(h.output / 'summary.json', {
             'world_v01_skeleton_passed': True, 'checks': checks,
-            'scope': 'Tickets #19-#22: world wiring, the Company root, the other seven creatable types, '
-                     'reference pinning, revisions, cross-chain relations, state snapshots and external events '
-                     'over real HTTP/PostgreSQL; synthetic data',
+            'scope': 'Tickets #19-#23: world wiring, the Company root, the other seven creatable types, '
+                     'reference pinning, revisions, cross-chain relations, state snapshots, external events, '
+                     'assignments and derived lifecycles over real HTTP/PostgreSQL; synthetic data',
             'world_api_accepted': False, 'world_api_accepted_note': 'set only by the finished matrix (ticket #27)',
             'real_model': 'not_run', 'mcp': 'not_built', 'deployment': 'not_verified'})
     finally:

@@ -1,6 +1,8 @@
 """Standalone HTTP process for the governed TKOS Memory Service."""
 from __future__ import annotations
 
+from importlib.metadata import PackageNotFoundError, version as package_version
+
 from fastapi import Depends, FastAPI
 
 from adapter.auth import require_clark_auth
@@ -17,9 +19,14 @@ from memory_service_runtime.governed.workspace_routes import router as workspace
 from memory_service_app.limits import BodyLimitMiddleware
 from memory_service_runtime import observability
 
+try:
+    _VERSION = package_version("tkos-memory-service")  # 与 pyproject 同一个版本号，不再各写一份
+except PackageNotFoundError:
+    _VERSION = "0+unknown"
+
 app = FastAPI(
     title="TKOS Memory Service",
-    version="0.4.0",
+    version=_VERSION,
     description=(
         "Standalone governed Memory Service with a native API and a temporary "
         "Clark GraphKnowledge compatibility façade."

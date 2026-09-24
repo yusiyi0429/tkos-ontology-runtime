@@ -6,12 +6,21 @@ Runtime 可以通过 HTTP 供远程 Clark/其他应用调用。当前已完成�
 
 应用后端 → Runtime API → PostgreSQL/pgvector；Runtime API 另访问版本化 S3/MinIO，Worker 消费 PostgreSQL 任务并调用固定外部接收器。API 与 Worker 使用同一代码版本。首先部署一个业务域，不要求新增图数据库、向量服务或 LLM 平台。
 
-Dockerfile 已提供两个构建目标：
+Dockerfile 已提供两个构建目标。构建有两个前提：
+
+- 一个 wheelhouse 目录，里面有本版本的 `tkos-memory-service` wheel 与 `requirements.lock` 的全部依赖；
+- 显式传入与那个 wheel 相同的 `VERSION`。
+
+官方离线包的做法见 `deploy/offline-release/`：先用 `prepare_wheelhouse.py` 准备 wheelhouse，再用 `prepare_images.py` 构建。手工构建时：
 
 ```bash
-docker build --target runtime -t tkos-ontology-runtime:local .
-docker build --target worker -t tkos-ontology-worker:local .
+docker buildx build --load --build-context wheelhouse=/path/to/wheelhouse \
+  --build-arg VERSION=0.5.0.dev0 --target runtime -t tkos-ontology-runtime:local .
+docker buildx build --load --build-context wheelhouse=/path/to/wheelhouse \
+  --build-arg VERSION=0.5.0.dev0 --target worker -t tkos-ontology-worker:local .
 ```
+
+镜像里的 `/opt/tkos/docs/` 带着本版本支持的全部协议安装材料：Method 0.1–0.5 与 world 0.1 的 profile、它们钉定的契约字节、本体与 world 登记，以及支持登记。所以用 `tkos-governed-control install-profile`/`set-registry` 装任一协议，都不需要仓库检出。
 
 这些是构建命令，不是已发布的镜像或已验证的远程部署。首次目标环境需要单独验证其 CPU 架构、镜像构建及运行。
 

@@ -14,6 +14,7 @@ from memory_service_runtime.governed.routes import install_errors, router as gov
 from memory_service_app import narrative
 from memory_service_app.dashboard import mount_dashboard
 from memory_service_runtime.governed.workspace_routes import router as workspace_router
+from memory_service_app.limits import BodyLimitMiddleware
 from memory_service_runtime import observability
 
 app = FastAPI(
@@ -35,6 +36,7 @@ app.include_router(narrative.router)
 install_errors(app)
 mount_dashboard(app)
 observability.ensure_handler()
+app.add_middleware(BodyLimitMiddleware)
 app.add_middleware(observability.RequestIdMiddleware)
 
 

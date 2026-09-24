@@ -28,7 +28,7 @@ Creation support actions have `target:null`; existing-object actions require exa
 
 Success: `{receipt_id, action_type, actor_id, auth_epoch, status:"committed", result:{...}, object_versions:[{object_id,object_version}], effect_task_ids:[], recorded_at}`. Persist the immutable receipt in the same transaction as state, history and queue reservations. Replays return the same receipt after current read authorization; same principal/scope/key with a different payload or action returns 409 IDEMPOTENCY_CONFLICT. Do not include current mutable task status in the frozen receipt; expose it separately when reading receipt status.
 
-Errors: `{error:{code,message}}`, with 401 UNAUTHENTICATED, 403 FORBIDDEN, 404 NOT_FOUND (also inaccessible cross-scope objects), 409 VERSION_CONFLICT/IDEMPOTENCY_CONFLICT/INVALID_STATE/DEPENDENCY_MISSING/STALE_DEPENDENCY, 422 INVALID_REQUEST, 503 EVIDENCE_UNAVAILABLE. No raw SQL, credentials or external responses in errors.
+Errors: `{error:{code,message}}`, with 401 UNAUTHENTICATED, 403 FORBIDDEN, 404 NOT_FOUND (also inaccessible cross-scope objects), 409 VERSION_CONFLICT/IDEMPOTENCY_CONFLICT/INVALID_STATE/DEPENDENCY_MISSING/STALE_DEPENDENCY, 422 INVALID_REQUEST, 413 REQUEST_TOO_LARGE (body over `GOVERNED_MAX_BODY_BYTES`, default 1 MiB; evidence uploads 3 MiB), 503 EVIDENCE_UNAVAILABLE (also a timed-out wait on the scope fence or a statement over its limit; retryable). No raw SQL, credentials or external responses in errors.
 
 Read endpoints:
 

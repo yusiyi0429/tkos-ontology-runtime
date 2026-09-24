@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { formatPeriod, formatTime } from '@/lib/format'
+import { BACKGROUND_HEADERS } from '@/lib/api'
 import { ApiError } from '@/lib/errors'
 import { PAGE_SIZE, pageQuery, readWindow, type CursorPage } from '@/lib/paging'
 import { METHOD_WINDOW_VERSIONS, MethodActions } from '@/MethodActions'
@@ -114,9 +115,10 @@ function ReviewPath({ phase }: { phase?: string }) {
   return <ol className="gov-review-path" aria-label="共同核对流程">{['固定版本评论', 'Co-agent 收拢', '本人承诺', 'CEO 整组确认', '正式 Mission'].map((label, i) => <li key={label} aria-current={i === current ? 'step' : undefined}><span>{i + 1}</span>{label}</li>)}</ol>
 }
 
-export async function governanceFetch<T>(path: string, method = 'GET', body?: unknown, csrf?: string, signal?: AbortSignal): Promise<T> {
+// `background`: a timer-driven poll, which the session does not count as the person's activity.
+export async function governanceFetch<T>(path: string, method = 'GET', body?: unknown, csrf?: string, signal?: AbortSignal, background = false): Promise<T> {
   const response = await fetch(BASE + path, { method, credentials: 'same-origin', cache: 'no-store', signal,
-    headers: { Accept: 'application/json', ...(body ? { 'Content-Type': 'application/json' } : {}), ...(csrf ? { 'X-CSRF-Token': csrf } : {}) },
+    headers: { Accept: 'application/json', ...(body ? { 'Content-Type': 'application/json' } : {}), ...(csrf ? { 'X-CSRF-Token': csrf } : {}), ...(background ? BACKGROUND_HEADERS : {}) },
     ...(body ? { body: JSON.stringify(body) } : {}) })
   if (!response.ok) { const data = await response.json().catch(() => ({})); throw new ApiError(response.status, data.error?.code ?? 'UNAVAILABLE', '') }
   return response.json() as Promise<T>
@@ -133,13 +135,13 @@ export function GovernanceApp() {
   const authEpoch = useRef(0); const checkAbort = useRef<AbortController | null>(null)
   const invalidateAuth = useCallback(() => { authEpoch.current += 1; checkAbort.current?.abort() }, [])
   useEffect(() => { if (mode !== 'read') document.title = 'Runtime 治理工作台' }, [mode])
-  const check = useCallback(async () => {
+  const check = useCallback(async (background = false) => {
     const epoch = ++authEpoch.current
     checkAbort.current?.abort()
     const controller = new AbortController()
     checkAbort.current = controller
     try {
-      const s = await governanceFetch<Session>('/session', 'GET', undefined, undefined, controller.signal)
+      const s = await governanceFetch<Session>('/session', 'GET', undefined, undefined, controller.signal, background)
       if (!alive.current || epoch !== authEpoch.current) return
       setSession(s); setMode('ready'); setFailure('')
     }
@@ -164,12 +166,13 @@ export function GovernanceApp() {
     setSession(null); setMode('login')
   }, [invalidateAuth])
 
-  useEffect(() => { alive.current = true; void check(); const refreshSession = () => { if (modeRef.current === 'ready' && !document.hidden) void check() }; const id = window.setInterval(refreshSession, 5000); window.addEventListener('focus', refreshSession); return () => { alive.current = false; clearInterval(id); window.removeEventListener('focus', refreshSession) } }, [check])
+  // The 5-second session poll is background; a focus return is the person's own activity.
+  useEffect(() => { alive.current = true; void check(); const refreshSession = (background: boolean) => { if (modeRef.current === 'ready' && !document.hidden) void check(background) }; const poll = () => refreshSession(true); const wake = () => refreshSession(false); const id = window.setInterval(poll, 5000); window.addEventListener('focus', wake); return () => { alive.current = false; clearInterval(id); window.removeEventListener('focus', wake) } }, [check])
   if (mode === 'read') return <App />
   if (mode === 'ready' && session) return <GovernanceShell key={`${session.identity.scope_id}/${session.identity.principal_id}/${session.identity.auth_epoch}`} session={session} onAuthLost={onAuthLost} onLogout={onLogout} onRefreshSession={check} />
   return <main className="gov-login"><section className="gov-login-story"><div className="gov-wordmark"><GitBranch size={24}/> TKOS <span>RUNTIME</span></div><div><p className="gov-eyebrow">业务治理 · 有据可循</p><h2>让每一次确认，<br/>都有清晰的依据。</h2><p>从共同核对到正式 Mission，连接业务对象、责任人和每一次有据可查的决定。</p><ReviewPath /></div><p className="gov-login-foot">对象 · 关系 · 规则 · 正式效力</p></section><section className="gov-login-form"><div className="gov-login-mark"><ShieldCheck size={28}/></div><p className="gov-eyebrow">个人工作空间</p><h1>Runtime 治理工作台</h1><p className="gov-login-intro">使用个人身份登录，查看与你相关的事项。</p>
     {failure && <Alert><AlertDescription>{failure}</AlertDescription></Alert>}
-    {mode === 'loading' ? <p>正在核验会话…</p> : mode === 'error' ? <Button onClick={check}>重新连接</Button> : <form className="space-y-4" onSubmit={async e => { e.preventDefault(); setBusy(true); setFailure(''); try { invalidateAuth(); const s = await governanceFetch<Session>('/session', 'POST', { username, code }); setCode(''); setSession(s); setMode('ready') } catch (e) { setFailure(e instanceof ApiError && e.code === 'UNAUTHENTICATED' ? LOGIN_UNAVAILABLE : err(e)); setCode('') } finally { setBusy(false) } }}>
+    {mode === 'loading' ? <p>正在核验会话…</p> : mode === 'error' ? <Button onClick={() => void check()}>重新连接</Button> : <form className="space-y-4" onSubmit={async e => { e.preventDefault(); setBusy(true); setFailure(''); try { invalidateAuth(); const s = await governanceFetch<Session>('/session', 'POST', { username, code }); setCode(''); setSession(s); setMode('ready') } catch (e) { setFailure(e instanceof ApiError && e.code === 'UNAUTHENTICATED' ? LOGIN_UNAVAILABLE : err(e)); setCode('') } finally { setBusy(false) } }}>
       <div><Label htmlFor="username">用户名</Label><Input id="username" autoComplete="username" value={username} onChange={e => setUsername(e.target.value)} required /></div>
       <div><Label htmlFor="code">个人登录码</Label><Input id="code" type="password" autoComplete="current-password" value={code} onChange={e => setCode(e.target.value)} required /></div><Button type="submit" disabled={busy}>{busy ? '正在核验…' : '登录'}</Button></form>}
   <p className="gov-login-note"><Fingerprint size={16}/>本机隔离测试 · 操作以本人身份记录</p></section></main>
@@ -203,12 +206,12 @@ function GovernanceShell({ session, onAuthLost, onLogout, onRefreshSession }: { 
   // How many todos/Missions the person has loaded: every refresh re-reads that
   // whole window, and 「加载更多」 widens it, so polling never drops loaded pages.
   const taskWindow = useRef(PAGE_SIZE); const missionWindow = useRef(PAGE_SIZE)
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (background = false) => {
     const generation = ++epoch.current; controller.current?.abort(); const c = new AbortController(); controller.current = c
-    const list = <T,>(path: string, shown: number) => readWindow<T>((after, limit) => governanceFetch<CursorPage<T>>(path + pageQuery(limit, after), 'GET', undefined, undefined, c.signal), shown)
+    const list = <T,>(path: string, shown: number) => readWindow<T>((after, limit) => governanceFetch<CursorPage<T>>(path + pageQuery(limit, after), 'GET', undefined, undefined, c.signal, background), shown)
     try {
       if (tab === 'tasks') { const page = await list<Task>('/governance/tasks', taskWindow.current); if (generation === epoch.current && mounted.current) { setTasks(page.items); setAfter(page.next_after) } }
-      if (tab === 'submissions') { const page = await governanceFetch<{ items: Command[] }>('/commands', 'GET', undefined, undefined, c.signal); if (generation === epoch.current && mounted.current) setCommands(page.items) }
+      if (tab === 'submissions') { const page = await governanceFetch<{ items: Command[] }>('/commands', 'GET', undefined, undefined, c.signal, background); if (generation === epoch.current && mounted.current) setCommands(page.items) }
       if (tab === 'missions') { const page = await list<Obj>('/governance/missions', missionWindow.current); if (generation === epoch.current && mounted.current) { setMissions(page.items); setMissionAfter(page.next_after) } }
       // Only a tab that actually performed an authorized read may clear a
       // business submission error; method/source panes keep it until success
@@ -223,7 +226,7 @@ function GovernanceShell({ session, onAuthLost, onLogout, onRefreshSession }: { 
       handleError(e); setLoading(false) } }
   }, [tab, handleError])
   const renewToken = async () => { await onRefreshSession(); if (mounted.current) setFailure('') }
-  useEffect(() => { setLoading(true); void refresh(); const timer = setInterval(() => { if (!document.hidden) void refresh() }, 5000); window.addEventListener('focus', refresh); return () => { clearInterval(timer); window.removeEventListener('focus', refresh); epoch.current++; controller.current?.abort() } }, [refresh])
+  useEffect(() => { setLoading(true); void refresh(); const timer = setInterval(() => { if (!document.hidden) void refresh(true) }, 5000); const wake = () => void refresh(); window.addEventListener('focus', wake); return () => { clearInterval(timer); window.removeEventListener('focus', wake); epoch.current++; controller.current?.abort() } }, [refresh])
   const prepare = async (body: Payload) => { if (busy) return; const intent = intentEpoch.current; setBusy(true); try { const data = await governanceFetch<Command>('/commands/prepare', 'POST', body, session.csrf); if (mounted.current && intent === intentEpoch.current) { setPreview(data); setFailure('') } } catch (e) { handleError(e); throw e } finally { if (mounted.current) setBusy(false) } }
   const submit = async (command: Command, retry = false) => { if (busy) return; const intent = intentEpoch.current; setBusy(true); try { const data = await governanceFetch<Command>(`/commands/${command.command_id}/${retry ? 'retry' : 'commit'}`, 'POST', undefined, session.csrf); if (mounted.current && intent === intentEpoch.current) { setPreview(data); if (data.status === 'committed') { setFailure(''); window.dispatchEvent(new CustomEvent('governance-committed',
             { detail: { context_id: (data.receipt as Payload | undefined)?.context_id } })); void refresh() } } } catch (e) { handleError(e) } finally { if (mounted.current) setBusy(false) } }
@@ -232,18 +235,19 @@ function GovernanceShell({ session, onAuthLost, onLogout, onRefreshSession }: { 
     let active = true
     const controller = new AbortController()
     const commandId = preview.command_id
-    const refreshCommitted = async () => {
+    const refreshCommitted = async (background = false) => {
       try {
         const fresh = await governanceFetch<Command>(`/commands/${commandId}`, 'GET', undefined,
-                                                     undefined, controller.signal)
+                                                     undefined, controller.signal, background)
         if (active && mounted.current) setPreview(fresh)
       } catch (e) { if (active) handleError(e) }
     }
     void refreshCommitted()
-    const timer = setInterval(() => { if (!document.hidden) void refreshCommitted() }, 5000)
-    window.addEventListener('focus', refreshCommitted)
+    const timer = setInterval(() => { if (!document.hidden) void refreshCommitted(true) }, 5000)
+    const wake = () => void refreshCommitted()
+    window.addEventListener('focus', wake)
     return () => { active = false; controller.abort(); clearInterval(timer)
-      window.removeEventListener('focus', refreshCommitted) }
+      window.removeEventListener('focus', wake) }
   }, [preview?.command_id, preview?.status, handleError])
 
   const switchTab = (value: string) => { const legacy = value === 'list'; const object = new URLSearchParams(location.search).get('object'); const next = legacy ? (object ? 'graph' : 'map') : value; intentEpoch.current++; setOpenWindow(null); setPreview(null); setTab(next); const url = new URL(location.href); if (EXPLORER.includes(next)) url.searchParams.set('view', next); else url.searchParams.delete('view'); history.replaceState(null, '', url); window.dispatchEvent(new PopStateEvent('popstate')) }
@@ -251,14 +255,14 @@ function GovernanceShell({ session, onAuthLost, onLogout, onRefreshSession }: { 
   const explore = (objectId: string) => { const url = new URL(location.href); url.searchParams.set('object', objectId); url.searchParams.delete('rev'); history.replaceState(null, '', url); switchTab('graph') }
   const activeNav = NAV.find(n => n.id === tab) ?? NAV[0]
   return <div className="gov-shell"><aside className="gov-sidebar"><div className="gov-wordmark"><GitBranch size={26}/><span>TKOS <small>RUNTIME</small></span></div><p className="gov-sidebar-caption">治理工作台</p><nav aria-label="工作台导航">{NAV.map(({id, label, icon: Icon, group}, i) => <div key={id}>{group && group !== NAV[i - 1]?.group && <p className="gov-nav-group">{group}</p>}<button aria-current={tab === id ? 'page' : undefined} className="gov-nav-item" onClick={() => switchTab(id)}><Icon size={18}/><span>{label}</span>{tab === id && <span className="gov-nav-dot"/>}</button></div>)}</nav><div className="gov-sidebar-foot"><ShieldCheck size={17}/><span>本人权限 · 正式回执</span></div></aside><div className="gov-body"><header className="gov-topbar"><div><span className="gov-breadcrumb">工作空间 / </span><span>{activeNav.label}</span></div><div className="gov-user"><span className="gov-environment">本机隔离测试</span><span className="gov-avatar">{session.identity.display_name.slice(0,1)}</span><div><strong>{session.identity.display_name}</strong><small>{[...new Set(session.identity.assignments.map(a => ({CEO:'CEO', DOMAIN_DRI:'域负责人', MISSION_DRI:'Mission 负责人'}[a.role] ?? a.role)))].join(' / ')}</small></div><Button variant="ghost" size="icon" aria-label="退出登录" onClick={() => void onLogout().catch(handleError)}><LogOut size={17}/></Button></div></header>
-    {failure && <Alert className="mx-auto my-4 max-w-5xl"><AlertDescription>{failure} {failure === REASONS.CSRF_TOKEN_INVALID ? <Button variant="link" onClick={() => void renewToken()}>更新安全令牌</Button> : <Button variant="link" onClick={refresh}>刷新核对</Button>}</AlertDescription></Alert>}
+    {failure && <Alert className="mx-auto my-4 max-w-5xl"><AlertDescription>{failure} {failure === REASONS.CSRF_TOKEN_INVALID ? <Button variant="link" onClick={() => void renewToken()}>更新安全令牌</Button> : <Button variant="link" onClick={() => void refresh()}>刷新核对</Button>}</AlertDescription></Alert>}
     {/* A render error inside the page shows a recoverable panel; the sidebar, header and forms elsewhere stay mounted. */}
     <ErrorBoundary resetKey={`${tab}#${openWindow?.id ?? ''}`} onBack={openWindow ? closeWindow : () => switchTab('home')} backLabel={openWindow ? '← 返回我的待办' : '返回目的首页'}>
     {EXPLORER.includes(tab) ? <div className="gov-explorer"><App embedded /></div> : <main className="gov-main">
       {tab === 'mainline' ? <BusinessMainline onAuthLost={onAuthLost} onOpen={(objectId, revisionId) => { const url = new URL(location.href); url.searchParams.set('object', objectId); url.searchParams.set('rev', revisionId); history.replaceState(null, '', url); switchTab('graph') }} /> : tab === 'sources' ? <SourceScenes session={session} prepare={prepare} onError={handleError} /> : tab === 'method' ? <MethodActions session={session} prepare={prepare} onError={handleError} onExplore={explore} /> : openWindow && tab === 'tasks' ? (METHOD_WINDOW_VERSIONS.includes(openWindow.version)
         ? <MethodActions key={openWindow.id} windowId={openWindow.id} session={session} prepare={prepare} onError={handleError} onExplore={explore} onBack={closeWindow} onVersion={routeWindow} />
         : <WindowPane key={openWindow.id} id={openWindow.id} session={session} prepare={prepare} busy={busy || !!failure} onError={handleError} onBack={closeWindow} onVersion={routeWindow} />) : <>
-        <div className="gov-page-heading"><div><p className="gov-eyebrow">{tab === 'home' ? 'RUNTIME · 治理型业务内核' : tab === 'tasks' ? '共同核对 / M1B' : tab === 'missions' ? '正式成果 / MISSION' : '操作追溯 / RECEIPTS'}</p><h2>{tab === 'home' ? '看懂治理：从战略到任务的每一步都留痕' : tab === 'tasks' ? '需要我处理的事项' : tab === 'missions' ? '正式 Mission · 待执行承接' : '提交记录与恢复'}</h2><p className="gov-page-description">{activeNav.description}。所有内容按你当前的权限展示。</p></div><Button variant="outline" onClick={refresh}><RefreshCw size={15}/>刷新</Button></div>{tab === 'tasks' && <div className="gov-flow-panel"><div><span className="gov-section-label">从核对到生效</span><p>每一步保留责任与依据</p></div><ReviewPath /></div>}
+        <div className="gov-page-heading"><div><p className="gov-eyebrow">{tab === 'home' ? 'RUNTIME · 治理型业务内核' : tab === 'tasks' ? '共同核对 / M1B' : tab === 'missions' ? '正式成果 / MISSION' : '操作追溯 / RECEIPTS'}</p><h2>{tab === 'home' ? '看懂治理：从战略到任务的每一步都留痕' : tab === 'tasks' ? '需要我处理的事项' : tab === 'missions' ? '正式 Mission · 待执行承接' : '提交记录与恢复'}</h2><p className="gov-page-description">{activeNav.description}。所有内容按你当前的权限展示。</p></div><Button variant="outline" onClick={() => void refresh()}><RefreshCw size={15}/>刷新</Button></div>{tab === 'tasks' && <div className="gov-flow-panel"><div><span className="gov-section-label">从核对到生效</span><p>每一步保留责任与依据</p></div><ReviewPath /></div>}
         {loading && tab !== 'home' && <p>正在读取…</p>}
         {tab === 'home' && PURPOSES.map(({ group, intent, items }) => (
           <section key={group} className="gov-task-card">
@@ -300,7 +304,7 @@ function WindowPane({ id, session, prepare, busy, onError, onBack, onVersion }: 
   const [anchorReview, setAnchorReview] = useState(''); const [field, setField] = useState(''); const [snapshot, setSnapshot] = useState(''); const [context, setContext] = useState<unknown>(null)
   // The loaded binding is authoritative: a 0.4/0.5 window is handed to the Method page, never handled here.
   const versionRef = useRef(onVersion); versionRef.current = onVersion
-  useEffect(() => { let active = true; let c: AbortController | null = null; const load = async () => { c?.abort(); c = new AbortController(); try { const d = await governanceFetch<WindowData>(`/governance/review-windows/${id}`, 'GET', undefined, undefined, c.signal); if (!active) return; if (METHOD_WINDOW_VERSIONS.includes(d.object.protocol.contract_version)) { versionRef.current(d.object.protocol.contract_version); return } setData(d); setStale(false); setGone(false); setSceneId(v => v || (d.scenes.length === 1 ? d.scenes[0].scene_id : '')); setTarget(v => v || d.monthly?.targets[0]?.ref.object_id || '') } catch (e) { if (active && !(e instanceof DOMException && e.name === 'AbortError')) { setStale(true); if (e instanceof ApiError && [401, 403, 404].includes(e.status)) { setData(null); setGone(e.status !== 401) } onError(e) } } }; void load(); const timer = setInterval(() => { if (!document.hidden) void load() }, 5000); window.addEventListener('focus', load); window.addEventListener('governance-committed', load); return () => { active = false; c?.abort(); clearInterval(timer); window.removeEventListener('focus', load); window.removeEventListener('governance-committed', load) } }, [id, onError])
+  useEffect(() => { let active = true; let c: AbortController | null = null; const load = async (background = false) => { c?.abort(); c = new AbortController(); try { const d = await governanceFetch<WindowData>(`/governance/review-windows/${id}`, 'GET', undefined, undefined, c.signal, background); if (!active) return; if (METHOD_WINDOW_VERSIONS.includes(d.object.protocol.contract_version)) { versionRef.current(d.object.protocol.contract_version); return } setData(d); setStale(false); setGone(false); setSceneId(v => v || (d.scenes.length === 1 ? d.scenes[0].scene_id : '')); setTarget(v => v || d.monthly?.targets[0]?.ref.object_id || '') } catch (e) { if (active && !(e instanceof DOMException && e.name === 'AbortError')) { setStale(true); if (e instanceof ApiError && [401, 403, 404].includes(e.status)) { setData(null); setGone(e.status !== 401) } onError(e) } } }; const reload = () => void load(); void load(); const timer = setInterval(() => { if (!document.hidden) void load(true) }, 5000); window.addEventListener('focus', reload); window.addEventListener('governance-committed', reload); return () => { active = false; c?.abort(); clearInterval(timer); window.removeEventListener('focus', reload); window.removeEventListener('governance-committed', reload) } }, [id, onError])
   // A window this identity can no longer read is hidden; the page keeps polling and returns if it becomes readable again.
   if (!data) return gone ? <div className="gov-window space-y-6"><Button variant="ghost" onClick={onBack}>← 返回我的待办</Button><EmptyState title="该事项不存在或当前不可见">可能已被关闭，或当前任职不再允许查看。返回我的待办刷新后再判断。</EmptyState></div> : <p>正在读取当前有权访问的窗口…</p>
   const m = data.monthly

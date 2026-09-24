@@ -15,6 +15,9 @@ from memory_service_runtime.governed.errors import GovernedError
 from .settings import get_settings
 
 COOKIE = 'tkos_governance_session'
+# The page marks its timer-driven refreshes with this header.  They are not the
+# person's activity, so they never extend the idle limit; writes always do.
+BACKGROUND_HEADER = 'x-tkos-background'
 _LOCK = threading.RLock()
 _SESSIONS: dict[str, dict] = {}
 _FAILURES: dict[str, list[float]] = {}
@@ -86,6 +89,7 @@ def authenticate(request, *, write=False):
     sid = request.cookies.get(COOKIE, '')
     key = hashlib.sha256(sid.encode()).hexdigest()
     now = time.monotonic()
+    background = not write and request.headers.get(BACKGROUND_HEADER) == '1'
     with _LOCK:
         session = _SESSIONS.get(key)
         if not session or now - session['created'] > 8 * 3600 or now - session['seen'] > 1800:
@@ -105,7 +109,8 @@ def authenticate(request, *, write=False):
     with _LOCK:
         if key not in _SESSIONS:
             raise GovernedError('UNAUTHENTICATED')
-        _SESSIONS[key]['seen'] = now
+        if not background:
+            _SESSIONS[key]['seen'] = now
     return token, identity, session
 
 

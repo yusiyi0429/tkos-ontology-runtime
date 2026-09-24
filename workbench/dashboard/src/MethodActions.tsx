@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { BACKGROUND_HEADERS } from "@/lib/api"
 import { ApiError } from "@/lib/errors"
 import { PAGE_SIZE, pageQuery, readWindow, type CursorPage } from "@/lib/paging"
 
@@ -616,7 +617,8 @@ export function MethodActions({ session, prepare, onError, onExplore, windowId, 
   // window, and 「加载更多」 widens it, so polling never drops loaded pages.
   const shown = useRef(PAGE_SIZE)
 
-  const load = useCallback(async () => {
+  // `background`: the timer-driven poll, which the session does not count as the person's activity.
+  const load = useCallback(async (background = false) => {
     const generation = ++epoch.current
     controller.current?.abort()
     const current = new AbortController()
@@ -624,7 +626,7 @@ export function MethodActions({ session, prepare, onError, onExplore, windowId, 
     const read = async <T,>(path: string): Promise<T> => {
       const response = await fetch(`${BASE}${path}`, {
         credentials: 'same-origin', cache: 'no-store', signal: current.signal,
-        headers: { Accept: 'application/json' } })
+        headers: { Accept: 'application/json', ...(background ? BACKGROUND_HEADERS : {}) } })
       if (!response.ok) {
         const data = await response.json().catch(() => ({}))
         throw new ApiError(response.status, data.error?.code ?? 'UNAVAILABLE', '')
@@ -663,10 +665,11 @@ export function MethodActions({ session, prepare, onError, onExplore, windowId, 
   useEffect(() => {
     mounted.current = true
     void load()
-    const timer = setInterval(() => { if (!document.hidden) void load() }, 5000)
-    window.addEventListener('focus', load)
+    const timer = setInterval(() => { if (!document.hidden) void load(true) }, 5000)
+    const wake = () => void load()
+    window.addEventListener('focus', wake)
     return () => { mounted.current = false; clearInterval(timer); epoch.current++
-      controller.current?.abort(); window.removeEventListener('focus', load) }
+      controller.current?.abort(); window.removeEventListener('focus', wake) }
   }, [load])
 
   const start = (task: MethodTask, action: MethodAction) => {

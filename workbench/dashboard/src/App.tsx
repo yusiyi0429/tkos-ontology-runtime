@@ -148,7 +148,7 @@ export function App({ embedded = false }: { embedded?: boolean } = {}) {
 
   const overview = useLiveResource({
     key: `overview#${view.strategy ?? ""}`,
-    fetcher: (_key, signal) => fetchOverview(view.strategy, signal),
+    fetcher: (_key, signal, background) => fetchOverview(view.strategy, signal, background),
     identity: (data) => `${data.viewer?.principal_id ?? "none"}|${data.selected_strategy_id ?? "none"}`
       + `|${data.groups.map((group) => `${group.group}:${group.available}:${group.historical_available}`).join(",")}`
       + `|${data.historical_basis.groups.join(",")}`,
@@ -176,7 +176,7 @@ export function App({ embedded = false }: { embedded?: boolean } = {}) {
 
   const catalog = useLiveResource({
     key: `ontology-catalog#${generation}`,
-    fetcher: (_key, signal) => fetchOntologyCatalog(signal),
+    fetcher: (_key, signal, background) => fetchOntologyCatalog(signal, background),
     identity: (data) => data.versions.map(
       (entry) => `${entry.contract_version}:${entry.object_types.join(",")}`).join("|"),
     enabled: !accessLost && (visitedViews.has("map") || visitedViews.has("definitions")),
@@ -185,7 +185,7 @@ export function App({ embedded = false }: { embedded?: boolean } = {}) {
 
   const methodMap = useLiveResource({
     key: `method-map#${generation}`,
-    fetcher: (_key, signal) => fetchMethodMap(signal),
+    fetcher: (_key, signal, background) => fetchMethodMap(signal, background),
     identity: (data) => `${data.source_snapshot?.snapshot_sha256 ?? ""}`
       + `|${(data.runtime_implementation?.scope_enabled_contract_versions ?? []).join(",")}`
       + `|${(data.entries ?? []).map((entry) => entry.id).join(",")}`,
@@ -241,7 +241,8 @@ export function App({ embedded = false }: { embedded?: boolean } = {}) {
     : `${view.object}#${view.rev ?? "effective"}#${strategyId ?? ""}#${generation}`
   const detail = useLiveResource({
     key: detailKey,
-    fetcher: (_key, signal) => fetchDetail(view.object as string, view.rev, strategyId, signal),
+    fetcher: (_key, signal, background) => fetchDetail(view.object as string, view.rev, strategyId, signal,
+                                                       background),
     identity: (data) =>
       `${data.selected_revision.revision_id}:${data.selected_revision.payload_hash}`
       + `:${data.formal_state.status}:${data.content_confirmation.confirmed_for_selected_revision}`,

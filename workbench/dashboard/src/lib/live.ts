@@ -70,7 +70,8 @@ export function liveReducer<T>(
 
 export interface LiveResourceOptions<T> {
   key: string | null
-  fetcher: (key: string, signal: AbortSignal) => Promise<T>
+  /** `background` is true only for the timer-driven poll, which is not the person's activity. */
+  fetcher: (key: string, signal: AbortSignal, background: boolean) => Promise<T>
   identity: (data: T) => string
   intervalMs?: number
   enabled?: boolean
@@ -100,7 +101,7 @@ export function useLiveResource<T>(options: LiveResourceOptions<T>): LiveResourc
   identityRef.current = identity
   onAccessDeniedRef.current = onAccessDenied
 
-  const run = useCallback(async (silent: boolean) => {
+  const run = useCallback(async (silent: boolean, background = false) => {
     const currentKey = key
     if (!currentKey || !enabled) return
     const epoch = ++epochRef.current
@@ -109,7 +110,7 @@ export function useLiveResource<T>(options: LiveResourceOptions<T>): LiveResourc
     abortRef.current = controller
     if (!silent) rawDispatch({ type: "start" })
     try {
-      const data = await fetcherRef.current(currentKey, controller.signal)
+      const data = await fetcherRef.current(currentKey, controller.signal, background)
       if (epoch !== epochRef.current) return // a late obsolete result is ignored
       rawDispatch({ type: "success", data })
     } catch (error) {
@@ -148,10 +149,14 @@ export function useLiveResource<T>(options: LiveResourceOptions<T>): LiveResourc
 
   useEffect(() => {
     if (!enabled) return
+    // Returning to the tab is the person's own activity; the interval is not.
     const tick = () => {
       if (document.visibilityState === "visible") void run(true)
     }
-    const interval = window.setInterval(tick, intervalMs)
+    const poll = () => {
+      if (document.visibilityState === "visible") void run(true, true)
+    }
+    const interval = window.setInterval(poll, intervalMs)
     window.addEventListener("focus", tick)
     document.addEventListener("visibilitychange", tick)
     return () => {

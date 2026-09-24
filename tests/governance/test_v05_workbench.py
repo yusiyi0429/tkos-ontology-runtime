@@ -230,7 +230,7 @@ def test_window_tasks_name_the_objects_own_rule_version(monkeypatch):
     for version in (V04, V05):
         window_id = str(uuid4())
         value = {'object': {'object_id': window_id, 'object_type': 'ReviewWindow',
-                            'method_state': {'phase': 'pending'},
+                            'method_state': {'phase': 'resolved'},
                             'latest_revision': {'payload': {'title': 'Window'}},
                             'protocol': {'contract_version': version}},
                  'monthly': None, 'actions': [{'action_type': 'm1b_commit_candidate', 'allowed': True}],
@@ -243,7 +243,7 @@ def test_window_tasks_name_the_objects_own_rule_version(monkeypatch):
 def test_each_todo_carries_the_windows_bound_contract_version(monkeypatch):
     """工作台按对象当前绑定的规则版本分派办理页，所以每条待办都要带出这个版本。"""
     views = {}
-    for version, phase in (('tkos.method/0.3', 'open'), (V04, 'pending'), (V05, 'pending')):
+    for version, phase in (('tkos.method/0.3', 'open'), (V04, 'resolved'), (V05, 'resolved')):
         window_id = str(uuid4())
         views[window_id] = {
             'object': {'object_id': window_id, 'object_type': 'ReviewWindow',
@@ -257,6 +257,52 @@ def test_each_todo_carries_the_windows_bound_contract_version(monkeypatch):
     items = governance.tasks(_WindowConn([{'object_id': oid} for oid in sorted(views)]), _human())['items']
     assert {item['object_id']: item['contract_version'] for item in items} == {
         oid: view['object']['protocol']['contract_version'] for oid, view in views.items()}
+
+
+def _window_view(version, phase, offered, scenes=()):
+    """window() 的返回形状；offered 是 {动作: 本人此刻是否可办}。"""
+    return {'object': {'object_id': str(uuid4()), 'object_type': 'ReviewWindow',
+                       'method_state': {'phase': phase},
+                       'latest_revision': {'payload': {'title': f'{phase} window'}},
+                       'protocol': {'contract_version': version}},
+            'monthly': None if version in (V04, V05) else {'my_reviews': [], 'candidate': {'status': 'unavailable'}},
+            'actions': [{'action_type': action, 'allowed': allowed} for action, allowed in offered.items()],
+            'scenes': list(scenes)}
+
+
+def _todos(monkeypatch, view, ctx):
+    monkeypatch.setattr(governance, 'window', lambda *_: view)
+    return governance.tasks(_WindowConn([{'object_id': view['object']['object_id']}]), ctx)['items']
+
+
+@pytest.mark.parametrize('version', [V04, V05])
+@pytest.mark.parametrize('phase', ['confirmed', 'reopened'])
+def test_a_finished_method_window_leaves_my_todos(monkeypatch, version, phase):
+    """CEO 整组激活后窗口为 confirmed，重开后旧窗口为 reopened：都已办结，不再是待办。#32 B 试点链验收：
+    激活后 0.5 窗口仍以「0.5 人工确认事项」、零个可办动作留在 CEO 的「我的待办」。"""
+    view = _window_view(version, phase, {'m1b_reopen_window': False})
+    assert _todos(monkeypatch, view, _human(roles=('CEO',))) == []
+
+
+@pytest.mark.parametrize('version', [V04, V05])
+@pytest.mark.parametrize('phase', ['open', 'closed', 'resolved'])
+def test_a_method_window_in_progress_stays_a_todo_while_waiting_on_others(monkeypatch, version, phase):
+    """与 0.3 的「等待 Co-agent 收拢」一致：进行中的窗口即使本人此刻没有可办动作（等 Co-agent 关窗收拢、
+    等 DRI 承诺与 CEO 激活）也留在待办里。"""
+    view = _window_view(version, phase, {'m1b_comment': False, 'm1b_reopen_window': False})
+    assert [(item['phase'], item['label'], item['actions']) for item in _todos(monkeypatch, view, _human())] == \
+        [(phase, f"{version.rsplit('/', 1)[-1]} 人工确认事项", [])]
+
+
+@pytest.mark.parametrize('phase, reviewed, label', [
+    ('open', False, '等待 Co-agent 收拢'), ('closed', False, '等待 Co-agent 收拢'),
+    ('resolved', False, '核对候选差异'), ('resolved', True, None),
+    ('confirmed', False, None), ('reopened', False, None)])
+def test_03_window_todos_keep_their_phase_rule(monkeypatch, phase, reviewed, label):
+    """0.3 不变：只列进行中的阶段；本人无动作时标「等待 Co-agent 收拢」；已核对当前候选的 resolved 窗口不再列出。"""
+    view = _window_view('tkos.method/0.3', phase, {'m1b_comment': False},
+                        scenes=[{'monthly': {'reviewed_current_candidate': reviewed}}])
+    assert [item['label'] for item in _todos(monkeypatch, view, _human())] == ([label] if label else [])
 
 
 @pytest.mark.parametrize('version', [V04, V05])

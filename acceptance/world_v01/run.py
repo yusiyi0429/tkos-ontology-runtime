@@ -37,7 +37,7 @@ def company_root(h, f, flow):
     check = _checker(checks)
 
     last = flow.rows('SELECT name FROM schema_migrations ORDER BY name DESC LIMIT 1')[0]['name']
-    check('the_world_migration_is_the_newest_applied_migration', last == '0035_world_v01_gates_repin.sql')
+    check('the_world_migration_is_the_newest_applied_migration', last == '0036_world_v01_context_packs.sql')
 
     # ------------------------------------------------------------ happy path
     identity = {'text': '一家为企业做经营系统的公司。', 'artifacts': ['https://example.test/company-brief']}
@@ -1170,6 +1170,181 @@ def gates(h, f, flow, made):
     return {'checks': checks}
 
 
+def context_packs(h, f, flow, made):
+    """票 #25：取上下文（B 固定路径）——沿主干的块、执行链上的快照与近期事件、预算裁剪、检索计划、六问覆盖、落表。"""
+    checks = []
+    check = _checker(checks)
+    activity = made['Activity']
+    question = {'question': '这条 Activity 为什么做、做什么、谁负责、现在怎样？'}
+
+    def rows():
+        return flow.rows('SELECT * FROM gov_world_context_packs WHERE scope_id=%s ORDER BY created_at, context_pack_id',
+                         (f['scope_id'],))
+
+    def moment(text):
+        return datetime.fromisoformat(text.replace('Z', '+00:00'))
+
+    def cited_set(result):
+        layers = result['context_pack']['layers']
+        return ({layer['object']['ref'] for layer in layers} | {b['ref'] for layer in layers for b in layer['blocks']}
+                | {layer['state']['ref'] for layer in layers if layer['state']}
+                | {e['event_id'] for layer in layers for e in layer['events']})
+
+    before = len(rows())
+    first = flow.context('agent_a', activity['object_id'], question)
+    layers = first['context_pack']['layers']
+    types = [layer['object']['object_type'] for layer in layers]
+    check('the_context_walks_the_spine_from_the_activity_up_to_the_company',
+          types == ['Activity', 'Task', 'Mission', 'PeriodGoal', 'LongTermGoal', 'ResponsibilityUnit', 'Strategy', 'Company']
+          and all(layer['object']['ref'] == f"{layer['object']['object_id']}@{flow.read('outsider', layer['object']['object_id'])['version']}"
+                  for layer in layers)
+          and [(hop['field'], hop['read']) for hop in first['plan']['walked']]
+          == [(field, layers[i + 1]['object']['ref']) for i, field in enumerate(
+              ['parent_ref', 'parent_ref', 'goal_ref', 'goal_ref', 'parent_ref', 'architecture_ref', 'parent_ref'])])
+    check('every_block_is_cited_to_the_version_read_and_an_empty_block_reads_the_standard_sentence',
+          all(b['ref'] == f"{layer['object']['ref']}#{b['id']}" for layer in layers for b in layer['blocks'])
+          and all(b['text'] == f"当前没有{b['display_name']}" for layer in layers for b in layer['blocks'] if b['empty'])
+          and any(b['empty'] for b in layers[0]['blocks']) and '当前没有约束' in first['context_pack']['markdown'])
+    window = moment(first['budget']['window_start'])
+    event_ids = [e['event_id'] for layer in layers for e in layer['events']]
+    check('snapshots_and_recent_events_come_only_from_the_execution_chain_and_each_event_appears_once',
+          all(layers[i]['state'] is not None and layers[i]['events'] for i in range(3))
+          and all(layer['state'] is None and layer['events'] == [] for layer in layers[3:])
+          and all(layer['state']['unconfirmed'] for layer in layers[:3])
+          and len(event_ids) == len(set(event_ids))
+          and all(moment(e['occurred_at']) >= window for layer in layers for e in layer['events'])
+          and first['plan']['state_and_events_from_levels'] == [0, 1, 2])
+    mission_layer = layers[2]
+    related = {relation['field']: [ref['ref'] for ref in relation['refs']] for relation in mission_layer['relations']}
+    check('cross_chain_relations_are_listed_as_references_and_not_followed',
+          related['contributes_to'] and all(ref.split('@')[0] not in {layer['object']['object_id'] for layer in layers}
+                                            for ref in related['contributes_to'])
+          and {(item['from'], item['field'], item['to']) for item in first['plan']['shown_not_followed']}
+          >= {(mission_layer['object']['ref'], 'contributes_to', ref) for ref in related['contributes_to']})
+    # made 的 Mission 的 responsible 仍指向 owner_a，但他的 OWNER 角色在 #23 那段已撤掉（契约第 4 节）。
+    check('a_responsible_who_no_longer_holds_the_role_is_not_listed_as_responsible',
+          mission_layer['object']['responsible'] == []
+          and flow.read('outsider', mission_layer['object']['object_id'])['attributes']['responsible']
+          == f['actors']['owner_a']['principal_id']
+          and [p['principal_id'] for p in layers[0]['object']['responsible']] == [f['actors']['agent_a']['principal_id']])
+    coverage = first['coverage']
+    pack_refs = cited_set(first)
+    check('coverage_answers_the_six_questions_with_evidence_taken_from_the_pack',
+          list(coverage) == ['why', 'what', 'who', 'now', 'happened', 'basis']
+          and all(answer['answered'] and answer['gap'] is None for answer in coverage.values())
+          and all(item.get('ref', item.get('event_id')) in pack_refs for answer in coverage.values()
+                  for item in answer['evidence'])
+          and coverage['what']['evidence'] == [{'ref': layers[0]['blocks'][0]['ref']}]
+          and coverage['who']['evidence'] == [{'ref': layers[0]['object']['ref']}])
+    stored = rows()
+    row = stored[-1]
+    check('each_call_writes_exactly_one_context_pack_row_holding_what_was_returned',
+          len(stored) == before + 1 and str(row['context_pack_id']) == first['context_pack_id']
+          and str(row['principal_id']) == f['actors']['agent_a']['principal_id']
+          and str(row['object_id']) == activity['object_id'] and row['question'] == question['question']
+          and row['pack'] == first['context_pack'] and row['plan'] == first['plan'] and row['coverage'] == coverage
+          and row['budget'] == first['budget'] and first['budget']['used_chars'] == len(first['context_pack']['markdown'])
+          and {k: first['budget'][k] for k in ('max_chars', 'max_events_per_object', 'recent_days')}
+          == {'max_chars': 12000, 'max_events_per_object': 10, 'recent_days': 30})
+
+    second = flow.context('ceo', activity['object_id'], question)
+    check('two_calls_on_the_same_world_state_cite_the_same_references',
+          cited_set(second) == pack_refs and second['coverage'] == coverage
+          and second['context_pack_id'] != first['context_pack_id'] and len(rows()) == before + 2)
+
+    # ------------------------------------------------------------ budget
+    tight = flow.context('agent_a', activity['object_id'], {**question, 'budget': {'max_chars': 2500}})
+    trimmed = tight['plan']['trimmed']
+    kept_layers = tight['context_pack']['layers']
+    # 默认每对象事件上限 10 先生效（Mission 的事件多于 10 条），其余是超字符预算裁掉的，按裁剪先后排列。
+    over = [entry for entry in trimmed if entry['reason'] == 'over_budget']
+    when = {e['event_id']: moment(e['occurred_at']) for layer in layers for e in layer['events']}
+    over_events = [entry['key'].split(':', 1)[1] for entry in over if entry['kind'] == 'event']
+    rest = [entry for entry in over if entry['kind'] != 'event']
+    levels = [entry['level'] for entry in rest]
+    block_levels = sorted({entry['level'] for entry in rest if entry['kind'] == 'block'})
+    check('a_tight_budget_trims_old_events_first_then_blocks_from_the_farthest_levels_and_records_why',
+          {entry['reason'] for entry in trimmed} <= {'over_budget', 'over_level_cap'}
+          and over[:len(over_events)] == [entry for entry in over if entry['kind'] == 'event']
+          and [when[event_id] for event_id in over_events] == sorted(when[event_id] for event_id in over_events)
+          and not any(layer['events'] for layer in kept_layers)
+          and bool(block_levels) and block_levels == list(range(block_levels[0], 8)) and levels == sorted(levels, reverse=True)
+          and 0 not in block_levels and tight['plan']['over_budget'] is False and tight['budget']['used_chars'] <= 2500)
+    tiny = flow.context('agent_a', activity['object_id'], {**question, 'budget': {'max_chars': 10}})
+    check('the_current_object_keeps_its_blocks_and_snapshot_under_any_budget',
+          all([b['ref'] for b in pack['context_pack']['layers'][0]['blocks']] == [b['ref'] for b in layers[0]['blocks']]
+              and pack['context_pack']['layers'][0]['state'] == layers[0]['state']
+              and pack['budget']['used_chars'] == len(pack['context_pack']['markdown']) for pack in (tight, tiny))
+          and tiny['plan']['over_budget'] is True and tiny['budget']['over_budget'] is True
+          and all(layer['blocks'] == [] for layer in tiny['context_pack']['layers'][1:]))
+    trimmed_refs = {entry['key'].split(':', 1)[1] for entry in trimmed if entry['kind'] in {'block', 'snapshot', 'event'}}
+    evidence = {item.get('ref', item.get('event_id')) for answer in tight['coverage'].values() for item in answer['evidence']}
+    check('coverage_follows_what_survived_the_trim',
+          not trimmed_refs & evidence and evidence <= cited_set(tight)
+          and not tight['coverage']['happened']['answered'] and tight['coverage']['happened']['gap']
+          and tight['coverage']['what']['answered'] and tight['coverage']['who']['answered']
+          and not tiny['coverage']['why']['answered'])
+    capped = flow.context('agent_a', activity['object_id'], {**question, 'budget': {'max_events_per_object': 1}})
+    check('the_per_object_event_cap_keeps_the_newest_event_per_level_and_records_the_rest',
+          all(len(layer['events']) <= 1 for layer in capped['context_pack']['layers'])
+          and [layer['events'][:1] for layer in capped['context_pack']['layers'][:3]]
+          == [layer['events'][:1] for layer in layers[:3]]
+          and any(entry['reason'] == 'over_level_cap' for entry in capped['plan']['trimmed']))
+    recent = flow.context('agent_a', activity['object_id'], {**question, 'recent_days': 1})
+    start = moment(recent['budget']['window_start'])
+    recent_ids = {e['event_id'] for layer in recent['context_pack']['layers'] for e in layer['events']}
+    check('recent_events_start_at_the_requested_window',
+          recent_ids and recent_ids <= set(event_ids)
+          and all(moment(e['occurred_at']) >= start for layer in recent['context_pack']['layers'] for e in layer['events'])
+          and all(e['event_id'] not in recent_ids for layer in layers for e in layer['events']
+                  if moment(e['occurred_at']) < start))
+
+    # ------------------------------------------------------------ other starting points
+    first_snapshot = flow.rows("""SELECT object_id FROM gov_object_revisions WHERE scope_id=%s
+                                    AND payload->'subject_ref'->>'object_id'=%s ORDER BY payload->>'as_of' LIMIT 1""",
+                               (f['scope_id'], mission_layer['object']['object_id']))[0]['object_id']
+    from_snapshot = flow.context('agent_a', str(first_snapshot), question)
+    snap_layers = from_snapshot['context_pack']['layers']
+    check('starting_from_a_snapshot_takes_its_subject_as_the_current_object_and_that_snapshot_as_its_state',
+          from_snapshot['context_pack']['start'] == f"{first_snapshot}@1"
+          and snap_layers[0]['object']['object_id'] == mission_layer['object']['object_id']
+          and snap_layers[0]['state']['ref'] == f"{first_snapshot}@1" and snap_layers[0]['state']['unconfirmed']
+          and snap_layers[0]['state']['ref'] != mission_layer['state']['ref']
+          and [layer['object']['object_type'] for layer in snap_layers] == types[2:]
+          and from_snapshot['coverage']['now']['evidence'][0] == {'ref': f"{first_snapshot}@1"})
+    company = layers[-1]['object']
+    from_company = flow.context('outsider', company['object_id'], question)
+    check('starting_from_the_company_reads_one_level_with_its_ceo_as_responsible',
+          [layer['object']['ref'] for layer in from_company['context_pack']['layers']] == [company['ref']]
+          and from_company['plan']['walked'] == []
+          and [p['principal_id'] for p in from_company['context_pack']['layers'][0]['object']['responsible']]
+          == [f['actors']['ceo']['principal_id']]
+          and from_company['context_pack']['layers'][0]['object']['pinned']['revision_id']
+          == flow.read('outsider', company['object_id'])['revision_id'])
+
+    # ------------------------------------------------------------ gaps
+    bare = flow.create('a', 'Activity', 'a', {'title': '待定的 Activity', 'parent_ref': _ref(made['Task'])})['result']
+    gaps = flow.context('a', bare['object_id'], question)['coverage']
+    check('a_bare_unassigned_activity_reports_what_and_who_as_gaps_with_reasons',
+          not gaps['what']['answered'] and gaps['what']['gap'] and not gaps['who']['answered'] and gaps['who']['gap']
+          and gaps['why']['answered'])
+
+    # ------------------------------------------------------------ refusals write nothing
+    count = len(rows())
+    foreign = h.sql({'scope_id': f['foreign_scope_id']}, 'SELECT count(*) AS n FROM gov_world_context_packs WHERE scope_id=%s',
+                    (f['foreign_scope_id'],))[0]['n']
+    flow.context('foreign_ceo', activity['object_id'], question, expected=404)
+    flow.context('lapsed', activity['object_id'], question, expected={401, 403})
+    flow.context('agent_a', activity['object_id'], {'question': '  '}, expected=422)
+    flow.context('agent_a', '00000000-0000-4000-8000-000000000000', question, expected=404)
+    flow.context('agent_a', activity['object_id'], {**question, 'recent_days': 3_000_000}, expected=422)
+    check('identities_outside_the_scope_bad_questions_and_unknown_objects_are_refused_and_write_nothing',
+          len(rows()) == count and foreign == 0
+          and h.sql({'scope_id': f['foreign_scope_id']}, 'SELECT count(*) AS n FROM gov_world_context_packs WHERE scope_id=%s',
+                    (f['foreign_scope_id'],))[0]['n'] == 0)
+    return {'checks': checks}
+
+
 def revocation(h, f, flow, company_command):
     """最后撤掉 CEO 在公司域的那条 CEO 指派：CEO 在别的域还有角色，仍是 scope 成员，但原命令不能再被重放成成功。"""
     checks = []
@@ -1194,14 +1369,15 @@ def run(h: MethodHarness, source: Path):
         made = {**objects['made'], 'Company': ctx['company']}
         assigned = assign_and_lifecycle(h, f, flow, made)
         gated = gates(h, f, flow, made)
+        contexts = context_packs(h, f, flow, made)
         checks = (policy_checks + ctx['checks'] + objects['checks'] + revisions['checks'] + states['checks']
-                  + assigned['checks'] + gated['checks'] + revocation(h, f, flow, ctx['company_command']))
+                  + assigned['checks'] + gated['checks'] + contexts['checks'] + revocation(h, f, flow, ctx['company_command']))
         public_json(h.output / 'summary.json', {
             'world_v01_skeleton_passed': True, 'checks': checks,
-            'scope': 'Tickets #19-#24: world wiring, the Company root, the other seven creatable types, '
+            'scope': 'Tickets #19-#25: world wiring, the Company root, the other seven creatable types, '
                      'reference pinning, revisions, cross-chain relations, state snapshots, external events, '
-                     'assignments, derived lifecycles, commitment and confirmation gates and the activation-policy '
-                     'control command over real HTTP/PostgreSQL; synthetic data',
+                     'assignments, derived lifecycles, commitment and confirmation gates, the activation-policy '
+                     'control command and get-context over real HTTP/PostgreSQL; synthetic data',
             'world_api_accepted': False, 'world_api_accepted_note': 'set only by the finished matrix (ticket #27)',
             'real_model': 'not_run', 'mcp': 'not_built', 'deployment': 'not_verified'})
     finally:

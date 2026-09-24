@@ -21,8 +21,8 @@ from . import world_v01_registry as world_registry
 from .errors import GovernedError
 from .service import ActionExecution
 from .world_v01_models import citation
-from .world_v01_readers import (SNAPSHOTS_OF_SUBJECT, cited, committed_candidate, lifecycle, lifecycle_events,
-                                world_head)
+from .world_v01_readers import (SNAPSHOTS_OF_SUBJECT, cited, committed_candidate, holds_role, lifecycle,
+                                lifecycle_events, world_head)
 
 
 def _fail(code: str, message: str = "", status: int | None = None) -> None:
@@ -274,11 +274,7 @@ class WorldExecution(ActionExecution):
             "SELECT principal_type FROM gov_principals WHERE scope_id=%s AND principal_id=%s AND active",
             (self.ctx.scope_id, self.assignee)).fetchone()
         role = principal and models.RESPONSIBLE_ROLES[object_type].get(principal["principal_type"])
-        if role is None or self.conn.execute(
-                """SELECT 1 FROM gov_role_assignments
-                    WHERE scope_id=%s AND principal_id=%s AND domain_id=%s AND role=%s AND active
-                      AND valid_from<=clock_timestamp() AND (valid_to IS NULL OR clock_timestamp()<valid_to)""",
-                (self.ctx.scope_id, self.assignee, self.domain_id, role)).fetchone() is None:
+        if role is None or not holds_role(self.conn, self.ctx, self.assignee, self.domain_id, role):
             _invalid("The assignee does not hold the role this assignment needs in the unit.")
         if object_type != "ResponsibilityUnit":
             self.payload = models.stored_model(object_type).model_validate(

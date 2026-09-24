@@ -67,6 +67,9 @@ class Flow:
     def record(self, actor, params):
         return self.act(actor, 'world_record_event', params)
 
+    def context(self, actor, oid, body, *, expected=200):
+        return self.clients[actor].json('POST', f'/v1/world/objects/{oid}/context', body, expected=expected)
+
     def children(self, actor, oid, *, expected=200):
         return self.clients[actor].json('GET', f'/v1/world/objects/{oid}/children', expected=expected)
 

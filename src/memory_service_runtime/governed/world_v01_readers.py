@@ -32,18 +32,38 @@ def cited(pinned: Any) -> Any:
     return {**pinned, "ref": citation(pinned["object_id"], pinned["object_version"], pinned["block"])}
 
 
+def block_view(object_id: str, version: int, spec: dict[str, Any], value: dict[str, Any] | None) -> dict[str, Any]:
+    """一个块读回的样子：块内引用同时给出钉定结构与业务形式，空块渲染标准句（契约第 3、5 节）。"""
+    return {"id": spec["id"], "display_name": spec["display_name"], "kind": spec["kind"],
+            "value": value and {**value, "refs": cited(value["refs"])}, "empty": value is None,
+            "text": EMPTY_BLOCK_SENTENCE.format(name=spec["display_name"]) if value is None else value["text"],
+            "ref": citation(object_id, version, spec["id"])}
+
+
+def event_view(row: dict[str, Any]) -> dict[str, Any]:
+    """一条事件读回的样子：带产生它的动作与指派的被指派者，时刻为 UTC 规范文本，引用钉定。"""
+    return {**{key: row[key] for key in ("event_id", "kind", "action", "phase", "category", "outcome",
+                                         "principal_id", "assignee", "action_id", "supersedes_event_id")},
+            "occurred_at": utc_text(row["occurred_at"]), "recorded_at": utc_text(row["recorded_at"]),
+            "subject_refs": cited(row["subject_refs"]),
+            "content": row["content"] and {**row["content"], "refs": cited(row["content"]["refs"])}}
+
+
+def holds_role(conn: Any, ctx: Any, principal_id: str, domain_id: str, role: str) -> bool:
+    """该身份当前在该域持有这个角色（生效中的指派）。"""
+    return conn.execute(
+        """SELECT 1 FROM gov_role_assignments
+            WHERE scope_id=%s AND principal_id=%s AND domain_id=%s AND role=%s AND active
+              AND valid_from<=clock_timestamp() AND (valid_to IS NULL OR clock_timestamp()<valid_to)""",
+        (ctx.scope_id, principal_id, domain_id, role)).fetchone() is not None
+
+
 def object_view(head: dict[str, Any], revision: dict[str, Any], metadata: dict[str, Any],
                 supersedes: dict[str, Any] | None = None,
                 referenced_by: list[dict[str, Any]] | None = None) -> dict[str, Any]:
     spec = world_registry.object_spec(head["object_type"])
     payload, version = revision["payload"], revision["object_version"]
-    blocks = []
-    for block in spec["blocks"]:
-        value = payload["blocks"][block["id"]]
-        blocks.append({"id": block["id"], "display_name": block["display_name"], "kind": block["kind"],
-                       "value": value and {**value, "refs": cited(value["refs"])}, "empty": value is None,
-                       "text": EMPTY_BLOCK_SENTENCE.format(name=block["display_name"]) if value is None else value["text"],
-                       "ref": citation(head["object_id"], version, block["id"])})
+    blocks = [block_view(head["object_id"], version, block, payload["blocks"][block["id"]]) for block in spec["blocks"]]
     relations = [{"field": field["field"], "relation": field["relation"], "value": cited(payload.get(field["field"]))}
                  for field in spec["relation_fields"]]
     attributes = {attribute["id"]: cited(payload.get(attribute["id"])) if attribute["value"] == "ref"
@@ -70,7 +90,7 @@ def world_head(conn: Any, ctx: Any, object_id: str) -> dict[str, Any]:
     return db.jsonable(row)
 
 
-def _readable(conn: Any, ctx: Any, object_id: str) -> tuple[dict[str, Any], dict[str, Any]]:
+def readable(conn: Any, ctx: Any, object_id: str) -> tuple[dict[str, Any], dict[str, Any]]:
     head = world_head(conn, ctx, object_id)
     # 共享的读支持闸门服务于其他协议的读取器，不接受 world；world 在这里自己核对解释状态。
     metadata = protocol.read_metadata(conn, ctx.scope_id, head["object_id"])
@@ -88,7 +108,7 @@ def _revision(conn: Any, ctx: Any, object_id: str, version: int) -> dict[str, An
 def read_object(conn: Any, ctx: Any, object_id: str, version: int | None = None) -> dict[str, Any]:
     """取对象：默认最新修订，给 version 取该修订序号；supersedes 指向它取代的上一版本（修订链），
     referenced_by 列出指向它的跨链关系（契约第 6 节）。修订序号从 1 连续递增。"""
-    head, metadata = _readable(conn, ctx, object_id)
+    head, metadata = readable(conn, ctx, object_id)
     if version is None:
         revision = db.jsonable(conn.execute(
             "SELECT * FROM gov_object_revisions WHERE scope_id=%s AND revision_id=%s",
@@ -100,16 +120,16 @@ def read_object(conn: Any, ctx: Any, object_id: str, version: int | None = None)
     previous = _revision(conn, ctx, head["object_id"], revision["object_version"] - 1)
     supersedes = previous and {"object_id": head["object_id"], "object_version": previous["object_version"],
                                "revision_id": previous["revision_id"], "block": None}
-    view = object_view(head, revision, metadata, supersedes, _referenced_by(conn, ctx, head["object_id"]))
+    view = object_view(head, revision, metadata, supersedes, referenced_by(conn, ctx, head["object_id"]))
     view["lifecycle"] = lifecycle(conn, ctx, head)
     if head["object_type"] == "StateSnapshot":
         view["unconfirmed"] = True  # 读侧展示快照都标明它未经确认（契约第 7 节）
     else:
-        view["state"] = _snapshot(conn, ctx, head["object_id"])
+        view["state"] = latest_snapshot(conn, ctx, head["object_id"])
     return view
 
 
-def _snapshot(conn: Any, ctx: Any, subject_id: str, as_of: Any = None) -> dict[str, Any] | None:
+def latest_snapshot(conn: Any, ctx: Any, subject_id: str, as_of: Any = None) -> dict[str, Any] | None:
     """主体的 as_of 不晚于该时点（不给即最新）的那条状态快照，标明未经确认（契约第 7 节）。"""
     row = conn.execute(
         "SELECT object_id FROM gov_object_revisions WHERE " + SNAPSHOTS_OF_SUBJECT + """
@@ -121,16 +141,16 @@ def _snapshot(conn: Any, ctx: Any, subject_id: str, as_of: Any = None) -> dict[s
 
 def state(conn: Any, ctx: Any, object_id: str, as_of: Any = None) -> dict[str, Any]:
     """取状态：按主体与时点。"""
-    head, _ = _readable(conn, ctx, object_id)
+    head, _ = readable(conn, ctx, object_id)
     return {"object_id": head["object_id"], "as_of": as_of and utc_text(as_of.isoformat()),
-            "snapshot": _snapshot(conn, ctx, head["object_id"], as_of)}
+            "snapshot": latest_snapshot(conn, ctx, head["object_id"], as_of)}
 
 
 def events(conn: Any, ctx: Any, object_id: str, since: Any = None) -> dict[str, Any]:
     """取事件：subject_refs 含该对象、occurred_at 不早于起始时间的全部事件，按 occurred_at 升序；
     被更正的事件列出更正它的事件（契约第 12 节）。"""
-    head, _ = _readable(conn, ctx, object_id)
-    rows = _events_about(conn, ctx, head["object_id"], since, by_occurrence=True)
+    head, _ = readable(conn, ctx, object_id)
+    rows = events_about(conn, ctx, head["object_id"], since, by_occurrence=True)
     corrected_by: dict[str, list[str]] = {}
     for row in conn.execute(
             """SELECT supersedes_event_id, event_id FROM gov_world_events
@@ -139,15 +159,10 @@ def events(conn: Any, ctx: Any, object_id: str, since: Any = None) -> dict[str, 
             (ctx.scope_id, [row["event_id"] for row in rows])).fetchall():
         corrected_by.setdefault(str(row["supersedes_event_id"]), []).append(str(row["event_id"]))
     return {"object_id": head["object_id"], "since": since and utc_text(since.isoformat()),
-            "events": [{**{key: row[key] for key in ("event_id", "kind", "action", "phase", "category", "outcome",
-                                                      "principal_id", "assignee", "action_id", "supersedes_event_id")},
-                        "occurred_at": utc_text(row["occurred_at"]), "recorded_at": utc_text(row["recorded_at"]),
-                        "subject_refs": cited(row["subject_refs"]),
-                        "content": row["content"] and {**row["content"], "refs": cited(row["content"]["refs"])},
-                        "corrected_by": corrected_by.get(row["event_id"], [])} for row in rows]}
+            "events": [{**event_view(row), "corrected_by": corrected_by.get(row["event_id"], [])} for row in rows]}
 
 
-def _referenced_by(conn: Any, ctx: Any, object_id: str) -> list[dict[str, Any]]:
+def referenced_by(conn: Any, ctx: Any, object_id: str) -> list[dict[str, Any]]:
     """最新修订的跨链关系列表里钉着该对象（任一版本）的 world 对象，逐条列出。"""
     fields = {field["field"]: field["relation"] for item in world_registry.registry()["objects"]
               for field in item["relation_fields"] if field["written_by"] == "world_relate"}
@@ -171,7 +186,7 @@ def _referenced_by(conn: Any, ctx: Any, object_id: str) -> list[dict[str, Any]]:
 
 def children(conn: Any, ctx: Any, object_id: str) -> dict[str, Any]:
     """反向查找：最新修订的 parent_ref 指向该对象（任一版本）的 world 对象。"""
-    head, _ = _readable(conn, ctx, object_id)
+    head, _ = readable(conn, ctx, object_id)
     rows = conn.execute(
         """SELECT o.object_id, o.object_type, r.object_version, r.revision_id, r.payload
              FROM gov_object_revisions r JOIN gov_objects o
@@ -189,7 +204,7 @@ def children(conn: Any, ctx: Any, object_id: str) -> dict[str, Any]:
 _EVENT_ORDER = {True: "e.occurred_at, e.recorded_at, e.event_id", False: "e.recorded_at, e.event_id"}
 
 
-def _events_about(conn: Any, ctx: Any, object_id: str, since: Any = None, *,
+def events_about(conn: Any, ctx: Any, object_id: str, since: Any = None, *,
                   by_occurrence: bool = False) -> list[dict[str, Any]]:
     """subject_refs 含该对象的事件（默认按记录顺序），带取自回执的产生它的动作、指派的被指派者，
     以及验收时记录者是不是上一级责任人所对应的主体。"""
@@ -205,7 +220,7 @@ def _events_about(conn: Any, ctx: Any, object_id: str, since: Any = None, *,
 
 def lifecycle_events(conn: Any, ctx: Any, object_id: str) -> list[dict[str, Any]]:
     """推导生命周期的输入：以该对象为主体的事件，按记录顺序；验收是否由上一级责任人记，取记录时随回执留存的判定。"""
-    rows = _events_about(conn, ctx, object_id)
+    rows = events_about(conn, ctx, object_id)
     for row in rows:
         row["by_spine_parent_responsible"] = object_id in (row.pop("accepted_as_parent_responsible") or [])
     return rows

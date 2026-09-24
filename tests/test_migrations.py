@@ -61,6 +61,7 @@ def test_packaged_migrations_replay_from_empty_database() -> None:
             "0033_world_v01_state_events_repin.sql",
             "0034_world_v01_assign_owner.sql",
             "0035_world_v01_gates_repin.sql",
+            "0036_world_v01_context_packs.sql",
         ]
         assert migrate(test_url) == expected
         assert migrate(test_url) == []

@@ -19,6 +19,7 @@ from memory_service_runtime.governed import db, evidence, protocol, readers, ser
 from memory_service_runtime.governed.errors import GovernedError
 from memory_service_runtime.governed.models import ActionRequest
 from .a2_models import ObjectRef
+from .world_v01_models import WorldContextRequest
 
 
 router = APIRouter(prefix="/v1", tags=["governed-runtime"])
@@ -112,6 +113,17 @@ def world_object_events(object_id: uuid.UUID, token: Annotated[str, Depends(bear
     from . import world_v01_readers
     with db.transaction(token) as (conn, ctx):
         return world_v01_readers.events(conn, ctx, str(object_id), since)
+
+
+@router.post("/world/objects/{object_id}/context")
+def world_object_context(object_id: uuid.UUID, body: WorldContextRequest, response: Response,
+                         token: Annotated[str, Depends(bearer)]):
+    """取上下文（票 #25）：每次调用在同一事务里落一行上下文包。"""
+    from . import world_v01_context
+    with db.transaction(token) as (conn, ctx):
+        result = world_v01_context.build(conn, ctx, str(object_id), body)
+    response.headers["Cache-Control"] = "no-store"
+    return result
 
 
 @router.get("/world/objects/{object_id}/children")

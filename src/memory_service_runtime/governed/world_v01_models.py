@@ -321,6 +321,19 @@ class WorldRecordEventParams(StrictModel):
         return self
 
 
+class ContextBudget(StrictModel):
+    """取上下文的预算：渲染后 Markdown 的字符数与每个对象的事件条数上限；不给按默认。"""
+    max_chars: Optional[PositiveInt] = None
+    max_events_per_object: Optional[PositiveInt] = None
+
+
+class WorldContextRequest(StrictModel):
+    """取上下文（票 #25）：要回答的问题必填；预算与近期事件的天数不给按默认。每次调用落一行，问题与窗口都有上限。"""
+    question: Annotated[NEStr, StringConstraints(max_length=2000)]
+    budget: Optional[ContextBudget] = None
+    recent_days: Optional[Annotated[PositiveInt, Field(le=3650)]] = None
+
+
 class _GateParams(StrictModel):
     """门动作（契约第 9、10 节）：content 是事件内容（例如退回理由、候选草稿的链接）；撤回以
     supersedes_event_id 引用原事件；payload 是重走时的候选内容（格式同修订的合并补丁），只随承诺

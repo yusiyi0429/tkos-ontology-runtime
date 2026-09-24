@@ -1,44 +1,134 @@
-"""Real HTTP+PG acceptance skeleton of tkos.world/0.1 (ticket #19: wiring and the Company root).
+"""tkos.world/0.1 的独立 API 验收矩阵（票 #19 到 #27）：真 API 进程、隔离库、真 HTTP 与 PostgreSQL。
 
-Business success comes only from /v1/actions/prepare + /v1/actions; SQL is used for
-identity seeding and independent assertions. Every rejection is observed at the
-entrances it can reach, with an unchanged scope snapshot. No real model is run.
+业务成功只来自 /v1/actions/prepare 与 /v1/actions；SQL 只用于播种身份与独立核对。每个拒绝用例都在它能到达的
+入口上核对整个 scope 的库快照不变。每条检查记进冻结矩阵（matrix.py），只有全部检查与环境门槛通过、且源码钉在
+一个提交上，报告才写 world_api_accepted: true。不运行真实模型。
 """
 from __future__ import annotations
 
 import argparse
+from contextlib import contextmanager
 from copy import deepcopy
 from datetime import datetime, timedelta, timezone
+import hashlib
 import json
 from pathlib import Path
 import sys
 
+from psycopg.conninfo import conninfo_to_dict
+
 from acceptance.method_independent.fixture import uid
 from acceptance.method_independent.harness import MethodHarness
 from acceptance.protocol_a1_independent.control_adapter import ControlAdapter
-from acceptance.protocol_a1_independent.support import private_json, public_json, source_manifest
+from acceptance.protocol_a1_independent.support import private_json, public_json, safe_traceback_frames, source_manifest
+from . import environment
+from .book import WorldBook
+from .database import BASE_COMMIT, BASELINE, world_migrations
 from .fixture import (GATE_ROLES, ROOT, activation_policy, install_activation_policies, owner_rows,
                       probe_binding_gate, register_world, revoke_assignment, seed_world)
 from .flow import Flow
 
 PROFILE = json.loads((ROOT / 'docs/contracts/world-profile-0.1.json').read_text())
+SCENARIOS = ['migration', 'control_plane', 'company_root', 'objects_and_refs', 'revise_and_relate', 'state_and_events',
+             'assign_and_lifecycle', 'gates', 'context_packs', 'mcp_end_to_end', 'revocation', 'environment']
+_RUN_DAY = datetime.now(timezone.utc).date()
+UNRESOLVED = 'does not resolve to a version of a world object'  # 引用钉不住时的错误信息片段
+NOT_LATEST = 'Target must identify the current candidate revision'  # 目标修订不是最新时的错误信息
 
 
-def _checker(checks):
-    """返回一个记录并打印通过项的断言函数。"""
+def day(n):
+    """场景里的 9 月 n 日按运行日换算（UTC）：9/24 是运行前一天，依次往前推。这样「近期」窗口与「不能在未来」
+    的规则在哪天重跑都成立。"""
+    return (_RUN_DAY - timedelta(days=25 - n)).isoformat()
+
+
+def _checker(book):
+    """返回记账函数：检查必须在冻结矩阵里；不成立即记为失败并中止这次运行。"""
     def check(name, value=True):
-        assert value, name
-        checks.append(name)
+        book.record(name, bool(value))
         print('PASS ' + name, flush=True)
     return check
 
 
-def company_root(h, f, flow):
-    checks = []
-    check = _checker(checks)
+def migration_upgrade(book, h, source, database_evidence, upgrade_evidence):
+    """主缝第一项：隔离库从含 0.5 的基线新建（播种前没有任何 scope），world 迁移作为升级单独应用、重复为空，
+    应用的正是这份源码里的迁移（文件名与 SHA256 逐个对照）。"""
+    check = _checker(book)
+    database = conninfo_to_dict(h.env.values['APP_DATABASE_URL'])['dbname']
+    created = json.loads(database_evidence.read_text())
+    upgraded = json.loads(upgrade_evidence.read_text())
+    expected = world_migrations(source)
+    check('the_database_was_created_fresh_from_the_accepted_baseline',
+          created['database'] == database and created['base_commit'] == BASE_COMMIT
+          and created['baseline_last_migration'] == BASELINE and created['existing_databases_modified'] is False
+          and environment.scopes(h) == 0)
+    check('the_upgrade_applied_exactly_the_world_migrations_of_the_accepted_source',
+          upgraded['database'] == database and upgraded['applied'] == list(expected)
+          and upgraded['migration_sha256'] == expected)
+    check('repeating_either_migration_applies_nothing', created['repeat_applied'] == [] and upgraded['repeat_applied'] == [])
+    with h.app_connection() as conn:
+        applied = [row['name'] for row in conn.execute('SELECT name FROM schema_migrations ORDER BY name')]
+    check('the_world_migration_is_the_newest_applied_migration',
+          applied[-len(expected):] == list(expected) and all('_world_' in name for name in expected))
 
-    last = flow.rows('SELECT name FROM schema_migrations ORDER BY name DESC LIMIT 1')[0]['name']
-    check('the_world_migration_is_the_newest_applied_migration', last == '0036_world_v01_context_packs.sql')
+
+def control_plane(book, h, source, f):
+    """控制面安装四步的前三步：profile（同时核对契约与 world 登记字节）、scope 默认策略、支持登记，各留控制事件；
+    profile 的契约或登记字节与钉定不符时整体拒绝、什么都不留。第四步（激活策略）见 activation_policy_control。"""
+    check = _checker(book)
+    scope = f['scope_id']
+    contract, registry = ROOT / 'docs/contracts/tkos-world-0.1.md', ROOT / 'docs/contracts/world-registry-0.1.json'
+    support = json.loads((ROOT / 'docs/runtime-world-support-0.1.json').read_text())
+
+    def rows(statement, *params):
+        return owner_rows(h.env, scope, statement, (scope, *params))
+
+    def audited(kind):
+        return [row['detail'] for row in rows('SELECT event_type, detail FROM gov_protocol_control_events'
+                                              ' WHERE scope_id=%s ORDER BY recorded_at, event_id') if row['event_type'] == kind]
+
+    def profiles():
+        return rows('SELECT * FROM gov_method_profile_revisions WHERE scope_id=%s AND profile_id=%s', PROFILE['profile_id'])
+
+    installed = profiles()
+    check('install_profile_records_the_world_profile_pinned_to_the_contract_and_registry_bytes',
+          [(row['revision'], row['canonical_hash']) for row in installed] == [(PROFILE['revision'], PROFILE['canonical_hash'])]
+          and installed[0]['content']['action_contract_ref']['content_sha256'] == hashlib.sha256(contract.read_bytes()).hexdigest()
+          and installed[0]['content']['world_registry_ref']['content_sha256'] == hashlib.sha256(registry.read_bytes()).hexdigest()
+          and [e['canonical_hash'] for e in audited('install_profile') if e['profile_id'] == PROFILE['profile_id']]
+          == [PROFILE['canonical_hash']])
+    policy = rows('SELECT * FROM gov_protocol_policies WHERE scope_id=%s AND domain_id IS NULL ORDER BY policy_seq')[-1]
+    check('install_policy_makes_world_the_default_protocol_of_the_scope',
+          policy['content']['default_protocol'] == 'tkos.world'
+          and policy['content']['default_contract_version'] == 'tkos.world/0.1'
+          and policy['content']['default_profile_ref'] == {'profile_id': PROFILE['profile_id'], 'revision': PROFILE['revision']}
+          and [e['default_protocol'] for e in audited('install_policy')
+               if e['domain_id'] is None and e['policy_seq'] == policy['policy_seq']] == ['tkos.world'])
+    registered = rows("SELECT * FROM gov_protocol_support_registry WHERE scope_id=%s AND protocol_id='tkos.world'")
+    check('set_registry_lists_the_implemented_world_actions_and_types',
+          len(registered) == 1 and registered[0]['contract_version'] == 'tkos.world/0.1'
+          and registered[0]['content']['actions'] == support['actions']
+          and registered[0]['content']['object_types'] == support['object_types']
+          and [e['registry_seq'] for e in audited('set_registry') if e['protocol_id'] == 'tkos.world'] == [1])
+
+    adapter = ControlAdapter(h, source, 'memory_service_runtime.governed.control')
+    before = (profiles(), rows('SELECT * FROM gov_protocol_control_events WHERE scope_id=%s ORDER BY recorded_at, event_id'))
+    for what in ('contract', 'registry'):
+        files = {'contract': contract, 'registry': registry}
+        other = h.private / f'world-{what}-other-{uid()[:8]}{files[what].suffix}'
+        other.write_bytes(files[what].read_bytes() + b'\n')
+        files[what] = other
+        adapter.cli(f'world-profile-other-{what}-' + uid()[:8], [
+            'install-profile', '--scope-id', scope, '--reason', 'Synthetic refusal',
+            '--profile-json', str(ROOT / 'docs/contracts/world-profile-0.1.json'),
+            '--contract-file', str(files['contract']), '--world-registry-file', str(files['registry']),
+        ], expected_exit=2, expected_error_code='PROFILE_CONTENT_CONFLICT')
+        after = (profiles(), rows('SELECT * FROM gov_protocol_control_events WHERE scope_id=%s ORDER BY recorded_at, event_id'))
+        check(f'a_profile_install_with_other_{what}_bytes_is_refused_and_nothing_is_left_behind', after == before)
+
+
+def company_root(book, h, f, flow):
+    check = _checker(book)
 
     # ------------------------------------------------------------ happy path
     identity = {'text': '一家为企业做经营系统的公司。', 'artifacts': ['https://example.test/company-brief']}
@@ -149,7 +239,7 @@ def company_root(h, f, flow):
     check('the_world_gate_refuses_a_world_binding_whose_profile_does_not_pin_the_exact_contract',
           refusal is not None and 'world 0.1 requires its exact business-world contract and registry' in refusal
           and h.snapshot(f) == before)
-    return {'checks': checks, 'company': company, 'company_command': body}
+    return {'company': company, 'company_command': body}
 
 
 def _ref(obj, block=None):
@@ -163,10 +253,9 @@ def _pinned(obj, block=None):
             'block': block, 'ref': _ref(obj, block)}
 
 
-def objects_and_refs(h, f, flow, company):
+def objects_and_refs(book, h, f, flow, company):
     """票 #20：其余七类经 world_create_object 建出并读回，引用在写入时钉定；拒绝用例库快照不变。"""
-    checks = []
-    check = _checker(checks)
+    check = _checker(book)
 
     def created(actor, object_type, domain, payload, declaration=None):
         receipt = flow.create(actor, object_type, domain, payload, declaration)
@@ -250,10 +339,9 @@ def objects_and_refs(h, f, flow, company):
 
     # ------------------------------------------------------------ references that do not resolve
     missing_object = '00000000-0000-4000-8000-000000000000@1'
-    unresolved = 'does not resolve to a version of a world object'
     for label, payload, says in (
-            ('an_unknown_object', {'title': 'x', 'parent_ref': missing_object}, unresolved),
-            ('an_unknown_version', {'title': 'x', 'parent_ref': f"{mission['object_id']}@2"}, unresolved),
+            ('an_unknown_object', {'title': 'x', 'parent_ref': missing_object}, UNRESOLVED),
+            ('an_unknown_version', {'title': 'x', 'parent_ref': f"{mission['object_id']}@2"}, UNRESOLVED),
             ('a_block_its_type_does_not_have', {'title': 'x', 'parent_ref': _ref(mission),
                                                 'blocks': {'plan': {'text': 'x', 'refs': [_ref(mission, 'plan')]}}},
              'names a block its object type does not have'),
@@ -296,7 +384,7 @@ def objects_and_refs(h, f, flow, company):
                      says='exactly one responsibility unit')
     check('a_domain_has_exactly_one_responsibility_unit')
     flow.deny_create('ceo', 'StateSnapshot', 'a',
-                     {'title': 'x', 'subject_ref': _ref(mission), 'as_of': '2026-09-24T09:37:00Z'},
+                     {'title': 'x', 'subject_ref': _ref(mission), 'as_of': f'{day(24)}T09:37:00Z'},
                      codes={'ACTION_NOT_SUPPORTED_FOR_PROTOCOL'}, says='written by world_refresh_state')
     check('a_state_snapshot_is_not_written_by_creation')
 
@@ -338,13 +426,12 @@ def objects_and_refs(h, f, flow, company):
         flow.deny_create('a', 'Task', 'a', {'title': 'x', 'parent_ref': _ref(mission)}, bad,
                          codes={'INVALID_REQUEST'}, says=says)
         check(f'a_declaration_{label}_is_refused')
-    return {'checks': checks, 'made': made}
+    return made
 
 
-def revise_and_relate(h, f, flow, company, made):
+def revise_and_relate(book, h, f, flow, company, made):
     """票 #21：合并修订与版本链、引用不漂移、改钉同一对象的新版本、跨链关系、按 parent_ref 反查子对象。"""
-    checks = []
-    check = _checker(checks)
+    check = _checker(book)
     strategy, unit, mission, task = made['Strategy'], made['ResponsibilityUnit'], made['Mission'], made['Task']
     period_goal, company_goal = made['PeriodGoal'], made['LongTermGoal']
 
@@ -468,9 +555,10 @@ def revise_and_relate(h, f, flow, company, made):
         flow.deny(actor, flow.targeted('world_revise_object', obj['object_id'], params, target), codes=codes,
                   says=says, prepare=prepare)
 
-    def deny_relate(actor, obj, field, refs, codes, says=None, declared=None):
+    def deny_relate(actor, obj, field, refs, codes, says=None, declared=None, target=None, prepare=True):
         params = {'field': field, 'refs': refs, **({'declaration': declared} if declared else {})}
-        flow.deny(actor, flow.targeted('world_relate', obj['object_id'], params), codes=codes, says=says)
+        flow.deny(actor, flow.targeted('world_relate', obj['object_id'], params, target), codes=codes, says=says,
+                  prepare=prepare)
 
     deny_revise('unrelated', strategy, {'title': 'x'}, {'FORBIDDEN'}, not_responsible)
     check('someone_not_responsible_up_the_spine_cannot_revise')
@@ -495,6 +583,13 @@ def revise_and_relate(h, f, flow, company, made):
     deny_revise('a', mission, {'responsible': f['actors']['a']['principal_id']}, {'INVALID_REQUEST'},
                 'Payload does not satisfy')
     check('a_revision_cannot_write_a_field_only_the_service_writes')
+    deny_revise('a', task, {'blocks': {'plan': {'text': 'x', 'refs': [f"{mission['object_id']}@99"]}}},
+                {'INVALID_REQUEST'}, UNRESOLVED)
+    check('a_revision_citing_an_unknown_version_is_refused')
+    # 目标修订写成旧版本、期望版本却是当前的：拒绝只来自目标修订不是最新（同错期望版本，只在提交时核对）。
+    not_latest = {**flow.target(strategy['object_id']), 'revision_id': strategy['revision_id']}
+    deny_revise('ceo', strategy, {'title': 'x'}, {'STALE_DEPENDENCY'}, NOT_LATEST, target=not_latest, prepare=False)
+    check('a_revision_whose_target_is_not_the_latest_revision_is_refused')
 
     deny_relate('ic_a', mission, 'depends_on', [_ref(second)], {'FORBIDDEN'}, not_responsible)
     check('someone_not_responsible_cannot_relate')
@@ -508,13 +603,22 @@ def revise_and_relate(h, f, flow, company, made):
     check('a_relation_points_to_a_type_the_registry_allows')
     deny_relate('a', task, 'contributes_to', [_ref(goal_b)], {'INVALID_REQUEST'}, 'has no contributes_to')
     check('a_relation_field_the_type_does_not_have_is_refused')
-    return {'checks': checks}
+    deny_relate('agent', mission, 'depends_on', [_ref(second)], {'INVALID_REQUEST'}, 'must declare its scene')
+    check('an_agent_relation_without_a_declaration_is_refused')
+    current = flow.target(mission['object_id'])
+    deny_relate('a', mission, 'depends_on', [_ref(second)], {'VERSION_CONFLICT'},
+                target={**current, 'expected_version': current['expected_version'] + 1}, prepare=False)
+    check('a_relation_with_a_wrong_expected_version_is_refused')
+    deny_relate('a', mission, 'depends_on', [f"{second['object_id']}@9"], {'INVALID_REQUEST'}, UNRESOLVED)
+    check('a_relation_to_an_unknown_version_is_refused')
+    deny_relate('a', mission, 'depends_on', [_ref(second)], {'STALE_DEPENDENCY'}, NOT_LATEST,
+                target={**flow.target(mission['object_id']), 'revision_id': mission['revision_id']}, prepare=False)
+    check('a_relation_whose_target_is_not_the_latest_revision_is_refused')
 
 
-def state_and_events(h, f, flow, made):
+def state_and_events(book, h, f, flow, made):
     """票 #22：状态快照写入与按时点取状态，外部事件、更正与按起始时间取事件；拒绝用例库快照不变。"""
-    checks = []
-    check = _checker(checks)
+    check = _checker(book)
     mission, task = made['Mission'], made['Task']
     mission_id = mission['object_id']
     declaration = {'scene': _ref(mission), 'trigger': '9/22 17:37 会后整理',
@@ -524,10 +628,10 @@ def state_and_events(h, f, flow, made):
         return flow.command('world_refresh_state', {'payload': payload, **({'declaration': declared} if declared else {})})
 
     # ------------------------------------------------------------ state snapshots
-    first = flow.refresh('a', {'title': '9/22 状态', 'subject_ref': _ref(mission), 'as_of': '2026-09-22T17:37:00+08:00',
+    first = flow.refresh('a', {'title': '9/22 状态', 'subject_ref': _ref(mission), 'as_of': f'{day(22)}T17:37:00+08:00',
                                'blocks': {'progress': {'text': '数据环境搭了一半。'}, 'issue': {'text': '缺隔离库权限。'}}})['result']
     second = flow.refresh('agent_a', {
-        'title': '9/23 状态', 'subject_ref': _ref(mission), 'as_of': '2026-09-23T10:00:00.5Z',
+        'title': '9/23 状态', 'subject_ref': _ref(mission), 'as_of': f'{day(23)}T10:00:00.5Z',
         'blocks': {'progress': {'text': '隔离库已迁移。'},
                    'artifacts': {'text': '播种草稿', 'artifacts': ['https://example.test/seed-draft']}}}, declaration)['result']
     rows = flow.rows("""SELECT o.domain_id, o.lifecycle_status, o.latest_revision_id, o.effective_revision_id, r.payload
@@ -536,20 +640,20 @@ def state_and_events(h, f, flow, made):
                          WHERE o.scope_id=%s AND o.object_id = ANY(%s::uuid[]) ORDER BY r.payload->>'title'""",
                      (f['scope_id'], [first['object_id'], second['object_id']]))
     check('a_unit_dri_and_a_unit_agent_write_snapshots_stored_in_the_subjects_domain_with_utc_text',
-          [row['payload']['as_of'] for row in rows] == ['2026-09-22T09:37:00Z', '2026-09-23T10:00:00.500000Z']
+          [row['payload']['as_of'] for row in rows] == [f'{day(22)}T09:37:00Z', f'{day(23)}T10:00:00.500000Z']
           and all(str(row['domain_id']) == f['domains']['a'] and row['lifecycle_status'] == 'recorded'
                   and row['effective_revision_id'] == row['latest_revision_id'] for row in rows)
           and all(row['payload']['subject_ref'] == {k: v for k, v in _pinned(mission).items() if k != 'ref'}
                   for row in rows))
     at = {label: flow.state('outsider', mission_id, as_of=moment)['snapshot'] for label, moment in (
-        ('before', '2026-09-21T00:00:00Z'), ('between', '2026-09-23T00:00:00Z'), ('exactly', '2026-09-23T10:00:00.5Z'),
-        ('after', '2026-09-24T00:00:00Z'))}
+        ('before', f'{day(21)}T00:00:00Z'), ('between', f'{day(23)}T00:00:00Z'), ('exactly', f'{day(23)}T10:00:00.5Z'),
+        ('after', f'{day(24)}T00:00:00Z'))}
     latest = flow.state('outsider', mission_id)['snapshot']
     check('get_state_returns_the_latest_snapshot_not_later_than_the_given_time',
           at['before'] is None and at['between']['object_id'] == first['object_id']
           and at['exactly']['object_id'] == second['object_id'] and at['after']['object_id'] == second['object_id']
           and latest['object_id'] == second['object_id'] and at['between']['unconfirmed'] is True
-          and at['between']['attributes']['as_of'] == '2026-09-22T09:37:00Z'
+          and at['between']['attributes']['as_of'] == f'{day(22)}T09:37:00Z'
           and at['between']['attributes']['subject_ref'] == _pinned(mission))
     view = flow.read('outsider', mission_id)
     blocks = {b['id']: b for b in view['state']['blocks']}
@@ -563,13 +667,13 @@ def state_and_events(h, f, flow, made):
           [row['subject_refs'] for row in refreshed] == [[
               {'object_id': first['object_id'], 'object_version': 1, 'revision_id': first['revision_id'], 'block': None},
               {k: v for k, v in _pinned(mission).items() if k != 'ref'}]])
-    same_instant = refresh_body({'title': 'x', 'subject_ref': _ref(mission), 'as_of': '2026-09-22T09:37:00.000000Z'})
+    same_instant = refresh_body({'title': 'x', 'subject_ref': _ref(mission), 'as_of': f'{day(22)}T09:37:00.000000Z'})
     flow.deny('a', same_instant, codes={'INVALID_STATE'}, prepare=False, says='already has a snapshot at this time')
     check('a_second_snapshot_of_the_same_subject_at_the_same_instant_is_refused')
-    body = flow.prepare('a', refresh_body({'title': '9/23 晚', 'subject_ref': _ref(task), 'as_of': '2026-09-23T20:00:00Z'}))
+    body = flow.prepare('a', refresh_body({'title': '9/23 晚', 'subject_ref': _ref(task), 'as_of': f'{day(23)}T20:00:00Z'}))
     receipt, replay = flow.commit('a', body), flow.commit('a', deepcopy(body))
     changed = deepcopy(body)
-    changed['params']['payload']['as_of'] = '2026-09-23T21:00:00Z'
+    changed['params']['payload']['as_of'] = f'{day(23)}T21:00:00Z'
     flow.deny('a', changed, codes={'IDEMPOTENCY_CONFLICT'}, prepare=False)
     check('a_replayed_snapshot_write_returns_its_receipt_and_a_reused_key_for_another_snapshot_is_refused',
           replay['receipt_id'] == receipt['receipt_id']
@@ -577,28 +681,28 @@ def state_and_events(h, f, flow, made):
 
     # ------------------------------------------------------------ external events
     meeting = flow.record('a', {'category': 'meeting', 'subject_refs': [_ref(mission), _ref(task)],
-                                'occurred_at': '2026-09-22T17:37:00+08:00',
+                                'occurred_at': f'{day(22)}T17:37:00+08:00',
                                 'content': {'text': '9/22 17:37 会议：先把数据环境准备好。',
                                             'artifacts': ['https://example.test/minutes-0922']}})['result']
     original = flow.rows('SELECT * FROM gov_world_events WHERE scope_id=%s AND event_id=%s', (f['scope_id'], meeting['event_id']))
     check('an_external_event_that_happened_earlier_is_recorded_at_its_own_occurred_at',
           len(original) == 1 and original[0]['kind'] == 'event.recorded' and original[0]['category'] == 'meeting'
-          and original[0]['occurred_at'].isoformat() == '2026-09-22T09:37:00+00:00'
+          and original[0]['occurred_at'].isoformat() == f'{day(22)}T09:37:00+00:00'
           and original[0]['occurred_at'] < original[0]['recorded_at']
           and [r['object_id'] for r in original[0]['subject_refs']] == [mission_id, task['object_id']])
-    review = flow.record('b', {'category': 'review', 'subject_refs': [_ref(mission)], 'occurred_at': '2026-09-23T09:00:00Z',
+    review = flow.record('b', {'category': 'review', 'subject_refs': [_ref(mission)], 'occurred_at': f'{day(23)}T09:00:00Z',
                                'content': {'text': '交付单元评审了 E&O 的 Mission。'}})['result']
     # outsider 所在域的策略不列外部事件，他在 E&O 域也没有角色：记得成，说明判权只看 scope 内有没有生效指派。
     observed = flow.record('outsider', {'category': 'other', 'subject_refs': [_ref(mission)],
-                                        'occurred_at': '2026-09-23T09:30:00Z', 'content': {'text': '旁听记录。'}})['result']
+                                        'occurred_at': f'{day(23)}T09:30:00Z', 'content': {'text': '旁听记录。'}})['result']
     check('events_are_recorded_by_scope_permission_regardless_of_any_domain_policy',
-          review['event_id'] != meeting['event_id'] and observed['occurred_at'] == '2026-09-23T09:30:00Z')
+          review['event_id'] != meeting['event_id'] and observed['occurred_at'] == f'{day(23)}T09:30:00Z')
     by_agent = flow.record('agent_a', {'category': 'other', 'subject_refs': [_ref(mission)],
-                                       'occurred_at': '2026-09-23T11:00:00Z', 'content': {'text': 'Agent 整理了会议纪要。'},
+                                       'occurred_at': f'{day(23)}T11:00:00Z', 'content': {'text': 'Agent 整理了会议纪要。'},
                                        'declaration': declaration})['result']
     check('a_unit_agent_records_an_event_with_its_declaration', by_agent['declaration']['scene'] == _pinned(mission))
     correction = flow.record('ceo', {'category': 'correction', 'supersedes_event_id': meeting['event_id'],
-                                     'subject_refs': [_ref(mission)], 'occurred_at': '2026-09-22T17:37:00+08:00',
+                                     'subject_refs': [_ref(mission)], 'occurred_at': f'{day(22)}T17:37:00+08:00',
                                      'content': {'text': '更正：会上决定的是先建隔离库。'}})['result']
     after = flow.rows('SELECT * FROM gov_world_events WHERE scope_id=%s AND event_id=%s', (f['scope_id'], meeting['event_id']))
     check('a_correction_references_the_original_which_stays_unchanged', after == original)
@@ -614,12 +718,12 @@ def state_and_events(h, f, flow, made):
           and by_id[correction['event_id']]['supersedes_event_id'] == meeting['event_id']
           and by_id[meeting['event_id']]['content']['artifacts'] == ['https://example.test/minutes-0922']
           and by_id[meeting['event_id']]['subject_refs'][0] == _pinned(mission)
-          and by_id[meeting['event_id']]['occurred_at'] == '2026-09-22T09:37:00Z'
+          and by_id[meeting['event_id']]['occurred_at'] == f'{day(22)}T09:37:00Z'
           and all(e['occurred_at'].endswith('Z') and e['recorded_at'].endswith('Z') for e in listed))
-    since = flow.events('outsider', mission_id, since='2026-09-23T08:00:00+08:00')
-    start = datetime(2026, 9, 23, tzinfo=timezone.utc)
+    since = flow.events('outsider', mission_id, since=f'{day(23)}T08:00:00+08:00')
+    start = datetime.fromisoformat(day(23)).replace(tzinfo=timezone.utc)
     check('get_events_starts_at_the_given_time',
-          since['since'] == '2026-09-23T00:00:00Z'
+          since['since'] == f'{day(23)}T00:00:00Z'
           and {review['event_id'], by_agent['event_id']} <= {e['event_id'] for e in since['events']}
           and not {meeting['event_id'], correction['event_id']} & {e['event_id'] for e in since['events']}
           and all(datetime.fromisoformat(e['occurred_at'].replace('Z', '+00:00')) >= start for e in since['events']))
@@ -628,7 +732,7 @@ def state_and_events(h, f, flow, made):
     check('an_identity_from_another_scope_reads_neither_events_nor_state')
 
     # ------------------------------------------------------------ rejections
-    event = {'category': 'meeting', 'subject_refs': [_ref(mission)], 'occurred_at': '2026-09-23T12:00:00Z',
+    event = {'category': 'meeting', 'subject_refs': [_ref(mission)], 'occurred_at': f'{day(23)}T12:00:00Z',
              'content': {'text': 'x'}}
     flow.deny('a', flow.command('world_record_event', {**event, 'subject_refs': []}), codes={'INVALID_REQUEST'})
     check('an_event_without_subjects_is_refused')
@@ -641,13 +745,13 @@ def state_and_events(h, f, flow, made):
           replay['receipt_id'] == receipt['receipt_id'])
     # 最后一条指派撤掉后，这名身份在 scope 内已没有生效指派：不能再记事件、不能把原命令重放成成功、也读不到。
     revoke_assignment(h.env, f, f['actors']['lapsed']['assignment_id'])
-    flow.deny('lapsed', flow.command('world_record_event', event), codes={'FORBIDDEN', 'UNAUTHENTICATED'})
-    flow.deny('lapsed', deepcopy(body), codes={'FORBIDDEN', 'UNAUTHENTICATED'}, prepare=False)
-    flow.events('lapsed', mission_id, expected={401, 403})
-    flow.state('lapsed', mission_id, expected={401, 403})
+    flow.deny('lapsed', flow.command('world_record_event', event), codes={'FORBIDDEN'})
+    flow.deny('lapsed', deepcopy(body), codes={'FORBIDDEN'}, prepare=False)
+    flow.events('lapsed', mission_id, expected=403)
+    flow.state('lapsed', mission_id, expected=403)
     check('an_identity_without_a_current_assignment_in_the_scope_can_neither_record_replay_nor_read')
     flow.deny('agent_a', flow.command('world_record_event', event), codes={'INVALID_REQUEST'}, says='must declare its scene')
-    snapshot = {'title': 'x', 'subject_ref': _ref(task), 'as_of': '2026-09-23T12:00:00Z'}
+    snapshot = {'title': 'x', 'subject_ref': _ref(task), 'as_of': f'{day(23)}T12:00:00Z'}
     flow.deny('agent_a', refresh_body(snapshot), codes={'INVALID_REQUEST'}, says='must declare its scene')
     check('an_agent_event_or_snapshot_without_a_declaration_is_refused')
     flow.deny('ic_a', refresh_body(snapshot), codes={'FORBIDDEN'}, says='Only a responsible person up the spine')
@@ -668,13 +772,25 @@ def state_and_events(h, f, flow, made):
                                                          'supersedes_event_id': refreshed_id}),
               codes={'INVALID_REQUEST'}, says='corrects an external event')
     check('a_correction_can_only_correct_an_external_event')
-    return {'checks': checks}
+    # 期望版本与引用：请求本身合法（记录者有权、时刻已过、主体唯一），拒绝只来自给错的版本或解析不了的引用。
+    stale = [{'object_id': mission_id, 'expected_version': flow.read('outsider', mission_id)['object_version'] + 1}]
+    fresh = {'title': 'x', 'subject_ref': _ref(mission), 'as_of': f'{day(23)}T13:00:00Z'}
+    flow.deny('a', flow.command('world_refresh_state', {'payload': fresh}, expected_versions=stale),
+              codes={'VERSION_CONFLICT'}, prepare=False)
+    check('a_snapshot_with_a_wrong_expected_version_is_refused')
+    flow.deny('a', refresh_body({**fresh, 'subject_ref': f'{mission_id}@99'}), codes={'INVALID_REQUEST'}, says=UNRESOLVED)
+    check('a_snapshot_of_an_unknown_subject_version_is_refused')
+    flow.deny('a', flow.command('world_record_event', event, expected_versions=stale), codes={'VERSION_CONFLICT'},
+              prepare=False)
+    check('an_event_with_a_wrong_expected_version_is_refused')
+    flow.deny('a', flow.command('world_record_event', {**event, 'subject_refs': [f'{mission_id}@99']}),
+              codes={'INVALID_REQUEST'}, says=UNRESOLVED)
+    check('an_event_about_an_unknown_version_is_refused')
 
 
-def assign_and_lifecycle(h, f, flow, made):
+def assign_and_lifecycle(book, h, f, flow, made):
     """票 #23：逐级指派留痕，生命周期由事件推导（段与推出它的事件 id），按 responsible 属性的责任人获得权限。"""
-    checks = []
-    check = _checker(checks)
+    check = _checker(book)
     actors = f['actors']
     person = {name: actors[name]['principal_id'] for name in ('a', 'owner_a', 'ic_a', 'agent_a')}
     unit, mission, task, activity = made['ResponsibilityUnit'], made['Mission'], made['Task'], made['Activity']
@@ -722,10 +838,10 @@ def assign_and_lifecycle(h, f, flow, made):
     # 每一步之后立即取对象，核对所处的段与推出它的事件。
     steps = [('assigned', lambda: flow.assign('owner_a', activity['object_id'], person['agent_a'])),
              ('in_progress', lambda: flow.refresh('agent_a', {
-                 'title': '执行中', 'subject_ref': _ref(activity), 'as_of': '2026-09-24T01:00:00Z',
+                 'title': '执行中', 'subject_ref': _ref(activity), 'as_of': f'{day(24)}T01:00:00Z',
                  'blocks': {'progress': {'text': '隔离库迁移完成一半。'}}}, declaration)),
              ('delivered', lambda: flow.record('agent_a', {
-                 'category': 'delivery', 'subject_refs': [_ref(activity)], 'occurred_at': '2026-09-24T02:00:00Z',
+                 'category': 'delivery', 'subject_refs': [_ref(activity)], 'occurred_at': f'{day(24)}T02:00:00Z',
                  'content': {'text': '隔离库迁移与播种完成。'}, 'declaration': declaration}))]
     seen = []
     for expected, act in steps:
@@ -733,10 +849,10 @@ def assign_and_lifecycle(h, f, flow, made):
         state = lifecycle(activity)
         seen.append(state['status'] == expected and state['event_id'] == event_of(receipt))
     flow.record('owner_a', {'category': 'acceptance', 'subject_refs': [_ref(activity)],
-                            'occurred_at': '2026-09-24T03:00:00Z', 'content': {'text': 'Owner 看过了。'}})
+                            'occurred_at': f'{day(24)}T03:00:00Z', 'content': {'text': 'Owner 看过了。'}})
     held = lifecycle(activity)
     closing = flow.record('ic_a', {'category': 'acceptance', 'subject_refs': [_ref(activity)],
-                                   'occurred_at': '2026-09-24T03:30:00Z', 'content': {'text': 'Task 责任人验收通过。'}})
+                                   'occurred_at': f'{day(24)}T03:30:00Z', 'content': {'text': 'Task 责任人验收通过。'}})
     check('an_activity_moves_assigned_in_progress_delivered_with_each_step_naming_its_event', all(seen))
     check('an_acceptance_by_someone_other_than_the_task_responsible_does_not_close_the_activity',
           held['status'] == 'delivered' and held['event_id'] == event_of(receipt))
@@ -757,14 +873,14 @@ def assign_and_lifecycle(h, f, flow, made):
           and by_ic['result']['responsible_through'] == task['object_id']
           and by_owner['result']['responsible_through'] == mission['object_id'])
     owner_snapshot = flow.refresh('owner_a', {'title': 'Owner 周报', 'subject_ref': _ref(mission),
-                                              'as_of': '2026-09-24T04:00:00Z',
+                                              'as_of': f'{day(24)}T04:00:00Z',
                                               'blocks': {'progress': {'text': '两条 Task 在推进。'}}})
     flow.relate('owner_a', mission['object_id'], 'depends_on', [])
-    task_run = flow.refresh('ic_a', {'title': 'Task 进展', 'subject_ref': _ref(task), 'as_of': '2026-09-24T04:30:00Z',
+    task_run = flow.refresh('ic_a', {'title': 'Task 进展', 'subject_ref': _ref(task), 'as_of': f'{day(24)}T04:30:00Z',
                                       'blocks': {'progress': {'text': '数据环境可用。'}}})
     in_progress = lifecycle(task)
     task_done = flow.record('ic_a', {'category': 'delivery', 'subject_refs': [_ref(task)],
-                                     'occurred_at': '2026-09-24T05:00:00Z', 'content': {'text': '数据环境交付。'}})
+                                     'occurred_at': f'{day(24)}T05:00:00Z', 'content': {'text': '数据环境交付。'}})
     check('the_owner_writes_a_snapshot_and_relates_the_mission_and_the_task_responsible_moves_the_task_to_delivered',
           owner_snapshot['result']['responsible_through'] == mission['object_id']
           and in_progress == {'status': 'in_progress', 'display_name': '进行中', 'event_id': event_of(task_run)}
@@ -789,6 +905,13 @@ def assign_and_lifecycle(h, f, flow, made):
     check('an_unknown_assignee_is_refused')
     deny_assign('ceo', made['PeriodGoal'], person['a'], {'ACTION_NOT_SUPPORTED_FOR_PROTOCOL'})
     check('a_goal_is_not_assigned')
+    # 周期目标的责任人按 DOMAIN_DRI 角色解析且须是人：持该角色的 Agent 也指派不了 Mission 的 Owner。
+    deny_assign('agent', mission, person['owner_a'], {'FORBIDDEN'}, one_level_up)
+    check('an_agent_holding_the_dri_role_cannot_assign')
+    flow.deny('owner_a', flow.targeted('world_assign', task['object_id'], {'principal_id': person['ic_a']},
+                                       {**flow.target(task['object_id']), 'revision_id': task['revision_id']}),
+              codes={'STALE_DEPENDENCY'}, says=NOT_LATEST, prepare=False)
+    check('an_assignment_whose_target_is_not_the_latest_revision_is_refused')
 
     # 改派 Task：原责任人不能再把他凭 responsible 做过的修订重放成成功。指派本身的重放与版本冲突。
     body = flow.prepare('owner_a', flow.targeted('world_assign', task['object_id'], {'principal_id': person['a']}))
@@ -815,16 +938,14 @@ def assign_and_lifecycle(h, f, flow, made):
     flow.deny('owner_a', deepcopy(owner_body), codes={'FORBIDDEN'}, prepare=False)
     check('an_owner_who_lost_the_owner_role_can_neither_create_nor_replay_a_creation')
     late = flow.record('owner_a', {'category': 'acceptance', 'subject_refs': [_ref(task)],
-                                   'occurred_at': '2026-09-24T06:00:00Z', 'content': {'text': '验收（已无 OWNER 角色）。'}})
+                                   'occurred_at': f'{day(24)}T06:00:00Z', 'content': {'text': '验收（已无 OWNER 角色）。'}})
     check('an_acceptance_by_an_owner_without_the_owner_role_does_not_close_the_task',
           late['result']['accepted_as_parent_responsible'] == [] and lifecycle(task)['status'] == 'delivered')
-    return {'checks': checks}
 
 
-def activation_policy_control(h, source, f, installed):
+def activation_policy_control(book, h, source, f, installed):
     """票 #24：激活策略经控制面 install-activation-policy 安装；失败的安装整体回滚，什么都不留。"""
-    checks = []
-    check = _checker(checks)
+    check = _checker(book)
     scope = f['scope_id']
 
     def control_state():
@@ -868,13 +989,11 @@ def activation_policy_control(h, source, f, installed):
             'install-activation-policy', '--scope-id', scope, '--domain-id', domain, '--content-json', str(path),
             '--reason', 'Synthetic refusal'], expected_exit=2, expected_error_code=code)
         check(f'an_activation_policy_with_{label}_is_refused_and_nothing_is_left_behind', control_state() == before)
-    return checks
 
 
-def gates(h, f, flow, made):
+def gates(book, h, f, flow, made):
     """票 #24：承诺与确认的门——完整 Mission 场景、退回与撤回、目标的门、重走写回、每个门动作的拒绝用例。"""
-    checks = []
-    check = _checker(checks)
+    check = _checker(book)
     strategy = made['Strategy']
 
     def view(obj):
@@ -935,7 +1054,7 @@ def gates(h, f, flow, made):
           at(mission, 'awaiting_ceo', undone, formal=('confirmed', pointer['effective_revision_id'])))
     by_ceo = gate('ceo', 'world_confirm_mission_core_battle', mission, phase='initiation', outcome='accepted')
     check('the_ceo_confirms_the_core_battle_initiation', at(mission, 'established', by_ceo, formal=('confirmed', 'latest')))
-    running = flow.refresh('owner_c', {'title': '首周', 'subject_ref': _ref(mission), 'as_of': '2026-09-24T06:00:00Z',
+    running = flow.refresh('owner_c', {'title': '首周', 'subject_ref': _ref(mission), 'as_of': f'{day(24)}T06:00:00Z',
                                        'blocks': {'progress': {'text': '约到两家。'}}})
     check('the_first_snapshot_puts_it_in_progress', at(mission, 'in_progress', running))
 
@@ -1061,7 +1180,7 @@ def gates(h, f, flow, made):
     flow.assign('c', plain['object_id'], f['actors']['owner_c']['principal_id'])
     gate('owner_c', 'world_commit_mission', plain, phase='initiation')
     gate('c', 'world_confirm_mission', plain, phase='initiation', outcome='accepted')
-    started = flow.refresh('owner_c', {'title': '启动', 'subject_ref': _ref(plain), 'as_of': '2026-09-24T06:30:00Z',
+    started = flow.refresh('owner_c', {'title': '启动', 'subject_ref': _ref(plain), 'as_of': f'{day(24)}T06:30:00Z',
                                        'blocks': {'progress': {'text': '已联系。'}}})
     before = view(plain)
     gate('owner_c', 'world_commit_mission', plain, phase='initiation',
@@ -1131,18 +1250,29 @@ def gates(h, f, flow, made):
     ):
         deny_gate(actor, kind, obj, {'INVALID_STATE'}, says='not allowed at this stage', **params)
         check(f'{kind}_in_a_state_the_gate_does_not_allow_is_refused')
-    # 期望版本错了的请求本身在当前状态下是合法的：拒绝只来自版本。
-    for kind, actor, obj, params in (
-            ('world_commit_period_goal', 'c', draft_goal, {}),
-            ('world_commit_mission', 'owner_c', draft_mission, {'phase': 'initiation'}),
-            ('world_confirm_long_term_goal', 'ceo', goal, {'outcome': 'accepted', 'payload': {'title': 'x'}}),
-            ('world_confirm_period_goal', 'ceo', committed_goal, {'outcome': 'accepted'}),
-            ('world_confirm_mission', 'c', committed_mission, initiation_ok),
-            ('world_confirm_mission_core_battle', 'ceo', core_mission, initiation_ok),
-            ('world_mark_core_battle', 'ceo', draft_mission, {}),
-    ):
+    # 下面这些门事件在当前状态下由这些人记都合法：错期望版本与错引用的拒绝只来自版本或引用本身。
+    allowed_now = (
+        ('world_commit_period_goal', 'c', draft_goal, {}),
+        ('world_commit_mission', 'owner_c', draft_mission, {'phase': 'initiation'}),
+        ('world_confirm_long_term_goal', 'ceo', goal, {'outcome': 'accepted', 'payload': {'title': 'x'}}),
+        ('world_confirm_period_goal', 'ceo', committed_goal, {'outcome': 'accepted'}),
+        ('world_confirm_mission', 'c', committed_mission, initiation_ok),
+        ('world_confirm_mission_core_battle', 'ceo', core_mission, initiation_ok),
+        ('world_mark_core_battle', 'ceo', draft_mission, {}),
+    )
+    for kind, actor, obj, params in allowed_now:
         deny_gate(actor, kind, obj, {'VERSION_CONFLICT', 'STALE_DEPENDENCY'}, target=wrong_version(obj), prepare=False, **params)
         check(f'{kind}_with_a_wrong_expected_version_is_refused')
+    for kind, actor, obj, params in allowed_now:
+        deny_gate(actor, kind, obj, {'INVALID_REQUEST'}, says=UNRESOLVED,
+                  content={'text': '依据见引用。', 'refs': [f"{obj['object_id']}@99"]}, **params)
+        check(f'{kind}_citing_an_unknown_version_is_refused')
+    for kind, actor, obj, params in allowed_now:
+        # 对象出过新修订就用它建出时的修订，否则（只有一个修订的周期目标）借用 Strategy 的旧修订。
+        stale = obj['revision_id'] if obj['revision_id'] != view(obj)['revision_id'] else strategy['revision_id']
+        deny_gate(actor, kind, obj, {'STALE_DEPENDENCY'}, says=NOT_LATEST,
+                  target={**flow.target(obj['object_id']), 'revision_id': stale}, prepare=False, **params)
+        check(f'{kind}_whose_target_is_not_the_latest_revision_is_refused')
 
     deny_gate('other_owner_c', 'world_commit_mission', draft_mission, {'FORBIDDEN'}, says="Only the Mission's Owner",
               phase='initiation')
@@ -1168,13 +1298,11 @@ def gates(h, f, flow, made):
               phase='initiation', outcome='withdrawn', supersedes_event_id=event_of(first))
     check('only_the_gate_event_that_produced_the_current_stage_is_withdrawn',
           at(draft_mission, 'awaiting_ceo', dri_first, formal=('draft', None)))
-    return {'checks': checks}
 
 
-def context_packs(h, f, flow, made):
+def context_packs(book, h, f, flow, made):
     """票 #25：取上下文（B 固定路径）——沿主干的块、执行链上的快照与近期事件、预算裁剪、检索计划、六问覆盖、落表。"""
-    checks = []
-    check = _checker(checks)
+    check = _checker(book)
     activity = made['Activity']
     question = {'question': '这条 Activity 为什么做、做什么、谁负责、现在怎样？'}
 
@@ -1291,7 +1419,8 @@ def context_packs(h, f, flow, made):
           and [layer['events'][:1] for layer in capped['context_pack']['layers'][:3]]
           == [layer['events'][:1] for layer in layers[:3]]
           and any(entry['reason'] == 'over_level_cap' for entry in capped['plan']['trimmed']))
-    recent = flow.context('agent_a', activity['object_id'], {**question, 'recent_days': 1})
+    # 窗口两天：运行前一天（day(24)）的事件总在窗口里，更早的按运行时刻落在窗口两侧。
+    recent = flow.context('agent_a', activity['object_id'], {**question, 'recent_days': 2})
     start = moment(recent['budget']['window_start'])
     recent_ids = {e['event_id'] for layer in recent['context_pack']['layers'] for e in layer['events']}
     check('recent_events_start_at_the_requested_window',
@@ -1343,17 +1472,15 @@ def context_packs(h, f, flow, made):
           len(rows()) == count and foreign == 0
           and h.sql({'scope_id': f['foreign_scope_id']}, 'SELECT count(*) AS n FROM gov_world_context_packs WHERE scope_id=%s',
                     (f['foreign_scope_id'],))[0]['n'] == 0)
-    return {'checks': checks}
 
 
-def mcp_end_to_end(h, f, flow, made, url, source):
+def mcp_end_to_end(book, h, f, flow, made, url, source):
     """票 #26：tkos-world-mcp 子进程以 Agent 凭证打真 API——四读三写各一条，缺声明被 HTTP 面拒绝并原样返回。"""
     import anyio
     from mcp import ClientSession, StdioServerParameters
     from mcp.client.stdio import stdio_client
 
-    checks = []
-    check = _checker(checks)
+    check = _checker(book)
     activity, task = made['Activity'], made['Task']
     log_dir = h.output / 'world-mcp-runs'
     token = f['actors']['agent_a']['token']
@@ -1444,74 +1571,127 @@ def mcp_end_to_end(h, f, flow, made, url, source):
           and lines[1]['used_chars'] == len(done['context'][1]['context_pack']['markdown'])
           and all(line.get('idempotency_key') for line in lines[4:])
           and [line['status'] for line in lines[7:]] == [422] * 6 and token not in files[0].read_text())
-    return checks
 
 
-def revocation(h, f, flow, company_command):
+def revocation(book, h, f, flow, company_command):
     """最后撤掉 CEO 在公司域的那条 CEO 指派：CEO 在别的域还有角色，仍是 scope 成员，但原命令不能再被重放成成功。"""
-    checks = []
     revoke_assignment(h.env, f, f['actors']['ceo']['assignment_id'])
     flow.deny('ceo', deepcopy(company_command), codes={'FORBIDDEN'}, prepare=False)
-    _checker(checks)('a_revoked_ceo_cannot_replay_the_creation_into_a_success')
-    return checks
+    _checker(book)('a_revoked_ceo_cannot_replay_the_creation_into_a_success')
 
 
-def run(h: MethodHarness, source: Path):
+def environment_gates(book, h, f):
+    """矩阵检查之外的三个环境门槛（第四个「源码运行中不变」在 main 里记）。"""
+    book.gates['ordinary_application_privileges'] = {'passed': True, 'evidence': environment.privileges(h)}
+    book.gates['immutable_history'] = {'passed': True, 'evidence': environment.immutable_history(h, f)}
+    book.gates['no_external_effects'] = {'passed': True, 'evidence': environment.no_external_effects(h, f)}
+
+
+def run(book, h: MethodHarness, source: Path, database_evidence: Path, upgrade_evidence: Path):
+    scenarios = book.metadata['scenarios']
+
+    @contextmanager
+    def scenario(name):
+        """出错时这一段停在 running，main 把它记成失败；跑完才记 completed。"""
+        scenarios[name] = {'status': 'running'}
+        book.save()
+        yield
+        scenarios[name] = {'status': 'completed'}
+        book.save()
+
+    with scenario('migration'):
+        migration_upgrade(book, h, source, database_evidence, upgrade_evidence)
     f = seed_world(h.env, h.private / 'identities.json', 'runtime-acceptance-world-v01')
-    installed = install_activation_policies(h, source, f)
-    register_world(h, source, f)
-    policy_checks = activation_policy_control(h, source, f, installed)
+    with scenario('control_plane'):
+        installed = install_activation_policies(h, source, f)
+        register_world(h, source, f)
+        control_plane(book, h, source, f)
+        activation_policy_control(book, h, source, f, installed)
     process, url, _ = h.start_api(source)
     flow = Flow(h, url, f)
     try:
-        ctx = company_root(h, f, flow)
-        objects = objects_and_refs(h, f, flow, ctx['company'])
-        revisions = revise_and_relate(h, f, flow, ctx['company'], objects['made'])
-        states = state_and_events(h, f, flow, objects['made'])
-        made = {**objects['made'], 'Company': ctx['company']}
-        assigned = assign_and_lifecycle(h, f, flow, made)
-        gated = gates(h, f, flow, made)
-        contexts = context_packs(h, f, flow, made)
-        mcp = mcp_end_to_end(h, f, flow, made, url, source)
-        checks = (policy_checks + ctx['checks'] + objects['checks'] + revisions['checks'] + states['checks']
-                  + assigned['checks'] + gated['checks'] + contexts['checks'] + mcp
-                  + revocation(h, f, flow, ctx['company_command']))
-        public_json(h.output / 'summary.json', {
-            'world_v01_skeleton_passed': True, 'checks': checks,
-            'scope': 'Tickets #19-#26: world wiring, the Company root, the other seven creatable types, '
-                     'reference pinning, revisions, cross-chain relations, state snapshots, external events, '
-                     'assignments, derived lifecycles, commitment and confirmation gates, the activation-policy '
-                     'control command, get-context and the MCP server over real HTTP/PostgreSQL; synthetic data',
-            'world_api_accepted': False, 'world_api_accepted_note': 'set only by the finished matrix (ticket #27)',
-            'real_model': 'not_run', 'mcp': 'stdio_server_against_real_api', 'deployment': 'not_verified'})
+        with scenario('company_root'):
+            ctx = company_root(book, h, f, flow)
+        with scenario('objects_and_refs'):
+            made = objects_and_refs(book, h, f, flow, ctx['company'])
+        with scenario('revise_and_relate'):
+            revise_and_relate(book, h, f, flow, ctx['company'], made)
+        with scenario('state_and_events'):
+            state_and_events(book, h, f, flow, made)
+        made = {**made, 'Company': ctx['company']}
+        with scenario('assign_and_lifecycle'):
+            assign_and_lifecycle(book, h, f, flow, made)
+        with scenario('gates'):
+            gates(book, h, f, flow, made)
+        with scenario('context_packs'):
+            context_packs(book, h, f, flow, made)
+        with scenario('mcp_end_to_end'):
+            mcp_end_to_end(book, h, f, flow, made, url, source)
+        with scenario('revocation'):
+            revocation(book, h, f, flow, ctx['company_command'])
+        with scenario('environment'):
+            environment_gates(book, h, f)
     finally:
         flow.close()
 
 
 def main():
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--env-file', type=Path, required=True)
     parser.add_argument('--private', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
+    parser.add_argument('--database-evidence', type=Path, required=True, help='database create 写的 database.json')
+    parser.add_argument('--upgrade-evidence', type=Path, required=True, help='database upgrade 写的 upgrade.json')
+    parser.add_argument('--commit', help='钉定验收的提交；不给则用工作区 src 做开发运行，报告不写通过')
     args = parser.parse_args()
+    if not __debug__:
+        raise SystemExit('the acceptance oracle is written as assertions; run without -O')
     if args.private.exists() or args.output.exists():
         raise ValueError('Use fresh private and output paths')
     args.private.mkdir(parents=True, mode=0o700)
-    h = MethodHarness(args.env_file.resolve(), args.output.resolve(), args.private.resolve())
-    initial = source_manifest(Path('src').resolve())
+    private = args.private.resolve()
+    if args.commit:
+        root, commit = environment.checkout(args.commit, private)
+        frozen = environment.frozen_files(root, commit)
+    else:
+        root, commit, frozen = ROOT, None, {}
+    source = (root / 'src').resolve()
+    h = MethodHarness(args.env_file.resolve(), args.output.resolve(), private)
+    book = WorldBook(h.output)
+    book.save(selected_scenarios=SCENARIOS, scenarios={}, source_commit=commit, source_root=str(source),
+              frozen_files=frozen)
+    initial = source_manifest(source)
+    public_json(h.output / 'source-before.json', initial)
     error = None
     try:
-        run(h, Path('src').resolve())
-    except BaseException as exc:  # noqa: BLE001 - re-raised after the harness is closed
+        run(book, h, source, args.database_evidence.resolve(), args.upgrade_evidence.resolve())
+    except BaseException as exc:  # noqa: BLE001 - recorded in the report, re-raised after the harness is closed
         error = exc
+        details = {'exception_type': type(exc).__name__, 'frames': safe_traceback_frames(exc)}
+        for row in book.metadata['scenarios'].values():
+            if row['status'] == 'running':
+                row.update(status='failed', **details)
+        book.save(run_error=details)
     finally:
         try:
             h.close()
         finally:
-            if source_manifest(Path('src').resolve()) != initial and error is None:
+            final = source_manifest(source)
+            public_json(h.output / 'source-after.json', final)
+            # 钉提交时，取出的 src 与工作区里的验收代码、契约文件都要在运行结束时仍与该提交一致。
+            moved = environment.drift(commit) if commit else []
+            book.gates['source_unchanged'] = {'passed': final == initial and not moved,
+                                              'evidence': {'src_files': len(final), 'working_tree_drift': moved}}
+            result = book.save()
+            print(json.dumps({key: result[key] for key in
+                              ('world_api_accepted', 'passed', 'failed', 'not_complete', 'checks_passed')}))
+            if (final != initial or moved) and error is None:
                 error = RuntimeError('source changed during the acceptance run; rerun on a stable checkpoint')
     if error is not None:
         raise error
+    # 部分运行或只在工作区上跑通都不是验收通过。
+    if result['world_api_accepted'] is not True:
+        raise SystemExit(2)
 
 
 if __name__ == '__main__':

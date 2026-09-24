@@ -105,7 +105,34 @@ def authorize_receipt(conn, ctx, row, *, replay=False):
                             pass
                 elif state:
                     domain = access.research_participant(conn, ctx, state["state"])["domain_id"]
-        db.authorize_domain(conn, ctx, domain, row["action_type"])
+        try:
+            db.authorize_domain(conn, ctx, domain, row["action_type"])
+        except GovernedError as exc:
+            # 0.4/0.5 的范围动作：执行时在对象所在域被拒后，按对象的范围解析本人的任职、在那个域判权
+            # （method_service.MethodExecution）；重放照样做，本人不再担任就仍是 FORBIDDEN。
+            member = _scoped_member(conn, ctx, row["action_type"], target) if exc.code == "FORBIDDEN" and target else None
+            if member is None:
+                raise
+            db.authorize_domain(conn, ctx, member["domain_id"], row["action_type"])
+
+
+def _scoped_member(conn, ctx, action_type, target):
+    binding = protocol.current_binding(conn, ctx.scope_id, target)
+    version = binding and binding["contract_version"]
+    if version == "tkos.method/0.5":
+        from . import method_v05
+        if action_type not in method_v05.V05_SCOPED_ACTIONS:
+            return None
+        resolve = method_v05.scoped_assignment
+    elif version == "tkos.method/0.4":
+        from . import method_v04
+        if action_type not in method_v04.V04_SCOPED_ACTIONS:
+            return None
+        resolve = method_v04.scoped_assignment
+    else:
+        return None
+    head = access.head(conn, ctx, target)
+    return resolve(conn, ctx, action_type, head, access.raw_revision(conn, ctx, target, head["latest_revision_id"]))
 
 
 # 决定类 = 有权人对业务对象的正式确认 / 正式化 / 激活 / 重开 / 关闭 / 移交（对象随之

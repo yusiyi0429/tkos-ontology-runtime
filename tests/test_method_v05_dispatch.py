@@ -1728,3 +1728,60 @@ def test_receipts_of_the_0_5_only_actions_are_authorized_by_the_method_receipt_r
                               receipt)
     assert routed == [action]
     assert method_readers.is_receipt(receipt)
+
+
+def _scoped_replay_env(monkeypatch, *, holds_scope=True):
+    """范围 DRI 重放自己确认范围约束的回执：公司域没有任职，本人只在授权域 auth-a 任 DOMAIN_DRI。"""
+    from memory_service_runtime.governed import db as core_db, method_readers
+
+    head = {'object_id': str(uuid4()), 'object_type': 'Constraint', 'domain_id': 'company',
+            'latest_revision_id': str(uuid4())}
+    authorized = []
+
+    def authorize(conn, ctx, domain, action_type=None):
+        if domain != 'auth-a':
+            raise GovernedError('FORBIDDEN')
+        authorized.append((domain, action_type))
+        return []
+
+    def responsible(conn, ctx, payload):
+        if not holds_scope:
+            raise GovernedError('FORBIDDEN')
+        return {'assignment_id': str(uuid4()), 'domain_id': 'auth-a'}
+
+    monkeypatch.setattr(method_access, 'head', lambda conn, ctx, oid: dict(head))
+    monkeypatch.setattr(method_access, 'raw_revision', lambda conn, ctx, oid, rid: {
+        'revision_id': rid, 'payload': {'applies_to': {'kind': 'scope', 'scope_id': 'scope-a'}}})
+    monkeypatch.setattr(protocol, 'current_binding', lambda conn, scope_id, oid: {'contract_version': V05_CONTRACT})
+    monkeypatch.setattr(core_db, 'authorize_domain', authorize)
+    monkeypatch.setattr(method_v05, 'constraint_assignment_static', responsible)
+    ctx = SimpleNamespace(scope_id=str(uuid4()), principal_id=str(uuid4()), principal_type='human', assignments=[])
+    row = {'action_type': 'm1b_confirm_constraint', 'principal_id': ctx.principal_id, 'target_object_id': head['object_id'],
+           'object_versions': [], 'result': {'domain_id': 'company'}}
+    return method_readers, ctx, row, authorized
+
+
+V05_CONTRACT = 'tkos.method/0.5'
+
+
+def test_a_scope_dri_replays_its_own_scoped_0_5_action_through_its_own_appointment(monkeypatch):
+    """试点链验收（#32 B）：范围 DRI 确认本域约束后，用原信封重放得到 403。执行时范围动作在公司域被拒后按对象
+    的范围解析本人的任职（method_service），重放时 Method 回执授权只按公司域判权。重放要照执行时的做法。"""
+    method_readers, ctx, row, authorized = _scoped_replay_env(monkeypatch)
+    method_readers.authorize_receipt(None, ctx, row, replay=True)
+    assert authorized == [('auth-a', 'm1b_confirm_constraint')]
+
+
+def test_a_replay_is_still_refused_without_the_current_scope_appointment(monkeypatch):
+    method_readers, ctx, row, authorized = _scoped_replay_env(monkeypatch, holds_scope=False)
+    with pytest.raises(GovernedError) as refused:
+        method_readers.authorize_receipt(None, ctx, row, replay=True)
+    assert refused.value.code == 'FORBIDDEN' and authorized == []
+
+
+def test_a_replay_of_an_unscoped_action_does_not_fall_back_to_a_scope_appointment(monkeypatch):
+    method_readers, ctx, row, authorized = _scoped_replay_env(monkeypatch)
+    row['action_type'] = 'm1b_confirm_ltco'
+    with pytest.raises(GovernedError) as refused:
+        method_readers.authorize_receipt(None, ctx, row, replay=True)
+    assert refused.value.code == 'FORBIDDEN' and authorized == []

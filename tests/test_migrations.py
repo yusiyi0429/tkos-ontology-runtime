@@ -5,9 +5,11 @@ import os
 import uuid
 
 import psycopg
+import pytest
 from psycopg import sql
 from psycopg.conninfo import make_conninfo
 
+from memory_service_app import migrate as migrate_module
 from memory_service_app.migrate import MIGRATIONS_DIR, migrate
 from tests.conftest import DATABASE_URL
 
@@ -62,6 +64,7 @@ def test_packaged_migrations_replay_from_empty_database() -> None:
             "0034_world_v01_assign_owner.sql",
             "0035_world_v01_gates_repin.sql",
             "0036_world_v01_context_packs.sql",
+            "0037_append_only_grant_repair.sql",
         ]
         assert migrate(test_url) == expected
         assert migrate(test_url) == []
@@ -117,3 +120,100 @@ def test_packaged_migrations_replay_from_empty_database() -> None:
                 (database,),
             )
             admin.execute(sql.SQL("DROP DATABASE IF EXISTS {}").format(sql.Identifier(database)))
+
+
+# 0027/0030/0036 granted SELECT, INSERT on a new append-only table to every role
+# that could read the source table; 0037 must take INSERT back from readers.
+REPAIRED = {
+    "gov_method_commitments": "gov_method_state",
+    "gov_world_events": "gov_object_revisions",
+    "gov_world_context_packs": "gov_object_revisions",
+}
+
+
+def _privileges(url: str, roles: tuple[str, ...]) -> dict[tuple[str, str], tuple[bool, bool]]:
+    with psycopg.connect(url) as conn:
+        return {
+            (role, table): conn.execute(
+                "SELECT has_table_privilege(%s, %s, 'SELECT'), has_table_privilege(%s, %s, 'INSERT')",
+                (role, f"public.{table}", role, f"public.{table}"),
+            ).fetchone()
+            for role in roles
+            for table in REPAIRED
+        }
+
+
+def test_append_only_tables_grant_insert_only_to_writers_of_the_source(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    database = f"tkos_memory_test_{uuid.uuid4().hex[:12]}"
+    reader = f"tkos_test_reader_{uuid.uuid4().hex[:8]}"
+    writer = f"tkos_test_writer_{uuid.uuid4().hex[:8]}"
+    admin_url = make_conninfo(
+        os.environ.get("TEST_ADMIN_DATABASE_URL", DATABASE_URL), dbname="postgres"
+    )
+    test_url = make_conninfo(DATABASE_URL, dbname=database)
+    with psycopg.connect(DATABASE_URL) as source:
+        migration_owner = source.execute("SELECT current_user").fetchone()[0]
+    with psycopg.connect(admin_url, autocommit=True) as admin:
+        admin.execute(sql.SQL("CREATE DATABASE {} OWNER {}").format(
+            sql.Identifier(database), sql.Identifier(migration_owner)
+        ))
+        for role in (reader, writer):
+            admin.execute(sql.SQL("CREATE ROLE {} NOLOGIN").format(sql.Identifier(role)))
+    try:
+        with psycopg.connect(make_conninfo(admin_url, dbname=database)) as admin:
+            admin.execute("CREATE EXTENSION IF NOT EXISTS vector")
+        # Both roles exist before the migrations run and receive table grants the
+        # way a reporting role and the runtime role would: one reads, one writes.
+        with psycopg.connect(test_url) as conn:
+            conn.execute(sql.SQL("ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO {}")
+                         .format(sql.Identifier(reader)))
+            conn.execute(sql.SQL("ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT ON TABLES TO {}")
+                         .format(sql.Identifier(writer)))
+
+        before_repair = tmp_path / "migrations"
+        before_repair.mkdir()
+        for path in sorted(MIGRATIONS_DIR.glob("*.sql")):
+            if path.name < "0037":
+                (before_repair / path.name).write_bytes(path.read_bytes())
+        monkeypatch.setattr(migrate_module, "MIGRATIONS_DIR", before_repair)
+        migrate(test_url)
+        widened = _privileges(test_url, (reader, writer))
+        assert all(widened[(reader, table)] == (True, True) for table in REPAIRED)
+
+        monkeypatch.undo()
+        assert migrate(test_url) == ["0037_append_only_grant_repair.sql"]
+        repaired = _privileges(test_url, (reader, writer))
+        assert {key: value for key, value in repaired.items() if key[0] == reader} == {
+            (reader, table): (True, False) for table in REPAIRED
+        }
+        assert {key: value for key, value in repaired.items() if key[0] == writer} == {
+            (writer, table): (True, True) for table in REPAIRED
+        }
+
+        # Idempotent: running the repair again changes nothing.
+        with psycopg.connect(test_url) as conn:
+            conn.execute((MIGRATIONS_DIR / "0037_append_only_grant_repair.sql").read_text(encoding="utf-8"))
+        assert _privileges(test_url, (reader, writer)) == repaired
+
+        # Writers stay fenced to their scope: row security is forced and every
+        # repaired table checks the scope on insert.
+        with psycopg.connect(test_url) as conn:
+            fenced = conn.execute(
+                """SELECT c.relname, c.relrowsecurity AND c.relforcerowsecurity,
+                          bool_or(p.with_check LIKE '%%gov_scope_matches(scope_id)%%')
+                     FROM pg_class c JOIN pg_policies p ON p.tablename = c.relname
+                    WHERE c.relname = ANY(%s) GROUP BY c.relname, c.relrowsecurity, c.relforcerowsecurity""",
+                (list(REPAIRED),),
+            ).fetchall()
+        assert sorted(fenced) == [(table, True, True) for table in sorted(REPAIRED)]
+    finally:
+        with psycopg.connect(admin_url, autocommit=True) as admin:
+            admin.execute(
+                "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname=%s",
+                (database,),
+            )
+            admin.execute(sql.SQL("DROP DATABASE IF EXISTS {}").format(sql.Identifier(database)))
+            for role in (reader, writer):
+                admin.execute(sql.SQL("DROP ROLE IF EXISTS {}").format(sql.Identifier(role)))

@@ -110,9 +110,12 @@ register-sentinel（ProtocolSentinel，无业务语义）、backfill-legacy（�
 
 - **evidence-orphans**：只读列出对象存储里没有修订引用的证据版本，以及被引用却缺失的版本（ADR-0006）。
 - **凭证生命周期**：issue-credential、rotate-credential、revoke-credential、list-credentials。
-  - 迁移 0038 给凭证加了可选的 `expires_at`，过期的凭证认证不通过；控制面会话从此可以看见并管理本 scope 的全部凭证，运行时会话仍只看得见自己那一行。
-  - 新凭证只写进 `--token-file`：0600，不覆盖已有文件。命令输出与审计事件里都没有凭证本身，列表也不显示摘要。
+  - 迁移 0038 给凭证加了 `expires_at`，过期的凭证认证不通过。
+  - 控制面会话（迁移所有者，加控制面设置）看得见全部 scope 的凭证，每条命令只处理 `--scope-id` 指定的那一个；运行时会话仍只看得见自己那一行，应用角色即使打开控制面设置也一样。
+  - 签发与轮换必须写明有效期：`--expires-in-days N`，或显式声明 `--no-expiry`。
+  - 新凭证只写进 `--token-file`：0600，不覆盖已有文件。路径先占住，事务提交之后才写入，命令失败就删掉占位，同一路径可以重试。命令输出与审计事件里都没有凭证本身，列表也不显示摘要。
   - 轮换时，旧凭证在 `--grace-minutes` 之后过期；宽限为 0 就立即吊销。
+  - 立即吊销（revoke-credential，或宽限为 0 的轮换）先推进 scope 的 `auth_epoch`，与撤角色一样锁住 scope 行：已过栅栏的在途事务先提交，吊销再生效，之后的请求一律认证不通过。审计事件记下推进后的 `auth_epoch`。
 
 应用角色即使被历史脚本宽泛 GRANT，也只能 SELECT 控制面 4 表（acceptance/runtime/infra.py
 REVOKE INSERT + 断言）；`WITH CHECK gov_control_plane_on()` 使非 owner 写入仍被拒。

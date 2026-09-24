@@ -182,7 +182,8 @@ class Candidate:
     def __init__(self, commit: str, private: Path, output: Path, *, keep_images: bool = False) -> None:
         self.commit = run(["git", "rev-parse", "--verify", commit + "^{commit}"], cwd=ROOT).strip()
         self.version = tomllib.loads(run(["git", "show", f"{self.commit}:pyproject.toml"], cwd=ROOT))["project"]["version"]
-        self.private, self.output, self.keep_images = private, output, keep_images
+        # 后面的命令以检出目录为工作目录执行，相对路径（如 README 的示例）要先解析成绝对路径。
+        self.private, self.output, self.keep_images = private.resolve(), output.resolve(), keep_images
         self.private.mkdir(mode=0o700, parents=True, exist_ok=False)
         self.output.mkdir(parents=True, exist_ok=False)
         self.src = self.private / "src"

@@ -64,7 +64,7 @@ Runtime 提供 Clark 现有月度核对、周进展和会议工作面的 Runtime
 | E&O 九月回放静态截面实验（不作为验收门） | 用 gpt-6-sol 跑：召回 0.95、可追溯 100%、确定性 1.00、八类反例 0 次；预算不达标，A 组约为全量塞入的 1.37 倍。另有两个问题：Agent 几乎只用取上下文，回答真正引用的标准引用只占 0.49。见 [实验报告](docs/world-v01-experiment-report.md) 与 [播种与标准答案审阅稿](docs/world-v01-eo-september-review.md) |
 | Clark 接线、真实部署 | **尚未进行** |
 
-实验报告里的调整建议（取上下文经 MCP 只给 Markdown、Why 沿 `goal_ref` 多取一跳、Markdown 按问题组织、事件行写出人名）尚未实施。播种、实验跑器与指标在 `experiments/world_v01/`。main 上是压缩合并的 `7e42004`；文档里引用的逐票提交（`0a6736a`、`d5b158e`、`3fdbe83`、`2d2dca7`、`fdaeeab`）在标签 `world-v0.1-tickets`，也就是 PR #30 的分支头。
+实验报告里的调整建议 1–4 与 6 已在 #32 批次 D 落到代码：取上下文经 MCP 只给包 id、Markdown、覆盖与预算摘要，Why 沿 `goal_ref` 多取一跳，Markdown 开头按问题给出处，事件行写出人名，跑器分 B、A、A0 三组。调整后还没有重跑实验，上表的数字仍是调整前的。播种、实验跑器与指标在 `experiments/world_v01/`。main 上是压缩合并的 `7e42004`；文档里引用的逐票提交（`0a6736a`、`d5b158e`、`3fdbe83`、`2d2dca7`、`fdaeeab`）在标签 `world-v0.1-tickets`，也就是 PR #30 的分支头。
 
 ## Runtime 经营看板：`tkos.dashboard/0.1`
 

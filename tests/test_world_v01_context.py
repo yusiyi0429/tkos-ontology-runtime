@@ -131,6 +131,18 @@ def test_formal_upper_content_counts_as_basis_only_while_the_pack_still_holds_it
     assert cover(held)["basis"]["evidence"] == [{"ref": "o1@1#outcome"}]
 
 
+def test_a_lead_follows_the_title_counts_toward_the_budget_and_is_rendered_from_what_is_kept():
+    def lead(kept):
+        return "指引：" + "、".join(sorted(key for key in kept if key.startswith("b")))
+    texts = [entry["text"] for entry in pack()]
+    whole = trim(pack(), max_chars=10_000, max_events_per_object=10, lead=lead)
+    assert whole["markdown"] == "\n\n".join([texts[0], "指引：b0、b1a、b1b、b2", *texts[1:]]) and whole["chars"] == 355
+    # 预算 245：裁掉三条事件与 b2 后指引跟着少了 b2，正好落进预算；按裁剪前的指引算就还得再裁一块。
+    tight = trim(pack(), max_chars=245, max_events_per_object=10, lead=lead)
+    assert keys(tight, "trimmed") == ["e1", "e0-old", "e0-new", "b2"]
+    assert "\n\n指引：b0、b1a、b1b\n\n" in tight["markdown"] and tight["chars"] == 244 and not tight["over_budget"]
+
+
 def test_a_hop_is_trimmed_before_the_blocks_of_its_level_and_the_current_objects_hop_last():
     items = [item("title", "title", -1, "# 上下文"), item("h0", "header", 0, "## G"), item("b0", "block", 0, "x" * 10),
              item("hop0", "hop", 0, "g" * 50), item("h1", "header", 1, "## U"), item("b1", "block", 1, "y" * 20),
@@ -338,3 +350,50 @@ def test_event_lines_name_who_recorded_them_and_whom_an_assignment_went_to(world
     events = {event["event_id"]: event for layer in result["context_pack"]["layers"] for event in layer["events"]}
     assert [(events[key]["principal_id"], events[key]["principal_name"], events[key]["assignee_name"])
             for key in (ASSIGNED, MET)] == [(OWNER, "Mission Owner", "E&O Agent"), (IC, "方案 IC", None)]
+
+
+def guide_of(markdown: str) -> str:
+    return markdown[markdown.index("## 六问指引"):markdown.index("## 当前对象")].strip()
+
+
+def test_the_markdown_opens_with_a_guide_that_answers_each_question_by_pointer(world):
+    result = build(world)
+    markdown = result["context_pack"]["markdown"]
+    assert markdown.index("出发对象") < markdown.index("## 六问指引") < markdown.index("## 当前对象")
+    assert guide_of(markdown).splitlines() == [
+        "## 六问指引",
+        "按问题给出处，内容在下文各层。",
+        f"- 为什么：Mission `{MISSION}@1#definition`、`{MISSION}@1#play` → 周期目标 `{PERIOD}@1#outcome` → "
+        f"长期目标 `{UNIT_GOAL}@1#outcome` → 公司级长期目标 `{COMPANY_GOAL}@1#outcome`",
+        f"- 做什么：当前对象 `{ACTIVITY}@2#instruction`；Task `{TASK}@2#definition`、`{TASK}@2#acceptance`",
+        f"- 谁负责：当前对象 `{ACTIVITY}@2`：E&O Agent，指派事件 `{ASSIGNED}`（2026-09-23T03:00:00Z，Mission Owner "
+        f"指派给 E&O Agent）；Task `{TASK}@2`：方案 IC；Mission `{MISSION}@1`：Mission Owner",
+        f"- 现在怎样：当前对象 `{SNAP_ACTIVITY}@1`、Task `{SNAP_TASK}@1`、Mission `{SNAP_MISSION}@1`（快照都未经确认）",
+        f"- 发生了什么：外部事件 `{DELIVERED}`（交付）、`{MET}`（会议）；另有 2 条对象、指派、门与快照的记录，在各层事件里",
+        f"- 凭什么：文档链接在块 `{TASK}@2#definition`、`{MISSION}@1#play`；快照 `{SNAP_ACTIVITY}@1#artifacts`；"
+        f"事件 `{DELIVERED}`、`{MET}`",
+    ]
+    # 空块照旧读标准句，指引只指非空的块；整包仍按渲染后 Markdown 计字符，默认预算够用。
+    assert "当前没有验收标准" in markdown and f"`{MISSION}@1#acceptance`" not in guide_of(markdown)
+    assert result["budget"]["used_chars"] == len(markdown) <= context.DEFAULT_MAX_CHARS
+
+
+@pytest.mark.parametrize("max_chars", [4000, 3000, 2400, 10])
+def test_the_guide_counts_toward_the_budget_and_points_only_at_what_the_pack_still_holds(world, max_chars):
+    result = build(world, budget={"max_chars": max_chars})
+    markdown = result["context_pack"]["markdown"]
+    gone = [entry["key"].split(":", 1)[1] for entry in result["plan"]["trimmed"]
+            if entry["kind"] in {"block", "hop", "snapshot", "event"}]
+    assert gone and not [ref for ref in gone if f"`{ref}" in guide_of(markdown)]
+    assert result["budget"]["used_chars"] == len(markdown)
+    assert result["budget"]["over_budget"] is (len(markdown) > max_chars) is (max_chars == 10)
+
+
+def test_without_a_goal_above_it_the_guide_points_why_at_the_upper_levels_and_names_its_gaps(world):
+    result = context.build(world, SimpleNamespace(scope_id=uid(0), principal_id=AGENT), UNIT,
+                           models.WorldContextRequest.model_validate({"question": "为什么有这个单元？"}))
+    lines = guide_of(result["context_pack"]["markdown"]).splitlines()
+    assert lines[2] == f"- 为什么：战略 `{STRATEGY}@1#responsibility_structure` → 公司 `{COMPANY}@1#identity`"
+    assert lines[4:] == [f"- 谁负责：当前对象 `{UNIT}@1`：E&O DRI", "- 现在怎样：（缺口）没有取到状态快照",
+                         "- 发生了什么：（缺口）窗口内没有取到事件",
+                         "- 凭什么：（缺口）执行链上没有取到带文档链接的块、快照或事件"]

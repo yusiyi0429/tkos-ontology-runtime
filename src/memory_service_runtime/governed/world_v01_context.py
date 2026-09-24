@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from datetime import datetime
 import math
-from typing import Any
+from typing import Any, Callable
 
 from psycopg.types.json import Jsonb
 
@@ -32,6 +32,9 @@ CHARS_PER_TOKEN_ESTIMATE = 2
 _EXECUTION_TYPES = frozenset({"Activity", "Task", "Mission"})
 # 主干之外多走的一跳：类型 -> (字段, 显示名)。单元长期目标的 goal_ref 只能指向公司级长期目标（契约第 6 节）。
 _HOPS = {"LongTermGoal": ("goal_ref", "公司级长期目标")}
+# 六问指引：Why 沿的目标链，以及 What 在当前对象之外还看的执行层（Mission 之下）。
+_GOAL_TYPES = frozenset({"Mission", "PeriodGoal", "LongTermGoal"})
+_BELOW_MISSION = frozenset({"Task", "Activity"})
 QUESTIONS = {"why": "为什么", "what": "做什么", "who": "谁负责", "now": "现在怎样", "happened": "发生了什么",
              "basis": "凭什么"}
 _GAPS = {"why": "主干上层没有取到非空的定义类块", "what": "当前对象的定义类块都是空的",
@@ -40,8 +43,11 @@ _GAPS = {"why": "主干上层没有取到非空的定义类块", "what": "当前
 
 
 # ------------------------------------------------------------ pure: budget and coverage
-def _markdown(items: list[dict[str, Any]]) -> str:
-    return "\n\n".join(item["text"] for item in items)
+def _markdown(items: list[dict[str, Any]], lead: Callable[[set[str]], str] | None = None) -> str:
+    texts = [item["text"] for item in items]
+    if lead is not None:  # 紧跟标题，由留下的条目渲染
+        texts.insert(sum(item["kind"] == "title" for item in items), lead({item["key"] for item in items}))
+    return "\n\n".join(texts)
 
 
 def _moment(item: dict[str, Any]) -> tuple[datetime, str]:
@@ -49,8 +55,10 @@ def _moment(item: dict[str, Any]) -> tuple[datetime, str]:
     return datetime.fromisoformat(item["occurred_at"].replace("Z", "+00:00")), item["key"]
 
 
-def trim(items: list[dict[str, Any]], *, max_chars: int, max_events_per_object: int) -> dict[str, Any]:
-    """按文档顺序给出的条目裁到预算内；返回留下的条目、裁掉的条目（带原因）、渲染结果与字符数。"""
+def trim(items: list[dict[str, Any]], *, max_chars: int, max_events_per_object: int,
+         lead: Callable[[set[str]], str] | None = None) -> dict[str, Any]:
+    """按文档顺序给出的条目裁到预算内；返回留下的条目、裁掉的条目（带原因）、渲染结果与字符数。
+    lead 按留下条目的 key 渲染一段放在标题之后（六问指引），计入字符预算，每裁一条重新渲染。"""
     kept = list(items)
     trimmed: list[dict[str, Any]] = []
 
@@ -70,10 +78,10 @@ def trim(items: list[dict[str, Any]], *, max_chars: int, max_events_per_object: 
         order += [item for item in kept if item["level"] == level and item["kind"] == "snapshot"]
     order += [item for item in kept if item["level"] == 0 and item["kind"] in {"relations", "hop"}]
     for item in order:
-        if len(_markdown(kept)) <= max_chars:
+        if len(_markdown(kept, lead)) <= max_chars:
             break
         drop(item, "over_budget")
-    markdown = _markdown(kept)
+    markdown = _markdown(kept, lead)
     return {"kept": kept, "trimmed": trimmed, "markdown": markdown, "chars": len(markdown),
             "over_budget": len(markdown) > max_chars}
 
@@ -102,6 +110,61 @@ def cover(layers: list[dict[str, Any]]) -> dict[str, Any]:
     }
     return {name: {"question": QUESTIONS[name], "answered": bool(found), "evidence": found,
                    "gap": None if found else _GAPS[name]} for name, found in evidence.items()}
+
+
+def guide(layers: list[dict[str, Any]]) -> str:
+    """六问指引（实验报告建议 3）：Markdown 开头按问题给出处，内容在下文各层；只指向包里留下的内容，没有就写缺口。
+
+    - 为什么：目标链，即上溯各层与多取一跳里的 Mission、周期目标、长期目标，各给非空的定义类块，没有块就给对象；
+      链上没有目标（从公司级长期目标、责任单元、战略出发）时改列上溯各层。
+    - 做什么：当前对象与它上溯到 Mission 之前的执行层（Activity 的 Task）的非空定义类块。
+    - 谁负责：执行链（当前对象向上直到 Mission）各层的责任人，与当前对象最近一条指派事件。
+    - 现在怎样：各层的最新状态快照。发生了什么：外部事件，其余事件只计条数。
+    - 凭什么：执行链上带文档链接的块、快照块与事件。"""
+    current, reach = layers[0], _reach(layers)
+    executing = [layer for layer in layers if layer["level"] == 0 or layer["object"]["object_type"] in _EXECUTION_TYPES]
+    events = [event for layer in layers for event in layer["events"]]
+
+    def place(part: dict[str, Any]) -> str:
+        return "当前对象" if part is current else part.get("label") or part["object"]["type_display_name"]
+
+    def defs(part: dict[str, Any]) -> list[str]:
+        return [block["ref"] for block in part["blocks"] if block["kind"] == "definition" and not block["empty"]]
+
+    def code(values: list[str]) -> str:
+        return "、".join(f"`{value}`" for value in values)
+
+    goals = [part for part in reach if part["object"]["object_type"] in _GOAL_TYPES] or reach
+    doing = [current] + [layer for layer in layers[1:] if layer["object"]["object_type"] in _BELOW_MISSION]
+    who = [f"{place(layer)} `{layer['object']['ref']}`："
+           + ("、".join(person["display_name"] for person in layer["object"]["responsible"]) or "未指派") for layer in executing]
+    assigned = next((event for event in current["events"] if event["kind"] == "assign"), None)  # 事件新的在前
+    if assigned:
+        who[0] += (f"，指派事件 `{assigned['event_id']}`（{assigned['occurred_at']}，{assigned['principal_name']} "
+                   f"指派给 {assigned['assignee_name']}）")
+    states = [f"{place(layer)} `{layer['state']['ref']}`" for layer in layers if layer["state"]]
+    external = [event for event in events if event["kind"] == "event.recorded"]
+    happened = ("外部事件 " + "、".join(f"`{event['event_id']}`（{_values('category')[event['category']]}）"
+                                      for event in external)) if external else "窗口内没有外部事件"
+    if len(events) > len(external):
+        happened += f"；另有 {len(events) - len(external)} 条对象、指派、门与快照的记录，在各层事件里"
+    linked = [("块", [block["ref"] for layer in executing for block in layer["blocks"]
+                     if block["value"] and block["value"]["artifacts"]]),
+              ("快照", [block["ref"] for layer in executing if layer["state"] for block in layer["state"]["blocks"]
+                       if block["value"] and block["value"]["artifacts"]]),
+              ("事件", [event["event_id"] for event in events if event["content"] and event["content"]["artifacts"]])]
+    answers = {
+        "why": " → ".join(f"{place(part)} {code(defs(part) or [part['object']['ref']])}" for part in goals),
+        "what": "；".join(f"{place(part)} {code(defs(part))}" for part in doing if defs(part)),
+        "who": "；".join(who),
+        "now": "、".join(states) + "（快照都未经确认）" if states else "",
+        "happened": happened if events else "",
+        "basis": "文档链接在" + "；".join(f"{kind} {code(refs)}" for kind, refs in linked if refs)
+                 if any(refs for _, refs in linked) else "",
+    }
+    gaps = {**_GAPS, "basis": "执行链上没有取到带文档链接的块、快照或事件"}
+    return "\n".join(["## 六问指引", "按问题给出处，内容在下文各层。"]
+                     + [f"- {QUESTIONS[name]}：{answer or '（缺口）' + gaps[name]}" for name, answer in answers.items()])
 
 
 # ------------------------------------------------------------ assembly from the database
@@ -208,11 +271,13 @@ def _name_events(conn: Any, ctx: Any, layers: list[dict[str, Any]]) -> None:
         event["assignee_name"] = event["assignee"] and names.get(event["assignee"], event["assignee"])
 
 
+def _values(group: str) -> dict[str, str]:
+    """事件属性取值的中文名（登记）。"""
+    return {item["id"]: item["display_name"] for item in world_registry.registry()["event_attribute_values"][group]}
+
+
 def _display(group: str, value: str | None) -> str:
-    if value is None:
-        return ""
-    values = {item["id"]: item["display_name"] for item in world_registry.registry()["event_attribute_values"][group]}
-    return "·" + values[value]
+    return "" if value is None else "·" + _values(group)[value]
 
 
 def _block_text(block: dict[str, Any], heading: str) -> str:
@@ -338,7 +403,7 @@ def build(conn: Any, ctx: Any, object_id: str, request: WorldContextRequest) -> 
     _name_events(conn, ctx, layers)
     start = start or layers[0]["object"]["ref"]
     result = trim(_items(request.question, start, layers), max_chars=budget["max_chars"],
-                  max_events_per_object=budget["max_events_per_object"])
+                  max_events_per_object=budget["max_events_per_object"], lead=lambda kept: guide(_keep(layers, kept)))
     packed = _keep(layers, {item["key"] for item in result["kept"]})
     plan = {
         # 沿主干读的是上一级的最新修订，引用字段钉定的版本只作出处。

@@ -201,15 +201,15 @@ uv sync --frozen --extra s3
 uv run pytest tests -q -m "not db"          # 无库测试，不需要 DATABASE_URL
 uvx ruff@0.16.7 check --select E9,F63,F7,F82 src tests acceptance scripts deploy experiments hatch_build.py
 python3 acceptance/runtime/infra.py up       # 本机隔离 PostgreSQL＋MinIO；CI 用 attach 接一次性服务容器
-python3 acceptance/runtime/infra.py run -- .venv/bin/python -m pytest tests -q -m db --ignore=tests/test_migrations.py --ignore=tests/test_narrative_legacy.py
-python3 acceptance/runtime/infra.py run --migration -- .venv/bin/python -m pytest tests/test_migrations.py tests/test_narrative_legacy.py -q
+python3 acceptance/runtime/infra.py run -- .venv/bin/python -m pytest tests -q -m "db and not owner"
+python3 acceptance/runtime/infra.py run --migration -- .venv/bin/python -m pytest tests -q -m owner
 (cd workbench/dashboard && npm ci && npm run typecheck && npm test) && python3 scripts/verify_dashboard_assets.py
 node --test tests/workbench-ui/*.test.mjs
 uv build
 ```
 
 - 要数据库的测试都标了 `db`。没有 `DATABASE_URL` 时它们直接失败，不会退回本机默认库。
-- 应用角色那一轮，在 RLS 生效下跑全部数据库测试。迁移所有者那一轮，只跑需要建临时库与角色的两组。
+- 应用角色那一轮，在 RLS 生效下跑全部数据库测试。迁移所有者那一轮，只跑标了 `owner` 的测试：它们要建临时库或角色，或经 bootstrap 播种。
 - 这些测试不代替各协议的独立验收矩阵。
 
 ## 本地独立验收

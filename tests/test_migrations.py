@@ -13,7 +13,7 @@ from memory_service_app import migrate as migrate_module
 from memory_service_app.migrate import MIGRATIONS_DIR, migrate
 from tests.conftest import DATABASE_URL
 
-pytestmark = pytest.mark.db
+pytestmark = [pytest.mark.db, pytest.mark.owner]
 
 
 def test_packaged_migrations_replay_from_empty_database() -> None:

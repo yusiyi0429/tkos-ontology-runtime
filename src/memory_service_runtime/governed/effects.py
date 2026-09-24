@@ -29,6 +29,7 @@ def governance_dispatch(task) -> dict:
             # before the first gov_scopes read (0018 restrictive policies hide
             # identity/scope rows from pre-A1 binaries, stopping them here).
             db.set_write_capability(conn)
+            db.set_timeouts(conn)
             conn.execute("SELECT set_config('app.governed_scope_id', %s, true)", (scope_id,))
             scope = conn.execute(
                 "SELECT * FROM gov_scopes WHERE scope_id=%s AND tenant_id=%s AND company_id=%s FOR UPDATE",

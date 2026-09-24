@@ -26,7 +26,7 @@ from memory_service_app.main import app
 from memory_service_runtime.governed import bootstrap
 from tests.conftest import DATABASE_URL
 
-pytestmark = pytest.mark.db
+pytestmark = [pytest.mark.db, pytest.mark.owner]
 
 
 EMBEDDING_KEY = "synthetic-legacy-embedding-key"

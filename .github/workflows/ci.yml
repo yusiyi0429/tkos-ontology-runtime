@@ -56,9 +56,9 @@ jobs:
       - name: 建角色、迁移、授权
         run: python3 acceptance/runtime/infra.py attach
       - name: 应用角色（RLS 生效）
-        run: python3 acceptance/runtime/infra.py run -- .venv/bin/python -m pytest tests -q -m db --ignore=tests/test_migrations.py --ignore=tests/test_narrative_legacy.py -rs
+        run: python3 acceptance/runtime/infra.py run -- .venv/bin/python -m pytest tests -q -m "db and not owner" -rs
       - name: 迁移所有者角色
-        run: python3 acceptance/runtime/infra.py run --migration -- .venv/bin/python -m pytest tests/test_migrations.py tests/test_narrative_legacy.py -q -rs
+        run: python3 acceptance/runtime/infra.py run --migration -- .venv/bin/python -m pytest tests -q -m owner -rs
 
   dashboard:
     name: 看板类型检查、测试与产物清单

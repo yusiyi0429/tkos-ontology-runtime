@@ -1112,17 +1112,24 @@ def prepare_action(conn: Any, ctx: Any, request: ActionRequest) -> dict[str, Any
     }
 
 
+def _note(receipt: dict[str, Any], replayed: bool) -> dict[str, Any]:
+    """事务提交后随运行记录写出的动作标识（不含请求内容）。"""
+    db.ACTION.set({"action_type": receipt["action_type"], "receipt_id": receipt["receipt_id"],
+                   "effect_task_ids": receipt["effect_task_ids"], "replayed": replayed})
+    return receipt
+
+
 def execute_action(conn: Any, ctx: Any, request: ActionRequest) -> dict[str, Any]:
     digest = _hash(request.model_dump(mode="json", exclude_none=True))
     replay = _replay(conn, ctx, request, digest)
     if replay is not None:
-        return replay
+        return _note(replay, True)
     execution = _execution_factory(conn, ctx, request)
     execution.authorize()
     execution.collect_dependencies()
     execution.check_versions()
     result = execution.run_action()
-    return execution.finish(result, digest)
+    return _note(execution.finish(result, digest), False)
 
 
 __all__ = ["execute_action", "prepare_action", "ActionExecution"]

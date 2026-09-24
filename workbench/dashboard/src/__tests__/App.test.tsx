@@ -253,7 +253,7 @@ describe("not found and recovery", () => {
     expect(await screen.findByText("对象不存在或当前不可见")).toBeInTheDocument()
     expect(screen.queryByTestId("auth-lost")).not.toBeInTheDocument()
     gone = false
-    await user.click(screen.getByRole("button", { name: "立即刷新" }))
+    await user.click(await screen.findByRole("button", { name: "立即刷新" }))
     expect(await screen.findByTestId("detail-pane")).toBeInTheDocument()
     expect(screen.queryByText("对象不存在或当前不可见")).not.toBeInTheDocument()
   })
@@ -265,7 +265,7 @@ describe("not found and recovery", () => {
     render(<App />)
     await screen.findByTestId("ontology-map")
     deny = true
-    await user.click(screen.getByRole("button", { name: "立即刷新" }))
+    await user.click(await screen.findByRole("button", { name: "立即刷新" }))
     expect(await screen.findByTestId("auth-lost")).toBeInTheDocument()
     deny = false
     await act(async () => { window.dispatchEvent(new Event("focus")) })

@@ -12,9 +12,12 @@ from datetime import datetime, timezone
 import json
 from pathlib import Path
 
+from acceptance.method_independent.fixture import uid
 from acceptance.method_independent.harness import MethodHarness
-from acceptance.protocol_a1_independent.support import public_json, source_manifest
-from .fixture import ROOT, probe_binding_gate, register_world, revoke_assignment, seed_world
+from acceptance.protocol_a1_independent.control_adapter import ControlAdapter
+from acceptance.protocol_a1_independent.support import private_json, public_json, source_manifest
+from .fixture import (GATE_ROLES, ROOT, activation_policy, install_activation_policies, owner_rows,
+                      probe_binding_gate, register_world, revoke_assignment, seed_world)
 from .flow import Flow
 
 PROFILE = json.loads((ROOT / 'docs/contracts/world-profile-0.1.json').read_text())
@@ -34,7 +37,7 @@ def company_root(h, f, flow):
     check = _checker(checks)
 
     last = flow.rows('SELECT name FROM schema_migrations ORDER BY name DESC LIMIT 1')[0]['name']
-    check('the_world_migration_is_the_newest_applied_migration', last == '0034_world_v01_assign_owner.sql')
+    check('the_world_migration_is_the_newest_applied_migration', last == '0035_world_v01_gates_repin.sql')
 
     # ------------------------------------------------------------ happy path
     identity = {'text': '一家为企业做经营系统的公司。', 'artifacts': ['https://example.test/company-brief']}
@@ -817,6 +820,356 @@ def assign_and_lifecycle(h, f, flow, made):
     return {'checks': checks}
 
 
+def activation_policy_control(h, source, f, installed):
+    """票 #24：激活策略经控制面 install-activation-policy 安装；失败的安装整体回滚，什么都不留。"""
+    checks = []
+    check = _checker(checks)
+    scope = f['scope_id']
+
+    def control_state():
+        return (owner_rows(h.env, scope, 'SELECT * FROM gov_activation_policies WHERE scope_id=%s ORDER BY domain_id, policy_seq',
+                           (scope,)),
+                owner_rows(h.env, scope, 'SELECT * FROM gov_protocol_control_events WHERE scope_id=%s ORDER BY recorded_at, event_id',
+                           (scope,)),
+                owner_rows(h.env, scope, 'SELECT auth_epoch FROM gov_scopes WHERE scope_id=%s', (scope,)))
+
+    policies, events, _ = control_state()
+    latest = {}
+    for row in policies:
+        latest[str(row['domain_id'])] = row
+    installs = [e for e in events if e['event_type'] == 'install_activation_policy']
+    check('each_domain_gets_its_activation_policy_from_the_control_plane_with_one_control_event_each',
+          sorted(e['detail']['domain_id'] for e in installs) == sorted(f['domains'].values())
+          and all(latest[f['domains'][name]]['policy_seq'] == response['policy_seq']
+                  and str(latest[f['domains'][name]]['policy_id']) == response['policy_id']
+                  for name, response in installed.items()))
+    check('the_installed_policies_carry_the_gate_roles_of_the_registry',
+          all(latest[domain]['content']['action_roles'][action] == roles
+              for domain in f['domains'].values() for action, roles in GATE_ROLES.items()))
+
+    adapter = ControlAdapter(h, source, 'memory_service_runtime.governed.control')
+    good = activation_policy(h.env, scope, f['domains']['c'], 'c')
+    before = control_state()
+    for label, content, domain, code in (
+            ('an_unknown_role', {**good, 'action_roles': {**good['action_roles'], 'world_confirm_mission': ['CTO']}},
+             f['domains']['c'], 'INVALID_REQUEST'),
+            ('an_empty_role_list', {**good, 'action_roles': {**good['action_roles'], 'world_assign': []}},
+             f['domains']['c'], 'INVALID_REQUEST'),
+            ('a_domain_of_another_scope', good, f['foreign_domains']['c'], 'DOMAIN_NOT_FOUND'),
+            # 授权纪元已经推进、写策略时才被数据库拒绝（jsonb 不收 \u0000）：纪元也要一起回滚。
+            ('content_the_database_refuses_after_the_epoch_moved', {**good, 'notes': 'nul \u0000 byte'},
+             f['domains']['c'], 'CONTROL_PLANE_UNAVAILABLE'),
+    ):
+        tag = uid()[:8]
+        path = h.private / f'activation-bad-{tag}.json'
+        private_json(path, content)
+        adapter.cli('world-activation-bad-' + tag, [
+            'install-activation-policy', '--scope-id', scope, '--domain-id', domain, '--content-json', str(path),
+            '--reason', 'Synthetic refusal'], expected_exit=2, expected_error_code=code)
+        check(f'an_activation_policy_with_{label}_is_refused_and_nothing_is_left_behind', control_state() == before)
+    return checks
+
+
+def gates(h, f, flow, made):
+    """票 #24：承诺与确认的门——完整 Mission 场景、退回与撤回、目标的门、重走写回、每个门动作的拒绝用例。"""
+    checks = []
+    check = _checker(checks)
+    strategy = made['Strategy']
+
+    def view(obj):
+        return flow.read('outsider', obj['object_id'])
+
+    def event_of(receipt):
+        return str(flow.rows('SELECT event_id FROM gov_world_events WHERE scope_id=%s AND action_id=%s',
+                             (f['scope_id'], receipt['receipt_id']))[0]['event_id'])
+
+    def at(obj, status, receipt, *, formal=None):
+        """所处的段由这条回执的事件推出；formal 给出时核对正式内容指针（'latest' 表示指向最新修订）。"""
+        seen = view(obj)
+        ok = seen['lifecycle']['status'] == status and seen['lifecycle']['event_id'] == event_of(receipt)
+        if formal is not None:
+            status_, pointer = formal
+            ok = ok and seen['formal'] == {'lifecycle_status': status_, 'effective_revision_id':
+                                           seen['revision_id'] if pointer == 'latest' else pointer}
+        return ok
+
+    def gate(actor, kind, obj, **params):
+        return flow.gate(actor, kind, obj['object_id'], params)
+
+    def deny_gate(actor, kind, obj, codes, says=None, target=None, prepare=True, **params):
+        flow.deny(actor, flow.targeted(kind, obj['object_id'], params, target), codes=codes, says=says, prepare=prepare)
+
+    def wrong_version(obj):
+        seen = view(obj)
+        return {'object_id': obj['object_id'], 'revision_id': seen['revision_id'], 'expected_version': seen['object_version'] + 1}
+
+    # ------------------------------------------------------------ a unit with its goals and a Mission
+    unit = flow.create('ceo', 'ResponsibilityUnit', 'c', {
+        'title': '增长', 'unit_kind': 'battlefield', 'architecture_ref': _ref(strategy, 'responsibility_structure')})['result']
+    goal = flow.create('c', 'LongTermGoal', 'c', {'title': '增长年度目标', 'scope': 'unit', 'horizon': '2027 年底',
+                                                  'parent_ref': _ref(unit)})['result']
+    period = flow.create('c', 'PeriodGoal', 'c', {'title': '10 月', 'period': '2026-10', 'goal_ref': _ref(goal)})['result']
+    mission = flow.create('c', 'Mission', 'c', {'title': '拿下首批三家客户', 'goal_ref': _ref(period),
+                                                'blocks': {'play': {'text': '先打 E&O 老客户。'}}})['result']
+    flow.assign('c', mission['object_id'], f['actors']['owner_c']['principal_id'])
+
+    # ------------------------------------------------------------ the Mission, from commitment to closure
+    promise = gate('owner_c', 'world_commit_mission', mission, phase='initiation')
+    check('the_owner_commits_the_initiation_and_the_content_is_not_formal_yet',
+          at(mission, 'committed', promise, formal=('draft', None)))
+    established = gate('c', 'world_confirm_mission', mission, phase='initiation', outcome='accepted')
+    check('the_dri_accepts_the_initiation_and_the_confirmed_revision_becomes_the_formal_content',
+          at(mission, 'established', established, formal=('confirmed', 'latest'))
+          and established['result']['revision_id'] == view(mission)['formal']['effective_revision_id'])
+    mark = gate('ceo', 'world_mark_core_battle', mission)
+    marked = view(mission)
+    check('the_ceo_marks_the_established_mission_a_core_battle_which_now_awaits_the_ceo',
+          at(mission, 'awaiting_ceo', mark, formal=('confirmed', 'latest'))
+          and marked['attributes']['core_battle'] is True and mark['result']['version'] == marked['version'])
+    first_ceo = gate('ceo', 'world_confirm_mission_core_battle', mission, phase='initiation', outcome='accepted')
+    pointer = view(mission)['formal']
+    undone = gate('ceo', 'world_confirm_mission_core_battle', mission, phase='initiation', outcome='withdrawn',
+                  supersedes_event_id=event_of(first_ceo))
+    check('withdrawing_a_confirmation_that_did_not_make_the_content_formal_leaves_the_formal_pointer',
+          at(mission, 'awaiting_ceo', undone, formal=('confirmed', pointer['effective_revision_id'])))
+    by_ceo = gate('ceo', 'world_confirm_mission_core_battle', mission, phase='initiation', outcome='accepted')
+    check('the_ceo_confirms_the_core_battle_initiation', at(mission, 'established', by_ceo, formal=('confirmed', 'latest')))
+    running = flow.refresh('owner_c', {'title': '首周', 'subject_ref': _ref(mission), 'as_of': '2026-09-24T06:00:00Z',
+                                       'blocks': {'progress': {'text': '约到两家。'}}})
+    check('the_first_snapshot_puts_it_in_progress', at(mission, 'in_progress', running))
+
+    # 已成立后直接修订被拒；重走立项门：Owner 承诺带候选，DRI 接受，核心战役还要 CEO 接受，写回发生在 CEO 接受时。
+    formal_before = view(mission)
+    flow.deny('owner_c', flow.targeted('world_revise_object', mission['object_id'], {
+        'payload': {'blocks': {'play': {'text': '改打新客户。'}}}}), codes={'INVALID_STATE'}, says='only while it is a draft')
+    check('an_established_mission_is_not_revised_directly')
+    rerun = gate('owner_c', 'world_commit_mission', mission, phase='initiation',
+                 payload={'blocks': {'play': {'text': '改打新客户。'}}}, content={'text': '打法调整，见草稿。',
+                                                                         'artifacts': ['https://example.test/play-v2']})
+    dri_ok = gate('c', 'world_confirm_mission', mission, phase='initiation', outcome='accepted')
+    pending = view(mission)
+    check('a_rerun_commitment_carries_its_candidate_and_nothing_formal_changes_until_the_last_confirmation',
+          rerun['result']['candidate']['blocks']['play']['text'] == '改打新客户。'
+          and pending['version'] == formal_before['version'] and pending['formal'] == formal_before['formal']
+          and {b['id']: b['text'] for b in pending['blocks']}['play'] == '先打 E&O 老客户。'
+          and at(mission, 'in_progress', running))
+    written = gate('ceo', 'world_confirm_mission_core_battle', mission, phase='initiation', outcome='accepted')
+    after = view(mission)
+    confirm_event = flow.rows('SELECT subject_refs FROM gov_world_events WHERE scope_id=%s AND action_id=%s',
+                              (f['scope_id'], written['receipt_id']))[0]
+    revised_events = [e for e in flow.events('outsider', mission['object_id'])['events'] if e['kind'] == 'object.revised']
+    check('the_ceo_acceptance_writes_the_candidate_back_as_the_new_formal_version_without_moving_the_lifecycle',
+          revised_events == [] and
+          after['version'] == formal_before['version'] + 1 and written['result']['revision_id'] == after['revision_id']
+          and {b['id']: b['text'] for b in after['blocks']}['play'] == '改打新客户。'
+          and after['attributes']['core_battle'] is True and after['attributes']['responsible'] == f['actors']['owner_c']['principal_id']
+          and after['formal'] == {'lifecycle_status': 'confirmed', 'effective_revision_id': after['revision_id']}
+          and confirm_event['subject_refs'][0]['revision_id'] == after['revision_id']
+          and at(mission, 'in_progress', running) and dri_ok['result']['revision_id'] == formal_before['revision_id'])
+
+    delivered = gate('owner_c', 'world_commit_mission', mission, phase='delivery')
+    check('the_owner_commits_the_delivery', at(mission, 'delivered', delivered, formal=('confirmed', 'latest')))
+    returned = gate('c', 'world_confirm_mission', mission, phase='delivery', outcome='returned',
+                    content={'text': '第三家客户还没签。'})
+    check('the_dri_returns_the_delivery_for_adjustment', at(mission, 'adjusting', returned, formal=('confirmed', 'latest')))
+    again = gate('owner_c', 'world_commit_mission', mission, phase='delivery')
+    check('the_owner_commits_the_delivery_again_from_adjustment', at(mission, 'delivered', again, formal=('confirmed', 'latest')))
+    closed = gate('c', 'world_confirm_mission', mission, phase='delivery', outcome='accepted')
+    listed = [e for e in flow.events('outsider', mission['object_id'])['events'] if e['kind'] in {'commit', 'confirm'}]
+    check('the_dri_closes_the_delivery_and_every_gate_event_is_listed_with_its_action_phase_and_outcome',
+          at(mission, 'closed', closed, formal=('confirmed', 'latest'))
+          and [(e['action'], e['phase'], e['outcome']) for e in listed] == [
+              ('world_commit_mission', 'initiation', None), ('world_confirm_mission', 'initiation', 'accepted'),
+              ('world_confirm_mission_core_battle', 'initiation', 'accepted'),
+              ('world_confirm_mission_core_battle', 'initiation', 'withdrawn'),
+              ('world_confirm_mission_core_battle', 'initiation', 'accepted'),
+              ('world_commit_mission', 'initiation', None), ('world_confirm_mission', 'initiation', 'accepted'),
+              ('world_confirm_mission_core_battle', 'initiation', 'accepted'),
+              ('world_commit_mission', 'delivery', None), ('world_confirm_mission', 'delivery', 'returned'),
+              ('world_commit_mission', 'delivery', None), ('world_confirm_mission', 'delivery', 'accepted')]
+          and [e for e in listed if e['outcome'] == 'returned'][0]['content']['text'] == '第三家客户还没签。')
+
+    # ------------------------------------------------------------ the goals' gates, return and withdrawal
+    ceo_back = gate('ceo', 'world_confirm_long_term_goal', goal, outcome='returned', content={'text': '衡量口径再具体一点。'})
+    check('a_returned_long_term_goal_stays_a_draft_with_the_return_on_record',
+          view(goal)['lifecycle']['status'] == 'draft' and ceo_back['result']['event_id'] == event_of(ceo_back))
+    flow.revise('c', goal['object_id'], {'blocks': {'measures': {'text': '签约额与续约率。'}}})
+    goal_ok = gate('ceo', 'world_confirm_long_term_goal', goal, outcome='accepted')
+    check('the_ceo_confirms_the_revised_long_term_goal', at(goal, 'confirmed', goal_ok, formal=('confirmed', 'latest')))
+    goal_back = gate('ceo', 'world_confirm_long_term_goal', goal, outcome='withdrawn',
+                     supersedes_event_id=event_of(goal_ok))
+    check('withdrawing_the_confirmation_takes_the_formal_content_back_with_the_lifecycle',
+          at(goal, 'draft', goal_back, formal=('draft', None)))
+    goal_again = gate('ceo', 'world_confirm_long_term_goal', goal, outcome='accepted')
+    rewrite = gate('ceo', 'world_confirm_long_term_goal', goal, outcome='accepted',
+                   payload={'blocks': {'outcome': {'text': '年底签约额翻倍。'}}})
+    check('a_confirmed_long_term_goal_is_changed_by_a_ceo_confirmation_that_carries_the_new_content',
+          at(goal, 'confirmed', goal_again, formal=('confirmed', 'latest'))
+          and {b['id']: b['text'] for b in view(goal)['blocks']}['outcome'] == '年底签约额翻倍。'
+          and rewrite['result']['version'] == view(goal)['version'])
+
+    pg_promise = gate('c', 'world_commit_period_goal', period)
+    pg_withdrawn = gate('c', 'world_commit_period_goal', period, outcome='withdrawn',
+                        supersedes_event_id=event_of(pg_promise))
+    kinds = [(e['event_id'], e['outcome']) for e in flow.events('outsider', period['object_id'])['events'] if e['kind'] == 'commit']
+    check('a_mistaken_commitment_is_withdrawn_by_the_same_role_and_the_original_event_stays',
+          at(period, 'draft', pg_withdrawn) and kinds == [(event_of(pg_promise), None), (event_of(pg_withdrawn), 'withdrawn')])
+    gate('c', 'world_commit_period_goal', period)
+    pg_back = gate('ceo', 'world_confirm_period_goal', period, outcome='returned')
+    flow.revise('c', period['object_id'], {'blocks': {'acceptance': {'text': '三家签约。'}}})
+    gate('c', 'world_commit_period_goal', period)
+    pg_ok = gate('ceo', 'world_confirm_period_goal', period, outcome='accepted')
+    check('a_period_goal_is_returned_revised_as_a_draft_committed_again_and_confirmed',
+          view(period)['lifecycle']['status'] == 'confirmed' and at(period, 'confirmed', pg_ok, formal=('confirmed', 'latest'))
+          and pg_back['result']['event_id'] == event_of(pg_back))
+    flow.deny('c', flow.targeted('world_revise_object', period['object_id'], {'payload': {'title': '10 月（改）'}}),
+              codes={'INVALID_STATE'}, says='only while it is a draft')
+    check('a_confirmed_period_goal_is_not_revised_directly')
+    pg_rerun = gate('c', 'world_commit_period_goal', period, payload={'title': '10 月（改）'})
+    deny_gate('c', 'world_commit_period_goal', period, {'INVALID_STATE'}, says='already awaits confirmation',
+              payload={'title': '又一版'})
+    check('a_second_candidate_waits_for_the_first_to_be_confirmed_or_returned',
+          view(period)['title'] == '10 月' and pg_rerun['result']['candidate']['title'] == '10 月（改）')
+    pg_written = gate('ceo', 'world_confirm_period_goal', period, outcome='accepted')
+    check('the_ceo_confirmation_writes_the_period_goal_candidate_back',
+          view(period)['title'] == '10 月（改）' and at(period, 'confirmed', pg_ok, formal=('confirmed', 'latest'))
+          and pg_written['result']['revision_id'] == view(period)['revision_id'])
+
+    # ------------------------------------------------------------ replay and key reuse
+    body = flow.prepare('c', flow.targeted('world_commit_period_goal', period['object_id'], {'payload': {'title': '10 月（三）'}}))
+    receipt, replay = flow.commit('c', body), flow.commit('c', deepcopy(body))
+    changed = deepcopy(body)
+    changed['params']['payload'] = {'title': 'Another candidate under the same key'}
+    flow.deny('c', changed, codes={'IDEMPOTENCY_CONFLICT'}, prepare=False)
+    check('a_replayed_gate_returns_its_receipt_and_a_reused_key_for_another_candidate_is_refused',
+          replay['receipt_id'] == receipt['receipt_id'])
+    discarded = gate('ceo', 'world_confirm_period_goal', period, outcome='returned')
+    deny_gate('ceo', 'world_confirm_period_goal', period, {'INVALID_STATE'}, says='not allowed at this stage',
+              outcome='accepted')
+    check('a_returned_candidate_is_discarded_and_nothing_is_left_to_confirm',
+          view(period)['title'] == '10 月（改）' and at(period, 'confirmed', pg_ok, formal=('confirmed', 'latest'))
+          and discarded['result']['revision_id'] == view(period)['revision_id'])
+
+    # ------------------------------------------------------------ a Mission that is not a core battle
+    def mission_in_c(title):
+        obj = flow.create('c', 'Mission', 'c', {'title': title, 'goal_ref': _ref(period)})['result']
+        flow.assign('c', obj['object_id'], f['actors']['owner_c']['principal_id'])
+        return obj
+
+    plain = flow.create('c', 'Mission', 'c', {'title': '续约两家老客户', 'goal_ref': _ref(period)})['result']
+    flow.assign('c', plain['object_id'], f['actors']['owner_c']['principal_id'])
+    gate('owner_c', 'world_commit_mission', plain, phase='initiation')
+    gate('c', 'world_confirm_mission', plain, phase='initiation', outcome='accepted')
+    started = flow.refresh('owner_c', {'title': '启动', 'subject_ref': _ref(plain), 'as_of': '2026-09-24T06:30:00Z',
+                                       'blocks': {'progress': {'text': '已联系。'}}})
+    before = view(plain)
+    gate('owner_c', 'world_commit_mission', plain, phase='initiation',
+         payload={'blocks': {'acceptance': {'text': '两家都续约。'}}})
+    plain_written = gate('c', 'world_confirm_mission', plain, phase='initiation', outcome='accepted')
+    plain_after = view(plain)
+    check('a_mission_that_is_not_a_core_battle_writes_its_candidate_back_when_the_dri_accepts',
+          plain_after['version'] == before['version'] + 1 and plain_written['result']['revision_id'] == plain_after['revision_id']
+          and {b['id']: b['text'] for b in plain_after['blocks']}['acceptance'] == '两家都续约。'
+          and at(plain, 'in_progress', started, formal=('confirmed', 'latest')))
+
+    # 已成立后被标为核心战役：CEO 的一次接受既让它回到已成立，也写回进行中那一轮的候选。
+    rerun_marked = mission_in_c('重走中被标记')
+    gate('owner_c', 'world_commit_mission', rerun_marked, phase='initiation')
+    gate('c', 'world_confirm_mission', rerun_marked, phase='initiation', outcome='accepted')
+    gate('owner_c', 'world_commit_mission', rerun_marked, phase='initiation', payload={'title': '重走后的标题'})
+    gate('ceo', 'world_mark_core_battle', rerun_marked)
+    gate('c', 'world_confirm_mission', rerun_marked, phase='initiation', outcome='accepted')
+    both = gate('ceo', 'world_confirm_mission_core_battle', rerun_marked, phase='initiation', outcome='accepted')
+    check('one_ceo_acceptance_establishes_a_mission_marked_during_a_rerun_and_writes_its_candidate_back',
+          at(rerun_marked, 'established', both, formal=('confirmed', 'latest')) and view(rerun_marked)['title'] == '重走后的标题')
+
+    # 已成立后被标为核心战役、CEO 退回草稿：正式内容一并收回，这条退回不能撤回；草稿修订不碰正式内容指针。
+    returned_core = mission_in_c('被 CEO 退回')
+    gate('owner_c', 'world_commit_mission', returned_core, phase='initiation')
+    gate('c', 'world_confirm_mission', returned_core, phase='initiation', outcome='accepted')
+    gate('ceo', 'world_mark_core_battle', returned_core)
+    ceo_return = gate('ceo', 'world_confirm_mission_core_battle', returned_core, phase='initiation', outcome='returned')
+    taken_back = at(returned_core, 'draft', ceo_return, formal=('draft', None))
+    deny_gate('ceo', 'world_confirm_mission_core_battle', returned_core, {'INVALID_STATE'},
+              says='took the formal content back', phase='initiation', outcome='withdrawn',
+              supersedes_event_id=event_of(ceo_return))
+    flow.revise('owner_c', returned_core['object_id'], {'title': '退回后改写'})
+    check('a_return_to_draft_takes_the_formal_content_back_and_cannot_be_withdrawn',
+          taken_back and at(returned_core, 'draft', ceo_return, formal=('draft', None))
+          and view(returned_core)['title'] == '退回后改写')
+
+    # ------------------------------------------------------------ rejections, one set per gate action
+    draft_goal = flow.create('c', 'PeriodGoal', 'c', {'title': '11 月', 'period': '2026-11', 'goal_ref': _ref(goal)})['result']
+    committed_goal = flow.create('c', 'PeriodGoal', 'c', {'title': '12 月', 'period': '2026-12', 'goal_ref': _ref(goal)})['result']
+    gate('c', 'world_commit_period_goal', committed_goal)
+    draft_mission, committed_mission, core_mission = (mission_in_c(title) for title in ('草稿', '已承诺', '等 CEO'))
+    gate('owner_c', 'world_commit_mission', committed_mission, phase='initiation')
+    gate('ceo', 'world_mark_core_battle', core_mission)
+    gate('owner_c', 'world_commit_mission', core_mission, phase='initiation')
+    gate('c', 'world_confirm_mission', core_mission, phase='initiation', outcome='accepted')
+    initiation_ok = {'phase': 'initiation', 'outcome': 'accepted'}
+    for kind, actor, obj, params in (
+            ('world_commit_period_goal', 'owner_c', draft_goal, {}),
+            ('world_commit_mission', 'c', draft_mission, {'phase': 'initiation'}),
+            ('world_confirm_long_term_goal', 'c', goal, {'outcome': 'accepted'}),
+            ('world_confirm_period_goal', 'c', committed_goal, {'outcome': 'accepted'}),
+            ('world_confirm_mission', 'owner_c', committed_mission, initiation_ok),
+            ('world_confirm_mission_core_battle', 'c', core_mission, initiation_ok),
+            ('world_mark_core_battle', 'c', draft_mission, {}),
+    ):
+        deny_gate(actor, kind, obj, {'FORBIDDEN'}, **params)
+        check(f'{kind}_by_a_role_the_policy_does_not_list_is_refused')
+    for kind, actor, obj, params in (
+            ('world_commit_period_goal', 'c', committed_goal, {}),
+            ('world_commit_mission', 'owner_c', draft_mission, {'phase': 'delivery'}),
+            ('world_confirm_long_term_goal', 'ceo', goal, {'outcome': 'returned'}),
+            ('world_confirm_period_goal', 'ceo', draft_goal, {'outcome': 'accepted'}),
+            ('world_confirm_mission', 'c', draft_mission, initiation_ok),
+            ('world_confirm_mission_core_battle', 'ceo', committed_mission, initiation_ok),
+            ('world_mark_core_battle', 'ceo', plain, {}),
+    ):
+        deny_gate(actor, kind, obj, {'INVALID_STATE'}, says='not allowed at this stage', **params)
+        check(f'{kind}_in_a_state_the_gate_does_not_allow_is_refused')
+    # 期望版本错了的请求本身在当前状态下是合法的：拒绝只来自版本。
+    for kind, actor, obj, params in (
+            ('world_commit_period_goal', 'c', draft_goal, {}),
+            ('world_commit_mission', 'owner_c', draft_mission, {'phase': 'initiation'}),
+            ('world_confirm_long_term_goal', 'ceo', goal, {'outcome': 'accepted', 'payload': {'title': 'x'}}),
+            ('world_confirm_period_goal', 'ceo', committed_goal, {'outcome': 'accepted'}),
+            ('world_confirm_mission', 'c', committed_mission, initiation_ok),
+            ('world_confirm_mission_core_battle', 'ceo', core_mission, initiation_ok),
+            ('world_mark_core_battle', 'ceo', draft_mission, {}),
+    ):
+        deny_gate(actor, kind, obj, {'VERSION_CONFLICT', 'STALE_DEPENDENCY'}, target=wrong_version(obj), prepare=False, **params)
+        check(f'{kind}_with_a_wrong_expected_version_is_refused')
+
+    deny_gate('other_owner_c', 'world_commit_mission', draft_mission, {'FORBIDDEN'}, says="Only the Mission's Owner",
+              phase='initiation')
+    check('an_owner_role_alone_does_not_commit_someone_elses_mission')
+    deny_gate('agent', 'world_confirm_mission', made['Mission'], {'FORBIDDEN'}, says='signed by a person', **initiation_ok)
+    check('an_agent_holding_the_dri_role_cannot_sign_a_gate')
+    deny_gate('owner_c', 'world_commit_mission', draft_mission, {'INVALID_REQUEST'}, says='revised directly',
+              phase='initiation', payload={'title': 'x'})
+    check('a_draft_carries_no_candidate_because_it_is_revised_directly')
+    deny_gate('c', 'world_commit_period_goal', period, {'INVALID_REQUEST'}, says='carries the candidate')
+    check('a_rerun_commitment_must_carry_its_candidate')
+    deny_gate('owner_c', 'world_commit_mission', period, {'ACTION_NOT_SUPPORTED_FOR_PROTOCOL'}, phase='initiation')
+    check('a_gate_on_a_type_it_does_not_name_is_refused')
+    gate('ceo', 'world_mark_core_battle', draft_mission)
+    deny_gate('ceo', 'world_mark_core_battle', draft_mission, {'INVALID_STATE'}, says='already a core battle')
+    check('a_mission_is_marked_a_core_battle_once')
+    first = gate('owner_c', 'world_commit_mission', draft_mission, phase='initiation')
+    deny_gate('c', 'world_confirm_mission', draft_mission, {'INVALID_STATE'}, says='Only the commitment or confirmation',
+              phase='initiation', outcome='withdrawn', supersedes_event_id=event_of(first))
+    check('a_withdrawal_is_recorded_by_the_same_gate_action_as_the_event_it_withdraws')
+    dri_first = gate('c', 'world_confirm_mission', draft_mission, **initiation_ok)
+    deny_gate('owner_c', 'world_commit_mission', draft_mission, {'INVALID_STATE'}, says='Only the commitment or confirmation',
+              phase='initiation', outcome='withdrawn', supersedes_event_id=event_of(first))
+    check('only_the_gate_event_that_produced_the_current_stage_is_withdrawn',
+          at(draft_mission, 'awaiting_ceo', dri_first, formal=('draft', None)))
+    return {'checks': checks}
+
+
 def revocation(h, f, flow, company_command):
     """最后撤掉 CEO 在公司域的那条 CEO 指派：CEO 在别的域还有角色，仍是 scope 成员，但原命令不能再被重放成成功。"""
     checks = []
@@ -828,7 +1181,9 @@ def revocation(h, f, flow, company_command):
 
 def run(h: MethodHarness, source: Path):
     f = seed_world(h.env, h.private / 'identities.json', 'runtime-acceptance-world-v01')
+    installed = install_activation_policies(h, source, f)
     register_world(h, source, f)
+    policy_checks = activation_policy_control(h, source, f, installed)
     process, url, _ = h.start_api(source)
     flow = Flow(h, url, f)
     try:
@@ -836,14 +1191,17 @@ def run(h: MethodHarness, source: Path):
         objects = objects_and_refs(h, f, flow, ctx['company'])
         revisions = revise_and_relate(h, f, flow, ctx['company'], objects['made'])
         states = state_and_events(h, f, flow, objects['made'])
-        assigned = assign_and_lifecycle(h, f, flow, {**objects['made'], 'Company': ctx['company']})
-        checks = (ctx['checks'] + objects['checks'] + revisions['checks'] + states['checks'] + assigned['checks']
-                  + revocation(h, f, flow, ctx['company_command']))
+        made = {**objects['made'], 'Company': ctx['company']}
+        assigned = assign_and_lifecycle(h, f, flow, made)
+        gated = gates(h, f, flow, made)
+        checks = (policy_checks + ctx['checks'] + objects['checks'] + revisions['checks'] + states['checks']
+                  + assigned['checks'] + gated['checks'] + revocation(h, f, flow, ctx['company_command']))
         public_json(h.output / 'summary.json', {
             'world_v01_skeleton_passed': True, 'checks': checks,
-            'scope': 'Tickets #19-#23: world wiring, the Company root, the other seven creatable types, '
+            'scope': 'Tickets #19-#24: world wiring, the Company root, the other seven creatable types, '
                      'reference pinning, revisions, cross-chain relations, state snapshots, external events, '
-                     'assignments and derived lifecycles over real HTTP/PostgreSQL; synthetic data',
+                     'assignments, derived lifecycles, commitment and confirmation gates and the activation-policy '
+                     'control command over real HTTP/PostgreSQL; synthetic data',
             'world_api_accepted': False, 'world_api_accepted_note': 'set only by the finished matrix (ticket #27)',
             'real_model': 'not_run', 'mcp': 'not_built', 'deployment': 'not_verified'})
     finally:

@@ -17,6 +17,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import sys
 from typing import Any
 from uuid import uuid4
@@ -235,6 +236,52 @@ def install_policy(conn: psycopg.Connection, args: argparse.Namespace) -> dict[s
         "reason": args.reason,
     }, args.actor)
     return {"installed": True, "scope_id": scope_id, "domain_id": args.domain_id, "policy_seq": seq}
+
+
+def install_activation_policy(conn: psycopg.Connection, args: argparse.Namespace) -> dict[str, Any]:
+    """Install a domain's activation policy (action type -> allowed roles) as a new policy revision.
+
+    The whole content is replaced, as every policy revision is.  Advancing the scope's
+    auth_epoch before the insert locks the scope row, so the change serializes
+    with in-flight authorized transactions exactly like a revocation; any failure,
+    including one raised by the database after the epoch moved, rolls all of it back.
+    """
+    content = _load_strict_json(args.content_json)
+    action_roles = content.get("action_roles") if isinstance(content, dict) else None
+    if not isinstance(action_roles, dict) or not action_roles:
+        _fail("INVALID_REQUEST", "activation policy content needs a non-empty action_roles object.")
+    scope_id = args.scope_id
+    _begin(conn, scope_id)
+    _require_scope(conn, scope_id)
+    if conn.execute("SELECT 1 FROM gov_domains WHERE scope_id=%s AND domain_id=%s",
+                    (scope_id, args.domain_id)).fetchone() is None:
+        _fail("DOMAIN_NOT_FOUND", "The named domain does not exist in this scope.")
+    # The roles an assignment may carry are the database's own role constraint.
+    definition = conn.execute(
+        "SELECT pg_get_constraintdef(oid) AS d FROM pg_constraint"
+        " WHERE conrelid='gov_role_assignments'::regclass AND conname='ck_gov_assignment_role'").fetchone()["d"]
+    known = set(re.findall(r"'([A-Z_]+)'", definition))
+    for action, roles in action_roles.items():
+        if (not action or not isinstance(roles, list) or not roles
+                or any(not isinstance(role, str) or role not in known for role in roles)
+                or len(set(roles)) != len(roles)):
+            _fail("INVALID_REQUEST", f"action {action!r} needs a non-empty list of distinct known roles.")
+    epoch = conn.execute("UPDATE gov_scopes SET auth_epoch=auth_epoch+1 WHERE scope_id=%s RETURNING auth_epoch",
+                         (scope_id,)).fetchone()["auth_epoch"]
+    current = conn.execute(
+        "SELECT policy_id, policy_seq FROM gov_activation_policies WHERE scope_id=%s AND domain_id=%s"
+        " ORDER BY policy_seq DESC LIMIT 1", (scope_id, args.domain_id)).fetchone()
+    policy_id = current["policy_id"] if current else uuid4()
+    seq = current["policy_seq"] + 1 if current else 1
+    conn.execute(
+        "INSERT INTO gov_activation_policies (scope_id, domain_id, policy_id, policy_seq, content)"
+        " VALUES (%s,%s,%s,%s,%s)", (scope_id, args.domain_id, policy_id, seq, Jsonb(content)))
+    _audit(conn, scope_id, "install_activation_policy", {
+        "domain_id": args.domain_id, "policy_id": str(policy_id), "policy_seq": seq, "auth_epoch": epoch,
+        "content_sha256": canon.digest(content), "actions": sorted(action_roles), "reason": args.reason,
+    }, args.actor)
+    return {"installed": True, "scope_id": scope_id, "domain_id": args.domain_id, "policy_id": policy_id,
+            "policy_seq": seq, "auth_epoch": epoch}
 
 
 def set_registry(conn: psycopg.Connection, args: argparse.Namespace) -> dict[str, Any]:
@@ -512,6 +559,12 @@ def main() -> None:
     p.add_argument("--content-json", required=True)
     p.add_argument("--reason", required=True)
 
+    p = base("install-activation-policy")
+    p.add_argument("--scope-id", required=True)
+    p.add_argument("--domain-id", required=True)
+    p.add_argument("--content-json", required=True)
+    p.add_argument("--reason", required=True)
+
     p = base("set-registry")
     p.add_argument("--scope-id", required=True)
     p.add_argument("--protocol-id", required=True)
@@ -544,6 +597,7 @@ def main() -> None:
     handler = {
         "install-profile": install_profile,
         "install-policy": install_policy,
+        "install-activation-policy": install_activation_policy,
         "set-registry": set_registry,
         "freeze-writes": freeze_writes,
         "register-sentinel": register_sentinel,

@@ -13,7 +13,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from functools import lru_cache
 import re
-from typing import Annotated, Any, Literal, Optional
+from typing import Annotated, Any, Literal, NamedTuple, Optional
 
 from pydantic import (AfterValidator, BaseModel, Field, StrictBool, StrictStr, StringConstraints, create_model,
                       field_validator, model_validator)
@@ -321,9 +321,63 @@ class WorldRecordEventParams(StrictModel):
         return self
 
 
+class _GateParams(StrictModel):
+    """门动作（契约第 9、10 节）：content 是事件内容（例如退回理由、候选草稿的链接）；撤回以
+    supersedes_event_id 引用原事件；payload 是重走时的候选内容（格式同修订的合并补丁），只随承诺
+    或接受的确认提交。门只由人记，不带写入声明。"""
+    content: Optional[Block] = None
+    supersedes_event_id: Optional[CanonicalUUID] = None
+
+    @model_validator(mode="after")
+    def withdrawal_references_its_original(self) -> "_GateParams":
+        outcome = getattr(self, "outcome", None)
+        if (outcome == "withdrawn") != (self.supersedes_event_id is not None):
+            raise ValueError("a withdrawal, and only a withdrawal, references the event it withdraws")
+        if getattr(self, "payload", None) is not None and outcome not in (None, "accepted"):
+            raise ValueError("a candidate travels only with a commitment or an accepting confirmation")
+        return self
+
+
+class Gate(NamedTuple):
+    target_type: str
+    event_kind: str
+    phases: tuple[str, ...]
+    outcomes: tuple[str, ...]
+
+
+_CONFIRM_OUTCOMES = ("accepted", "returned", "withdrawn")
+# 门表（契约第 9 节）。请求解析在导入时就要这些模型，不能等按需加载的登记，所以写在这里，由测试与登记逐条对齐。
+GATES: dict[str, Gate] = {
+    "world_commit_period_goal": Gate("PeriodGoal", "commit", (), ("withdrawn",)),
+    "world_commit_mission": Gate("Mission", "commit", ("initiation", "delivery"), ("withdrawn",)),
+    "world_confirm_long_term_goal": Gate("LongTermGoal", "confirm", (), _CONFIRM_OUTCOMES),
+    "world_confirm_period_goal": Gate("PeriodGoal", "confirm", (), _CONFIRM_OUTCOMES),
+    "world_confirm_mission": Gate("Mission", "confirm", ("initiation", "delivery"), _CONFIRM_OUTCOMES),
+    "world_confirm_mission_core_battle": Gate("Mission", "confirm", ("initiation",), _CONFIRM_OUTCOMES),
+    "world_mark_core_battle": Gate("Mission", "core_battle.marked", (), ()),
+}
+
+
+def _gate_params(action: str) -> type[BaseModel]:
+    """门动作的参数模型：有 phase 的门必带 phase，确认必带 outcome，承诺只在撤回时带。"""
+    gate = GATES[action]
+    fields: dict[str, Any] = {}
+    if gate.phases:
+        fields["phase"] = (Literal[gate.phases], ...)
+    if gate.event_kind == "confirm":
+        fields["outcome"] = (Literal[gate.outcomes], ...)
+    elif gate.outcomes:
+        fields["outcome"] = (Optional[Literal[gate.outcomes]], None)
+    if gate.event_kind in {"commit", "confirm"}:
+        fields["payload"] = (Optional[dict[str, Any]], None)
+    name = "".join(part.title() for part in action.split("_")) + "Params"
+    return create_model(name, __base__=_GateParams, **fields)
+
+
 ACTION_PARAMS = {"world_create_object": WorldCreateObjectParams, "world_revise_object": WorldReviseObjectParams,
                  "world_relate": WorldRelateParams, "world_refresh_state": WorldRefreshStateParams,
-                 "world_record_event": WorldRecordEventParams, "world_assign": WorldAssignParams}
+                 "world_record_event": WorldRecordEventParams, "world_assign": WorldAssignParams,
+                 **{action: _gate_params(action) for action in GATES}}
 # 不落在某个对象上、按 scope 判权的动作（契约第 8 节）：外部事件。
 SCOPE_ACTIONS = frozenset({"world_record_event"})
 # 责任人须持的角色（契约第 1、4 节）：按身份类型。责任单元只用于指派其 DRI（DRI 仍按角色解析）。
@@ -345,4 +399,6 @@ ACTION_TARGETS: dict[str, frozenset[str]] = {
     "world_refresh_state": frozenset(),
     "world_record_event": frozenset(),
     "world_assign": frozenset({"ResponsibilityUnit", "Mission", "Task", "Activity"}),
+    # 门动作按目标类型拆名（ADR-0005），每个只落在登记的那一类上。
+    **{action: frozenset({gate.target_type}) for action, gate in GATES.items()},
 }

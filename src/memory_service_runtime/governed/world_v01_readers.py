@@ -203,14 +203,27 @@ def _events_about(conn: Any, ctx: Any, object_id: str, since: Any = None, *,
         (ctx.scope_id, Jsonb([{"object_id": object_id}]), since, since)).fetchall()]
 
 
+def lifecycle_events(conn: Any, ctx: Any, object_id: str) -> list[dict[str, Any]]:
+    """推导生命周期的输入：以该对象为主体的事件，按记录顺序；验收是否由上一级责任人记，取记录时随回执留存的判定。"""
+    rows = _events_about(conn, ctx, object_id)
+    for row in rows:
+        row["by_spine_parent_responsible"] = object_id in (row.pop("accepted_as_parent_responsible") or [])
+    return rows
+
+
+def committed_candidate(conn: Any, ctx: Any, event_id: str) -> dict[str, Any]:
+    """一轮重走的承诺随回执留存的候选内容（契约第 11 节），确认接受时写回。"""
+    return conn.execute(
+        """SELECT r.result->'candidate' AS candidate FROM gov_world_events e JOIN gov_action_receipts r
+             ON r.scope_id=e.scope_id AND r.receipt_id=e.action_id
+            WHERE e.scope_id=%s AND e.event_id=%s""", (ctx.scope_id, event_id)).fetchone()["candidate"]
+
+
 def lifecycle(conn: Any, ctx: Any, head: dict[str, Any]) -> dict[str, Any] | None:
-    """按事件的记录顺序推导生命周期（契约第 10 节）；验收是否由上一级责任人记，取记录时随回执留存的判定。"""
+    """按事件的记录顺序推导生命周期（契约第 10 节）。"""
     if head["object_type"] not in world_registry.registry()["lifecycles"]:
         return None
-    rows = _events_about(conn, ctx, head["object_id"])
-    for row in rows:
-        row["by_spine_parent_responsible"] = head["object_id"] in (row.pop("accepted_as_parent_responsible") or [])
-    return world_lifecycle.derive(head["object_type"], rows)
+    return world_lifecycle.derive(head["object_type"], lifecycle_events(conn, ctx, head["object_id"]))
 
 
 def is_receipt(row: dict[str, Any]) -> bool:

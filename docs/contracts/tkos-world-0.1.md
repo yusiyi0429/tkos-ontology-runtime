@@ -2,7 +2,7 @@
 
 状态：**契约文字按规格 #17 与 2026-09-24 的补充决定定稿**。0.1 只有在协议登记显式登记、且支持状态为本进程编译支持后才可调用；启用前，通过授权的 world 请求返回 `PROTOCOL_NOT_SUPPORTED`（授权先于协议错误），不产生业务成功。tkos.method/0.4、0.5 冻结，其解释、绑定、历史回执与回归保持不变（ADR-0001）。
 
-来源：《TKOS 语义模型与运行时重构方案 v0.1》、CEO《企业业务世界建模框架 内部讨论稿 v0.1》与 9/23 会议结论、规格 #17、2026-09-24 访谈与补充决定、术语表 `CONTEXT.md`、ADR-0001 至 0005。本契约第 2 至 10 节的清单以机器可读形式登记在 `docs/contracts/world-registry-0.1.json`（`tkos.world-registry` 0.1.3，规范 JSON：键排序、缩进 1、UTF-8、结尾换行）。world profile 同时钉定本契约与该登记的原始字节，任一改动都产生新修订并重新钉定。
+来源：《TKOS 语义模型与运行时重构方案 v0.1》、CEO《企业业务世界建模框架 内部讨论稿 v0.1》与 9/23 会议结论、规格 #17、2026-09-24 访谈与补充决定、术语表 `CONTEXT.md`、ADR-0001 至 0005。本契约第 2 至 10 节的清单以机器可读形式登记在 `docs/contracts/world-registry-0.1.json`（`tkos.world-registry` 0.1.4，规范 JSON：键排序、缩进 1、UTF-8、结尾换行）。world profile 同时钉定本契约与该登记的原始字节，任一改动都产生新修订并重新钉定。
 
 ## 1. 版本、启用与隔离
 
@@ -108,7 +108,7 @@
 | kind | 含义 | 谁能记 |
 |-|-|-|
 | object.created | 建对象，subject_refs 钉到第一个修订 | 新对象主干上某一级的责任人（第 9 节） |
-| object.revised | 对象或块变化，subject_refs 钉到新修订 | 该对象或其主干上某一级的责任人（第 11 节）；确认写回时由服务记 |
+| object.revised | 对象或块变化，subject_refs 钉到新修订 | 该对象或其主干上某一级的责任人（第 11 节）；确认写回不另记，由确认事件钉住写回的修订 |
 | state.refreshed | 状态快照写入 | 主体主干上的责任人；主体所在域持有 AGENT 角色的 Co-Agent、执行 Agent（第 7 节） |
 | event.recorded | 外部发生的事，带 category 与 artifact 链接 | 有 scope 权限（scope 内任一生效指派，不看各域策略）的人或 Agent；更正同此 |
 | commit | 下级承诺 | 周期目标由 DRI；Mission 由 Owner |
@@ -131,11 +131,16 @@
 |-|-|-|-|-|-|
 | `world_commit_period_goal` | commit | PeriodGoal | DOMAIN_DRI | 无 | 撤回 |
 | `world_commit_mission` | commit | Mission | OWNER | 立项、交付 | 撤回 |
-| `world_confirm_long_term_goal` | confirm | LongTermGoal | CEO | 无 | 接受、撤回 |
+| `world_confirm_long_term_goal` | confirm | LongTermGoal | CEO | 无 | 接受、退回、撤回 |
 | `world_confirm_period_goal` | confirm | PeriodGoal | CEO | 无 | 接受、退回、撤回 |
 | `world_confirm_mission` | confirm | Mission | DOMAIN_DRI | 立项、交付 | 接受、退回、撤回 |
 | `world_confirm_mission_core_battle` | confirm | Mission | CEO | 立项 | 接受、退回、撤回 |
 | `world_mark_core_battle` | core_battle.marked | Mission | CEO | 无 | 无 |
+
+- 门动作的参数：有 phase 的门必带 `phase`；确认必带 `outcome`，承诺只在撤回时带 `outcome`（`withdrawn`）；撤回以 `supersedes_event_id` 引用原事件；可选 `content`（三件套，写进事件，例如退回理由、候选草稿的链接）；重走时的候选内容以 `payload` 提交，只随承诺或接受的确认（第 11 节）。
+- 门只由人记：Agent 即使持有门的角色也不能记，门动作不带写入声明。`world_commit_mission` 还须是该 Mission 的 Owner 本人（`responsible` 指向他且他当前持 OWNER，第 4 节）；其余门动作按策略里的角色判，单元 DRI 与 CEO 本就按角色解析。
+- 门动作落在目标对象上：请求的目标须是对象的最新修订，期望版本是对象行的并发版本；每条门事件都使它加一，门事件钉到动作之后的最新修订。
+- 激活策略由控制面命令 `install-activation-policy` 安装：整份替换该域的激活策略为新的策略修订，锁住 scope 并推进授权纪元，记一条控制事件，单事务执行、失败全回滚。
 
 - 指派：`world_assign` 以 `{principal_id}` 指派责任人，只记业务责任、不授予权限：被指派者须已在目标所在的域持有对应角色（责任单元的 DRI 为 DOMAIN_DRI，其余见第 4 节），角色由控制面授予。逐级指派、不能越级：责任单元的 DRI 由 CEO 指派，Mission 的 Owner 由该单元的 DRI 指派，Task 与 Activity 的责任人由所属 Mission 的 Owner 指派；Task 的责任人只能是人。Mission、Task、Activity 为此出新修订写 `responsible`（可改派）；责任单元的 DRI 仍按角色解析，指派只记事件。被指派者记在回执里，取事件时随指派事件给出。指派者都是人，指派不带写入声明。
 - 写入声明三项：场景（属于哪个 Mission 或 Task）、触发事件、是否人工验收及验收人。以请求参数 `declaration` 提交：`scene` 为 Mission 或 Task 的引用 `<对象 id>@<版本号>`，写入时钉定；`trigger` 为触发事件的文字说明；`human_acceptance` 为 `{required, acceptor}`，需要人工验收时 `acceptor` 必须是本 scope 内有效的人，不需要时不带验收人。声明随回执留存。只对 Agent 身份的写入强制，缺一拒绝；人经工作台或 HTTP 写入不强制，带了按同样规则校验。三项在 HTTP 服务端校验。
@@ -144,7 +149,7 @@
 ## 10. 生命周期
 
 - 不存状态枚举。读侧按对象的事件推导 lifecycle，并给出推出它的事件 id（ADR-0002）；推导是确定性的纯函数，按事件的记录顺序逐条处理，初始段由 object.created 推出。状态机以机器可读形式登记在 world 登记的 `lifecycles`。
-- 有门对象已成立或已确认后，改动重走承诺与确认（第 11 节）不改变生命周期段：重走只作用于候选内容与确认时的写回，推出当前段的仍是原来那条门事件。
+- 有门对象已成立或已确认后，改动重走承诺与确认（第 11 节）不改变生命周期段：重走只作用于候选内容与确认时的写回，推出当前段的仍是原来那条门事件。重走的门事件不推出生命周期段，因此不能撤回。
 - 下文未列出的（状态，动作）组合：门动作被拒绝（有门对象成立或确认后的重走除外，见上条），撤回按本节末条规则处理；非门事件不改变生命周期。
 - 「以某对象为主体的 state.refreshed」指 subject_refs 含该对象的状态快照写入事件；进入某一段之前的同类事件不计。
 - Company、Strategy、ResponsibilityUnit、StateSnapshot 没有生命周期，只有版本。
@@ -157,17 +162,19 @@
   - 已成立 →（此后第一条以该 Mission 为主体的 state.refreshed）进行中。
   - 进行中 →（`world_commit_mission` 交付）已交付 →（`world_confirm_mission` 交付 接受）已关闭。
   - 已交付时被退回 → 调整。调整 →（此后第一条以该 Mission 为主体的 state.refreshed）进行中；调整中也可直接再承诺交付（→ 已交付）。
-  - 核心战役（`world_mark_core_battle`）只能在草稿、已承诺、已成立时标记：草稿、已承诺时标记不改变所处的段，已成立时被标记转入等 CEO 确认。CEO 只确认立项，交付只由 DRI 确认。
+  - 核心战役（`world_mark_core_battle`）只能在草稿、已承诺、已成立时标记，每个 Mission 只标一次：草稿、已承诺时标记不改变所处的段，已成立时被标记转入等 CEO 确认。CEO 只确认立项，交付只由 DRI 确认。
 - Task 与 Activity（无门）：未指派 →（`world_assign`）已指派 →（此后第一条以该对象为主体的 state.refreshed）进行中 →（event.recorded，category 为 `delivery`）已交付 →（event.recorded，category 为 `acceptance`）已关闭。验收事件由上一级对象的责任人记：Activity 由其 Task 的责任人，Task 由其 Mission 的 Owner；有 scope 权限的人都能记验收类外部事件（第 8 节），但只有上一级对象的责任人记的那条推进生命周期；记录者是不是上一级责任人（含持有对应角色），在记录时按当时的状态判定并随回执留存。
-- 撤回：只能撤回推出对象当前生命周期段的那条承诺或确认；此后若有任何事件改变过生命周期（包括 state.refreshed 这类非门事件），就不能再撤回。由与原事件相同的角色记同类事件（同一动作、同一 phase），outcome 为 `withdrawn`，以 `supersedes_event_id` 引用原事件；生命周期回到原事件之前的那一段，这一段改由该撤回事件推出，被撤回的事件保留；撤回事件本身不能再被撤回。例：Mission 已因 state.refreshed 进入进行中，就不能再撤回立项确认。
+- 撤回：只能撤回推出对象当前生命周期段的那条承诺或确认；此后若有任何事件改变过生命周期（包括 state.refreshed 这类非门事件），就不能再撤回。由与原事件相同的角色记同类事件（同一动作、同一 phase），outcome 为 `withdrawn`，以 `supersedes_event_id` 引用原事件；生命周期回到原事件之前的那一段，这一段改由该撤回事件推出，被撤回的事件保留；撤回事件本身不能再被撤回，收回了正式内容的退回（第 11 节）也不能撤回。例：Mission 已因 state.refreshed 进入进行中，就不能再撤回立项确认。
 
 ## 11. 修改规则、正式内容与候选内容
 
-- 有门类型（长期目标、周期目标、Mission）只在草稿态允许责任人直接 object.revised；已成立或已确认后，改动必须重走承诺与确认，新正式版在确认时写回，旧版成为历史依据。确认前的新内容是候选内容，以状态快照 artifacts 链接的形式存在；已有正式内容不因候选出现而失效。
+- 有门类型（长期目标、周期目标、Mission）只在草稿态允许责任人直接 object.revised；已成立或已确认后，改动必须重走承诺与确认，新正式版在确认时写回，旧版成为历史依据。确认前的新内容是候选内容：Agent 起草的以状态快照 artifacts 链接的形式存在，提交确认的随重走的承诺留存；已有正式内容不因候选出现而失效。
+- 重走：对象有正式内容之后，一轮重走从初始段起按同一张门表走，不改变生命周期段。周期目标与 Mission 由承诺开一轮（Mission 的 phase 为立项），承诺带候选内容 `payload`（格式同修订的合并补丁，按修订的规则校验并钉定引用），随承诺的回执留存；确认接受时写回，核心战役 Mission 须 DRI 接受后再经 CEO 接受，写回发生在 CEO 接受时；被退回则该轮结束、候选作废。长期目标没有承诺门，由 CEO 以带候选内容的确认直接写回。同一条确认既推进生命周期又符合进行中的一轮时（已成立后标为核心战役、CEO 接受立项），两边一起推进。一轮未结束前不能再开一轮；记错的重走承诺由确认人退回。草稿期的承诺与确认不带候选，草稿直接修订。
+- 写回：候选里客户端可写的字段原样成为新修订，只由服务写的字段（responsible、core_battle、跨链关系）取写回时的当前值；最新与生效指针一起移到新修订，确认事件钉这一修订，不另记 object.revised。
 - 修订与建关系者须是该对象本身或其主干上某一级的责任人，与建对象同一规则（第 9 节）：无门类型随时可改；Mission 的 Owner 可改其下 Task 与 Activity，Task 的责任人可改其下 Activity，单元 DRI 与 CEO 可改其下的对象。
 - 修订按合并：只改请求里给出的字段与块，块给 null 即清空，其余沿用当前版本。状态快照不修订，错快照用新快照更正。
 - Agent 身份的 object.revised 只允许无门类型，且声明里必须需要人工验收并给出验收人。
-- 内核对象的状态列与生效修订指针只承担正式内容指针：有门类型建对象为 `draft`，确认接受时改为 `confirmed` 并把生效指针挪到被确认的修订；无门类型一律 `recorded`，生效指针等于最新。修订、建关系与指派产生新修订时，生效指针原先等于最新修订的随之移动，否则不动。这不是业务生命周期（ADR-0002）。
+- 内核对象的状态列与生效修订指针只承担正式内容指针：有门类型建对象为 `draft`，第一次使对象进入已成立或已确认的那条确认接受时改为 `confirmed`，并把生效指针挪到被确认的修订（请求目标即当前最新修订；核心战役 Mission 在 CEO 接受时）；撤回这条确认时回到 `draft`、生效指针清空，撤回其他确认不动指针；对象退回草稿时（已成立后标为核心战役、被 CEO 退回立项）同样回到 `draft`、生效指针清空，进行中的一轮重走作废，这样的退回不能撤回，要重走立项。无门类型一律 `recorded`，生效指针等于最新。修订、建关系、指派与标核心战役产生新修订时，生效指针原先等于最新修订的随之移动，否则不动。这不是业务生命周期（ADR-0002）。
 
 ## 12. 读写权限
 

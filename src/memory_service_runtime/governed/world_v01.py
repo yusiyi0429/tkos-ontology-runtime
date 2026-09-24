@@ -14,13 +14,15 @@ from uuid import uuid4
 from psycopg.types.json import Jsonb
 
 from . import db, protocol
+from . import world_v01_lifecycle as world_lifecycle
 from . import world_v01_models as models
 from . import world_v01_profile as world_profile
 from . import world_v01_registry as world_registry
 from .errors import GovernedError
 from .service import ActionExecution
 from .world_v01_models import citation
-from .world_v01_readers import SNAPSHOTS_OF_SUBJECT, cited, world_head
+from .world_v01_readers import (SNAPSHOTS_OF_SUBJECT, cited, committed_candidate, lifecycle, lifecycle_events,
+                                world_head)
 
 
 def _fail(code: str, message: str = "", status: int | None = None) -> None:
@@ -49,6 +51,8 @@ class WorldExecution(ActionExecution):
             self.authorize_refresh_state()
         elif self.kind == "world_record_event":
             self.authorize_record_event()
+        elif self.kind in models.GATES:
+            self.authorize_gate()
         else:
             self.authorize_target()
 
@@ -139,13 +143,23 @@ class WorldExecution(ActionExecution):
                 accepted.append(node["object_id"])
         return accepted
 
-    def authorize_target(self) -> None:
-        """修订、建关系与指派：目标须是本 scope 的 world 对象（否则 404），判权后过目标动作闸门。"""
+    def open_target(self) -> None:
+        """落在对象上的动作：目标须是本 scope 的 world 对象（否则 404），判权后过目标动作闸门。"""
         self.target = world_head(self.conn, self.ctx, self.request.target.object_id)
         self.domain_id = self.target["domain_id"]
         self.action_assignments = db.authorize_domain(self.conn, self.ctx, self.domain_id, self.kind)
         self.protocol_context = protocol.gate_target_action(
             self.conn, self.ctx.scope_id, self.target["object_id"], self.kind, self.request.contract_version)
+
+    def latest_payload(self) -> dict[str, Any]:
+        """目标最新修订的载荷；修订序号跟着最新修订走，不用对象行的并发版本（门之类的动作只动指针，不出修订）。"""
+        latest = self.target_revision_row()
+        self.next_version = latest["object_version"] + 1
+        return latest["payload"]
+
+    def authorize_target(self) -> None:
+        """修订、建关系与指派。"""
+        self.open_target()
         object_type = self.target["object_type"]
         if (self.kind == "world_revise_object" and self.ctx.principal_type == "agent"
                 and world_registry.object_spec(object_type)["gated"]):
@@ -156,9 +170,12 @@ class WorldExecution(ActionExecution):
             self.require_declaration()
             used = self.responsible_up_the_spine(self.target["object_id"])
         self.required_assignments.add(used["assignment_id"])
-        latest = self.target_revision_row()
-        # 修订序号跟着最新修订走，不用对象行的并发版本（确认之类的动作只动指针，不出修订）。
-        self.next_version, current = latest["object_version"] + 1, latest["payload"]
+        if (self.kind == "world_revise_object" and world_registry.object_spec(object_type)["gated"]
+                and lifecycle(self.conn, self.ctx, self.target)["status"]
+                != world_registry.registry()["lifecycles"][object_type]["initial"]):
+            _fail("INVALID_STATE", "A gated object is revised directly only while it is a draft; change it by "
+                                   "re-running its commitment and confirmation.")
+        current = self.latest_payload()
         if self.kind == "world_revise_object":
             self.revise(object_type, current)
         elif self.kind == "world_relate":
@@ -166,6 +183,52 @@ class WorldExecution(ActionExecution):
         else:
             self.assign(object_type, current)
         self.declaration = self.pinned_declaration()
+
+    def authorize_gate(self) -> None:
+        """门动作（契约第 9 至 11 节）：角色按激活策略判，门只由人记，承诺 Mission 的须是它的 Owner；然后按
+        生命周期判这条门事件现在能不能记。重走的承诺与改已确认长期目标的确认带候选内容：按修订的规则校验、
+        钉定；承诺把它存进回执，确认接受时写回。"""
+        self.open_target()
+        if self.ctx.principal_type != "human":
+            _fail("FORBIDDEN", "A gate is signed by a person.")
+        used = self.action_assignments[0]
+        if self.kind == "world_commit_mission":
+            used = self.responsible_at(self.current_object(self.target["object_id"]), db._assignments(self.conn, self.ctx))
+            if used is None:
+                _fail("FORBIDDEN", "Only the Mission's Owner commits it.")
+        self.required_assignments.add(used["assignment_id"])
+        object_type = self.target["object_type"]
+        current = self.latest_payload()
+        event = {"event_id": "pending", "kind": world_registry.action_spec(self.kind)["event_kind"], "action": self.kind,
+                 "phase": self.params.get("phase"), "category": None, "outcome": self.params.get("outcome"),
+                 "supersedes_event_id": self.params.get("supersedes_event_id")}
+        try:
+            self.effect = world_lifecycle.admit(
+                object_type, lifecycle_events(self.conn, self.ctx, self.target["object_id"]), event)
+        except world_lifecycle.Refused as exc:
+            _fail("INVALID_STATE", str(exc))
+        # 候选随这条请求提交：开一轮重走的承诺，或长期目标带候选的确认（它没有承诺门）。
+        carries = self.effect["opens_round"] or (self.effect["writes_back"] and self.effect["candidate_commit"] is None)
+        if carries and "payload" not in self.params:
+            _invalid("A re-run of the gate on formal content carries the candidate content.")
+        if not carries and "payload" in self.params:
+            _invalid("Only a re-run of the gate on formal content carries a candidate; a draft is revised directly.")
+        self.payload = None
+        if carries:
+            self.revise(object_type, current)
+            self.candidate = self.payload
+            if self.effect["opens_round"]:
+                self.payload = None  # 承诺只把候选存进回执，确认接受时才写回
+        elif self.effect["writes_back"]:
+            committed = committed_candidate(self.conn, self.ctx, self.effect["candidate_commit"])
+            self.payload = models.stored_model(object_type).model_validate(
+                {**committed, **models.server_fields(object_type, current)}).model_dump(mode="json")
+        elif self.kind == "world_mark_core_battle":
+            self.payload = models.stored_model(object_type).model_validate(
+                {**current, "core_battle": True}).model_dump(mode="json")
+        content = self.params.get("content")
+        self.content = content and {**content, "refs": [self.pin(text) for text in content["refs"]]}
+        self.declaration = None  # 门只由人记，不带写入声明
 
     def revise(self, object_type: str, current: dict[str, Any]) -> None:
         """合并修订（契约第 11 节）；建对象时写的关系引用只能改钉到同一对象的另一版本（第 6 节）。"""
@@ -427,6 +490,8 @@ class WorldExecution(ActionExecution):
             return self.create_world_object(self.object_type)
         if self.kind == "world_record_event":
             return self.record_event()
+        if self.kind in models.GATES:
+            return self.record_gate()
         if self.kind == "world_assign" and self.payload is None:  # 指派责任单元的 DRI：只记事件，不出修订
             return self.written_result(self.target, self.target_revision_row())
         return self.new_revision()
@@ -437,15 +502,39 @@ class WorldExecution(ActionExecution):
             (self.ctx.scope_id, self.target["latest_revision_id"])).fetchone())
 
     def world_event(self, kind: str, subject_refs: list[dict[str, Any]], *, category: str | None = None,
-                    occurred_at: str | None = None, content: dict[str, Any] | None = None,
-                    supersedes_event_id: str | None = None) -> str:
+                    phase: str | None = None, outcome: str | None = None, occurred_at: str | None = None,
+                    content: dict[str, Any] | None = None, supersedes_event_id: str | None = None) -> str:
         """写恰好一条 world 事件；occurred_at 不给即记录时刻。"""
         return str(self.conn.execute(
-            """INSERT INTO gov_world_events (scope_id, kind, category, subject_refs, principal_id, occurred_at, content,
-                                             action_id, supersedes_event_id)
-               VALUES (%s,%s,%s,%s,%s,COALESCE(%s::timestamptz, clock_timestamp()),%s,%s,%s) RETURNING event_id""",
-            (self.ctx.scope_id, kind, category, Jsonb(subject_refs), self.ctx.principal_id, occurred_at,
+            """INSERT INTO gov_world_events (scope_id, kind, phase, category, outcome, subject_refs, principal_id,
+                                             occurred_at, content, action_id, supersedes_event_id)
+               VALUES (%s,%s,%s,%s,%s,%s,%s,COALESCE(%s::timestamptz, clock_timestamp()),%s,%s,%s) RETURNING event_id""",
+            (self.ctx.scope_id, kind, phase, category, outcome, Jsonb(subject_refs), self.ctx.principal_id, occurred_at,
              Jsonb(content) if content is not None else None, self.action_id, supersedes_event_id)).fetchone()["event_id"])
+
+    def record_gate(self) -> dict[str, Any]:
+        """记门事件并按它的作用挪正式内容指针（契约第 11 节）：第一次让对象成立或确认的确认把被确认的修订
+        （当前最新）定为正式内容，撤回这条确认一并收回；写回候选与标核心战役各出一个新修订，写回时最新与生效
+        指针一起移过去，标记时生效指针原先等于最新的才随之移动。门事件钉到动作之后的最新修订。"""
+        obj, effect = self.target, self.effect
+        status, latest, effective = obj["lifecycle_status"], obj["latest_revision_id"], obj["effective_revision_id"]
+        if self.payload is not None:
+            revision = self.insert_revision(obj, self.payload, version=self.next_version)
+            if effect["writes_back"] or effective == latest:
+                effective = revision["revision_id"]
+            latest = revision["revision_id"]
+        else:
+            revision = self.target_revision_row()
+        if effect["makes_formal"]:
+            status, effective = "confirmed", latest
+        if effect["unmakes_formal"]:
+            status, effective = "draft", None
+        obj = self.bump(obj, status=status, latest=latest, effective=effective)
+        result = self.written_result(obj, revision, phase=self.params.get("phase"), outcome=self.params.get("outcome"),
+                                     content=self.content, supersedes_event_id=self.params.get("supersedes_event_id"))
+        if effect["opens_round"]:
+            result["candidate"] = self.candidate
+        return result
 
     def record_event(self) -> dict[str, Any]:
         event_id = self.world_event(world_registry.action_spec(self.kind)["event_kind"], self.event_subjects,
@@ -500,14 +589,18 @@ class WorldExecution(ActionExecution):
                         effective=revision["revision_id"] if moves else obj["effective_revision_id"])
         return self.written_result(obj, revision)
 
-    def written_result(self, obj: dict[str, Any], revision: dict[str, Any]) -> dict[str, Any]:
-        """写恰好一条 world 事件（钉到新修订；建关系时再加列表里的对象，写快照时再加它的主体），返回回执结果。"""
+    def written_result(self, obj: dict[str, Any], revision: dict[str, Any], **event: Any) -> dict[str, Any]:
+        """写恰好一条 world 事件（钉到新修订；建关系时再加列表里的对象，写快照时再加它的主体；门事件另带
+        phase、outcome、content 与撤回引用的原事件，并把事件 id 放进结果），返回回执结果。"""
         version = revision["object_version"]
         pinned = {"object_id": obj["object_id"], "object_version": version, "revision_id": revision["revision_id"],
                   "block": None}
-        self.world_event(world_registry.action_spec(self.kind)["event_kind"], [pinned, *self.event_subjects])
+        event_id = self.world_event(world_registry.action_spec(self.kind)["event_kind"], [pinned, *self.event_subjects],
+                                    **event)
         result = {"object_id": obj["object_id"], "revision_id": revision["revision_id"], "version": version,
                   "ref": citation(obj["object_id"], version)}
+        if self.kind in models.GATES:
+            result["event_id"] = event_id
         if self.kind == "world_assign":
             result["assignee"] = self.assignee
         if self.responsible_through is not None:

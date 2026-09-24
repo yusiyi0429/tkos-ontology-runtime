@@ -87,6 +87,10 @@ class Flow:
     def assign(self, actor, oid, principal_id):
         return self.commit(actor, self.prepare(actor, self.targeted('world_assign', oid, {'principal_id': principal_id})))
 
+    def gate(self, actor, kind, oid, params):
+        """记一条门事件（承诺、确认、标核心战役），目标取当前最新修订。"""
+        return self.commit(actor, self.prepare(actor, self.targeted(kind, oid, params)))
+
     def relate(self, actor, oid, field, refs, declaration=None):
         params = {'field': field, 'refs': refs, **({'declaration': declaration} if declaration else {})}
         return self.commit(actor, self.prepare(actor, self.targeted('world_relate', oid, params)))

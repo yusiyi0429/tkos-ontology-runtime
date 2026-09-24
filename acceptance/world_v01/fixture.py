@@ -17,29 +17,27 @@ from acceptance.protocol_a1_independent.support import private_json
 
 ROOT = Path(__file__).resolve().parents[2]
 WORLD_ROLES = ['AGENT', 'CEO', 'DOMAIN_DRI', 'IC', 'MISSION_DRI', 'OWNER', 'VERIFIER']
-WORLD_ACTIONS = [a['action'] for a in json.loads((ROOT / 'docs/contracts/world-registry-0.1.json').read_text())['actions']]
+REGISTRY_ACTIONS = json.loads((ROOT / 'docs/contracts/world-registry-0.1.json').read_text())['actions']
+WORLD_ACTIONS = [a['action'] for a in REGISTRY_ACTIONS]
+GATE_ROLES = {a['action']: a['gate_roles'] for a in REGISTRY_ACTIONS if a['gate_roles'] is not None}
 
 
 def seed_world(env, path: Path, label: str):
     """一个 world scope（五个域与 A2 基础身份），外加另一 scope 的一名 CEO 作为 scope 外的读者。
-
-    world 动作在每个域的激活策略里对全部角色开放：谁能做什么由服务代码的责任人规则拦下，
-    这样拒绝用例证明的是代码规则，而不是策略没配。唯一例外是 outsider 域的策略不列外部事件，
-    用来证明外部事件按 scope 判权、不看调用者所在域的策略。
-    """
+    world 动作的激活策略由 install_activation_policies 经控制面装上。"""
     foreign = seed_authority(env, path.with_name('foreign-' + path.name), label + '-foreign')
     f = seed_authority(env, path, label)
     f['actors']['foreign_ceo'] = foreign['actors']['ceo']
     f['foreign_scope_id'] = foreign['scope_id']
     f['foreign_domains'] = foreign['domains']
-    for scope in (f, foreign):
-        _open_world_actions(env, scope)
     f['bystander_principal_id'] = _seed_bystander(env, f)
     f['actors']['ic_a'] = _seed_actor(env, f, 'IC', f['domains']['a'])
     f['actors']['agent_a'] = _seed_actor(env, f, 'AGENT', f['domains']['a'], principal_type='agent')
     f['actors']['lapsed'] = _seed_actor(env, f, 'IC', f['domains']['a'])
     f['actors']['owner_a'] = _seed_actor(env, f, 'OWNER', f['domains']['a'])
     _grant(env, f, f['actors']['owner_a']['principal_id'], 'IC', f['domains']['a'])
+    f['actors']['owner_c'] = _seed_actor(env, f, 'OWNER', f['domains']['c'])
+    f['actors']['other_owner_c'] = _seed_actor(env, f, 'OWNER', f['domains']['c'])
     private_json(path, f)
     return f
 
@@ -86,23 +84,41 @@ def _seed_bystander(env, f):
     return principal
 
 
-def _open_world_actions(env, f):
+def owner_rows(env, scope_id, statement, params=()):
+    """独立观察（owner SQL，只读）：控制面写的表与 scope 的授权纪元。"""
     with psycopg.connect(env.values['MIGRATION_DATABASE_URL'], row_factory=dict_row) as conn:
         conn.execute("SELECT set_config('app.runtime_write_capability','tkos-runtime-a1',true)")
         conn.execute("SELECT set_config('app.gov_control_plane','on',true)")
-        conn.execute("SELECT set_config('app.governed_scope_id',%s,true)", (f['scope_id'],))
-        conn.execute('SELECT scope_id FROM gov_scopes WHERE scope_id=%s FOR UPDATE', (f['scope_id'],))
-        for name, domain in f['domains'].items():
-            actions = [action for action in WORLD_ACTIONS if not (name == 'outsider' and action == 'world_record_event')]
-            old = conn.execute('''SELECT * FROM gov_activation_policies WHERE scope_id=%s AND domain_id=%s
-                ORDER BY policy_seq DESC LIMIT 1''', (f['scope_id'], domain)).fetchone()
-            content = dict(old['content'])
-            content['action_roles'] = {**content['action_roles'], **{action: WORLD_ROLES for action in actions}}
-            conn.execute('''INSERT INTO gov_activation_policies
-                (policy_revision_id,scope_id,domain_id,policy_id,policy_seq,content,recorded_by)
-                VALUES (%s,%s,%s,%s,%s,%s,%s)''',
-                (uid(), f['scope_id'], domain, old['policy_id'], old['policy_seq'] + 1,
-                 Jsonb(content), f['actors']['ceo']['principal_id']))
+        conn.execute("SELECT set_config('app.governed_scope_id',%s,true)", (scope_id,))
+        return conn.execute(statement, params).fetchall()
+
+
+def activation_policy(env, scope_id, domain_id, name):
+    """在该域当前的激活策略上开放 world 动作：门动作的角色取登记的门表（ADR-0005）；通用动作对全部角色开放，
+    谁能做什么由服务代码的责任人规则拦下，这样拒绝用例证明的是代码规则，而不是策略没配。唯一例外是
+    outsider 域的策略不列外部事件，用来证明外部事件按 scope 判权、不看调用者所在域的策略。"""
+    content = owner_rows(env, scope_id, 'SELECT content FROM gov_activation_policies WHERE scope_id=%s AND domain_id=%s '
+                                        'ORDER BY policy_seq DESC LIMIT 1', (scope_id, domain_id))[0]['content']
+    roles = {action: GATE_ROLES.get(action, WORLD_ROLES) for action in WORLD_ACTIONS
+             if not (name == 'outsider' and action == 'world_record_event')}
+    return {**content, 'action_roles': {**content['action_roles'], **roles}}
+
+
+def install_activation_policies(h, source, f):
+    """经真实维护 CLI 给两个 scope 的每个域装激活策略；返回 world scope 各域的安装结果。"""
+    adapter = ControlAdapter(h, source, 'memory_service_runtime.governed.control')
+    installed = {}
+    for scope_id, domains in ((f['foreign_scope_id'], f['foreign_domains']), (f['scope_id'], f['domains'])):
+        for name, domain in domains.items():
+            tag = uid()[:8]
+            path = h.private / f'activation-{tag}.json'
+            private_json(path, activation_policy(h.env, scope_id, domain, name))
+            record = adapter.cli('world-activation-' + tag, [
+                'install-activation-policy', '--scope-id', scope_id, '--domain-id', domain,
+                '--content-json', str(path), '--reason', 'Synthetic world 0.1 gates and actions'], expected_exit=0)
+            if scope_id == f['scope_id']:
+                installed[name] = record['response']
+    return installed
 
 
 def revoke_assignment(env, f, assignment_id):

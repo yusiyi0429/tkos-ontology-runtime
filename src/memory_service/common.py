@@ -1,9 +1,7 @@
 """Shared deterministic utilities and minimal capability protocols for Memory Service."""
 from __future__ import annotations
 
-import hashlib
-import json
-from typing import Any, Protocol
+from typing import Protocol
 
 from pgvector import HalfVector
 
@@ -22,15 +20,6 @@ def embed_one(gateway: EmbeddingGateway, text: str) -> HalfVector:
 def normalize_name(name: str) -> str:
     """Return the canonical identity key for a semantic entity name."""
     return " ".join(name.strip().lower().split())
-
-
-def sha256_hex(value: Any) -> str:
-    """内容哈希：dict/list 走稳定 JSON 序列化，字符串直接编码。"""
-    if isinstance(value, str):
-        payload = value.encode("utf-8")
-    else:
-        payload = json.dumps(value, ensure_ascii=False, sort_keys=True, default=str).encode("utf-8")
-    return hashlib.sha256(payload).hexdigest()
 
 
 def conversation_transcript(conn, conversation_id: str) -> tuple[str, dict]:

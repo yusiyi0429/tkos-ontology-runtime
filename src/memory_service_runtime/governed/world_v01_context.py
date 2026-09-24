@@ -122,7 +122,10 @@ def guide(layers: list[dict[str, Any]]) -> str:
     - 做什么：当前对象与它上溯到 Mission 之前的执行层（Activity 的 Task）的非空定义类块。
     - 谁负责：执行链（当前对象向上直到 Mission）各层的责任人，与当前对象最近一条指派事件。
     - 现在怎样：各层的最新状态快照。发生了什么：外部事件，其余事件只计条数。
-    - 凭什么：执行链上带文档链接的块、快照块与事件。"""
+    - 凭什么：执行链上带文档链接的块、快照块与事件。
+
+    口径与 cover() 不同：cover() 是 0.1 契约的六问判定，随冻结不改；这里是给模型的阅读出处。为什么、做什么、
+    谁负责、凭什么四问的取法不一样，同一个包里可能指引给了出处而覆盖报缺口。统一口径留给下一个 world 版本。"""
     current, reach = layers[0], _reach(layers)
     executing = [layer for layer in layers if layer["level"] == 0 or layer["object"]["object_type"] in _EXECUTION_TYPES]
     events = [event for layer in layers for event in layer["events"]]
@@ -383,25 +386,25 @@ def build(conn: Any, ctx: Any, object_id: str, request: WorldContextRequest) -> 
         state = latest_snapshot(conn, ctx, subject, revision["payload"]["as_of"])
         head, _ = readable(conn, ctx, subject)
     layers: list[dict[str, Any]] = []
-    hops: list[tuple[str, dict[str, Any]]] = []
-    beyond: list[dict[str, Any]] = []
+    walked: list[tuple[str, dict[str, Any]]] = []  # 沿主干走过的每一步：(引用字段, 钉定的引用)
+    side_hops: list[dict[str, Any]] = []  # 主干之外多走的一跳
     seen_events: set[str] = set()
     while True:
         revision = latest(head)
         layer = _layer(conn, ctx, head, revision, len(layers), window, seen_events, None if layers else state)
-        field, label = _HOPS.get(head["object_type"], (None, None))
-        if field and revision["payload"].get(field):
+        hop_field, hop_label = _HOPS.get(head["object_type"], (None, None))
+        if hop_field and revision["payload"].get(hop_field):
             # 同主干一样读对方的最新修订，引用字段钉定的版本只作出处。
-            target, _ = readable(conn, ctx, revision["payload"][field]["object_id"])
-            layer["hop"] = _hop(conn, ctx, target, latest(target), field, label)
-            beyond.append({"from": layer["object"]["ref"], "field": field, "pinned": cited(revision["payload"][field])["ref"],
-                           "read": layer["hop"]["object"]["ref"]})
+            target, _ = readable(conn, ctx, revision["payload"][hop_field]["object_id"])
+            layer["hop"] = _hop(conn, ctx, target, latest(target), hop_field, hop_label)
+            side_hops.append({"from": layer["object"]["ref"], "field": hop_field,
+                              "pinned": cited(revision["payload"][hop_field])["ref"], "read": layer["hop"]["object"]["ref"]})
         layers.append(layer)
-        field = world_registry.object_spec(head["object_type"])["spine_parent_field"]
-        if field is None:
+        parent_field = world_registry.object_spec(head["object_type"])["spine_parent_field"]
+        if parent_field is None:
             break
-        hops.append((field, revision["payload"][field]))
-        head, _ = readable(conn, ctx, revision["payload"][field]["object_id"])
+        walked.append((parent_field, revision["payload"][parent_field]))
+        head, _ = readable(conn, ctx, revision["payload"][parent_field]["object_id"])
     _name_events(conn, ctx, layers)
     start = start or layers[0]["object"]["ref"]
     result = trim(_items(request.question, start, layers), max_chars=budget["max_chars"],
@@ -410,8 +413,8 @@ def build(conn: Any, ctx: Any, object_id: str, request: WorldContextRequest) -> 
     plan = {
         # 沿主干读的是上一级的最新修订，引用字段钉定的版本只作出处。
         "walked": [{"from": layers[index]["object"]["ref"], "field": field, "pinned": cited(pinned)["ref"],
-                    "read": layers[index + 1]["object"]["ref"]} for index, (field, pinned) in enumerate(hops)],
-        "hops": beyond,  # 主干之外多走的一跳（只取定义类块）
+                    "read": layers[index + 1]["object"]["ref"]} for index, (field, pinned) in enumerate(walked)],
+        "hops": side_hops,  # 主干之外多走的一跳（只取定义类块）
         "shown_not_followed": [{"from": layer["object"]["ref"], "field": relation["field"], "to": ref["ref"]}
                                for layer in packed for relation in layer["relations"] for ref in relation["refs"]]
         + [{"from": item["source"]["ref"], "field": item["field"], "to": layer["object"]["ref"]}

@@ -199,6 +199,23 @@ def test_append_only_tables_grant_insert_only_to_writers_of_the_source(
             conn.execute((MIGRATIONS_DIR / "0037_append_only_grant_repair.sql").read_text(encoding="utf-8"))
         assert _privileges(test_url, (reader, writer)) == repaired
 
+        # A writer really cannot insert into another scope: with its scope set to
+        # one company, an event row for a different company is refused by RLS.
+        with psycopg.connect(admin_url, autocommit=True) as admin:
+            admin.execute(sql.SQL("GRANT {} TO {}").format(sql.Identifier(writer), sql.Identifier(migration_owner)))
+        with psycopg.connect(test_url) as conn:
+            conn.execute(sql.SQL("SET ROLE {}").format(sql.Identifier(writer)))
+            conn.execute("SELECT set_config('app.governed_scope_id', %s, true)", (str(uuid.uuid4()),))
+            from memory_service_runtime.governed import db as governed_db
+            governed_db.set_write_capability(conn)
+            with pytest.raises(psycopg.errors.InsufficientPrivilege, match="row-level security"):
+                conn.execute(
+                    """INSERT INTO gov_world_events (scope_id, kind, category, subject_refs, principal_id,
+                                                      occurred_at, content, action_id)
+                       VALUES (%s, 'event.recorded', 'other', '["x"]', gen_random_uuid(), now(), '{}',
+                               gen_random_uuid())""",
+                    (str(uuid.uuid4()),))
+
         # Writers stay fenced to their scope: row security is forced and every
         # repaired table checks the scope on insert.
         with psycopg.connect(test_url) as conn:

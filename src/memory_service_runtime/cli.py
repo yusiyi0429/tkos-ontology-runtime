@@ -10,6 +10,7 @@ import time
 
 import psycopg
 
+from memory_service_runtime import observability
 from memory_service_runtime.config import RuntimeConfig, RuntimeConfigError
 from memory_service_runtime.governed import db
 from memory_service_runtime.handlers import default_handlers
@@ -36,6 +37,7 @@ def worker_main() -> None:
         level=logging.INFO,
         format="%(asctime)s %(levelname)s %(name)s %(message)s",
     )
+    observability.ensure_handler()
     try:
         config = RuntimeConfig.from_env()
         stop = threading.Event()

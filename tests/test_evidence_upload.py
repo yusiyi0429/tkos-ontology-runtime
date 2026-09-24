@@ -30,6 +30,7 @@ class FakeStore:
         self.puts = 0
         self.gate: threading.Event | None = None
         self.entered = threading.Event()
+        self.on_put = None  # 两段之间要做的事（例如撤权），在写存储时执行
 
     def _wait(self) -> None:
         self.entered.set()
@@ -45,6 +46,8 @@ class FakeStore:
 
     def put_object(self, Bucket, Key, Body, ContentType, Metadata):
         self._wait()
+        if self.on_put is not None:
+            self.on_put()
         self.puts += 1
         version = uuid4().hex
         self.objects.setdefault(Key, []).append({"version": version, "body": Body, "metadata": Metadata})
@@ -201,3 +204,26 @@ def test_the_orphan_report_lists_stored_versions_that_no_revision_references(api
     assert (report["stored_versions"], report["referenced_versions"]) == (2, 1)
     assert [(item["key"], item["version_id"]) for item in report["orphans"]] == [(orphan["key"], orphan["version_id"])]
     assert report["missing"] == [] and uploaded["version_id"] != orphan["version_id"]
+
+
+@pytest.mark.db
+@pytest.mark.owner
+def test_a_revocation_between_the_two_stages_refuses_the_upload_and_leaves_only_an_orphan(api, seeded, store, monkeypatch):
+    """授权以第二段提交为准：写存储期间上传者被撤权，第二段拒绝，库里不留证据，存储里的版本由对账列出。"""
+    from memory_service_runtime.governed import control
+    ceo = seeded["actors"]["ceo"]
+
+    def revoke():
+        with psycopg.connect(os.environ["DATABASE_URL"]) as conn:
+            db.set_write_capability(conn)
+            conn.execute("SELECT set_config('app.governed_scope_id', %s, true)", (seeded["scope_id"],))
+            conn.execute("UPDATE gov_role_assignments SET active=false WHERE scope_id=%s AND assignment_id=%s",
+                         (seeded["scope_id"], ceo["assignment_id"]))
+
+    store.on_put = revoke
+    refused = _upload(api, seeded, b"bytes of a revoked uploader")
+    assert refused.status_code == 403 and store.puts == 1
+    monkeypatch.setenv("MIGRATION_DATABASE_URL", os.environ["DATABASE_URL"])
+    with control._connect() as conn:
+        report = control.evidence_orphans(conn, SimpleNamespace(scope_id=seeded["scope_id"], actor="test"))
+    assert (report["stored_versions"], report["referenced_versions"], len(report["orphans"])) == (1, 0, 1)

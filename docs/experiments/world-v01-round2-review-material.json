@@ -1,0 +1,1659 @@
+{
+ "source": {
+  "experiment": "world-exp-exp32b-003522-exp",
+  "content_sha256": "9ce66139bf61b589d748479cee405581f73a3c29bbdd853c0167aa44f5218be5",
+  "selection": "每问、每个作答组取第 1 次尝试里有效的那次运行"
+ },
+ "metrics": {
+  "f": {
+   "recall": 1.0,
+   "answer_coverage": 0.6666666666666666,
+   "chars": 13367.5,
+   "of_full": 0.15538364969951993
+  },
+  "a": {
+   "recall": 1.0,
+   "answer_coverage": 0.5714285714285714,
+   "chars": 28626.833333333332,
+   "of_full": 0.33275794596395786
+  },
+  "a0": {
+   "recall": 0.5555555555555556,
+   "answer_coverage": 0.42857142857142855,
+   "chars": 19926.055555555555,
+   "of_full": 0.23162021592202112
+  },
+  "b": {
+   "recall": 1.0,
+   "markdown": 9759.5,
+   "mcp": 13367.5
+  }
+ },
+ "questions": [
+  {
+   "id": "why",
+   "question": "为什么要做「改建模材料」这条 Activity？",
+   "gold_answer": "它服务于 Mission「9 月底 CU Agent、DRI Agent 与 M1、M1B 真实可用」：E&O 要为这些 Agent 与 M1、M1B 提供本体、上下文与数据读写的底座。这条 Mission 推进 E&O 的 9 月周期目标（核心本体逐步稳定、真实数据进入、Agent 共同消费 Context），后者分解自 E&O 六个月目标，再往上是公司「春节前核心业务第一次被真实证明」。",
+   "expected": [
+    {
+     "ref": "@mission#definition",
+     "label": "Mission「9 月底 CU Agent、DRI Agent 与 M1、M1B 真实可用」 · definition"
+    },
+    {
+     "ref": "@eo_period#outcome",
+     "label": "周期目标「E&O 9 月」 · outcome"
+    },
+    {
+     "ref": "@eo_goal#outcome",
+     "label": "长期目标「E&O 六个月目标」 · outcome"
+    },
+    {
+     "ref": "@company_goal#outcome",
+     "label": "长期目标「春节前核心业务第一次被真实证明」 · outcome"
+    }
+   ],
+   "answers": {
+    "f": {
+     "run": "why-1",
+     "claims": [
+      {
+       "text": "9月22日评审中，CEO指出本体结构 v0.7 的跨层内容不属于业务责任范围、七列来历不清，要求按消费与存储方式重新设计，并先对齐业务建模标准。",
+       "kind": "fact",
+       "refs": [
+        {
+         "raw": "event:e6df3f70-5378-4b17-a154-87508a2b9b4f",
+         "key": "event:ev_0922",
+         "label": "事件 2026-09-22（方案 IC 记）：CEO 首次看本体结构 v0.7：「跨层」不是业务责任范围，七列的来历没讲清，要求按消费与存储方式重新设计；决定拆回公司、责任域、Mission 三层，业务建模…",
+         "expected": false
+        }
+       ],
+       "covers": 0
+      },
+      {
+       "text": "9月23日会议就一级对象、内容块、状态与事件机制等建模规则达成共识，并明确由 AI 改材料、方案责任人于9月24日提交计划方案。",
+       "kind": "fact",
+       "refs": [
+        {
+         "raw": "event:e13ac96e-94d1-4b05-aed4-f6e3fedf69fd",
+         "key": "event:ev_0923",
+         "label": "事件 2026-09-23（方案 IC 记）：业务对象架构与落地规划：一级对象 9 类；constraint 作为块、不继承；issue 放在状态块里；事件是唯一触发源；空块用标准句；目标改为长期目标与周期…",
+         "expected": false
+        }
+       ],
+       "covers": 0
+      },
+      {
+       "text": "因此，「改建模材料」承担把会后结论和背景、目的、质量标准交给执行者，先改一版、读后再调第二版的工作，以支持节前完成业务建模与数据架构重构方案，并在9月24日给 CEO 对齐一版。",
+       "kind": "fact",
+       "refs": [
+        {
+         "raw": "24f2f72d-8b7f-4f5f-8133-3881a061f086@2#instruction",
+         "key": "@activity_rework#instruction",
+         "label": "Activity「改建模材料」 第 2 版 · instruction",
+         "expected": false
+        },
+        {
+         "raw": "4621d3f3-4949-4f93-aab4-475579559768@3#definition",
+         "key": "@task_design#definition",
+         "label": "Task「TKOS 业务建模方案设计」 第 3 版 · definition",
+         "expected": false
+        },
+        {
+         "raw": "4621d3f3-4949-4f93-aab4-475579559768@3#acceptance",
+         "key": "@task_design#acceptance",
+         "label": "Task「TKOS 业务建模方案设计」 第 3 版 · acceptance",
+         "expected": false
+        },
+        {
+         "raw": "4621d3f3-4949-4f93-aab4-475579559768@3#plan",
+         "key": "@task_design#plan",
+         "label": "Task「TKOS 业务建模方案设计」 第 3 版 · plan",
+         "expected": false
+        }
+       ],
+       "covers": 0
+      },
+      {
+       "text": "这项方案工作服务于 E&O 在9月底为 CEO Agent、DRI Agent 与 M1-A、M1-B 真实可用提供本体、上下文及数据读写底座的 Mission。",
+       "kind": "fact",
+       "refs": [
+        {
+         "raw": "578600c9-64f6-4c20-945f-d23c88965749@2#definition",
+         "key": "@mission#definition",
+         "label": "Mission「9 月底 CU Agent、DRI Agent 与 M1、M1B 真实可用」 第 2 版 · definition",
+         "expected": true
+        },
+        {
+         "raw": "578600c9-64f6-4c20-945f-d23c88965749@2#play",
+         "key": "@mission#play",
+         "label": "Mission「9 月底 CU Agent、DRI Agent 与 M1、M1B 真实可用」 第 2 版 · play",
+         "expected": false
+        }
+       ],
+       "covers": 1
+      }
+     ]
+    },
+    "a": {
+     "run": "why-1",
+     "claims": [
+      {
+       "text": "9月22日评审中，CEO 指出现有本体结构的七列来历不清，要求按消费与存储方式重新设计，并决定先对齐业务建模标准。",
+       "kind": "fact",
+       "refs": [
+        {
+         "raw": "event:e6df3f70-5378-4b17-a154-87508a2b9b4f",
+         "key": "event:ev_0922",
+         "label": "事件 2026-09-22（方案 IC 记）：CEO 首次看本体结构 v0.7：「跨层」不是业务责任范围，七列的来历没讲清，要求按消费与存储方式重新设计；决定拆回公司、责任域、Mission 三层，业务建模…",
+         "expected": false
+        }
+       ],
+       "covers": 0
+      },
+      {
+       "text": "9月23日会议对一级对象、内容块、状态与事件等建模方式达成共识，并明确由 AI 执行改材料。",
+       "kind": "fact",
+       "refs": [
+        {
+         "raw": "event:e13ac96e-94d1-4b05-aed4-f6e3fedf69fd",
+         "key": "event:ev_0923",
+         "label": "事件 2026-09-23（方案 IC 记）：业务对象架构与落地规划：一级对象 9 类；constraint 作为块、不继承；issue 放在状态块里；事件是唯一触发源；空块用标准句；目标改为长期目标与周期…",
+         "expected": false
+        }
+       ],
+       "covers": 0
+      },
+      {
+       "text": "「改建模材料」是业务建模方案设计 Task 下的 Activity；该 Task 要输出并对齐涵盖语义模型、数据承载、Context Runtime 和质量验证的整体方案。",
+       "kind": "fact",
+       "refs": [
+        {
+         "raw": "4621d3f3-4949-4f93-aab4-475579559768@3#plan",
+         "key": "@task_design#plan",
+         "label": "Task「TKOS 业务建模方案设计」 第 3 版 · plan",
+         "expected": false
+        },
+        {
+         "raw": "4621d3f3-4949-4f93-aab4-475579559768@3#definition",
+         "key": "@task_design#definition",
+         "label": "Task「TKOS 业务建模方案设计」 第 3 版 · definition",
+         "expected": false
+        }
+       ],
+       "covers": 0
+      },
+      {
+       "text": "这条 Activity 的指令是会后把结论、背景、目的和质量标准交给执行者，先改一版材料，读后再调第二版，以支持9月24日向 CEO 对齐计划方案。",
+       "kind": "fact",
+       "refs": [
+        {
+         "raw": "24f2f72d-8b7f-4f5f-8133-3881a061f086@2#instruction",
+         "key": "@activity_rework#instruction",
+         "label": "Activity「改建模材料」 第 2 版 · instruction",
+         "expected": false
+        },
+        {
+         "raw": "4621d3f3-4949-4f93-aab4-475579559768@3#acceptance",
+         "key": "@task_design#acceptance",
+         "label": "Task「TKOS 业务建模方案设计」 第 3 版 · acceptance",
+         "expected": false
+        }
+       ],
+       "covers": 0
+      },
+      {
+       "text": "上层 Mission 要由 E&O 提供本体、上下文与数据读写底座，使 CEO Agent、DRI Agent、M1-A 和 M1-B 在9月底真实可用。",
+       "kind": "fact",
+       "refs": [
+        {
+         "raw": "578600c9-64f6-4c20-945f-d23c88965749@2#definition",
+         "key": "@mission#definition",
+         "label": "Mission「9 月底 CU Agent、DRI Agent 与 M1、M1B 真实可用」 第 2 版 · definition",
+         "expected": true
+        }
+       ],
+       "covers": 1
+      }
+     ]
+    },
+    "a0": {
+     "run": "why-1",
+     "claims": [
+      {
+       "text": "9 月 22 日，CEO 评审本体结构 v0.7 时指出「跨层」不属业务责任范围、七列的来历不清，要求按消费与存储方式重新设计，并先对齐业务建模标准。",
+       "kind": "fact",
+       "refs": [
+        {
+         "raw": "event:e6df3f70-5378-4b17-a154-87508a2b9b4f",
+         "key": "event:ev_0922",
+         "label": "事件 2026-09-22（方案 IC 记）：CEO 首次看本体结构 v0.7：「跨层」不是业务责任范围，七列的来历没讲清，要求按消费与存储方式重新设计；决定拆回公司、责任域、Mission 三层，业务建模…",
+         "expected": false
+        }
+       ],
+       "covers": 0
+      },
+      {
+       "text": "9 月 23 日会议确定了业务对象架构与落地规划的调整，包括一级对象 9 类、Activity 成为对象等，并明确「改材料由 AI 执行」。",
+       "kind": "fact",
+       "refs": [
+        {
+         "raw": "event:e13ac96e-94d1-4b05-aed4-f6e3fedf69fd",
+         "key": "event:ev_0923",
+         "label": "事件 2026-09-23（方案 IC 记）：业务对象架构与落地规划：一级对象 9 类；constraint 作为块、不继承；issue 放在状态块里；事件是唯一触发源；空块用标准句；目标改为长期目标与周期…",
+         "expected": false
+        }
+       ],
+       "covers": 0
+      },
+      {
+       "text": "「改建模材料」是「TKOS 业务建模方案设计」任务下的 Activity；该任务要求节前完成整体方案输出与对齐，并于 9 月 24 日向 CEO 对一版计划方案。",
+       "kind": "fact",
+       "refs": [
+        {
+         "raw": "24f2f72d-8b7f-4f5f-8133-3881a061f086@2",
+         "key": "@activity_rework",
+         "label": "Activity「改建模材料」 第 2 版",
+         "expected": false
+        },
+        {
+         "raw": "4621d3f3-4949-4f93-aab4-475579559768@3#definition",
+         "key": "@task_design#definition",
+         "label": "Task「TKOS 业务建模方案设计」 第 3 版 · definition",
+         "expected": false
+        },
+        {
+         "raw": "4621d3f3-4949-4f93-aab4-475579559768@3#acceptance",
+         "key": "@task_design#acceptance",
+         "label": "Task「TKOS 业务建模方案设计」 第 3 版 · acceptance",
+         "expected": false
+        },
+        {
+         "raw": "4621d3f3-4949-4f93-aab4-475579559768@3#plan",
+         "key": "@task_design#plan",
+         "label": "Task「TKOS 业务建模方案设计」 第 3 版 · plan",
+         "expected": false
+        }
+       ],
+       "covers": 0
+      },
+      {
+       "text": "这条 Activity 的执行指令是会后把结论与上下文交给执行者，说明背景、目的和质量标准，先改一版，读后再调第二版。",
+       "kind": "fact",
+       "refs": [
+        {
+         "raw": "24f2f72d-8b7f-4f5f-8133-3881a061f086@2#instruction",
+         "key": "@activity_rework#instruction",
+         "label": "Activity「改建模材料」 第 2 版 · instruction",
+         "expected": false
+        }
+       ],
+       "covers": 0
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "what",
+   "question": "这条 Activity 要做成什么，怎样算做完？",
+   "gold_answer": "按 9/23 会的结论改建模材料：给背景、目的与质量标准，先改一版，读后再调第二版。它所属的 Task「TKOS 业务建模方案设计」现行定义是节前完成业务建模与数据架构重构的整体方案并对齐（9 类一级对象、内容块、状态快照与事件；四块：语义模型、数据承载、Context Runtime、质量验证），验收是 9/24 给 CEO 对一版计划方案、节前再对齐。",
+   "expected": [
+    {
+     "ref": "@activity_rework#instruction",
+     "label": "Activity「改建模材料」 · instruction"
+    },
+    {
+     "ref": "@task_design#definition",
+     "label": "Task「TKOS 业务建模方案设计」 · definition"
+    },
+    {
+     "ref": "@task_design#acceptance",
+     "label": "Task「TKOS 业务建模方案设计」 · acceptance"
+    }
+   ],
+   "answers": {
+    "f": {
+     "run": "what-1",
+     "claims": [
+      {
+       "text": "这条「改建模材料」Activity 由 E&O Agent 执行：会后把结论、背景、目的和质量标准交给材料执行者，先改出第一版，读后再调整第二版。",
+       "kind": "fact",
+       "refs": [
+        {
+         "raw": "24f2f72d-8b7f-4f5f-8133-3881a061f086@2#instruction",
+         "key": "@activity_rework#instruction",
+         "label": "Activity「改建模材料」 第 2 版 · instruction",
+         "expected": true
+        },
+        {
+         "raw": "24f2f72d-8b7f-4f5f-8133-3881a061f086@2",
+         "key": "@activity_rework",
+         "label": "Activity「改建模材料」 第 2 版",
+         "expected": false
+        }
+       ],
+       "covers": 1
+      },
+      {
+       "text": "材料应体现 9 月 23 日会议确定的业务对象架构，并服务于涵盖语义模型、数据承载、Context Runtime 和质量验证四块的整体方案。",
+       "kind": "fact",
+       "refs": [
+        {
+         "raw": "event:e13ac96e-94d1-4b05-aed4-f6e3fedf69fd",
+         "key": "event:ev_0923",
+         "label": "事件 2026-09-23（方案 IC 记）：业务对象架构与落地规划：一级对象 9 类；constraint 作为块、不继承；issue 放在状态块里；事件是唯一触发源；空块用标准句；目标改为长期目标与周期…",
+         "expected": false
+        },
+        {
+         "raw": "4621d3f3-4949-4f93-aab4-475579559768@3#definition",
+         "key": "@task_design#definition",
+         "label": "Task「TKOS 业务建模方案设计」 第 3 版 · definition",
+         "expected": true
+        }
+       ],
+       "covers": 1
+      },
+      {
+       "text": "所属 Task 的验收要求是 9 月 24 日给 CEO 对一版计划方案，节前再对齐；目前方案 v0.1 已成稿并提交给 CEO 对齐。",
+       "kind": "fact",
+       "refs": [
+        {
+         "raw": "4621d3f3-4949-4f93-aab4-475579559768@3#acceptance",
+         "key": "@task_design#acceptance",
+         "label": "Task「TKOS 业务建模方案设计」 第 3 版 · acceptance",
+         "expected": true
+        },
+        {
+         "raw": "d9a917d6-49a0-4bd1-9077-400bfb63032e@1",
+         "key": "@snap_design_0924",
+         "label": "状态快照「snap_design_0924」 第 1 版",
+         "expected": false
+        },
+        {
+         "raw": "event:30ed4823-2321-4d53-8565-a227d4d8af8e",
+         "key": "event:ev_plan_submitted",
+         "label": "事件 2026-09-24（方案 IC 记）：方案 v0.1 提交给 CEO 对齐。…",
+         "expected": false
+        }
+       ],
+       "covers": 1
+      },
+      {
+       "text": "Activity 已标记为已交付；其快照记录第一版已按会议结论改出，精简版删去了全部时间安排，产物是方案 v0.1 初稿。",
+       "kind": "fact",
+       "refs": [
+        {
+         "raw": "24f2f72d-8b7f-4f5f-8133-3881a061f086@2",
+         "key": "@activity_rework",
+         "label": "Activity「改建模材料」 第 2 版",
+         "expected": false
+        },
+        {
+         "raw": "bd6452ef-24ba-48c8-a310-472105bcbe37@1",
+         "key": "@snap_rework_0923",
+         "label": "状态快照「snap_rework_0923」 第 1 版",
+         "expected": false
+        },
+        {
+         "raw": "event:30ed4823-2321-4d53-8565-a227d4d8af8e",
+         "key": "event:ev_plan_submitted",
+         "label": "事件 2026-09-24（方案 IC 记）：方案 v0.1 提交给 CEO 对齐。…",
+         "expected": false
+        }
+       ],
+       "covers": 0
+      },
+      {
+       "text": "返回内容没有记录读后调整的第二版，也没有记录 CEO 对方案的反馈，因此不能据此确认完整的两版修改和节前对齐均已完成。",
+       "kind": "gap",
+       "refs": [
+        {
+         "raw": "24f2f72d-8b7f-4f5f-8133-3881a061f086@2#instruction",
+         "key": "@activity_rework#instruction",
+         "label": "Activity「改建模材料」 第 2 版 · instruction",
+         "expected": true
+        },
+        {
+         "raw": "bd6452ef-24ba-48c8-a310-472105bcbe37@1",
+         "key": "@snap_rework_0923",
+         "label": "状态快照「snap_rework_0923」 第 1 版",
+         "expected": false
+        },
+        {
+         "raw": "d9a917d6-49a0-4bd1-9077-400bfb63032e@1",
+         "key": "@snap_design_0924",
+         "label": "状态快照「snap_design_0924」 第 1 版",
+         "expected": false
+        }
+       ],
+       "covers": 1
+      }
+     ]
+    },
+    "a": {
+     "run": "what-1",
+     "claims": [
+      {
+       "text": "这条 Activity 是“改建模材料”：会后把结论和上下文交给执行者，并说明背景、目的与质量标准；先改第一版，读后再调整第二版。",
+       "kind": "fact",
+       "refs": [
+        {
+         "raw": "24f2f72d-8b7f-4f5f-8133-3881a061f086@2#instruction",
+         "key": "@activity_rework#instruction",
+         "label": "Activity「改建模材料」 第 2 版 · instruction",
+         "expected": true
+        }
+       ],
+       "covers": 1
+      },
+      {
+       "text": "材料对应的上层 Task 要输出并对齐业务建模与数据架构重构方案，涵盖 9 类一级对象、内容块、共有的状态快照与事件机制，以及语义模型、数据承载、Context Runtime、质量验证四块。",
+       "kind": "fact",
+       "refs": [
+        {
+         "raw": "4621d3f3-4949-4f93-aab4-475579559768@3#definition",
+         "key": "@task_design#definition",
+         "label": "Task「TKOS 业务建模方案设计」 第 3 版 · definition",
+         "expected": true
+        }
+       ],
+       "covers": 1
+      },
+      {
+       "text": "上层 Task 的验收标准是 9 月 24 日给 CEO 对一版计划方案，并在节前再对齐。",
+       "kind": "fact",
+       "refs": [
+        {
+         "raw": "4621d3f3-4949-4f93-aab4-475579559768@3#acceptance",
+         "key": "@task_design#acceptance",
+         "label": "Task「TKOS 业务建模方案设计」 第 3 版 · acceptance",
+         "expected": true
+        }
+       ],
+       "covers": 1
+      },
+      {
+       "text": "Activity 的状态快照记录：已按 9 月 23 日会议结论改出第一版，精简版删去了全部时间安排，产物为方案 v0.1 初稿。",
+       "kind": "fact",
+       "refs": [
+        {
+         "raw": "bd6452ef-24ba-48c8-a310-472105bcbe37@1#progress",
+         "key": "@snap_rework_0923#progress",
+         "label": "状态快照「snap_rework_0923」 第 1 版 · progress",
+         "expected": false
+        },
+        {
+         "raw": "bd6452ef-24ba-48c8-a310-472105bcbe37@1#artifacts",
+         "key": "@snap_rework_0923#artifacts",
+         "label": "状态快照「snap_rework_0923」 第 1 版 · artifacts",
+         "expected": false
+        }
+       ],
+       "covers": 0
+      },
+      {
+       "text": "交付事件记录方案 v0.1 已提交给 CEO 对齐，Activity 当前生命周期显示为“已交付”。",
+       "kind": "fact",
+       "refs": [
+        {
+         "raw": "event:30ed4823-2321-4d53-8565-a227d4d8af8e",
+         "key": "event:ev_plan_submitted",
+         "label": "事件 2026-09-24（方案 IC 记）：方案 v0.1 提交给 CEO 对齐。…",
+         "expected": false
+        },
+        {
+         "raw": "24f2f72d-8b7f-4f5f-8133-3881a061f086@2",
+         "key": "@activity_rework",
+         "label": "Activity「改建模材料」 第 2 版",
+         "expected": false
+        }
+       ],
+       "covers": 0
+      },
+      {
+       "text": "上层 Task 的最新状态快照写明方案仍在等 CEO 对齐，尚没有 CEO 反馈记录。",
+       "kind": "gap",
+       "refs": [
+        {
+         "raw": "d9a917d6-49a0-4bd1-9077-400bfb63032e@1#progress",
+         "key": "@snap_design_0924#progress",
+         "label": "状态快照「snap_design_0924」 第 1 版 · progress",
+         "expected": false
+        },
+        {
+         "raw": "d9a917d6-49a0-4bd1-9077-400bfb63032e@1#issue",
+         "key": "@snap_design_0924#issue",
+         "label": "状态快照「snap_design_0924」 第 1 版 · issue",
+         "expected": false
+        }
+       ],
+       "covers": 0
+      },
+      {
+       "text": "Activity 的现有状态快照只记录第一版和 v0.1 初稿，没有读后调整的第二版记录。",
+       "kind": "gap",
+       "refs": [
+        {
+         "raw": "bd6452ef-24ba-48c8-a310-472105bcbe37@1",
+         "key": "@snap_rework_0923",
+         "label": "状态快照「snap_rework_0923」 第 1 版",
+         "expected": false
+        }
+       ],
+       "covers": 0
+      }
+     ]
+    },
+    "a0": {
+     "run": "what-1",
+     "claims": [
+      {
+       "text": "这条 Activity 是“改建模材料”：会后把结论与上下文交给执行者，说明背景、目的和质量标准，先改一版，读后再调整第二版。",
+       "kind": "fact",
+       "refs": [
+        {
+         "raw": "24f2f72d-8b7f-4f5f-8133-3881a061f086@2#instruction",
+         "key": "@activity_rework#instruction",
+         "label": "Activity「改建模材料」 第 2 版 · instruction",
+         "expected": true
+        }
+       ],
+       "covers": 1
+      },
+      {
+       "text": "材料服务于业务建模与数据架构重构方案，方案范围包括 9 类一级对象、内容块、状态快照与事件机制，以及语义模型、数据承载、Context Runtime、质量验证四块。",
+       "kind": "fact",
+       "refs": [
+        {
+         "raw": "4621d3f3-4949-4f93-aab4-475579559768@3#definition",
+         "key": "@task_design#definition",
+         "label": "Task「TKOS 业务建模方案设计」 第 3 版 · definition",
+         "expected": true
+        }
+       ],
+       "covers": 1
+      },
+      {
+       "text": "上层 Task 的验收标准是 9 月 24 日给 CEO 对一版计划方案，并在节前再对齐；Activity 指令还要求读后调整出第二版。",
+       "kind": "fact",
+       "refs": [
+        {
+         "raw": "4621d3f3-4949-4f93-aab4-475579559768@3#acceptance",
+         "key": "@task_design#acceptance",
+         "label": "Task「TKOS 业务建模方案设计」 第 3 版 · acceptance",
+         "expected": true
+        },
+        {
+         "raw": "24f2f72d-8b7f-4f5f-8133-3881a061f086@2#instruction",
+         "key": "@activity_rework#instruction",
+         "label": "Activity「改建模材料」 第 2 版 · instruction",
+         "expected": true
+        }
+       ],
+       "covers": 2
+      },
+      {
+       "text": "已记录的进展是按 9 月 23 日会议结论改出方案第一版，精简版删去了全部时间安排；方案 v0.1 已提交给 CEO 对齐，Activity 生命周期显示“已交付”。",
+       "kind": "fact",
+       "refs": [
+        {
+         "raw": "bd6452ef-24ba-48c8-a310-472105bcbe37@1#progress",
+         "key": "@snap_rework_0923#progress",
+         "label": "状态快照「snap_rework_0923」 第 1 版 · progress",
+         "expected": false
+        },
+        {
+         "raw": "event:30ed4823-2321-4d53-8565-a227d4d8af8e",
+         "key": "event:ev_plan_submitted",
+         "label": "事件 2026-09-24（方案 IC 记）：方案 v0.1 提交给 CEO 对齐。…",
+         "expected": false
+        },
+        {
+         "raw": "24f2f72d-8b7f-4f5f-8133-3881a061f086@2",
+         "key": "@activity_rework",
+         "label": "Activity「改建模材料」 第 2 版",
+         "expected": false
+        }
+       ],
+       "covers": 0
+      },
+      {
+       "text": "上层 Task 的状态仍记载“等 CEO 对齐”，并明确写着尚无 CEO 反馈记录。",
+       "kind": "fact",
+       "refs": [
+        {
+         "raw": "d9a917d6-49a0-4bd1-9077-400bfb63032e@1#progress",
+         "key": "@snap_design_0924#progress",
+         "label": "状态快照「snap_design_0924」 第 1 版 · progress",
+         "expected": false
+        },
+        {
+         "raw": "d9a917d6-49a0-4bd1-9077-400bfb63032e@1#issue",
+         "key": "@snap_design_0924#issue",
+         "label": "状态快照「snap_design_0924」 第 1 版 · issue",
+         "expected": false
+        }
+       ],
+       "covers": 0
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "who",
+   "question": "谁负责这条 Activity？什么时候、由谁指派的？",
+   "gold_answer": "Activity 的责任人是 E&O Agent，由 E&O Mission Owner 指派（指派事件记在播种时刻）；真实的分工在 9/23 10:23 的会上定：改材料由 AI 执行。它所属 Task 的责任人是方案 Task 责任人。",
+   "expected": [
+    {
+     "ref": "@activity_rework",
+     "label": "Activity「改建模材料」"
+    },
+    {
+     "ref": "event:assign_rework",
+     "label": "指派：owner 把 Activity「改建模材料」 指派给 E&O Agent"
+    },
+    {
+     "ref": "@task_design",
+     "label": "Task「TKOS 业务建模方案设计」"
+    },
+    {
+     "ref": "event:ev_0923",
+     "label": "事件 2026-09-23（方案 IC 记）：业务对象架构与落地规划：一级对象 9 类；constraint 作为块、不继承；issue 放在状态块里；事件是唯一触发源；空块用标准句；目标改为长期目标与周期…"
+    }
+   ],
+   "answers": {
+    "f": {
+     "run": "who-1",
+     "claims": [
+      {
+       "text": "这条 Activity 的责任人是 E&O Agent。",
+       "kind": "fact",
+       "refs": [
+        {
+         "raw": "24f2f72d-8b7f-4f5f-8133-3881a061f086@2",
+         "key": "@activity_rework",
+         "label": "Activity「改建模材料」 第 2 版",
+         "expected": true
+        }
+       ],
+       "covers": 1
+      },
+      {
+       "text": "E&O Mission Owner 于 2026-09-24T16:35:35.788942Z 将这条 Activity 指派给 E&O Agent。",
+       "kind": "fact",
+       "refs": [
+        {
+         "raw": "event:6b36b03f-c003-419c-9041-644d352612c7",
+         "key": "event:assign_rework",
+         "label": "指派：owner 把 Activity「改建模材料」 指派给 E&O Agent",
+         "expected": true
+        }
+       ],
+       "covers": 1
+      }
+     ]
+    },
+    "a": {
+     "run": "who-1",
+     "claims": [
+      {
+       "text": "这条 Activity《改建模材料》的负责人是 E&O Agent。",
+       "kind": "fact",
+       "refs": [
+        {
+         "raw": "24f2f72d-8b7f-4f5f-8133-3881a061f086@2",
+         "key": "@activity_rework",
+         "label": "Activity「改建模材料」 第 2 版",
+         "expected": true
+        }
+       ],
+       "covers": 1
+      },
+      {
+       "text": "E&O Mission Owner 于 2026-09-24T16:35:35.788942Z 将这条 Activity 指派给 E&O Agent。",
+       "kind": "fact",
+       "refs": [
+        {
+         "raw": "event:6b36b03f-c003-419c-9041-644d352612c7",
+         "key": "event:assign_rework",
+         "label": "指派：owner 把 Activity「改建模材料」 指派给 E&O Agent",
+         "expected": true
+        }
+       ],
+       "covers": 1
+      }
+     ]
+    },
+    "a0": {
+     "run": "who-1",
+     "claims": [
+      {
+       "text": "“改建模材料”这条 Activity 的负责人 ID 是 b5bf215f-1cfa-4e4a-ad46-104c1d7c8875。",
+       "kind": "fact",
+       "refs": [
+        {
+         "raw": "24f2f72d-8b7f-4f5f-8133-3881a061f086@2",
+         "key": "@activity_rework",
+         "label": "Activity「改建模材料」 第 2 版",
+         "expected": true
+        },
+        {
+         "raw": "event:6b36b03f-c003-419c-9041-644d352612c7",
+         "key": "event:assign_rework",
+         "label": "指派：owner 把 Activity「改建模材料」 指派给 E&O Agent",
+         "expected": true
+        }
+       ],
+       "covers": 2
+      },
+      {
+       "text": "指派事件记录：79774f80-6bd1-4a9b-9607-0466220689b0 于 2026-09-24T16:35:35.788942Z 将这条 Activity 指派给上述负责人。",
+       "kind": "fact",
+       "refs": [
+        {
+         "raw": "event:6b36b03f-c003-419c-9041-644d352612c7",
+         "key": "event:assign_rework",
+         "label": "指派：owner 把 Activity「改建模材料」 指派给 E&O Agent",
+         "expected": true
+        }
+       ],
+       "covers": 1
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "now",
+   "question": "现在进展到哪了？",
+   "gold_answer": "Activity 本身最近一条状态是 9/23 21:00：按会上结论改出方案第一版；此后方案 v0.1 已提交（Activity 已交付）。截至 9/24 18:00，所属 Task 处于方案对齐中，等 CEO 反馈，内容块正式清单还要等方法侧；Mission 这一层，契约定稿，world 0.1 的实现与冻结验收已完成。",
+   "expected": [
+    {
+     "ref": "@snap_rework_0923",
+     "label": "状态快照「snap_rework_0923」"
+    },
+    {
+     "ref": "@snap_design_0924",
+     "label": "状态快照「snap_design_0924」"
+    },
+    {
+     "ref": "@snap_mission_0924",
+     "label": "状态快照「snap_mission_0924」"
+    }
+   ],
+   "answers": {
+    "f": {
+     "run": "now-1",
+     "claims": [
+      {
+       "text": "《改建模材料》这条 Activity 的生命周期为已交付；方案 v0.1 已提交给 CEO 对齐。",
+       "kind": "fact",
+       "refs": [
+        {
+         "raw": "24f2f72d-8b7f-4f5f-8133-3881a061f086@2",
+         "key": "@activity_rework",
+         "label": "Activity「改建模材料」 第 2 版",
+         "expected": false
+        },
+        {
+         "raw": "event:30ed4823-2321-4d53-8565-a227d4d8af8e",
+         "key": "event:ev_plan_submitted",
+         "label": "事件 2026-09-24（方案 IC 记）：方案 v0.1 提交给 CEO 对齐。…",
+         "expected": false
+        }
+       ],
+       "covers": 0
+      },
+      {
+       "text": "该 Activity 的最新快照记载：已按 9 月 23 日会议结论改出方案第一版，精简版删去了全部时间安排，产物为方案 v0.1 初稿；这份快照未经确认。",
+       "kind": "fact",
+       "refs": [
+        {
+         "raw": "bd6452ef-24ba-48c8-a310-472105bcbe37@1",
+         "key": "@snap_rework_0923",
+         "label": "状态快照「snap_rework_0923」 第 1 版",
+         "expected": true
+        }
+       ],
+       "covers": 1
+      },
+      {
+       "text": "上层 Task 的最新快照记载方案 v0.1 已成稿并提交，正在等 CEO 对齐；这份快照未经确认。",
+       "kind": "fact",
+       "refs": [
+        {
+         "raw": "d9a917d6-49a0-4bd1-9077-400bfb63032e@1",
+         "key": "@snap_design_0924",
+         "label": "状态快照「snap_design_0924」 第 1 版",
+         "expected": true
+        }
+       ],
+       "covers": 1
+      },
+      {
+       "text": "上层 Task 的快照中还没有 CEO 反馈记录，内容块正式清单也仍待方法侧提供。",
+       "kind": "gap",
+       "refs": [
+        {
+         "raw": "d9a917d6-49a0-4bd1-9077-400bfb63032e@1",
+         "key": "@snap_design_0924",
+         "label": "状态快照「snap_design_0924」 第 1 版",
+         "expected": true
+        }
+       ],
+       "covers": 1
+      }
+     ]
+    },
+    "a": {
+     "run": "now-1",
+     "claims": [
+      {
+       "text": "「改建模材料」这条 Activity 当前生命周期为已交付。",
+       "kind": "fact",
+       "refs": [
+        {
+         "raw": "24f2f72d-8b7f-4f5f-8133-3881a061f086@2",
+         "key": "@activity_rework",
+         "label": "Activity「改建模材料」 第 2 版",
+         "expected": false
+        },
+        {
+         "raw": "event:30ed4823-2321-4d53-8565-a227d4d8af8e",
+         "key": "event:ev_plan_submitted",
+         "label": "事件 2026-09-24（方案 IC 记）：方案 v0.1 提交给 CEO 对齐。…",
+         "expected": false
+        }
+       ],
+       "covers": 0
+      },
+      {
+       "text": "9 月 23 日的进展快照记载：已按会议结论改出方案第一版，精简版删去了全部时间安排；该快照未经确认。",
+       "kind": "fact",
+       "refs": [
+        {
+         "raw": "bd6452ef-24ba-48c8-a310-472105bcbe37@1#progress",
+         "key": "@snap_rework_0923#progress",
+         "label": "状态快照「snap_rework_0923」 第 1 版 · progress",
+         "expected": true
+        },
+        {
+         "raw": "bd6452ef-24ba-48c8-a310-472105bcbe37@1",
+         "key": "@snap_rework_0923",
+         "label": "状态快照「snap_rework_0923」 第 1 版",
+         "expected": true
+        }
+       ],
+       "covers": 1
+      },
+      {
+       "text": "9 月 24 日，方案 v0.1 已提交给 CEO 对齐；上级 Task 的最新快照记载其正在等待 CEO 对齐。",
+       "kind": "fact",
+       "refs": [
+        {
+         "raw": "event:30ed4823-2321-4d53-8565-a227d4d8af8e",
+         "key": "event:ev_plan_submitted",
+         "label": "事件 2026-09-24（方案 IC 记）：方案 v0.1 提交给 CEO 对齐。…",
+         "expected": false
+        },
+        {
+         "raw": "d9a917d6-49a0-4bd1-9077-400bfb63032e@1#progress",
+         "key": "@snap_design_0924#progress",
+         "label": "状态快照「snap_design_0924」 第 1 版 · progress",
+         "expected": true
+        }
+       ],
+       "covers": 1
+      },
+      {
+       "text": "上级 Task 的问题块记载尚无 CEO 反馈记录，内容块正式清单仍待方法侧。",
+       "kind": "gap",
+       "refs": [
+        {
+         "raw": "d9a917d6-49a0-4bd1-9077-400bfb63032e@1#issue",
+         "key": "@snap_design_0924#issue",
+         "label": "状态快照「snap_design_0924」 第 1 版 · issue",
+         "expected": true
+        }
+       ],
+       "covers": 1
+      },
+      {
+       "text": "这条 Activity 的状态快照中，问题块为空。",
+       "kind": "gap",
+       "refs": [
+        {
+         "raw": "bd6452ef-24ba-48c8-a310-472105bcbe37@1#issue",
+         "key": "@snap_rework_0923#issue",
+         "label": "状态快照「snap_rework_0923」 第 1 版 · issue",
+         "expected": true
+        }
+       ],
+       "covers": 1
+      }
+     ]
+    },
+    "a0": {
+     "run": "now-1",
+     "claims": [
+      {
+       "text": "“改建模材料”当前生命周期状态为“已交付”。",
+       "kind": "fact",
+       "refs": [
+        {
+         "raw": "24f2f72d-8b7f-4f5f-8133-3881a061f086@2",
+         "key": "@activity_rework",
+         "label": "Activity「改建模材料」 第 2 版",
+         "expected": false
+        },
+        {
+         "raw": "event:30ed4823-2321-4d53-8565-a227d4d8af8e",
+         "key": "event:ev_plan_submitted",
+         "label": "事件 2026-09-24（方案 IC 记）：方案 v0.1 提交给 CEO 对齐。…",
+         "expected": false
+        }
+       ],
+       "covers": 0
+      },
+      {
+       "text": "9月23日的状态记录显示，已按会议结论改出方案第一版，精简版删去了全部时间安排。",
+       "kind": "fact",
+       "refs": [
+        {
+         "raw": "bd6452ef-24ba-48c8-a310-472105bcbe37@1#progress",
+         "key": "@snap_rework_0923#progress",
+         "label": "状态快照「snap_rework_0923」 第 1 版 · progress",
+         "expected": true
+        }
+       ],
+       "covers": 1
+      },
+      {
+       "text": "产物为方案 v0.1 初稿；9月24日的交付事件记录，方案 v0.1 已提交给 CEO 对齐。",
+       "kind": "fact",
+       "refs": [
+        {
+         "raw": "bd6452ef-24ba-48c8-a310-472105bcbe37@1#artifacts",
+         "key": "@snap_rework_0923#artifacts",
+         "label": "状态快照「snap_rework_0923」 第 1 版 · artifacts",
+         "expected": true
+        },
+        {
+         "raw": "event:30ed4823-2321-4d53-8565-a227d4d8af8e",
+         "key": "event:ev_plan_submitted",
+         "label": "事件 2026-09-24（方案 IC 记）：方案 v0.1 提交给 CEO 对齐。…",
+         "expected": false
+        }
+       ],
+       "covers": 1
+      },
+      {
+       "text": "9月23日状态记录的“问题”块为空。",
+       "kind": "gap",
+       "refs": [
+        {
+         "raw": "bd6452ef-24ba-48c8-a310-472105bcbe37@1#issue",
+         "key": "@snap_rework_0923#issue",
+         "label": "状态快照「snap_rework_0923」 第 1 版 · issue",
+         "expected": true
+        }
+       ],
+       "covers": 1
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "happened",
+   "question": "最近发生了什么？",
+   "gold_answer": "9/22 17:37 CEO 首次看 v0.7，要求按消费与存储方式重新设计；9/23 10:23 的会定下 9 类一级对象、内容块与状态事件框架并完成分工；9/24 方案 v0.1 提交对齐；9/24 17:35 world 0.1 冻结验收通过。",
+   "expected": [
+    {
+     "ref": "event:ev_0922",
+     "label": "事件 2026-09-22（方案 IC 记）：CEO 首次看本体结构 v0.7：「跨层」不是业务责任范围，七列的来历没讲清，要求按消费与存储方式重新设计；决定拆回公司、责任域、Mission 三层，业务建模…"
+    },
+    {
+     "ref": "event:ev_0923",
+     "label": "事件 2026-09-23（方案 IC 记）：业务对象架构与落地规划：一级对象 9 类；constraint 作为块、不继承；issue 放在状态块里；事件是唯一触发源；空块用标准句；目标改为长期目标与周期…"
+    },
+    {
+     "ref": "event:ev_plan_submitted",
+     "label": "事件 2026-09-24（方案 IC 记）：方案 v0.1 提交给 CEO 对齐。…"
+    },
+    {
+     "ref": "event:ev_acceptance",
+     "label": "事件 2026-09-24（data_ic 记）：world 0.1 在隔离库冻结验收通过，world_api_accepted 为 true。…"
+    }
+   ],
+   "answers": {
+    "f": {
+     "run": "happened-1",
+     "claims": [
+      {
+       "text": "9月22日，CEO 评审本体结构 v0.7，要求按消费与存储方式重新设计，并先对齐业务建模标准。",
+       "kind": "fact",
+       "refs": [
+        {
+         "raw": "event:e6df3f70-5378-4b17-a154-87508a2b9b4f",
+         "key": "event:ev_0922",
+         "label": "事件 2026-09-22（方案 IC 记）：CEO 首次看本体结构 v0.7：「跨层」不是业务责任范围，七列的来历没讲清，要求按消费与存储方式重新设计；决定拆回公司、责任域、Mission 三层，业务建模…",
+         "expected": true
+        }
+       ],
+       "covers": 1
+      },
+      {
+       "text": "9月23日的会议就业务对象架构与落地规划达成共识，确定由 AI 执行改材料。",
+       "kind": "fact",
+       "refs": [
+        {
+         "raw": "event:e13ac96e-94d1-4b05-aed4-f6e3fedf69fd",
+         "key": "event:ev_0923",
+         "label": "事件 2026-09-23（方案 IC 记）：业务对象架构与落地规划：一级对象 9 类；constraint 作为块、不继承；issue 放在状态块里；事件是唯一触发源；空块用标准句；目标改为长期目标与周期…",
+         "expected": true
+        }
+       ],
+       "covers": 1
+      },
+      {
+       "text": "“改建模材料”的最新状态快照记载：已按 9月23日会议结论改出方案第一版，精简版删去了全部时间安排；该快照未经确认。",
+       "kind": "fact",
+       "refs": [
+        {
+         "raw": "bd6452ef-24ba-48c8-a310-472105bcbe37@1",
+         "key": "@snap_rework_0923",
+         "label": "状态快照「snap_rework_0923」 第 1 版",
+         "expected": false
+        }
+       ],
+       "covers": 0
+      },
+      {
+       "text": "9月24日，方案 v0.1 已提交给 CEO 对齐；这条 Activity 的生命周期标为已交付。",
+       "kind": "fact",
+       "refs": [
+        {
+         "raw": "event:30ed4823-2321-4d53-8565-a227d4d8af8e",
+         "key": "event:ev_plan_submitted",
+         "label": "事件 2026-09-24（方案 IC 记）：方案 v0.1 提交给 CEO 对齐。…",
+         "expected": true
+        },
+        {
+         "raw": "24f2f72d-8b7f-4f5f-8133-3881a061f086@2",
+         "key": "@activity_rework",
+         "label": "Activity「改建模材料」 第 2 版",
+         "expected": false
+        }
+       ],
+       "covers": 1
+      },
+      {
+       "text": "Task 的最新状态快照记载，方案尚无 CEO 反馈记录，内容块正式清单仍在等待方法侧；该快照未经确认。",
+       "kind": "gap",
+       "refs": [
+        {
+         "raw": "d9a917d6-49a0-4bd1-9077-400bfb63032e@1",
+         "key": "@snap_design_0924",
+         "label": "状态快照「snap_design_0924」 第 1 版",
+         "expected": false
+        }
+       ],
+       "covers": 0
+      }
+     ]
+    },
+    "a": {
+     "run": "happened-1",
+     "claims": [
+      {
+       "text": "9月22日的评审要求重新设计本体结构，先对齐业务建模标准。",
+       "kind": "fact",
+       "refs": [
+        {
+         "raw": "event:e6df3f70-5378-4b17-a154-87508a2b9b4f",
+         "key": "event:ev_0922",
+         "label": "事件 2026-09-22（方案 IC 记）：CEO 首次看本体结构 v0.7：「跨层」不是业务责任范围，七列的来历没讲清，要求按消费与存储方式重新设计；决定拆回公司、责任域、Mission 三层，业务建模…",
+         "expected": true
+        }
+       ],
+       "covers": 1
+      },
+      {
+       "text": "9月23日的会议就业务对象架构和分工达成共识，改材料由 AI 执行。",
+       "kind": "fact",
+       "refs": [
+        {
+         "raw": "event:e13ac96e-94d1-4b05-aed4-f6e3fedf69fd",
+         "key": "event:ev_0923",
+         "label": "事件 2026-09-23（方案 IC 记）：业务对象架构与落地规划：一级对象 9 类；constraint 作为块、不继承；issue 放在状态块里；事件是唯一触发源；空块用标准句；目标改为长期目标与周期…",
+         "expected": true
+        }
+       ],
+       "covers": 1
+      },
+      {
+       "text": "Activity 的9月23日状态快照记录：已按会议结论改出方案第一版，精简版删去了全部时间安排；该快照未经确认。",
+       "kind": "fact",
+       "refs": [
+        {
+         "raw": "bd6452ef-24ba-48c8-a310-472105bcbe37@1#progress",
+         "key": "@snap_rework_0923#progress",
+         "label": "状态快照「snap_rework_0923」 第 1 版 · progress",
+         "expected": false
+        },
+        {
+         "raw": "bd6452ef-24ba-48c8-a310-472105bcbe37@1",
+         "key": "@snap_rework_0923",
+         "label": "状态快照「snap_rework_0923」 第 1 版",
+         "expected": false
+        }
+       ],
+       "covers": 0
+      },
+      {
+       "text": "9月24日，方案 v0.1 已提交给 CEO 对齐，Activity 的生命周期显示为已交付。",
+       "kind": "fact",
+       "refs": [
+        {
+         "raw": "event:30ed4823-2321-4d53-8565-a227d4d8af8e",
+         "key": "event:ev_plan_submitted",
+         "label": "事件 2026-09-24（方案 IC 记）：方案 v0.1 提交给 CEO 对齐。…",
+         "expected": true
+        },
+        {
+         "raw": "24f2f72d-8b7f-4f5f-8133-3881a061f086@2",
+         "key": "@activity_rework",
+         "label": "Activity「改建模材料」 第 2 版",
+         "expected": false
+        }
+       ],
+       "covers": 1
+      },
+      {
+       "text": "上级 Task 的最新状态快照称，方案尚无 CEO 反馈记录，内容块正式清单仍要等方法侧；该快照未经确认。",
+       "kind": "gap",
+       "refs": [
+        {
+         "raw": "d9a917d6-49a0-4bd1-9077-400bfb63032e@1#issue",
+         "key": "@snap_design_0924#issue",
+         "label": "状态快照「snap_design_0924」 第 1 版 · issue",
+         "expected": false
+        },
+        {
+         "raw": "d9a917d6-49a0-4bd1-9077-400bfb63032e@1",
+         "key": "@snap_design_0924",
+         "label": "状态快照「snap_design_0924」 第 1 版",
+         "expected": false
+        }
+       ],
+       "covers": 0
+      }
+     ]
+    },
+    "a0": {
+     "run": "happened-1",
+     "claims": [
+      {
+       "text": "截至 9 月 23 日的状态快照，已按当天会议结论改出方案第一版，精简版删去了全部时间安排。",
+       "kind": "fact",
+       "refs": [
+        {
+         "raw": "bd6452ef-24ba-48c8-a310-472105bcbe37@1#progress",
+         "key": "@snap_rework_0923#progress",
+         "label": "状态快照「snap_rework_0923」 第 1 版 · progress",
+         "expected": false
+        }
+       ],
+       "covers": 0
+      },
+      {
+       "text": "状态快照记录的产物是“方案 v0.1 初稿”。",
+       "kind": "fact",
+       "refs": [
+        {
+         "raw": "bd6452ef-24ba-48c8-a310-472105bcbe37@1#artifacts",
+         "key": "@snap_rework_0923#artifacts",
+         "label": "状态快照「snap_rework_0923」 第 1 版 · artifacts",
+         "expected": false
+        }
+       ],
+       "covers": 0
+      },
+      {
+       "text": "9 月 24 日发生的交付事件记录：方案 v0.1 已提交给 CEO 对齐；该 Activity 当前标为“已交付”。",
+       "kind": "fact",
+       "refs": [
+        {
+         "raw": "event:30ed4823-2321-4d53-8565-a227d4d8af8e",
+         "key": "event:ev_plan_submitted",
+         "label": "事件 2026-09-24（方案 IC 记）：方案 v0.1 提交给 CEO 对齐。…",
+         "expected": true
+        },
+        {
+         "raw": "24f2f72d-8b7f-4f5f-8133-3881a061f086@2",
+         "key": "@activity_rework",
+         "label": "Activity「改建模材料」 第 2 版",
+         "expected": false
+        }
+       ],
+       "covers": 1
+      },
+      {
+       "text": "状态快照的“问题”块为空。",
+       "kind": "gap",
+       "refs": [
+        {
+         "raw": "bd6452ef-24ba-48c8-a310-472105bcbe37@1#issue",
+         "key": "@snap_rework_0923#issue",
+         "label": "状态快照「snap_rework_0923」 第 1 版 · issue",
+         "expected": false
+        }
+       ],
+       "covers": 0
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "basis",
+   "question": "凭什么这样做？依据的材料在哪？",
+   "gold_answer": "依据是 9/23 会上的 CEO 建模框架稿 v0.1 与会议结论，以及已提交的方案 v0.1。",
+   "expected": [
+    {
+     "ref": "event:ev_0923",
+     "label": "事件 2026-09-23（方案 IC 记）：业务对象架构与落地规划：一级对象 9 类；constraint 作为块、不继承；issue 放在状态块里；事件是唯一触发源；空块用标准句；目标改为长期目标与周期…"
+    },
+    {
+     "ref": "@snap_design_0924#artifacts",
+     "label": "状态快照「snap_design_0924」 · artifacts"
+    },
+    {
+     "ref": "event:ev_plan_submitted",
+     "label": "事件 2026-09-24（方案 IC 记）：方案 v0.1 提交给 CEO 对齐。…"
+    }
+   ],
+   "answers": {
+    "f": {
+     "run": "basis-1",
+     "claims": [
+      {
+       "text": "改建模材料是《TKOS 业务建模方案设计》Task 下的一条 Activity；任务要求节前输出并对齐业务建模与数据架构重构的整体方案，9 月 24 日先给 CEO 对一版。",
+       "kind": "fact",
+       "refs": [
+        {
+         "raw": "4621d3f3-4949-4f93-aab4-475579559768@3#definition",
+         "key": "@task_design#definition",
+         "label": "Task「TKOS 业务建模方案设计」 第 3 版 · definition",
+         "expected": false
+        },
+        {
+         "raw": "4621d3f3-4949-4f93-aab4-475579559768@3#acceptance",
+         "key": "@task_design#acceptance",
+         "label": "Task「TKOS 业务建模方案设计」 第 3 版 · acceptance",
+         "expected": false
+        },
+        {
+         "raw": "4621d3f3-4949-4f93-aab4-475579559768@3#plan",
+         "key": "@task_design#plan",
+         "label": "Task「TKOS 业务建模方案设计」 第 3 版 · plan",
+         "expected": false
+        }
+       ],
+       "covers": 0
+      },
+      {
+       "text": "这样修改源于 9 月 22 日 CEO 对本体结构 v0.7 的评审意见，以及 9 月 23 日会议对九类一级对象、状态块、事件机制和分工达成的共识；本 Activity 的指令是会后把结论与上下文交给执行者，先改一版，读后再调第二版。",
+       "kind": "fact",
+       "refs": [
+        {
+         "raw": "event:e6df3f70-5378-4b17-a154-87508a2b9b4f",
+         "key": "event:ev_0922",
+         "label": "事件 2026-09-22（方案 IC 记）：CEO 首次看本体结构 v0.7：「跨层」不是业务责任范围，七列的来历没讲清，要求按消费与存储方式重新设计；决定拆回公司、责任域、Mission 三层，业务建模…",
+         "expected": false
+        },
+        {
+         "raw": "event:e13ac96e-94d1-4b05-aed4-f6e3fedf69fd",
+         "key": "event:ev_0923",
+         "label": "事件 2026-09-23（方案 IC 记）：业务对象架构与落地规划：一级对象 9 类；constraint 作为块、不继承；issue 放在状态块里；事件是唯一触发源；空块用标准句；目标改为长期目标与周期…",
+         "expected": true
+        },
+        {
+         "raw": "24f2f72d-8b7f-4f5f-8133-3881a061f086@2#instruction",
+         "key": "@activity_rework#instruction",
+         "label": "Activity「改建模材料」 第 2 版 · instruction",
+         "expected": false
+        }
+       ],
+       "covers": 1
+      },
+      {
+       "text": "上层依据是 E&O 的 Mission：为 CEO Agent、DRI Agent 与 M1-A、M1-B 在 9 月底真实可用提供本体、上下文与数据读写底座；其路径分为业务建模、数据建模与数据环境准备、执行方案，方案分为语义模型、数据承载、Context Runtime 和质量验证四块。",
+       "kind": "fact",
+       "refs": [
+        {
+         "raw": "578600c9-64f6-4c20-945f-d23c88965749@2#definition",
+         "key": "@mission#definition",
+         "label": "Mission「9 月底 CU Agent、DRI Agent 与 M1、M1B 真实可用」 第 2 版 · definition",
+         "expected": false
+        },
+        {
+         "raw": "578600c9-64f6-4c20-945f-d23c88965749@2#play",
+         "key": "@mission#play",
+         "label": "Mission「9 月底 CU Agent、DRI Agent 与 M1、M1B 真实可用」 第 2 版 · play",
+         "expected": false
+        }
+       ],
+       "covers": 0
+      },
+      {
+       "text": "直接依据材料在业务建模框架文档 https://feishu.example/docx/tkos-business-world-framework-v01；改出的方案 v0.1 在 https://feishu.example/docx/tkos-world-plan-v01，交付事件记载它已提交给 CEO 对齐。",
+       "kind": "fact",
+       "refs": [
+        {
+         "raw": "4621d3f3-4949-4f93-aab4-475579559768@3#definition",
+         "key": "@task_design#definition",
+         "label": "Task「TKOS 业务建模方案设计」 第 3 版 · definition",
+         "expected": false
+        },
+        {
+         "raw": "578600c9-64f6-4c20-945f-d23c88965749@2#play",
+         "key": "@mission#play",
+         "label": "Mission「9 月底 CU Agent、DRI Agent 与 M1、M1B 真实可用」 第 2 版 · play",
+         "expected": false
+        },
+        {
+         "raw": "bd6452ef-24ba-48c8-a310-472105bcbe37@1",
+         "key": "@snap_rework_0923",
+         "label": "状态快照「snap_rework_0923」 第 1 版",
+         "expected": false
+        },
+        {
+         "raw": "event:30ed4823-2321-4d53-8565-a227d4d8af8e",
+         "key": "event:ev_plan_submitted",
+         "label": "事件 2026-09-24（方案 IC 记）：方案 v0.1 提交给 CEO 对齐。…",
+         "expected": true
+        }
+       ],
+       "covers": 1
+      },
+      {
+       "text": "现有 Task 和 Mission 快照均注明方案尚无 CEO 反馈记录，且这些状态快照未经确认。",
+       "kind": "gap",
+       "refs": [
+        {
+         "raw": "d9a917d6-49a0-4bd1-9077-400bfb63032e@1",
+         "key": "@snap_design_0924",
+         "label": "状态快照「snap_design_0924」 第 1 版",
+         "expected": false
+        },
+        {
+         "raw": "da63439c-f128-493a-9c93-dc5301fd2c66@1",
+         "key": "@snap_mission_0924",
+         "label": "状态快照「snap_mission_0924」 第 1 版",
+         "expected": false
+        }
+       ],
+       "covers": 0
+      }
+     ]
+    },
+    "a": {
+     "run": "basis-1",
+     "claims": [
+      {
+       "text": "9月22日的评审要求按消费与存储方式重设计本体结构，先对齐业务建模标准；评审材料记录在 https://feishu.example/docx/tkos-ontology-v07-ceo-alignment。",
+       "kind": "fact",
+       "refs": [
+        {
+         "raw": "event:e6df3f70-5378-4b17-a154-87508a2b9b4f",
+         "key": "event:ev_0922",
+         "label": "事件 2026-09-22（方案 IC 记）：CEO 首次看本体结构 v0.7：「跨层」不是业务责任范围，七列的来历没讲清，要求按消费与存储方式重新设计；决定拆回公司、责任域、Mission 三层，业务建模…",
+         "expected": false
+        }
+       ],
+       "covers": 0
+      },
+      {
+       "text": "9月23日会议就九类一级对象等架构结论达成共识，并明确由 AI 改材料；会议记录关联的框架材料在 https://feishu.example/docx/tkos-business-world-framework-v01。",
+       "kind": "fact",
+       "refs": [
+        {
+         "raw": "event:e13ac96e-94d1-4b05-aed4-f6e3fedf69fd",
+         "key": "event:ev_0923",
+         "label": "事件 2026-09-23（方案 IC 记）：业务对象架构与落地规划：一级对象 9 类；constraint 作为块、不继承；issue 放在状态块里；事件是唯一触发源；空块用标准句；目标改为长期目标与周期…",
+         "expected": true
+        }
+       ],
+       "covers": 1
+      },
+      {
+       "text": "这条 Activity 的指令是会后把结论与上下文交给执行者，说明背景、目的和质量标准，先改一版、读后再调第二版；它引用上级 Task 的定义。",
+       "kind": "fact",
+       "refs": [
+        {
+         "raw": "24f2f72d-8b7f-4f5f-8133-3881a061f086@2#instruction",
+         "key": "@activity_rework#instruction",
+         "label": "Activity「改建模材料」 第 2 版 · instruction",
+         "expected": false
+        },
+        {
+         "raw": "4621d3f3-4949-4f93-aab4-475579559768@3#definition",
+         "key": "@task_design#definition",
+         "label": "Task「TKOS 业务建模方案设计」 第 3 版 · definition",
+         "expected": false
+        }
+       ],
+       "covers": 0
+      },
+      {
+       "text": "上级 Task 要在节前输出并对齐业务建模与数据架构重构方案，验收安排是9月24日给 CEO 对一版计划方案；框架材料链接在 Task 定义块中。",
+       "kind": "fact",
+       "refs": [
+        {
+         "raw": "4621d3f3-4949-4f93-aab4-475579559768@3#definition",
+         "key": "@task_design#definition",
+         "label": "Task「TKOS 业务建模方案设计」 第 3 版 · definition",
+         "expected": false
+        },
+        {
+         "raw": "4621d3f3-4949-4f93-aab4-475579559768@3#acceptance",
+         "key": "@task_design#acceptance",
+         "label": "Task「TKOS 业务建模方案设计」 第 3 版 · acceptance",
+         "expected": false
+        }
+       ],
+       "covers": 0
+      },
+      {
+       "text": "上级 Mission 的依据是为相关 Agent 和 M1-A、M1-B 在9月底真实可用提供本体、上下文与数据读写底座，其打法将工作分为语义模型、数据承载、Context Runtime 和质量验证四块。",
+       "kind": "fact",
+       "refs": [
+        {
+         "raw": "578600c9-64f6-4c20-945f-d23c88965749@2#definition",
+         "key": "@mission#definition",
+         "label": "Mission「9 月底 CU Agent、DRI Agent 与 M1、M1B 真实可用」 第 2 版 · definition",
+         "expected": false
+        },
+        {
+         "raw": "578600c9-64f6-4c20-945f-d23c88965749@2#play",
+         "key": "@mission#play",
+         "label": "Mission「9 月底 CU Agent、DRI Agent 与 M1、M1B 真实可用」 第 2 版 · play",
+         "expected": false
+        }
+       ],
+       "covers": 0
+      },
+      {
+       "text": "Activity 的状态快照记载已按9月23日会议结论改出第一版；方案 v0.1 初稿在 https://feishu.example/docx/tkos-world-plan-v01，随后有提交给 CEO 对齐的交付记录。",
+       "kind": "fact",
+       "refs": [
+        {
+         "raw": "bd6452ef-24ba-48c8-a310-472105bcbe37@1#progress",
+         "key": "@snap_rework_0923#progress",
+         "label": "状态快照「snap_rework_0923」 第 1 版 · progress",
+         "expected": false
+        },
+        {
+         "raw": "bd6452ef-24ba-48c8-a310-472105bcbe37@1#artifacts",
+         "key": "@snap_rework_0923#artifacts",
+         "label": "状态快照「snap_rework_0923」 第 1 版 · artifacts",
+         "expected": false
+        },
+        {
+         "raw": "event:30ed4823-2321-4d53-8565-a227d4d8af8e",
+         "key": "event:ev_plan_submitted",
+         "label": "事件 2026-09-24（方案 IC 记）：方案 v0.1 提交给 CEO 对齐。…",
+         "expected": true
+        }
+       ],
+       "covers": 1
+      },
+      {
+       "text": "上级 Task 的未经确认状态快照记载方案尚无 CEO 反馈记录，内容块正式清单仍待方法侧。",
+       "kind": "fact",
+       "refs": [
+        {
+         "raw": "d9a917d6-49a0-4bd1-9077-400bfb63032e@1#issue",
+         "key": "@snap_design_0924#issue",
+         "label": "状态快照「snap_design_0924」 第 1 版 · issue",
+         "expected": false
+        }
+       ],
+       "covers": 0
+      },
+      {
+       "text": "上级 Mission 的验收标准块为空。",
+       "kind": "gap",
+       "refs": [
+        {
+         "raw": "578600c9-64f6-4c20-945f-d23c88965749@2#acceptance",
+         "key": "@mission#acceptance",
+         "label": "Mission「9 月底 CU Agent、DRI Agent 与 M1、M1B 真实可用」 第 2 版 · acceptance",
+         "expected": false
+        }
+       ],
+       "covers": 0
+      }
+     ]
+    },
+    "a0": {
+     "run": "basis-1",
+     "claims": [
+      {
+       "text": "9/22 的 CEO 审阅认为本体结构 v0.7 中「跨层」不属业务责任范围、七列来历不清，要求按消费与存储方式重设计，并先对齐业务建模标准；审阅材料记录为 https://feishu.example/docx/tkos-ontology-v07-ceo-alignment。",
+       "kind": "fact",
+       "refs": [
+        {
+         "raw": "event:e6df3f70-5378-4b17-a154-87508a2b9b4f",
+         "key": "event:ev_0922",
+         "label": "事件 2026-09-22（方案 IC 记）：CEO 首次看本体结构 v0.7：「跨层」不是业务责任范围，七列的来历没讲清，要求按消费与存储方式重新设计；决定拆回公司、责任域、Mission 三层，业务建模…",
+         "expected": false
+        }
+       ],
+       "covers": 0
+      },
+      {
+       "text": "9/23 会议就九类一级对象、内容块、状态块和事件机制等达成共识，并明确改材料由 AI 执行；会议材料记录为 https://feishu.example/docx/tkos-business-world-framework-v01。",
+       "kind": "fact",
+       "refs": [
+        {
+         "raw": "event:e13ac96e-94d1-4b05-aed4-f6e3fedf69fd",
+         "key": "event:ev_0923",
+         "label": "事件 2026-09-23（方案 IC 记）：业务对象架构与落地规划：一级对象 9 类；constraint 作为块、不继承；issue 放在状态块里；事件是唯一触发源；空块用标准句；目标改为长期目标与周期…",
+         "expected": true
+        }
+       ],
+       "covers": 1
+      },
+      {
+       "text": "上级 Task 要在节前输出并对齐业务建模与数据架构重构方案，将「改建模材料」列为下设 Activity；其定义块也附有业务世界框架材料。",
+       "kind": "fact",
+       "refs": [
+        {
+         "raw": "4621d3f3-4949-4f93-aab4-475579559768@3#definition",
+         "key": "@task_design#definition",
+         "label": "Task「TKOS 业务建模方案设计」 第 3 版 · definition",
+         "expected": false
+        },
+        {
+         "raw": "4621d3f3-4949-4f93-aab4-475579559768@3#plan",
+         "key": "@task_design#plan",
+         "label": "Task「TKOS 业务建模方案设计」 第 3 版 · plan",
+         "expected": false
+        }
+       ],
+       "covers": 0
+      },
+      {
+       "text": "这条 Activity 的执行指令是会后把结论和上下文交给执行者，提供背景、目的与质量标准，先改一版，读后再调整第二版。",
+       "kind": "fact",
+       "refs": [
+        {
+         "raw": "24f2f72d-8b7f-4f5f-8133-3881a061f086@2#instruction",
+         "key": "@activity_rework#instruction",
+         "label": "Activity「改建模材料」 第 2 版 · instruction",
+         "expected": false
+        }
+       ],
+       "covers": 0
+      },
+      {
+       "text": "状态记录显示已按 9/23 会议结论改出方案第一版；方案 v0.1 初稿位于 https://feishu.example/docx/tkos-world-plan-v01，随后有提交给 CEO 对齐的事件记录。",
+       "kind": "fact",
+       "refs": [
+        {
+         "raw": "bd6452ef-24ba-48c8-a310-472105bcbe37@1#progress",
+         "key": "@snap_rework_0923#progress",
+         "label": "状态快照「snap_rework_0923」 第 1 版 · progress",
+         "expected": false
+        },
+        {
+         "raw": "bd6452ef-24ba-48c8-a310-472105bcbe37@1#artifacts",
+         "key": "@snap_rework_0923#artifacts",
+         "label": "状态快照「snap_rework_0923」 第 1 版 · artifacts",
+         "expected": false
+        },
+        {
+         "raw": "event:30ed4823-2321-4d53-8565-a227d4d8af8e",
+         "key": "event:ev_plan_submitted",
+         "label": "事件 2026-09-24（方案 IC 记）：方案 v0.1 提交给 CEO 对齐。…",
+         "expected": true
+        }
+       ],
+       "covers": 1
+      },
+      {
+       "text": "这条 Activity 的执行指令块没有附产物链接。",
+       "kind": "gap",
+       "refs": [
+        {
+         "raw": "24f2f72d-8b7f-4f5f-8133-3881a061f086@2#instruction",
+         "key": "@activity_rework#instruction",
+         "label": "Activity「改建模材料」 第 2 版 · instruction",
+         "expected": false
+        }
+       ],
+       "covers": 0
+      },
+      {
+       "text": "上级 Task 的状态记录称方案尚无 CEO 反馈记录，内容块正式清单仍待方法侧提供。",
+       "kind": "gap",
+       "refs": [
+        {
+         "raw": "d9a917d6-49a0-4bd1-9077-400bfb63032e@1#issue",
+         "key": "@snap_design_0924#issue",
+         "label": "状态快照「snap_design_0924」 第 1 版 · issue",
+         "expected": false
+        }
+       ],
+       "covers": 0
+      }
+     ]
+    }
+   }
+  }
+ ]
+}

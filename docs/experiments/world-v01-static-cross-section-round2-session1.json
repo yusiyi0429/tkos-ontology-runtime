@@ -1,291 +1,4 @@
 {
-  "f": {
-    "runs": {
-      "ok": 18
-    },
-    "questions": {
-      "why": {
-        "runs": 3,
-        "recall": [
-          12,
-          12
-        ],
-        "traceability": [
-          11,
-          11
-        ],
-        "determinism": 1.0,
-        "determinism_cited": 0.8518518518518519,
-        "chars": 13374,
-        "counterexamples": {
-          "old_version": 0,
-          "other_unit_constraint": 0,
-          "unrelated_mission_state": 0,
-          "resolved_issue": 0,
-          "unrelated_event": 0,
-          "empty_block_as_content": 0,
-          "outside_scope": 0,
-          "stale_artifact": 0
-        },
-        "decoys_taken": {
-          "old_version": 0,
-          "other_unit_constraint": 0,
-          "unrelated_mission_state": 0,
-          "resolved_issue": 0,
-          "unrelated_event": 0,
-          "outside_scope": 0,
-          "stale_artifact": 0
-        },
-        "answer_coverage": [
-          4,
-          12
-        ]
-      },
-      "what": {
-        "runs": 3,
-        "recall": [
-          9,
-          9
-        ],
-        "traceability": [
-          16,
-          16
-        ],
-        "determinism": 1.0,
-        "determinism_cited": 0.8425925925925926,
-        "chars": 13374,
-        "counterexamples": {
-          "old_version": 0,
-          "other_unit_constraint": 0,
-          "unrelated_mission_state": 0,
-          "resolved_issue": 0,
-          "unrelated_event": 0,
-          "empty_block_as_content": 0,
-          "outside_scope": 0,
-          "stale_artifact": 0
-        },
-        "decoys_taken": {
-          "old_version": 0,
-          "other_unit_constraint": 0,
-          "unrelated_mission_state": 0,
-          "resolved_issue": 0,
-          "unrelated_event": 0,
-          "outside_scope": 0,
-          "stale_artifact": 0
-        },
-        "answer_coverage": [
-          9,
-          9
-        ]
-      },
-      "who": {
-        "runs": 3,
-        "recall": [
-          12,
-          12
-        ],
-        "traceability": [
-          6,
-          6
-        ],
-        "determinism": 1.0,
-        "determinism_cited": 1.0,
-        "chars": 13376,
-        "counterexamples": {
-          "old_version": 0,
-          "other_unit_constraint": 0,
-          "unrelated_mission_state": 0,
-          "resolved_issue": 0,
-          "unrelated_event": 0,
-          "empty_block_as_content": 0,
-          "outside_scope": 0,
-          "stale_artifact": 0
-        },
-        "decoys_taken": {
-          "old_version": 0,
-          "other_unit_constraint": 0,
-          "unrelated_mission_state": 0,
-          "resolved_issue": 0,
-          "unrelated_event": 0,
-          "outside_scope": 0,
-          "stale_artifact": 0
-        },
-        "answer_coverage": [
-          6,
-          12
-        ]
-      },
-      "now": {
-        "runs": 3,
-        "recall": [
-          9,
-          9
-        ],
-        "traceability": [
-          12,
-          12
-        ],
-        "determinism": 1.0,
-        "determinism_cited": 0.7777777777777778,
-        "chars": 13358,
-        "counterexamples": {
-          "old_version": 0,
-          "other_unit_constraint": 0,
-          "unrelated_mission_state": 0,
-          "resolved_issue": 0,
-          "unrelated_event": 0,
-          "empty_block_as_content": 0,
-          "outside_scope": 0,
-          "stale_artifact": 0
-        },
-        "decoys_taken": {
-          "old_version": 0,
-          "other_unit_constraint": 0,
-          "unrelated_mission_state": 0,
-          "resolved_issue": 0,
-          "unrelated_event": 0,
-          "outside_scope": 0,
-          "stale_artifact": 0
-        },
-        "answer_coverage": [
-          6,
-          9
-        ]
-      },
-      "happened": {
-        "runs": 3,
-        "recall": [
-          12,
-          12
-        ],
-        "traceability": [
-          15,
-          15
-        ],
-        "determinism": 1.0,
-        "determinism_cited": 1.0,
-        "chars": 13358,
-        "counterexamples": {
-          "old_version": 0,
-          "other_unit_constraint": 0,
-          "unrelated_mission_state": 0,
-          "resolved_issue": 0,
-          "unrelated_event": 0,
-          "empty_block_as_content": 0,
-          "outside_scope": 0,
-          "stale_artifact": 0
-        },
-        "decoys_taken": {
-          "old_version": 0,
-          "other_unit_constraint": 0,
-          "unrelated_mission_state": 0,
-          "resolved_issue": 0,
-          "unrelated_event": 0,
-          "outside_scope": 0,
-          "stale_artifact": 0
-        },
-        "answer_coverage": [
-          9,
-          12
-        ]
-      },
-      "basis": {
-        "runs": 3,
-        "recall": [
-          9,
-          9
-        ],
-        "traceability": [
-          17,
-          17
-        ],
-        "determinism": 1.0,
-        "determinism_cited": 0.8076923076923077,
-        "chars": 13365,
-        "counterexamples": {
-          "old_version": 0,
-          "other_unit_constraint": 0,
-          "unrelated_mission_state": 0,
-          "resolved_issue": 0,
-          "unrelated_event": 0,
-          "empty_block_as_content": 0,
-          "outside_scope": 0,
-          "stale_artifact": 0
-        },
-        "decoys_taken": {
-          "old_version": 0,
-          "other_unit_constraint": 0,
-          "unrelated_mission_state": 0,
-          "resolved_issue": 0,
-          "unrelated_event": 0,
-          "outside_scope": 0,
-          "stale_artifact": 0
-        },
-        "answer_coverage": [
-          8,
-          9
-        ]
-      }
-    },
-    "short": {},
-    "recall": 1.0,
-    "traceability": 1.0,
-    "determinism": 1.0,
-    "determinism_cited": 0.879985754985755,
-    "chars": 13367.5,
-    "counterexamples": {
-      "old_version": 0,
-      "other_unit_constraint": 0,
-      "unrelated_mission_state": 0,
-      "resolved_issue": 0,
-      "unrelated_event": 0,
-      "empty_block_as_content": 0,
-      "outside_scope": 0,
-      "stale_artifact": 0
-    },
-    "decoys_taken": {
-      "old_version": 0,
-      "other_unit_constraint": 0,
-      "unrelated_mission_state": 0,
-      "resolved_issue": 0,
-      "unrelated_event": 0,
-      "outside_scope": 0,
-      "stale_artifact": 0
-    },
-    "budget": {
-      "of_full": 0.15538364969951993,
-      "of_b": 1.369691070239254,
-      "of_b_json": 1.0,
-      "over": [
-        "why",
-        "what",
-        "who",
-        "now",
-        "happened",
-        "basis"
-      ]
-    },
-    "answer_coverage": 0.6666666666666666,
-    "answer_coverage_counts": [
-      42,
-      63
-    ],
-    "calls": {
-      "runs": 18,
-      "per_run": 1,
-      "repeated": 0,
-      "context_per_run": 1,
-      "left_start": 0,
-      "objects_per_run": 1
-    },
-    "verdict": {
-      "recall": true,
-      "traceability": true,
-      "budget": false,
-      "determinism": true,
-      "counterexamples": true
-    }
-  },
   "a": {
     "runs": {
       "ok": 18
@@ -302,8 +15,8 @@
           15
         ],
         "determinism": 1.0,
-        "determinism_cited": 0.8425925925925926,
-        "chars": 27194,
+        "determinism_cited": 0.8333333333333334,
+        "chars": 38930,
         "counterexamples": {
           "old_version": 0,
           "other_unit_constraint": 0,
@@ -322,11 +35,7 @@
           "unrelated_event": 0,
           "outside_scope": 0,
           "stale_artifact": 0
-        },
-        "answer_coverage": [
-          3,
-          12
-        ]
+        }
       },
       "what": {
         "runs": 3,
@@ -335,12 +44,12 @@
           9
         ],
         "traceability": [
-          19,
-          19
+          18,
+          18
         ],
         "determinism": 1.0,
-        "determinism_cited": 0.7925925925925926,
-        "chars": 27400,
+        "determinism_cited": 0.7731481481481481,
+        "chars": 31214,
         "counterexamples": {
           "old_version": 0,
           "other_unit_constraint": 0,
@@ -359,11 +68,7 @@
           "unrelated_event": 0,
           "outside_scope": 0,
           "stale_artifact": 0
-        },
-        "answer_coverage": [
-          9,
-          9
-        ]
+        }
       },
       "who": {
         "runs": 3,
@@ -396,11 +101,7 @@
           "unrelated_event": 0,
           "outside_scope": 0,
           "stale_artifact": 0
-        },
-        "answer_coverage": [
-          6,
-          12
-        ]
+        }
       },
       "now": {
         "runs": 3,
@@ -409,12 +110,12 @@
           9
         ],
         "traceability": [
-          16,
-          16
+          15,
+          15
         ],
         "determinism": 1.0,
-        "determinism_cited": 0.75,
-        "chars": 25690.666666666668,
+        "determinism_cited": 0.7440476190476191,
+        "chars": 23540,
         "counterexamples": {
           "old_version": 0,
           "other_unit_constraint": 0,
@@ -433,11 +134,7 @@
           "unrelated_event": 0,
           "outside_scope": 0,
           "stale_artifact": 0
-        },
-        "answer_coverage": [
-          6,
-          9
-        ]
+        }
       },
       "happened": {
         "runs": 3,
@@ -446,12 +143,12 @@
           12
         ],
         "traceability": [
-          14,
-          14
+          16,
+          16
         ],
         "determinism": 1.0,
-        "determinism_cited": 0.45185185185185184,
-        "chars": 28639.333333333332,
+        "determinism_cited": 0.604040404040404,
+        "chars": 23734.666666666668,
         "counterexamples": {
           "old_version": 0,
           "other_unit_constraint": 0,
@@ -470,11 +167,7 @@
           "unrelated_event": 0,
           "outside_scope": 0,
           "stale_artifact": 0
-        },
-        "answer_coverage": [
-          6,
-          12
-        ]
+        }
       },
       "basis": {
         "runs": 3,
@@ -486,9 +179,9 @@
           23,
           23
         ],
-        "determinism": 1.0,
-        "determinism_cited": 0.7682539682539682,
-        "chars": 40583,
+        "determinism": 0.9722222222222222,
+        "determinism_cited": 0.6309523809523809,
+        "chars": 41588,
         "counterexamples": {
           "old_version": 0,
           "other_unit_constraint": 0,
@@ -507,19 +200,15 @@
           "unrelated_event": 0,
           "outside_scope": 0,
           "stale_artifact": 0
-        },
-        "answer_coverage": [
-          6,
-          9
-        ]
+        }
       }
     },
     "short": {},
     "recall": 1.0,
     "traceability": 1.0,
-    "determinism": 1.0,
-    "determinism_cited": 0.7675485008818342,
-    "chars": 28626.833333333332,
+    "determinism": 0.9953703703703703,
+    "determinism_cited": 0.7642536475869809,
+    "chars": 30210.11111111111,
     "counterexamples": {
       "old_version": 0,
       "other_unit_constraint": 0,
@@ -540,9 +229,9 @@
       "stale_artifact": 0
     },
     "budget": {
-      "of_full": 0.33275794596395786,
-      "of_b": 2.9332274535922265,
-      "of_b_json": 2.1415248425908606,
+      "of_full": 0.35116194668206197,
+      "of_b": 3.0954568483130394,
+      "of_b_json": 2.2599671674666997,
       "over": [
         "why",
         "what",
@@ -551,19 +240,6 @@
         "happened",
         "basis"
       ]
-    },
-    "answer_coverage": 0.5714285714285714,
-    "answer_coverage_counts": [
-      36,
-      63
-    ],
-    "calls": {
-      "runs": 18,
-      "per_run": 5.333333333333333,
-      "repeated": 2,
-      "context_per_run": 1.0555555555555556,
-      "left_start": 12,
-      "objects_per_run": 2
     },
     "verdict": {
       "recall": true,
@@ -588,9 +264,9 @@
           13,
           13
         ],
-        "determinism": 0.8581560283687943,
-        "determinism_cited": 0.7579365079365079,
-        "chars": 33300.666666666664,
+        "determinism": 1.0,
+        "determinism_cited": 0.8273809523809523,
+        "chars": 35199,
         "counterexamples": {
           "old_version": 0,
           "other_unit_constraint": 0,
@@ -602,18 +278,14 @@
           "stale_artifact": 0
         },
         "decoys_taken": {
-          "old_version": 3,
+          "old_version": 0,
           "other_unit_constraint": 0,
           "unrelated_mission_state": 0,
           "resolved_issue": 0,
           "unrelated_event": 0,
           "outside_scope": 0,
           "stale_artifact": 0
-        },
-        "answer_coverage": [
-          0,
-          12
-        ]
+        }
       },
       "what": {
         "runs": 3,
@@ -622,12 +294,12 @@
           9
         ],
         "traceability": [
-          16,
-          16
+          20,
+          20
         ],
-        "determinism": 1.0,
-        "determinism_cited": 0.7685185185185185,
-        "chars": 22285,
+        "determinism": 0.8095238095238095,
+        "determinism_cited": 0.7333333333333333,
+        "chars": 19097.333333333332,
         "counterexamples": {
           "old_version": 0,
           "other_unit_constraint": 0,
@@ -646,25 +318,21 @@
           "unrelated_event": 0,
           "outside_scope": 0,
           "stale_artifact": 0
-        },
-        "answer_coverage": [
-          9,
-          9
-        ]
+        }
       },
       "who": {
         "runs": 3,
         "recall": [
-          8,
+          6,
           12
         ],
         "traceability": [
           6,
           6
         ],
-        "determinism": 0.7000000000000001,
+        "determinism": 1.0,
         "determinism_cited": 1.0,
-        "chars": 12033.333333333334,
+        "chars": 9036,
         "counterexamples": {
           "old_version": 0,
           "other_unit_constraint": 0,
@@ -683,11 +351,7 @@
           "unrelated_event": 0,
           "outside_scope": 0,
           "stale_artifact": 0
-        },
-        "answer_coverage": [
-          6,
-          12
-        ]
+        }
       },
       "now": {
         "runs": 3,
@@ -720,11 +384,7 @@
           "unrelated_event": 0,
           "outside_scope": 0,
           "stale_artifact": 0
-        },
-        "answer_coverage": [
-          3,
-          9
-        ]
+        }
       },
       "happened": {
         "runs": 3,
@@ -733,8 +393,8 @@
           12
         ],
         "traceability": [
-          13,
-          13
+          12,
+          12
         ],
         "determinism": 1.0,
         "determinism_cited": 0.888888888888889,
@@ -757,11 +417,7 @@
           "unrelated_event": 0,
           "outside_scope": 0,
           "stale_artifact": 0
-        },
-        "answer_coverage": [
-          3,
-          12
-        ]
+        }
       },
       "basis": {
         "runs": 3,
@@ -770,12 +426,12 @@
           9
         ],
         "traceability": [
-          21,
-          21
+          18,
+          18
         ],
-        "determinism": 0.7987421383647798,
-        "determinism_cited": 0.9259259259259259,
-        "chars": 34181.333333333336,
+        "determinism": 1.0,
+        "determinism_cited": 0.7515151515151516,
+        "chars": 34547,
         "counterexamples": {
           "old_version": 0,
           "other_unit_constraint": 0,
@@ -794,19 +450,15 @@
           "unrelated_event": 0,
           "outside_scope": 0,
           "stale_artifact": 0
-        },
-        "answer_coverage": [
-          6,
-          9
-        ]
+        }
       }
     },
     "short": {},
-    "recall": 0.5555555555555556,
+    "recall": 0.5238095238095238,
     "traceability": 1.0,
-    "determinism": 0.8928163611222624,
-    "determinism_cited": 0.8902116402116402,
-    "chars": 19926.055555555555,
+    "determinism": 0.9682539682539683,
+    "determinism_cited": 0.8668530543530544,
+    "chars": 19272.555555555555,
     "counterexamples": {
       "old_version": 0,
       "other_unit_constraint": 0,
@@ -818,7 +470,7 @@
       "stale_artifact": 0
     },
     "decoys_taken": {
-      "old_version": 3,
+      "old_version": 0,
       "other_unit_constraint": 0,
       "unrelated_mission_state": 0,
       "resolved_issue": 0,
@@ -827,34 +479,20 @@
       "stale_artifact": 0
     },
     "budget": {
-      "of_full": 0.23162021592202112,
-      "of_b": 2.0417086485532616,
-      "of_b_json": 1.4906344159757288,
+      "of_full": 0.22402394024753924,
+      "of_b": 1.974748250991911,
+      "of_b_json": 1.4417471894935894,
       "over": [
         "why",
         "what",
-        "who",
         "basis"
       ]
-    },
-    "answer_coverage": 0.42857142857142855,
-    "answer_coverage_counts": [
-      27,
-      63
-    ],
-    "calls": {
-      "runs": 18,
-      "per_run": 5.444444444444445,
-      "repeated": 0,
-      "context_per_run": 0,
-      "left_start": 12,
-      "objects_per_run": 2.3333333333333335
     },
     "verdict": {
       "recall": false,
       "traceability": true,
       "budget": false,
-      "determinism": false,
+      "determinism": true,
       "counterexamples": true
     }
   },
@@ -987,7 +625,7 @@
   },
   "full_chars": 86029,
   "setup": {
-    "started_at": "2026-09-24T16:35:37.939175+00:00",
+    "started_at": "2026-09-24T15:24:33.918752+00:00",
     "model": "gpt-6-sol",
     "effort": "medium",
     "codex": "codex-cli 0.155.0-alpha.16.4",
@@ -996,7 +634,6 @@
       "b": [
         "world_get_context"
       ],
-      "f": [],
       "a": [
         "world_get_object",
         "world_get_context",
@@ -1030,11 +667,8 @@
     "attempts": 3,
     "content_sha256": "9ce66139bf61b589d748479cee405581f73a3c29bbdd853c0167aa44f5218be5",
     "source": {
-      "commit": "9f8ef83f04bef94f816a8f6066761eb6bebf15c3",
-      "src_or_experiments_modified": true,
-      "modified_paths": [
-        "src/memory_service_app/narrative.py"
-      ]
+      "commit": "b7ccf9331d2343625cc567c96aef503c8fd03033",
+      "src_or_experiments_modified": true
     }
   }
 }

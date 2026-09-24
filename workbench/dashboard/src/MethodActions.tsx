@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { ApiError } from "@/lib/errors"
+import { PAGE_SIZE, pageQuery, readWindow, type CursorPage } from "@/lib/paging"
 
 export type MethodExactRef = { object_id: string; revision_id: string; payload_hash: string }
 export type MethodActionTarget = MethodExactRef & { expected_version: number }
@@ -611,25 +612,29 @@ export function MethodActions({ session, prepare, onError, onExplore, windowId, 
   const controller = useRef<AbortController | null>(null)
   const versionRef = useRef(onVersion)
   versionRef.current = onVersion
+  // How many tasks the person has loaded: every refresh re-reads that whole
+  // window, and 「加载更多」 widens it, so polling never drops loaded pages.
+  const shown = useRef(PAGE_SIZE)
 
   const load = useCallback(async () => {
     const generation = ++epoch.current
     controller.current?.abort()
     const current = new AbortController()
     controller.current = current
-    try {
-      const response = await fetch(windowId
-        ? `${BASE}/governance/review-windows/${encodeURIComponent(windowId)}`
-        : `${BASE}/governance/method/tasks`, {
+    const read = async <T,>(path: string): Promise<T> => {
+      const response = await fetch(`${BASE}${path}`, {
         credentials: 'same-origin', cache: 'no-store', signal: current.signal,
         headers: { Accept: 'application/json' } })
       if (!response.ok) {
         const data = await response.json().catch(() => ({}))
         throw new ApiError(response.status, data.error?.code ?? 'UNAVAILABLE', '')
       }
-      let page: { items: MethodTask[]; next_after: string | null }
+      return await response.json() as T
+    }
+    try {
+      let page: CursorPage<MethodTask>
       if (windowId) {
-        const view = await response.json() as MethodWindowView
+        const view = await read<MethodWindowView>(`/governance/review-windows/${encodeURIComponent(windowId)}`)
         const version = view.object.protocol.contract_version
         if (!METHOD_WINDOW_VERSIONS.includes(version)) {
           if (mounted.current && generation === epoch.current) versionRef.current?.(version)
@@ -637,7 +642,8 @@ export function MethodActions({ session, prepare, onError, onExplore, windowId, 
         }
         page = { items: [windowTask(view)], next_after: null }
       } else {
-        page = await response.json() as { items: MethodTask[]; next_after: string | null }
+        page = await readWindow((after, limit) =>
+          read<CursorPage<MethodTask>>(`/governance/method/tasks${pageQuery(limit, after)}`), shown.current)
       }
       if (mounted.current && generation === epoch.current) {
         setTasks(page.items.map((task) => ({ ...task,
@@ -723,17 +729,10 @@ export function MethodActions({ session, prepare, onError, onExplore, windowId, 
     setValues((current) => ({ ...current, [field.name]: [...rows(current, field.name), {}] }))
   const removeRow = (field: Field, index: number) =>
     setValues((current) => ({ ...current, [field.name]: rows(current, field.name).filter((_row, i) => i !== index) }))
-  const loadMore = async () => {
+  const loadMore = () => {
     if (!nextAfter) return
-    try {
-      const response = await fetch(`${BASE}/governance/method/tasks?after=${nextAfter}`, {
-        credentials: 'same-origin', cache: 'no-store', headers: { Accept: 'application/json' } })
-      if (!response.ok) throw new ApiError(response.status, 'UNAVAILABLE', '')
-      const page = await response.json() as { items: MethodTask[]; next_after: string | null }
-      setTasks((current) => [...current, ...page.items.map((task) => ({ ...task,
-        actions: (task.actions ?? []).filter((action) => BROWSER_ACTIONS.has(action.action_type)) }))])
-      setNextAfter(page.next_after)
-    } catch (error) { onError(error) }
+    shown.current += PAGE_SIZE
+    void load()
   }
 
   const renderField = (field: Field) => {
@@ -921,7 +920,7 @@ export function MethodActions({ session, prepare, onError, onExplore, windowId, 
           </div>
         </section>
       ))}
-      {nextAfter && <Button variant="outline" onClick={() => void loadMore()}>加载更多</Button>}
+      {nextAfter && <Button variant="outline" onClick={loadMore}>加载更多</Button>}
       {openAction && tasks.some((task) => task.object_id === openAction.task.object_id) && (
         <form className="space-y-3 border-t pt-4" onSubmit={submit}
               data-testid={`method-form-${openAction.action.action_type}`}>

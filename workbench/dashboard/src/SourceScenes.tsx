@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { ApiError } from "@/lib/errors"
+import { PAGE_SIZE, pageQuery, readWindow, type CursorPage } from "@/lib/paging"
 
 export type SourceSession = { identity: { principal_id: string; display_name: string }; csrf: string }
 type Payload = Record<string, unknown>
@@ -247,13 +248,19 @@ export function SourceScenes({ session, prepare, onError }: {
   const contextAbort = useRef<AbortController | null>(null)
   const contextIdRef = useRef('')
   const selectedRef = useRef<string | null>(null)
+  // How many scenes the person has loaded: every refresh re-reads that whole
+  // window, and 「加载更多」 widens it, so polling never drops loaded pages.
+  const listWindow = useRef(PAGE_SIZE)
+  const listEpoch = useRef(0)
 
   const loadList = useCallback(async () => {
+    const generation = ++listEpoch.current
     try {
-      const page = await readJson<{ items: SourceSceneSummary[]; next_after: string | null }>('/governance/sources')
-      if (mounted.current) { setScenes(page.items); setNextAfter(page.next_after); setFailure(''); setListFailed(false) }
+      const page = await readWindow((after, limit) =>
+        readJson<CursorPage<SourceSceneSummary>>(`/governance/sources${pageQuery(limit, after)}`), listWindow.current)
+      if (mounted.current && generation === listEpoch.current) { setScenes(page.items); setNextAfter(page.next_after); setFailure(''); setListFailed(false) }
     } catch (error) {
-      if (!mounted.current) return
+      if (!mounted.current || generation !== listEpoch.current) return
       // A list this identity may no longer read is dropped, not kept as stale content.
       if (error instanceof ApiError && [403, 404].includes(error.status)) { setScenes([]); setNextAfter(null) }
       setFailure(err(error)); setListFailed(true); onError(error)
@@ -464,10 +471,8 @@ export function SourceScenes({ session, prepare, onError }: {
           <span className="text-sm font-medium">{scene.title}</span>
           <span className="ml-2 text-[11px] text-muted-foreground">{scene.scene_type} · v{scene.version}</span>
         </button>)}
-        {nextAfter && <Button variant="outline" onClick={async () => {
-          const response = await fetch(`${BASE}/governance/sources?after=${nextAfter}`, { credentials: 'same-origin', cache: 'no-store' })
-          if (response.ok) { const page = await response.json() as { items: SourceSceneSummary[]; next_after: string | null }
-            setScenes((current) => [...current, ...page.items]); setNextAfter(page.next_after) } }}>加载更多</Button>}
+        {nextAfter && <Button variant="outline" onClick={() => {
+          listWindow.current += PAGE_SIZE; void loadList() }}>加载更多</Button>}
       </div>}
       {selected && <div className="space-y-4">
         <Button variant="ghost" onClick={() => { setSelected(null); setDetail(null); setOperation(null) }}>← 返回场景列表</Button>

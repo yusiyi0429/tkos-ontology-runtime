@@ -128,3 +128,28 @@ def test_citing_any_version_older_than_the_seeded_one_is_an_old_version_countere
         {'claim': '旧版验收', 'kind': 'gap', 'refs': [f'{TASK}@1#acceptance', f'{MISSION}@3#definition']},
         {'claim': '现行定义', 'kind': 'fact', 'refs': [f'{TASK}@3#definition']}]}}
     assert metrics.score(run, [], gold, set())['counterexamples']['old_version'] == 2
+
+
+def test_answer_coverage_counts_the_expected_references_each_answer_cited(summary):
+    """第二轮报告的口径（#32 D）：期望引用是整个对象时，引了它的某个版本或块也算；块与事件要完全相同。
+    why：2/2、1/2（引的是旧版本的 Task 定义）、1/2；who 三次都 2/2（大写与不带前缀的写法也认）；
+    now 只有一次有效，引了快照的块，算覆盖了整个快照。A0 不含调过取上下文的 why-2。"""
+    a = summary['a']
+    assert {key: item['answer_coverage'] for key, item in a['questions'].items()} == {
+        'why': [4, 6], 'who': [6, 6], 'now': [1, 1]}
+    assert a['answer_coverage'] == pytest.approx(11 / 13)
+    assert summary['a0']['answer_coverage'] == pytest.approx(10 / 11)
+
+
+def test_call_patterns_count_calls_repeats_and_runs_that_left_the_start_object():
+    """有效的 7 次运行共 12 次调用；只有 why-1 读了起点以外的对象（Task、Mission）；why-2 调了一次取上下文。"""
+    gold = metrics.resolve(load('gold.json'), load('manifest.json'))
+    runs = metrics.load_runs(FIXTURE / 'a')
+    result = metrics.summarize(gold, {'a': runs}, metrics.load_runs(FIXTURE / 'b'), load('world.json'),
+                               attempts=3, start=ACT)
+    assert result['a']['calls'] == {'runs': 7, 'per_run': pytest.approx(12 / 7), 'repeated': 0,
+                                    'context_per_run': pytest.approx(1 / 7), 'left_start': 1,
+                                    'objects_per_run': pytest.approx(9 / 7)}
+    line = {'tool': 'world_get_object', 'arguments': {'object_id': ACT}, 'chars': 10, 'read_refs': [f'{ACT}@2']}
+    repeated = {'question': 'who', 'status': 'ok', 'log': [line, dict(line)], 'answer': None}
+    assert metrics.score(repeated, gold['questions']['who']['expected'], gold, set())['repeated_calls'] == 1

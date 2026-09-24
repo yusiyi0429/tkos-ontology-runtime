@@ -11,6 +11,10 @@ B 组是固定路径的取上下文，作预算的对照。
   有效运行不足规定次数的问列为 short，确定性就不算达标。
 - 反例：断言引了该类诱饵（诱饵不带块时指整个对象的任何版本与块）；引了比这次播种更旧的版本一律记为旧版本对象；
   fact 断言引空块一律记为「空块被当作有内容」，gap 断言引空块不算。B 组没有回答，只记包里混进的诱饵。
+- 回答引用的覆盖（另算，不是通过标准，#32 D）：标准答案应引用的里被回答引到的比例（所有有效运行合计）；
+  期望引用是整个对象时，引了它的某个版本或块也算，块与事件要完全相同。
+- 调用模式（另算）：每次运行的工具调用数、与同一运行之前某次完全相同的重复调用、取上下文的次数、
+  请求过的对象数，以及读了起点以外对象的运行数（给了起点才算）。
 """
 from __future__ import annotations
 
@@ -89,15 +93,40 @@ def _hits(ref: str, category: str, gold: dict) -> bool:
                for decoy in gold['decoys'][category])
 
 
+def covers(expected: str, cited: set[str]) -> bool:
+    """回答引用覆盖了一条期望引用：完全相同；期望是整个对象（`<id>@<版本>`）时，引了该对象的任何版本或块也算。"""
+    if expected in cited:
+        return True
+    if expected.startswith('event:') or '#' in expected:
+        return False
+    object_id = expected.partition('@')[0]
+    return any(not ref.startswith('event:') and ref.partition('@')[0] == object_id for ref in cited)
+
+
+def calls(log: list[dict]) -> dict:
+    """一次运行的调用模式：调用数、与之前某次完全相同的重复调用数、取上下文次数、请求过的对象。"""
+    seen: list[tuple[str, str]] = []
+    repeated = 0
+    for line in log:
+        key = (line.get('tool'), json.dumps(line.get('arguments'), sort_keys=True, ensure_ascii=False))
+        repeated += key in seen
+        seen.append(key)
+    return {'calls': len(log), 'repeated_calls': repeated,
+            'context_calls': sum(line.get('tool') == 'world_get_context' for line in log),
+            'objects': sorted({(line.get('arguments') or {}).get('object_id') for line in log} - {None})}
+
+
 def score(run: dict, expected: list[str], gold: dict, empty_blocks: set[str]) -> dict:
-    """一次运行：召回、可追溯（分子、分母）、各类反例次数、取到的诱饵、返回字符数、取到与所引的集合。"""
+    """一次运行：召回、可追溯（分子、分母）、各类反例次数、取到的诱饵、返回字符数、取到与所引的集合、
+    回答引用的覆盖与调用模式。"""
     got = taken(run['log'])
     kinds = [category for category in gold['decoys'] if category != EMPTY]
     result = {'recall': [sum(ref in got for ref in expected), len(expected)],
               'chars': sum(line['chars'] for line in run['log']),
               'used_chars': sum(line.get('used_chars') or 0 for line in run['log']),
               'taken': sorted(got),
-              'decoys_taken': {category: sum(_hits(ref, category, gold) for ref in got) for category in kinds}}
+              'decoys_taken': {category: sum(_hits(ref, category, gold) for ref in got) for category in kinds},
+              **calls(run['log'])}
     if run.get('answer') is None:
         return result
     claims = [{'kind': claim['kind'], 'refs': {normalize(ref) for ref in claim['refs']}} for claim in run['answer']['claims']]
@@ -105,9 +134,10 @@ def score(run: dict, expected: list[str], gold: dict, empty_blocks: set[str]) ->
                for category in kinds}
     if EMPTY in gold['decoys']:
         counted[EMPTY] = sum(claim['kind'] == 'fact' and bool(claim['refs'] & empty_blocks) for claim in claims)
+    cited = set().union(*(claim['refs'] for claim in claims))
     result.update(traceability=[sum(bool(claim['refs']) and claim['refs'] <= got for claim in claims), len(claims)],
                   counterexamples={category: counted[category] for category in gold['decoys']},
-                  cited=sorted(set().union(*(claim['refs'] for claim in claims))))
+                  cited=sorted(cited), answer_coverage=[sum(covers(ref, cited) for ref in expected), len(expected)])
     return result
 
 
@@ -144,8 +174,9 @@ def _statuses(runs: list[dict]) -> dict[str, int]:
     return counted
 
 
-def _traversal(gold: dict, runs: list[dict], b: dict, world: dict, attempts: int, empty_blocks: set[str]) -> dict:
-    """一个模型遍历组：逐问与合计指标、与全量塞入及 B 组的预算比值、对照通过标准的结论。"""
+def _traversal(gold: dict, runs: list[dict], b: dict, world: dict, attempts: int, empty_blocks: set[str],
+               start: str | None = None) -> dict:
+    """一个模型作答组：逐问与合计指标、与全量塞入及 B 组的预算比值、对照通过标准的结论，另算回答引用的覆盖与调用模式。"""
     questions, scored_all = {}, []
     for key, item in gold['questions'].items():
         scored = [score(run, item['expected'], gold, empty_blocks)
@@ -157,7 +188,8 @@ def _traversal(gold: dict, runs: list[dict], b: dict, world: dict, attempts: int
                           'determinism_cited': jaccard([set(run['cited']) for run in scored]),
                           'chars': _mean([run['chars'] for run in scored]),
                           'counterexamples': _added([run['counterexamples'] for run in scored]),
-                          'decoys_taken': _added([run['decoys_taken'] for run in scored])}
+                          'decoys_taken': _added([run['decoys_taken'] for run in scored]),
+                          'answer_coverage': _pooled([run['answer_coverage'] for run in scored])}
     chars, b_chars = _mean([item['chars'] for item in questions.values()]), _mean([item['used_chars'] for item in b.values()])
     b_json = _mean([item['chars'] for item in b.values()])
     half = PASS['of_full'] * world['full_chars']
@@ -173,7 +205,15 @@ def _traversal(gold: dict, runs: list[dict], b: dict, world: dict, attempts: int
              'counterexamples': _added([run['counterexamples'] for run in scored_all]),
              'decoys_taken': _added([run['decoys_taken'] for run in scored_all]),
              'budget': {'of_full': chars and chars / world['full_chars'], 'of_b': chars and b_chars and chars / b_chars,
-                        'of_b_json': chars and b_json and chars / b_json, 'over': over}}
+                        'of_b_json': chars and b_json and chars / b_json, 'over': over},
+             'answer_coverage': _ratio(_pooled([run['answer_coverage'] for run in scored_all])),
+             'answer_coverage_counts': _pooled([run['answer_coverage'] for run in scored_all]),
+             'calls': {'runs': len(scored_all), 'per_run': _mean([run['calls'] for run in scored_all]),
+                       'repeated': sum(run['repeated_calls'] for run in scored_all),
+                       'context_per_run': _mean([run['context_calls'] for run in scored_all]),
+                       'left_start': None if start is None else sum(bool(set(run['objects']) - {start})
+                                                                    for run in scored_all),
+                       'objects_per_run': _mean([len(run['objects']) for run in scored_all])}}
     group['verdict'] = {  # 没有有效运行、或有效运行不足的，相应各项不算达标
         'recall': (group['recall'] or 0) >= PASS['recall'],
         'traceability': (group['traceability'] or 0) >= PASS['traceability'],
@@ -184,9 +224,10 @@ def _traversal(gold: dict, runs: list[dict], b: dict, world: dict, attempts: int
     return group
 
 
-def summarize(gold: dict, traversals: dict[str, list[dict]], b_runs: list[dict], world: dict, attempts: int) -> dict:
-    """各模型遍历组（组名 -> 运行）与 B 组的逐问与合计指标；每个模型遍历组各有预算比值与对照通过标准的结论
-    （报告用，不作为 0.1 验收门）。"""
+def summarize(gold: dict, traversals: dict[str, list[dict]], b_runs: list[dict], world: dict, attempts: int,
+              start: str | None = None) -> dict:
+    """各模型作答组（组名 -> 运行）与 B 组的逐问与合计指标；每个模型作答组各有预算比值与对照通过标准的结论
+    （报告用，不作为 0.1 验收门）。start 是起点对象的 id，给了才算「离开起点」的运行数。"""
     empty_blocks = set(world['empty_blocks'])
     b = {}
     for key, item in gold['questions'].items():
@@ -196,7 +237,7 @@ def summarize(gold: dict, traversals: dict[str, list[dict]], b_runs: list[dict],
                   'chars': _mean([pack['chars'] for pack in packs]),
                   'used_chars': _mean([pack['used_chars'] for pack in packs]),
                   'decoys_taken': _added([pack['decoys_taken'] for pack in packs])}
-    summary = {name: _traversal(gold, runs, b, world, attempts, empty_blocks) for name, runs in traversals.items()}
+    summary = {name: _traversal(gold, runs, b, world, attempts, empty_blocks, start) for name, runs in traversals.items()}
     summary['b'] = {'runs': _statuses(b_runs), 'questions': b,
                     'recall': _ratio(_pooled([item['recall'] for item in b.values()])),
                     'chars': _mean([item['chars'] for item in b.values()]),

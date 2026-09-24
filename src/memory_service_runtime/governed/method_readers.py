@@ -59,11 +59,12 @@ def revision(conn, ctx, object_id, revision_id):
 
 
 def is_receipt(row):
+    from .method_v05_models import ACTION_PARAMS as V05_PARAMS
     from .method_v04_models import ACTION_PARAMS as V04_PARAMS
     from .method_v03_models import ACTION_PARAMS
     from .method_v02_models import ACTION_PARAMS as OLD_PARAMS
     return (row.get("action_type") in ACTION_PARAMS or row.get("action_type") in OLD_PARAMS
-            or row.get("action_type") in V04_PARAMS)
+            or row.get("action_type") in V04_PARAMS or row.get("action_type") in V05_PARAMS)
 
 
 def authorize_receipt(conn, ctx, row, *, replay=False):

@@ -7,7 +7,7 @@ from uuid import uuid4
 
 import pytest
 
-from memory_service_runtime.governed import (method_access, method_service, method_v04, method_v05,
+from memory_service_runtime.governed import (method_access, method_service, method_v04, method_v05, method_v05_models,
                                              protocol, workbench)
 from memory_service_runtime.governed.errors import GovernedError
 
@@ -1708,3 +1708,23 @@ def test_propose_state_runner_regenerates_via_revise_without_touching_state_keys
     assert written['state'] == {'unrelated_key': 'kept', 'phase': 'recorded', 'canonical_ref': reference,
                                 'recommendation_ref': reference, 'generated_by': principal_id}
     assert result == {**reference, 'phase': 'recorded', 'nature': 'owner_statement'}
+
+
+@pytest.mark.parametrize('action', sorted(method_v05_models.V05_ONLY_ACTIONS))
+def test_receipts_of_the_0_5_only_actions_are_authorized_by_the_method_receipt_reader(monkeypatch, action):
+    """试点链验收（#32 B）：范围 DRI 经工作台确认本域约束，提交成功，本人读回执、重放原信封却都是 403。
+    0.5 独有的四个动作没被认作 Method 回执，落到了按公司域判读权限的通用路径，而范围 DRI 读不了公司域。
+    读回执与幂等重放都先经 is_receipt 分派，所以两处都该走 Method 的回执授权。"""
+    from memory_service_runtime.governed import db as core_db, method_readers, readers
+
+    routed = []
+    monkeypatch.setattr(method_readers, 'authorize_receipt',
+                        lambda conn, ctx, row, **kwargs: routed.append(row['action_type']))
+    monkeypatch.setattr(core_db, 'authorize_domain',
+                        lambda *args, **kwargs: (_ for _ in ()).throw(GovernedError('FORBIDDEN')))
+    receipt = {'action_type': action, 'principal_id': str(uuid4()), 'target_object_id': str(uuid4()),
+               'object_versions': [], 'result': {'domain_id': str(uuid4())}}
+    readers.authorize_receipt(None, SimpleNamespace(scope_id=str(uuid4()), principal_id=receipt['principal_id']),
+                              receipt)
+    assert routed == [action]
+    assert method_readers.is_receipt(receipt)

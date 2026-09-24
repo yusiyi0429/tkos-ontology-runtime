@@ -31,9 +31,14 @@ REJECTION_ONLY_TABLES = frozenset({
     "gov_rejection_audit", "gov_request_rejections", "gov_denial_audit",
     "gov_rejected_requests",
 })
+# Independent copy of the release UPDATE allowlist (deploy/offline-release/db_admin.py);
+# tests/test_runtime_acceptance_grants.py keeps the two equal.
 MUTABLE_GOV_TABLES = frozenset({
     "gov_scopes", "gov_principals", "gov_credentials",
     "gov_role_assignments", "gov_objects", "gov_feedback_state", "gov_work_item_state",
+    "gov_formation_round_state", "gov_round_formal_submissions",
+    "gov_execution_state", "gov_a3_work_item_state", "gov_method_state",
+    "gov_method_strategy_heads", "gov_method_runs",
 })
 # Credentials are an authentication bootstrap table whose RLS policy requires a
 # digest, not the business scope GUC. Do not read/set digests for this oracle or

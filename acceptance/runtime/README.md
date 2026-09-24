@@ -61,7 +61,7 @@ python3 acceptance/runtime/infra.py run --migration -- .venv/bin/python -m pytes
 
 ## 迁移与权限
 
-PG bootstrap 的 superuser 创建独立数据库、vector 扩展及 owner/app 两个角色，隔离迁移测试和备份恢复也使用该管理身份。迁移由 owner 执行，应用角色不拥有表、不拥有数据库、不具备 CREATE ROLE/DB 或 BYPASSRLS。旧非 `gov_*` 表按照已有测试需要授予 CRUD；`schema_migrations` 只授 SELECT。`gov_*` 授 SELECT/INSERT，且仅 `gov_scopes`、`gov_principals`、`gov_credentials`、`gov_role_assignments`、`gov_objects`、`gov_feedback_state`、`gov_work_item_state` 允许 UPDATE，所有 `gov_*` 均不授 DELETE。infra 不使用全 schema DEFAULT PRIVILEGES；API/Worker 环境无管理身份。
+PG bootstrap 的 superuser 创建独立数据库、vector 扩展及 owner/app 两个角色，隔离迁移测试和备份恢复也使用该管理身份。迁移由 owner 执行，应用角色不拥有表、不拥有数据库、不具备 CREATE ROLE/DB 或 BYPASSRLS。应用角色的表权限不在 infra 另存名单：授权子进程直接加载发布授权脚本 `deploy/offline-release/db_admin.py` 的 `expected_privileges`，逐表 REVOKE ALL 后按其分类重新授权，与生产授权一致。即旧非 `gov_*` 表授 CRUD；`schema_migrations` 与 A1/Method 控制面表只授 SELECT；`runtime_tasks`、`runtime_worker_heartbeats` 及 `MUTABLE_GOV_TABLES` 中的 `gov_*` 表（v0.2 七张加 A2/A3/Method 状态表）授 SELECT/INSERT/UPDATE；其余 `gov_*` 授 SELECT/INSERT；`gov_*` 与 runtime 表均不授 DELETE。`sql_oracle.py` 的 UPDATE 白名单作为独立检查保留自己的副本，`tests/test_runtime_acceptance_grants.py` 核对它与发布名单一致。infra 不使用全 schema DEFAULT PRIVILEGES；API/Worker 环境无管理身份。
 
 新增治理迁移文件到位后执行：
 
@@ -69,7 +69,7 @@ PG bootstrap 的 superuser 创建独立数据库、vector 扩展及 owner/app �
 python3 acceptance/runtime/infra.py migrate
 ```
 
-输出会列出实际新应用的迁移、应用角色属性与各 `gov_*` 表的 UPDATE/DELETE 权限，供检查 immutable 表确无这些权限。RLS 的 tenant/principal 设置及强制策略由治理 migration/runtime 实现，infra 仅证明应用连接不能通过 superuser/owner 身份绕过策略。
+输出会列出实际新应用的迁移、应用角色属性与各 `gov_*` 表的 UPDATE/DELETE 权限，供检查 immutable 表确无这些权限；任一表的实际权限偏离发布分类时直接失败。RLS 的 tenant/principal 设置及强制策略由治理 migration/runtime 实现，infra 仅证明应用连接不能通过 superuser/owner 身份绕过策略。
 
 ## 真实外部效果与持久化验收
 

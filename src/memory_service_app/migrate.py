@@ -6,8 +6,11 @@ the run.  The runner:
 - holds a transaction advisory lock, so concurrent runs serialize and the later
   ones find nothing left to apply;
 - records the SHA-256 of every applied file and refuses to continue when an
-  applied file has changed or disappeared (rows written by the old runner get
-  their SHA-256 backfilled from the current file);
+  applied file has changed or disappeared.  Rows written by the old runner get
+  their SHA-256 backfilled from the current file: that first backfill trusts
+  whatever is on disk, so check the files against the released artifact before
+  upgrading (the delivery-candidate acceptance compares them with the v0.4.0
+  image);
 - refuses names outside ``NNNN_name.sql`` and new duplicate numbers — the two
   historical 0028 files stay allowed, their identities are never rewritten.
 
@@ -58,7 +61,10 @@ def migrate(database_url: str, *, connect_timeout: int = 5) -> list[str]:
                  name text PRIMARY KEY,
                  applied_at timestamptz NOT NULL DEFAULT now())"""
         )
-        conn.execute("ALTER TABLE schema_migrations ADD COLUMN IF NOT EXISTS sha256 text")
+        # 只在旧表缺这一列时 ALTER：之后的运行不再拿表上的排他锁，也不要求一定是表的属主。
+        if conn.execute("SELECT 1 FROM pg_attribute WHERE attrelid='schema_migrations'::regclass"
+                        " AND attname='sha256' AND NOT attisdropped").fetchone() is None:
+            conn.execute("ALTER TABLE schema_migrations ADD COLUMN sha256 text")
         done = dict(conn.execute("SELECT name, sha256 FROM schema_migrations").fetchall())
         missing = sorted(set(done) - set(digests))
         if missing:

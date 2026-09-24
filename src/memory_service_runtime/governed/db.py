@@ -127,9 +127,16 @@ def authenticate(conn: psycopg.Connection, token: str) -> AuthContext:
     scope_id = str(credential["scope_id"])
     principal_id = str(credential["principal_id"])
     _set_scope(conn, scope_id)
+    # lock_timeout 按每次取锁计：排在别人后面时要先等元组锁、再等持锁事务，最多两倍。
+    # 取栅栏这一条语句整体再受同一上限约束，然后恢复平常的语句上限。
+    lock, statement = _timeouts()
+    if lock:
+        conn.execute("SELECT set_config('statement_timeout', %s, true)", (f"{lock}ms",))
     waited = time.perf_counter()
     scope = conn.execute("SELECT * FROM gov_scopes WHERE scope_id=%s FOR UPDATE", (scope_id,)).fetchone()
     LOCK_WAIT_MS.set(round((time.perf_counter() - waited) * 1000, 1))
+    if lock:
+        conn.execute("SELECT set_config('statement_timeout', %s, true)", (f"{statement}ms",))
     if scope is None:
         raise GovernedError("UNAUTHENTICATED")
     checkpoints.checkpoint("auth_fence_acquired", {

@@ -7,6 +7,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import threading
 import time
 from uuid import uuid4
 
@@ -62,6 +63,37 @@ def test_a_request_waiting_on_a_held_scope_fence_gives_up_with_a_retryable_503(s
     assert waited < 3
     [line] = _lines(caplog, "governed_transaction")
     assert line["outcome"] == "EVIDENCE_UNAVAILABLE" and line["lock_wait_ms"] is None
+
+
+def test_a_second_waiter_in_the_queue_is_bounded_by_one_lock_timeout(seeded, monkeypatch):
+    """PostgreSQL 的 lock_timeout 按每次取锁计：排在别人后面等行锁，要先等元组锁、再等持锁事务，
+    最多是两倍。栅栏的整条 FOR UPDATE 必须合起来受 GOVERNED_LOCK_TIMEOUT_MS 约束。"""
+    monkeypatch.setenv("GOVERNED_LOCK_TIMEOUT_MS", "1000")
+    token = seeded["actors"]["ceo"]["token"]
+    outcomes: dict[str, tuple[str, float]] = {}
+
+    def wait(name: str) -> None:
+        started = time.monotonic()
+        try:
+            with db.transaction(token):
+                outcomes[name] = ("committed", time.monotonic() - started)
+        except GovernedError as exc:
+            outcomes[name] = (exc.code, time.monotonic() - started)
+
+    holder = _hold_fence(seeded["scope_id"])
+    try:
+        first = threading.Thread(target=wait, args=("first",))
+        first.start()
+        time.sleep(0.3)
+        second = threading.Thread(target=wait, args=("second",))
+        second.start()
+        first.join(10)
+        second.join(10)
+    finally:
+        holder.rollback()
+        holder.close()
+    assert outcomes["first"][0] == outcomes["second"][0] == "EVIDENCE_UNAVAILABLE"
+    assert outcomes["second"][1] < 1.6, outcomes
 
 
 def test_a_statement_over_the_statement_timeout_is_a_retryable_503(seeded, monkeypatch):

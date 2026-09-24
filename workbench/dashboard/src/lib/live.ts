@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useReducer, useRef } from "react"
-import { isAbort, isAccessDenial } from "@/lib/errors"
+import { isAbort, isAccessDenial, isNotFound } from "@/lib/errors"
 
 /** Live read state with foreground polling, abort/epoch guarding and update prompts. */
 export interface LiveState<T> {
@@ -18,6 +18,7 @@ export type LiveAction<T> =
   | { type: "start" }
   | { type: "success"; data: T }
   | { type: "failure"; error: unknown }
+  | { type: "gone"; error: unknown }
   | { type: "acceptPending" }
   | { type: "dismissPending" }
   | { type: "reset" }
@@ -52,6 +53,10 @@ export function liveReducer<T>(
     }
     case "failure":
       return { ...state, error: action.error, stale: state.data !== null, loading: false }
+    case "gone":
+      // The item is gone or no longer visible: drop its content (never stale),
+      // keep the reason; the next successful read restores it.
+      return { ...initialLiveState<T>(), error: action.error }
     case "acceptPending":
       return state.pending === null ? state : { ...state, data: state.pending, pending: null }
     case "dismissPending":
@@ -116,6 +121,10 @@ export function useLiveResource<T>(options: LiveResourceOptions<T>): LiveResourc
         abortRef.current?.abort()
         onAccessDeniedRef.current?.()
         rawDispatch({ type: "reset" })
+        return
+      }
+      if (isNotFound(error)) {
+        rawDispatch({ type: "gone", error })
         return
       }
       rawDispatch({ type: "failure", error })

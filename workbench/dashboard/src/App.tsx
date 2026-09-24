@@ -129,12 +129,15 @@ export function App({ embedded = false }: { embedded?: boolean } = {}) {
     setReceiptsLoading(false)
   }, [])
 
+  const resetOverview = useRef<() => void>(() => undefined)
   const onAccessDenied = useCallback(() => {
     // Clear every protected projection, including the overview/private header
-    // (via disabled hooks) and all manual load-more state, and abort in-flight
-    // manual requests so a late response can never repopulate the page.
+    // and (via disabled hooks) the rest, and all manual load-more state, and
+    // abort in-flight manual requests so a late response can never repopulate
+    // the page.  Only the identity read keeps probing, for recovery.
     setAccessLost(true)
     resetDetailLoaders()
+    resetOverview.current()
   }, [resetDetailLoaders])
 
   useEffect(() => () => {
@@ -149,9 +152,14 @@ export function App({ embedded = false }: { embedded?: boolean } = {}) {
     identity: (data) => `${data.viewer?.principal_id ?? "none"}|${data.selected_strategy_id ?? "none"}`
       + `|${data.groups.map((group) => `${group.group}:${group.available}:${group.historical_available}`).join(",")}`
       + `|${data.historical_basis.groups.join(",")}`,
-    enabled: !accessLost,
+    // Stays enabled while access is lost: its next successful read is the
+    // recovery signal, so the page does not stay invalid until a reload.
     onAccessDenied,
   })
+  resetOverview.current = overview.reset
+  useEffect(() => {
+    if (accessLost && overview.data) setAccessLost(false)
+  }, [accessLost, overview.data])
 
   // Exactly one readable Strategy is selected automatically; multiple choices
   // stay explicit (never merged) via the URL.  The initial default adoption
@@ -414,7 +422,9 @@ export function App({ embedded = false }: { embedded?: boolean } = {}) {
   const receiptsHasMore = receiptsCursor === null
     ? false
     : Boolean(receiptsCursor ?? detail.data?.receipts.next_cursor)
-  const detailBody = accessLost ? <AuthLostPanel /> : (
+  // Embedded only in the governance workbench, where reads use the person's own session.
+  const authLost = <AuthLostPanel personal={embedded} />
+  const detailBody = accessLost ? authLost : (
     <DetailPane detail={detail.data} loading={detail.loading} error={detail.error}
                 onOpenObject={openObject}
                 onSelectRevision={(revisionId) => navigate({ rev: revisionId })}
@@ -463,7 +473,7 @@ export function App({ embedded = false }: { embedded?: boolean } = {}) {
         {visitedViews.has("definitions") ? (
           <main className={activeView === "definitions" ? "flex min-w-0 flex-1" : "hidden"}
                 aria-hidden={activeView !== "definitions"} data-testid="definitions-view">
-            {accessLost ? <AuthLostPanel /> : (
+            {accessLost ? authLost : (
               <BusinessDefinitions methodMap={methodMap.data} loading={methodMap.loading}
                                    error={methodMap.error}
                                    onOpenType={(type) => { setRulesNotice(false)
@@ -475,7 +485,7 @@ export function App({ embedded = false }: { embedded?: boolean } = {}) {
           <main className={activeView === "map" ? "flex min-w-0 flex-1" : "hidden"}
                 aria-hidden={activeView !== "map"}>
             <section className="min-w-0 flex-1">
-              {accessLost ? <AuthLostPanel /> : !rulesValid ? (
+              {accessLost ? authLost : !rulesValid ? (
                 <div className="p-4" data-testid="rules-invalid">
                   <Alert>
                     <AlertTitle>未知的业务规则版本</AlertTitle>
@@ -569,7 +579,7 @@ export function App({ embedded = false }: { embedded?: boolean } = {}) {
           <main className={activeView === "graph" ? "flex min-w-0 flex-1" : "hidden"}
                 aria-hidden={activeView !== "graph"}>
             <section className="min-w-0 flex-1">
-              {accessLost ? <AuthLostPanel /> : (
+              {accessLost ? authLost : (
                 <BusinessGraph
                   strategyId={strategyId}
                   entryFocus={view.object

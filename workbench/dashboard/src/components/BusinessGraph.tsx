@@ -5,7 +5,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Input } from "@/components/ui/input"
 import { PanZoomCanvas, type CanvasEdge, type CanvasFocusPoint } from "@/components/PanZoomCanvas"
 import { fetchDetail, fetchDownstream } from "@/lib/api"
-import { errorLabel, isAbort, isAccessDenial } from "@/lib/errors"
+import { errorLabel, isAbort, isAccessDenial, isNotFound } from "@/lib/errors"
 import { RAG_LABELS, TYPE_LABELS, formalBusinessText, referenceLabel } from "@/lib/labels"
 import { rulesOfContractVersion, type RulesVersion } from "@/lib/ontology"
 import { shortId } from "@/lib/format"
@@ -267,7 +267,7 @@ export function BusinessGraph({ strategyId, entryFocus, entryKey, active, select
     const hadExtras = (nodesRef.current[node.key]?.extraDownstream.length ?? 0) > 0
     const { rules, rulesUnknown } = rulesOf(detail)
     patchNode(node.key, {
-      loading: false, expanded: true, neighbors,
+      loading: false, expanded: true, neighbors, error: null,
       extraDownstream: [], extrasCleared: hadExtras,
       objectType: node.objectType || detail.object.object_type,
       title: detail.business.title ?? detail.business.summary ?? node.title,
@@ -475,6 +475,9 @@ export function BusinessGraph({ strategyId, entryFocus, entryKey, active, select
           onAccessDenied()
           return
         }
+        // This exact revision is gone or no longer visible: only this node says
+        // so and drops the relations it contributed; the rest of the graph stays.
+        if (isNotFound(error)) patchNode(key, { error, neighbors: [], extraDownstream: [] })
         failed = true
       }
     }

@@ -38,14 +38,20 @@ export function errorLabel(error: unknown): string {
 
 /**
  * Protected content must be cleared (not kept as stale) when authority is gone.
- * A revoked assignment/strategy can surface as 403/404 while the credential
- * itself stays valid, and an unavailable viewer means no business read at all.
+ * A revoked assignment can surface as 403 while the credential itself stays
+ * valid, and an unavailable viewer means no business read at all.  A 404 is not
+ * lost authority: it concerns one item (see isNotFound).
  */
 export function isAccessDenial(error: unknown): boolean {
   if (!(error instanceof ApiError)) return false
-  if (error.status === 401 || error.status === 403 || error.status === 404) return true
-  return ["UNAUTHENTICATED", "FORBIDDEN", "NOT_FOUND",
+  if (error.status === 401 || error.status === 403) return true
+  return ["UNAUTHENTICATED", "FORBIDDEN",
           "DASHBOARD_VIEWER_UNAVAILABLE", "DASHBOARD_HOST_POLICY_UNAVAILABLE"].includes(error.code)
+}
+
+/** One item is gone or no longer visible: clear that item only, the rest of the page stays. */
+export function isNotFound(error: unknown): boolean {
+  return error instanceof ApiError && (error.status === 404 || error.code === "NOT_FOUND")
 }
 
 export function isAbort(error: unknown): boolean {

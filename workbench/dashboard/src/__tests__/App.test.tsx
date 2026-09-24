@@ -241,6 +241,47 @@ describe("authorization boundaries", () => {
   })
 })
 
+describe("not found and recovery", () => {
+  it("a 404 on one object stays local and the next successful read restores it", async () => {
+    const user = userEvent.setup()
+    let gone = true
+    stubApi({ detail: () => gone
+      ? jsonResponse({ error: { code: "NOT_FOUND", message: "The requested record is unavailable." } }, 404)
+      : jsonResponse(detail()) })
+    window.history.replaceState(null, "", "/dashboard/?view=graph&object=m1")
+    render(<App />)
+    expect(await screen.findByText("对象不存在或当前不可见")).toBeInTheDocument()
+    expect(screen.queryByTestId("auth-lost")).not.toBeInTheDocument()
+    gone = false
+    await user.click(screen.getByRole("button", { name: "立即刷新" }))
+    expect(await screen.findByTestId("detail-pane")).toBeInTheDocument()
+    expect(screen.queryByText("对象不存在或当前不可见")).not.toBeInTheDocument()
+  })
+
+  it("lost access recovers when the identity read succeeds again", async () => {
+    const user = userEvent.setup()
+    let deny = false
+    stubApi({ overview: () => deny ? denial() : jsonResponse(overview()) })
+    render(<App />)
+    await screen.findByTestId("ontology-map")
+    deny = true
+    await user.click(screen.getByRole("button", { name: "立即刷新" }))
+    expect(await screen.findByTestId("auth-lost")).toBeInTheDocument()
+    deny = false
+    await act(async () => { window.dispatchEvent(new Event("focus")) })
+    await waitFor(() => expect(screen.queryByTestId("auth-lost")).not.toBeInTheDocument())
+    expect(await screen.findByTestId("ontology-map")).toBeInTheDocument()
+  })
+
+  it("advises the signed-in person, not a viewer deployer, inside the governance workbench", async () => {
+    stubApi({ overview: () => denial() })
+    render(<App embedded />)
+    const panel = await screen.findByTestId("auth-lost")
+    expect(panel).toHaveTextContent("登录会话")
+    expect(panel).not.toHaveTextContent("看板部署者")
+  })
+})
+
 describe("detail paging", () => {
   it("clears history and receipt pagination when the exact revision changes", async () => {
     const user = userEvent.setup()

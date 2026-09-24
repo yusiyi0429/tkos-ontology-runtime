@@ -4,7 +4,6 @@ from __future__ import annotations
 from contextlib import contextmanager
 import hashlib
 import os
-import uuid
 
 from memory_service_runtime.config import env_value
 from memory_service_runtime.governed import db
@@ -43,21 +42,37 @@ def object_client():
         client.close()
 
 
-def store_bytes(ctx, domain_id: str, title: str, content: bytes, media_type: str) -> dict:
+def _stored_version(client, bucket: str, key: str, digest: str, length: int) -> str | None:
+    """键按内容寻址：同一内容已经存过就沿用那个版本，重试不再产生新对象。"""
+    try:
+        head = client.head_object(Bucket=bucket, Key=key)
+    except Exception as exc:
+        if getattr(exc, "response", {}).get("Error", {}).get("Code") in {"404", "NoSuchKey", "NotFound"}:
+            return None
+        raise
+    if head.get("Metadata", {}).get("sha256") != digest or head.get("ContentLength") != length:
+        return None
+    return head.get("VersionId")
+
+
+def store_bytes(scope_id: str, domain_id: str, title: str, content: bytes, media_type: str) -> dict:
+    """在 scope 栅栏之外调用（ADR-0006）：只写对象存储，不碰数据库。"""
     if not 1 <= len(content) <= MAX_EVIDENCE_BYTES:
         raise GovernedError("INVALID_REQUEST", "Evidence must contain 1..2097152 bytes", status=422)
     bucket = env_value("TKOS_OBJECT_STORE_BUCKET", required=True)
-    key = f"gov/{ctx.scope_id}/{domain_id}/{uuid.uuid4()}"
     digest = hashlib.sha256(content).hexdigest()
+    key = f"gov/{scope_id}/{domain_id}/sha256/{digest}"
     with object_client() as client:
         from memory_service.context_graph.snapshot_storage import probe_immutability
 
         probe = probe_immutability(bucket, client)
         if not probe.passed:
             raise GovernedError("EVIDENCE_UNAVAILABLE", "Versioned retained evidence storage is required", status=503)
-        saved = client.put_object(Bucket=bucket, Key=key, Body=content, ContentType=media_type,
-                                  Metadata={"sha256": digest})
-        version_id = saved.get("VersionId")
+        version_id = _stored_version(client, bucket, key, digest, len(content))
+        if version_id is None:
+            saved = client.put_object(Bucket=bucket, Key=key, Body=content, ContentType=media_type,
+                                      Metadata={"sha256": digest})
+            version_id = saved.get("VersionId")
         if not version_id or version_id == "null":
             raise GovernedError("EVIDENCE_UNAVAILABLE", "Storage did not return a durable version identity", status=503)
     return {"title": title, "bucket": bucket, "key": key, "version_id": version_id,

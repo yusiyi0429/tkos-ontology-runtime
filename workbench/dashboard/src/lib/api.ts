@@ -3,6 +3,13 @@ import type { Detail, ObjectsPage, Overview } from "@/lib/types"
 
 export const API_BASE = "/dashboard/api/v1"
 
+/**
+ * Marks a timer-driven refresh.  The governance workbench's personal session
+ * does not count it as the person's activity, so an open tab that only polls
+ * still reaches the idle limit; the read-only viewer ignores it.
+ */
+export const BACKGROUND_HEADERS: Readonly<Record<string, string>> = { "X-TKOS-Background": "1" }
+
 export interface ObjectQuery {
   group: string
   basis: string
@@ -33,10 +40,10 @@ export function objectPath(query: ObjectQuery): string {
   return `/objects?${params.toString()}`
 }
 
-export async function getJson<T>(path: string, signal?: AbortSignal): Promise<T> {
+export async function getJson<T>(path: string, signal?: AbortSignal, background = false): Promise<T> {
   const response = await fetch(`${API_BASE}${path}`, {
     method: "GET",
-    headers: { Accept: "application/json" },
+    headers: { Accept: "application/json", ...(background ? BACKGROUND_HEADERS : {}) },
     cache: "no-store",
     credentials: "same-origin",
     signal,
@@ -56,19 +63,20 @@ export async function getJson<T>(path: string, signal?: AbortSignal): Promise<T>
   return (await response.json()) as T
 }
 
-export const fetchOverview = (strategyId: string | null, signal?: AbortSignal) =>
-  getJson<Overview>(`/overview${strategyId ? `?strategy_id=${encodeURIComponent(strategyId)}` : ""}`, signal)
+export const fetchOverview = (strategyId: string | null, signal?: AbortSignal, background = false) =>
+  getJson<Overview>(`/overview${strategyId ? `?strategy_id=${encodeURIComponent(strategyId)}` : ""}`, signal,
+                    background)
 
 export const fetchObjects = (query: ObjectQuery, signal?: AbortSignal) =>
   getJson<ObjectsPage>(objectPath(query), signal)
 
 export const fetchDetail = (objectId: string, revisionId: string | null, strategyId: string | null,
-                            signal?: AbortSignal) => {
+                            signal?: AbortSignal, background = false) => {
   const params = new URLSearchParams()
   if (revisionId) params.set("revision_id", revisionId)
   if (strategyId) params.set("strategy_id", strategyId)
   const suffix = params.size ? `?${params.toString()}` : ""
-  return getJson<Detail>(`/objects/${encodeURIComponent(objectId)}${suffix}`, signal)
+  return getJson<Detail>(`/objects/${encodeURIComponent(objectId)}${suffix}`, signal, background)
 }
 
 export const fetchDownstream = (objectId: string, revisionId: string, cursor: string | null,
@@ -97,16 +105,16 @@ export function evidenceUrl(objectId: string, revisionId: string): string {
   return `${API_BASE}/evidence-assets/${encodeURIComponent(objectId)}/revisions/${encodeURIComponent(revisionId)}`
 }
 
-export const fetchOntologyCatalog = (signal?: AbortSignal) =>
-  getJson<import("@/lib/types").OntologyCatalog>("/ontology/catalog", signal)
+export const fetchOntologyCatalog = (signal?: AbortSignal, background = false) =>
+  getJson<import("@/lib/types").OntologyCatalog>("/ontology/catalog", signal, background)
 
-export const fetchMethodMap = (signal?: AbortSignal) =>
-  getJson<import("@/lib/types").MethodMap>("/ontology/method-map", signal)
+export const fetchMethodMap = (signal?: AbortSignal, background = false) =>
+  getJson<import("@/lib/types").MethodMap>("/ontology/method-map", signal, background)
 
 export const fetchCatalogObjects = (objectType: string, cursor: string | null,
-                                    signal?: AbortSignal) => {
+                                    signal?: AbortSignal, background = false) => {
   const params = new URLSearchParams({ object_type: objectType, limit: "25" })
   if (cursor) params.set("cursor", cursor)
   return getJson<import("@/lib/types").CatalogObjectsPage>(
-    `/catalog/objects?${params.toString()}`, signal)
+    `/catalog/objects?${params.toString()}`, signal, background)
 }

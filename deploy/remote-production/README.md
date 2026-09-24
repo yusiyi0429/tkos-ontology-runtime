@@ -80,6 +80,26 @@ Pooled connections are reused, so the pool clears the governance session GUCs
 on return; `tests/test_governed_pool.py` asserts that a connection carrying
 session-level identity hands the next caller a clean one.
 
+**Lock and statement timeouts.** Every governed transaction sets
+transaction-local `lock_timeout` (`GOVERNED_LOCK_TIMEOUT_MS`, default 5000) and
+`statement_timeout` (`GOVERNED_STATEMENT_TIMEOUT_MS`, default 30000); 0 disables
+either. A request that waits on its company's scope fence, or runs one
+statement, longer than that fails with a retryable 503 instead of holding a
+pooled connection indefinitely. The effect dispatcher applies the same limits.
+
+**Request size.** Bodies over `GOVERNED_MAX_BODY_BYTES` (default 1 MiB; evidence
+uploads 3 MiB, enough for a 2 MiB file in base64) are refused with 413 before the
+application reads them, so an oversized payload never reaches the append-only
+tables. The nginx `client_max_body_size` in front stays at 4m.
+
+**Run records.** The API writes one JSON line per request (`http_request`:
+method, route template, status, duration) and one per governed transaction
+(`governed_transaction`: pool wait, scope-lock wait, hold time, outcome, and for
+an action committed through `/v1/actions` or the workbench, or an evidence upload,
+its receipt id, action type and effect task ids) to stderr.
+Responses carry `X-Request-ID`; a well-formed incoming value is kept. Lines hold
+identifiers and timings only, never bodies, query strings, credentials or SQL.
+
 **Credentials.** The application DSN and the embedding provider key are mounted
 as docker secrets (`private/database-url`, `private/embedding-api-key`) and
 referenced through `DATABASE_URL_FILE` / `MEMORY_EMBEDDING_API_KEY_FILE`, so

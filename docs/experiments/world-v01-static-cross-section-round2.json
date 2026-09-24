@@ -1,0 +1,1040 @@
+{
+  "f": {
+    "runs": {
+      "ok": 18
+    },
+    "questions": {
+      "why": {
+        "runs": 3,
+        "recall": [
+          12,
+          12
+        ],
+        "traceability": [
+          11,
+          11
+        ],
+        "determinism": 1.0,
+        "determinism_cited": 0.8518518518518519,
+        "chars": 13374,
+        "counterexamples": {
+          "old_version": 0,
+          "other_unit_constraint": 0,
+          "unrelated_mission_state": 0,
+          "resolved_issue": 0,
+          "unrelated_event": 0,
+          "empty_block_as_content": 0,
+          "outside_scope": 0,
+          "stale_artifact": 0
+        },
+        "decoys_taken": {
+          "old_version": 0,
+          "other_unit_constraint": 0,
+          "unrelated_mission_state": 0,
+          "resolved_issue": 0,
+          "unrelated_event": 0,
+          "outside_scope": 0,
+          "stale_artifact": 0
+        },
+        "answer_coverage": [
+          4,
+          12
+        ]
+      },
+      "what": {
+        "runs": 3,
+        "recall": [
+          9,
+          9
+        ],
+        "traceability": [
+          16,
+          16
+        ],
+        "determinism": 1.0,
+        "determinism_cited": 0.8425925925925926,
+        "chars": 13374,
+        "counterexamples": {
+          "old_version": 0,
+          "other_unit_constraint": 0,
+          "unrelated_mission_state": 0,
+          "resolved_issue": 0,
+          "unrelated_event": 0,
+          "empty_block_as_content": 0,
+          "outside_scope": 0,
+          "stale_artifact": 0
+        },
+        "decoys_taken": {
+          "old_version": 0,
+          "other_unit_constraint": 0,
+          "unrelated_mission_state": 0,
+          "resolved_issue": 0,
+          "unrelated_event": 0,
+          "outside_scope": 0,
+          "stale_artifact": 0
+        },
+        "answer_coverage": [
+          9,
+          9
+        ]
+      },
+      "who": {
+        "runs": 3,
+        "recall": [
+          12,
+          12
+        ],
+        "traceability": [
+          6,
+          6
+        ],
+        "determinism": 1.0,
+        "determinism_cited": 1.0,
+        "chars": 13376,
+        "counterexamples": {
+          "old_version": 0,
+          "other_unit_constraint": 0,
+          "unrelated_mission_state": 0,
+          "resolved_issue": 0,
+          "unrelated_event": 0,
+          "empty_block_as_content": 0,
+          "outside_scope": 0,
+          "stale_artifact": 0
+        },
+        "decoys_taken": {
+          "old_version": 0,
+          "other_unit_constraint": 0,
+          "unrelated_mission_state": 0,
+          "resolved_issue": 0,
+          "unrelated_event": 0,
+          "outside_scope": 0,
+          "stale_artifact": 0
+        },
+        "answer_coverage": [
+          6,
+          12
+        ]
+      },
+      "now": {
+        "runs": 3,
+        "recall": [
+          9,
+          9
+        ],
+        "traceability": [
+          12,
+          12
+        ],
+        "determinism": 1.0,
+        "determinism_cited": 0.7777777777777778,
+        "chars": 13358,
+        "counterexamples": {
+          "old_version": 0,
+          "other_unit_constraint": 0,
+          "unrelated_mission_state": 0,
+          "resolved_issue": 0,
+          "unrelated_event": 0,
+          "empty_block_as_content": 0,
+          "outside_scope": 0,
+          "stale_artifact": 0
+        },
+        "decoys_taken": {
+          "old_version": 0,
+          "other_unit_constraint": 0,
+          "unrelated_mission_state": 0,
+          "resolved_issue": 0,
+          "unrelated_event": 0,
+          "outside_scope": 0,
+          "stale_artifact": 0
+        },
+        "answer_coverage": [
+          6,
+          9
+        ]
+      },
+      "happened": {
+        "runs": 3,
+        "recall": [
+          12,
+          12
+        ],
+        "traceability": [
+          15,
+          15
+        ],
+        "determinism": 1.0,
+        "determinism_cited": 1.0,
+        "chars": 13358,
+        "counterexamples": {
+          "old_version": 0,
+          "other_unit_constraint": 0,
+          "unrelated_mission_state": 0,
+          "resolved_issue": 0,
+          "unrelated_event": 0,
+          "empty_block_as_content": 0,
+          "outside_scope": 0,
+          "stale_artifact": 0
+        },
+        "decoys_taken": {
+          "old_version": 0,
+          "other_unit_constraint": 0,
+          "unrelated_mission_state": 0,
+          "resolved_issue": 0,
+          "unrelated_event": 0,
+          "outside_scope": 0,
+          "stale_artifact": 0
+        },
+        "answer_coverage": [
+          9,
+          12
+        ]
+      },
+      "basis": {
+        "runs": 3,
+        "recall": [
+          9,
+          9
+        ],
+        "traceability": [
+          17,
+          17
+        ],
+        "determinism": 1.0,
+        "determinism_cited": 0.8076923076923077,
+        "chars": 13365,
+        "counterexamples": {
+          "old_version": 0,
+          "other_unit_constraint": 0,
+          "unrelated_mission_state": 0,
+          "resolved_issue": 0,
+          "unrelated_event": 0,
+          "empty_block_as_content": 0,
+          "outside_scope": 0,
+          "stale_artifact": 0
+        },
+        "decoys_taken": {
+          "old_version": 0,
+          "other_unit_constraint": 0,
+          "unrelated_mission_state": 0,
+          "resolved_issue": 0,
+          "unrelated_event": 0,
+          "outside_scope": 0,
+          "stale_artifact": 0
+        },
+        "answer_coverage": [
+          8,
+          9
+        ]
+      }
+    },
+    "short": {},
+    "recall": 1.0,
+    "traceability": 1.0,
+    "determinism": 1.0,
+    "determinism_cited": 0.879985754985755,
+    "chars": 13367.5,
+    "counterexamples": {
+      "old_version": 0,
+      "other_unit_constraint": 0,
+      "unrelated_mission_state": 0,
+      "resolved_issue": 0,
+      "unrelated_event": 0,
+      "empty_block_as_content": 0,
+      "outside_scope": 0,
+      "stale_artifact": 0
+    },
+    "decoys_taken": {
+      "old_version": 0,
+      "other_unit_constraint": 0,
+      "unrelated_mission_state": 0,
+      "resolved_issue": 0,
+      "unrelated_event": 0,
+      "outside_scope": 0,
+      "stale_artifact": 0
+    },
+    "budget": {
+      "of_full": 0.15538364969951993,
+      "of_b": 1.369691070239254,
+      "of_b_json": 1.0,
+      "over": [
+        "why",
+        "what",
+        "who",
+        "now",
+        "happened",
+        "basis"
+      ]
+    },
+    "answer_coverage": 0.6666666666666666,
+    "answer_coverage_counts": [
+      42,
+      63
+    ],
+    "calls": {
+      "runs": 18,
+      "per_run": 1,
+      "repeated": 0,
+      "context_per_run": 1,
+      "left_start": 0,
+      "objects_per_run": 1
+    },
+    "verdict": {
+      "recall": true,
+      "traceability": true,
+      "budget": false,
+      "determinism": true,
+      "counterexamples": true
+    }
+  },
+  "a": {
+    "runs": {
+      "ok": 18
+    },
+    "questions": {
+      "why": {
+        "runs": 3,
+        "recall": [
+          12,
+          12
+        ],
+        "traceability": [
+          15,
+          15
+        ],
+        "determinism": 1.0,
+        "determinism_cited": 0.8425925925925926,
+        "chars": 27194,
+        "counterexamples": {
+          "old_version": 0,
+          "other_unit_constraint": 0,
+          "unrelated_mission_state": 0,
+          "resolved_issue": 0,
+          "unrelated_event": 0,
+          "empty_block_as_content": 0,
+          "outside_scope": 0,
+          "stale_artifact": 0
+        },
+        "decoys_taken": {
+          "old_version": 0,
+          "other_unit_constraint": 0,
+          "unrelated_mission_state": 0,
+          "resolved_issue": 0,
+          "unrelated_event": 0,
+          "outside_scope": 0,
+          "stale_artifact": 0
+        },
+        "answer_coverage": [
+          3,
+          12
+        ]
+      },
+      "what": {
+        "runs": 3,
+        "recall": [
+          9,
+          9
+        ],
+        "traceability": [
+          19,
+          19
+        ],
+        "determinism": 1.0,
+        "determinism_cited": 0.7925925925925926,
+        "chars": 27400,
+        "counterexamples": {
+          "old_version": 0,
+          "other_unit_constraint": 0,
+          "unrelated_mission_state": 0,
+          "resolved_issue": 0,
+          "unrelated_event": 0,
+          "empty_block_as_content": 0,
+          "outside_scope": 0,
+          "stale_artifact": 0
+        },
+        "decoys_taken": {
+          "old_version": 0,
+          "other_unit_constraint": 0,
+          "unrelated_mission_state": 0,
+          "resolved_issue": 0,
+          "unrelated_event": 0,
+          "outside_scope": 0,
+          "stale_artifact": 0
+        },
+        "answer_coverage": [
+          9,
+          9
+        ]
+      },
+      "who": {
+        "runs": 3,
+        "recall": [
+          12,
+          12
+        ],
+        "traceability": [
+          6,
+          6
+        ],
+        "determinism": 1.0,
+        "determinism_cited": 1.0,
+        "chars": 22254,
+        "counterexamples": {
+          "old_version": 0,
+          "other_unit_constraint": 0,
+          "unrelated_mission_state": 0,
+          "resolved_issue": 0,
+          "unrelated_event": 0,
+          "empty_block_as_content": 0,
+          "outside_scope": 0,
+          "stale_artifact": 0
+        },
+        "decoys_taken": {
+          "old_version": 0,
+          "other_unit_constraint": 0,
+          "unrelated_mission_state": 0,
+          "resolved_issue": 0,
+          "unrelated_event": 0,
+          "outside_scope": 0,
+          "stale_artifact": 0
+        },
+        "answer_coverage": [
+          6,
+          12
+        ]
+      },
+      "now": {
+        "runs": 3,
+        "recall": [
+          9,
+          9
+        ],
+        "traceability": [
+          16,
+          16
+        ],
+        "determinism": 1.0,
+        "determinism_cited": 0.75,
+        "chars": 25690.666666666668,
+        "counterexamples": {
+          "old_version": 0,
+          "other_unit_constraint": 0,
+          "unrelated_mission_state": 0,
+          "resolved_issue": 0,
+          "unrelated_event": 0,
+          "empty_block_as_content": 0,
+          "outside_scope": 0,
+          "stale_artifact": 0
+        },
+        "decoys_taken": {
+          "old_version": 0,
+          "other_unit_constraint": 0,
+          "unrelated_mission_state": 0,
+          "resolved_issue": 0,
+          "unrelated_event": 0,
+          "outside_scope": 0,
+          "stale_artifact": 0
+        },
+        "answer_coverage": [
+          6,
+          9
+        ]
+      },
+      "happened": {
+        "runs": 3,
+        "recall": [
+          12,
+          12
+        ],
+        "traceability": [
+          14,
+          14
+        ],
+        "determinism": 1.0,
+        "determinism_cited": 0.45185185185185184,
+        "chars": 28639.333333333332,
+        "counterexamples": {
+          "old_version": 0,
+          "other_unit_constraint": 0,
+          "unrelated_mission_state": 0,
+          "resolved_issue": 0,
+          "unrelated_event": 0,
+          "empty_block_as_content": 0,
+          "outside_scope": 0,
+          "stale_artifact": 0
+        },
+        "decoys_taken": {
+          "old_version": 0,
+          "other_unit_constraint": 0,
+          "unrelated_mission_state": 0,
+          "resolved_issue": 0,
+          "unrelated_event": 0,
+          "outside_scope": 0,
+          "stale_artifact": 0
+        },
+        "answer_coverage": [
+          6,
+          12
+        ]
+      },
+      "basis": {
+        "runs": 3,
+        "recall": [
+          9,
+          9
+        ],
+        "traceability": [
+          23,
+          23
+        ],
+        "determinism": 1.0,
+        "determinism_cited": 0.7682539682539682,
+        "chars": 40583,
+        "counterexamples": {
+          "old_version": 0,
+          "other_unit_constraint": 0,
+          "unrelated_mission_state": 0,
+          "resolved_issue": 0,
+          "unrelated_event": 0,
+          "empty_block_as_content": 0,
+          "outside_scope": 0,
+          "stale_artifact": 0
+        },
+        "decoys_taken": {
+          "old_version": 0,
+          "other_unit_constraint": 0,
+          "unrelated_mission_state": 0,
+          "resolved_issue": 0,
+          "unrelated_event": 0,
+          "outside_scope": 0,
+          "stale_artifact": 0
+        },
+        "answer_coverage": [
+          6,
+          9
+        ]
+      }
+    },
+    "short": {},
+    "recall": 1.0,
+    "traceability": 1.0,
+    "determinism": 1.0,
+    "determinism_cited": 0.7675485008818342,
+    "chars": 28626.833333333332,
+    "counterexamples": {
+      "old_version": 0,
+      "other_unit_constraint": 0,
+      "unrelated_mission_state": 0,
+      "resolved_issue": 0,
+      "unrelated_event": 0,
+      "empty_block_as_content": 0,
+      "outside_scope": 0,
+      "stale_artifact": 0
+    },
+    "decoys_taken": {
+      "old_version": 0,
+      "other_unit_constraint": 0,
+      "unrelated_mission_state": 0,
+      "resolved_issue": 0,
+      "unrelated_event": 0,
+      "outside_scope": 0,
+      "stale_artifact": 0
+    },
+    "budget": {
+      "of_full": 0.33275794596395786,
+      "of_b": 2.9332274535922265,
+      "of_b_json": 2.1415248425908606,
+      "over": [
+        "why",
+        "what",
+        "who",
+        "now",
+        "happened",
+        "basis"
+      ]
+    },
+    "answer_coverage": 0.5714285714285714,
+    "answer_coverage_counts": [
+      36,
+      63
+    ],
+    "calls": {
+      "runs": 18,
+      "per_run": 5.333333333333333,
+      "repeated": 2,
+      "context_per_run": 1.0555555555555556,
+      "left_start": 12,
+      "objects_per_run": 2
+    },
+    "verdict": {
+      "recall": true,
+      "traceability": true,
+      "budget": false,
+      "determinism": true,
+      "counterexamples": true
+    }
+  },
+  "a0": {
+    "runs": {
+      "ok": 18
+    },
+    "questions": {
+      "why": {
+        "runs": 3,
+        "recall": [
+          3,
+          12
+        ],
+        "traceability": [
+          13,
+          13
+        ],
+        "determinism": 0.8581560283687943,
+        "determinism_cited": 0.7579365079365079,
+        "chars": 33300.666666666664,
+        "counterexamples": {
+          "old_version": 0,
+          "other_unit_constraint": 0,
+          "unrelated_mission_state": 0,
+          "resolved_issue": 0,
+          "unrelated_event": 0,
+          "empty_block_as_content": 0,
+          "outside_scope": 0,
+          "stale_artifact": 0
+        },
+        "decoys_taken": {
+          "old_version": 3,
+          "other_unit_constraint": 0,
+          "unrelated_mission_state": 0,
+          "resolved_issue": 0,
+          "unrelated_event": 0,
+          "outside_scope": 0,
+          "stale_artifact": 0
+        },
+        "answer_coverage": [
+          0,
+          12
+        ]
+      },
+      "what": {
+        "runs": 3,
+        "recall": [
+          9,
+          9
+        ],
+        "traceability": [
+          16,
+          16
+        ],
+        "determinism": 1.0,
+        "determinism_cited": 0.7685185185185185,
+        "chars": 22285,
+        "counterexamples": {
+          "old_version": 0,
+          "other_unit_constraint": 0,
+          "unrelated_mission_state": 0,
+          "resolved_issue": 0,
+          "unrelated_event": 0,
+          "empty_block_as_content": 0,
+          "outside_scope": 0,
+          "stale_artifact": 0
+        },
+        "decoys_taken": {
+          "old_version": 0,
+          "other_unit_constraint": 0,
+          "unrelated_mission_state": 0,
+          "resolved_issue": 0,
+          "unrelated_event": 0,
+          "outside_scope": 0,
+          "stale_artifact": 0
+        },
+        "answer_coverage": [
+          9,
+          9
+        ]
+      },
+      "who": {
+        "runs": 3,
+        "recall": [
+          8,
+          12
+        ],
+        "traceability": [
+          6,
+          6
+        ],
+        "determinism": 0.7000000000000001,
+        "determinism_cited": 1.0,
+        "chars": 12033.333333333334,
+        "counterexamples": {
+          "old_version": 0,
+          "other_unit_constraint": 0,
+          "unrelated_mission_state": 0,
+          "resolved_issue": 0,
+          "unrelated_event": 0,
+          "empty_block_as_content": 0,
+          "outside_scope": 0,
+          "stale_artifact": 0
+        },
+        "decoys_taken": {
+          "old_version": 0,
+          "other_unit_constraint": 0,
+          "unrelated_mission_state": 0,
+          "resolved_issue": 0,
+          "unrelated_event": 0,
+          "outside_scope": 0,
+          "stale_artifact": 0
+        },
+        "answer_coverage": [
+          6,
+          12
+        ]
+      },
+      "now": {
+        "runs": 3,
+        "recall": [
+          3,
+          9
+        ],
+        "traceability": [
+          12,
+          12
+        ],
+        "determinism": 1.0,
+        "determinism_cited": 1.0,
+        "chars": 8878,
+        "counterexamples": {
+          "old_version": 0,
+          "other_unit_constraint": 0,
+          "unrelated_mission_state": 0,
+          "resolved_issue": 0,
+          "unrelated_event": 0,
+          "empty_block_as_content": 0,
+          "outside_scope": 0,
+          "stale_artifact": 0
+        },
+        "decoys_taken": {
+          "old_version": 0,
+          "other_unit_constraint": 0,
+          "unrelated_mission_state": 0,
+          "resolved_issue": 0,
+          "unrelated_event": 0,
+          "outside_scope": 0,
+          "stale_artifact": 0
+        },
+        "answer_coverage": [
+          3,
+          9
+        ]
+      },
+      "happened": {
+        "runs": 3,
+        "recall": [
+          3,
+          12
+        ],
+        "traceability": [
+          13,
+          13
+        ],
+        "determinism": 1.0,
+        "determinism_cited": 0.888888888888889,
+        "chars": 8878,
+        "counterexamples": {
+          "old_version": 0,
+          "other_unit_constraint": 0,
+          "unrelated_mission_state": 0,
+          "resolved_issue": 0,
+          "unrelated_event": 0,
+          "empty_block_as_content": 0,
+          "outside_scope": 0,
+          "stale_artifact": 0
+        },
+        "decoys_taken": {
+          "old_version": 0,
+          "other_unit_constraint": 0,
+          "unrelated_mission_state": 0,
+          "resolved_issue": 0,
+          "unrelated_event": 0,
+          "outside_scope": 0,
+          "stale_artifact": 0
+        },
+        "answer_coverage": [
+          3,
+          12
+        ]
+      },
+      "basis": {
+        "runs": 3,
+        "recall": [
+          9,
+          9
+        ],
+        "traceability": [
+          21,
+          21
+        ],
+        "determinism": 0.7987421383647798,
+        "determinism_cited": 0.9259259259259259,
+        "chars": 34181.333333333336,
+        "counterexamples": {
+          "old_version": 0,
+          "other_unit_constraint": 0,
+          "unrelated_mission_state": 0,
+          "resolved_issue": 0,
+          "unrelated_event": 0,
+          "empty_block_as_content": 0,
+          "outside_scope": 0,
+          "stale_artifact": 0
+        },
+        "decoys_taken": {
+          "old_version": 0,
+          "other_unit_constraint": 0,
+          "unrelated_mission_state": 0,
+          "resolved_issue": 0,
+          "unrelated_event": 0,
+          "outside_scope": 0,
+          "stale_artifact": 0
+        },
+        "answer_coverage": [
+          6,
+          9
+        ]
+      }
+    },
+    "short": {},
+    "recall": 0.5555555555555556,
+    "traceability": 1.0,
+    "determinism": 0.8928163611222624,
+    "determinism_cited": 0.8902116402116402,
+    "chars": 19926.055555555555,
+    "counterexamples": {
+      "old_version": 0,
+      "other_unit_constraint": 0,
+      "unrelated_mission_state": 0,
+      "resolved_issue": 0,
+      "unrelated_event": 0,
+      "empty_block_as_content": 0,
+      "outside_scope": 0,
+      "stale_artifact": 0
+    },
+    "decoys_taken": {
+      "old_version": 3,
+      "other_unit_constraint": 0,
+      "unrelated_mission_state": 0,
+      "resolved_issue": 0,
+      "unrelated_event": 0,
+      "outside_scope": 0,
+      "stale_artifact": 0
+    },
+    "budget": {
+      "of_full": 0.23162021592202112,
+      "of_b": 2.0417086485532616,
+      "of_b_json": 1.4906344159757288,
+      "over": [
+        "why",
+        "what",
+        "who",
+        "basis"
+      ]
+    },
+    "answer_coverage": 0.42857142857142855,
+    "answer_coverage_counts": [
+      27,
+      63
+    ],
+    "calls": {
+      "runs": 18,
+      "per_run": 5.444444444444445,
+      "repeated": 0,
+      "context_per_run": 0,
+      "left_start": 12,
+      "objects_per_run": 2.3333333333333335
+    },
+    "verdict": {
+      "recall": false,
+      "traceability": true,
+      "budget": false,
+      "determinism": false,
+      "counterexamples": true
+    }
+  },
+  "b": {
+    "runs": {
+      "ok": 6
+    },
+    "questions": {
+      "why": {
+        "runs": 1,
+        "recall": [
+          4,
+          4
+        ],
+        "chars": 13374,
+        "used_chars": 9766,
+        "decoys_taken": {
+          "old_version": 0,
+          "other_unit_constraint": 0,
+          "unrelated_mission_state": 0,
+          "resolved_issue": 0,
+          "unrelated_event": 0,
+          "outside_scope": 0,
+          "stale_artifact": 0
+        }
+      },
+      "what": {
+        "runs": 1,
+        "recall": [
+          3,
+          3
+        ],
+        "chars": 13374,
+        "used_chars": 9766,
+        "decoys_taken": {
+          "old_version": 0,
+          "other_unit_constraint": 0,
+          "unrelated_mission_state": 0,
+          "resolved_issue": 0,
+          "unrelated_event": 0,
+          "outside_scope": 0,
+          "stale_artifact": 0
+        }
+      },
+      "who": {
+        "runs": 1,
+        "recall": [
+          4,
+          4
+        ],
+        "chars": 13376,
+        "used_chars": 9768,
+        "decoys_taken": {
+          "old_version": 0,
+          "other_unit_constraint": 0,
+          "unrelated_mission_state": 0,
+          "resolved_issue": 0,
+          "unrelated_event": 0,
+          "outside_scope": 0,
+          "stale_artifact": 0
+        }
+      },
+      "now": {
+        "runs": 1,
+        "recall": [
+          3,
+          3
+        ],
+        "chars": 13358,
+        "used_chars": 9750,
+        "decoys_taken": {
+          "old_version": 0,
+          "other_unit_constraint": 0,
+          "unrelated_mission_state": 0,
+          "resolved_issue": 0,
+          "unrelated_event": 0,
+          "outside_scope": 0,
+          "stale_artifact": 0
+        }
+      },
+      "happened": {
+        "runs": 1,
+        "recall": [
+          4,
+          4
+        ],
+        "chars": 13358,
+        "used_chars": 9750,
+        "decoys_taken": {
+          "old_version": 0,
+          "other_unit_constraint": 0,
+          "unrelated_mission_state": 0,
+          "resolved_issue": 0,
+          "unrelated_event": 0,
+          "outside_scope": 0,
+          "stale_artifact": 0
+        }
+      },
+      "basis": {
+        "runs": 1,
+        "recall": [
+          3,
+          3
+        ],
+        "chars": 13365,
+        "used_chars": 9757,
+        "decoys_taken": {
+          "old_version": 0,
+          "other_unit_constraint": 0,
+          "unrelated_mission_state": 0,
+          "resolved_issue": 0,
+          "unrelated_event": 0,
+          "outside_scope": 0,
+          "stale_artifact": 0
+        }
+      }
+    },
+    "recall": 1.0,
+    "chars": 13367.5,
+    "used_chars": 9759.5,
+    "decoys_taken": {
+      "old_version": 0,
+      "other_unit_constraint": 0,
+      "unrelated_mission_state": 0,
+      "resolved_issue": 0,
+      "unrelated_event": 0,
+      "outside_scope": 0,
+      "stale_artifact": 0
+    }
+  },
+  "full_chars": 86029,
+  "setup": {
+    "started_at": "2026-09-24T16:35:37.939175+00:00",
+    "model": "gpt-6-sol",
+    "effort": "medium",
+    "codex": "codex-cli 0.155.0-alpha.16.4",
+    "identity": "eo_agent",
+    "groups": {
+      "b": [
+        "world_get_context"
+      ],
+      "f": [],
+      "a": [
+        "world_get_object",
+        "world_get_context",
+        "world_get_events",
+        "world_get_state"
+      ],
+      "a0": [
+        "world_get_object",
+        "world_get_events",
+        "world_get_state"
+      ]
+    },
+    "disabled_features": [
+      "shell_tool",
+      "unified_exec",
+      "memories",
+      "chronicle",
+      "apps",
+      "plugins",
+      "browser_use",
+      "computer_use",
+      "image_generation",
+      "multi_agent",
+      "multi_agent_v2",
+      "goals",
+      "sleep_tool",
+      "view_image",
+      "skill_search",
+      "tool_suggest"
+    ],
+    "attempts": 3,
+    "content_sha256": "9ce66139bf61b589d748479cee405581f73a3c29bbdd853c0167aa44f5218be5",
+    "source": {
+      "commit": "9f8ef83f04bef94f816a8f6066761eb6bebf15c3",
+      "src_or_experiments_modified": true,
+      "modified_paths": [
+        "src/memory_service_app/narrative.py"
+      ]
+    }
+  }
+}

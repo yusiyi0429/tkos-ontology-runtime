@@ -78,6 +78,7 @@ def _config(tenant: str, organization: str, worker_id: str = "worker-a") -> Runt
     )
 
 
+@pytest.mark.db
 def test_enqueue_is_idempotent_within_scope_and_isolated_between_scopes(runtime_scope) -> None:
     tenant, organization = runtime_scope
     key = f"idempotent-{uuid.uuid4()}"
@@ -103,6 +104,7 @@ def test_enqueue_is_idempotent_within_scope_and_isolated_between_scopes(runtime_
             )
 
 
+@pytest.mark.db
 def test_claim_uses_skip_locked_and_never_crosses_scope(runtime_scope) -> None:
     tenant, organization = runtime_scope
     first = _enqueue(tenant, organization, key=f"claim-a-{uuid.uuid4()}").task
@@ -143,6 +145,7 @@ def test_claim_uses_skip_locked_and_never_crosses_scope(runtime_scope) -> None:
             )
 
 
+@pytest.mark.db
 def test_worker_completes_noop_and_publishes_scoped_health(runtime_scope) -> None:
     tenant, organization = runtime_scope
     task = _enqueue(tenant, organization, key=f"noop-{uuid.uuid4()}").task
@@ -177,6 +180,7 @@ def test_worker_completes_noop_and_publishes_scoped_health(runtime_scope) -> Non
     assert report["organizationId"] == organization
 
 
+@pytest.mark.db
 def test_retry_then_success_and_stale_lease_is_fenced(runtime_scope) -> None:
     tenant, organization = runtime_scope
     calls = 0
@@ -253,6 +257,7 @@ def test_retry_then_success_and_stale_lease_is_fenced(runtime_scope) -> None:
         assert succeed_task(conn, new_claim, result={"ok": True}) is True
 
 
+@pytest.mark.db
 def test_worker_health_is_scoped_and_detects_stale_heartbeat(runtime_scope) -> None:
     tenant, organization = runtime_scope
     with connect() as conn:
@@ -339,3 +344,18 @@ def test_object_store_preflight_is_read_only_and_requires_immutability() -> None
     assert report["retentionDays"] == 30
     assert captured["verify_tls"] is False
     assert client.closed is True
+
+
+@pytest.mark.db
+def test_the_worker_writes_one_run_record_per_finalized_task(runtime_scope, caplog) -> None:
+    """Worker 每处理完一个任务记一行 runtime_task，按 task_id（效果任务另有 receipt_id）与 API 的运行记录对上。"""
+    import json as _json
+    import logging as _logging
+    caplog.set_level(_logging.INFO, logger="tkos.runtime")
+    tenant, organization = runtime_scope
+    task = _enqueue(tenant, organization, key=f"noop-{uuid.uuid4()}").task
+    assert RuntimeWorker(_config(tenant, organization)).run_once() is True
+    lines = [_json.loads(r.getMessage()) for r in caplog.records if r.name == "tkos.runtime"]
+    assert [line for line in lines if line["event"] == "runtime_task"] == [{
+        "event": "runtime_task", "request_id": None, "task_id": str(task.task_id), "task_type": "system.noop",
+        "state": "succeeded", "attempt": 1, "receipt_id": None, "error_code": None}]

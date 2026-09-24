@@ -191,6 +191,7 @@ def _generation_statuses(conn, rig: GraphRig) -> dict[str, tuple[str, object]]:
             (rig.tenant_id, rig.organization_id),
         ).fetchall()
     }
+@pytest.mark.db
 def test_switch_is_non_destructive_and_reports_retained(rig: GraphRig):
     with connect() as conn, conn.transaction():
         seeded = _seed_two_generations(rig, conn)
@@ -266,6 +267,7 @@ def test_production_scope_switch_always_fails_closed(allow_production: bool):
     assert "生产" in outcome.aborted_reason
 
 
+@pytest.mark.db
 @pytest.mark.parametrize("actor_case", ["foreign_human", "in_scope_agent", "missing"])
 def test_unauthorized_actor_aborts_before_any_side_effect(
     rig: GraphRig, actor_case: str, monkeypatch
@@ -341,6 +343,7 @@ def test_unauthorized_actor_aborts_before_any_side_effect(
         assert statuses[seeded["new"]][0] == "shadow"
 
 
+@pytest.mark.db
 def test_switch_invalid_generation_id_aborts_before_side_effects(rig: GraphRig, monkeypatch):
     """非法 from/to generation UUID：任何 DB/store/preflight/lock 之前 fail-closed aborted。"""
     forbidden_calls: list[str] = []
@@ -381,6 +384,7 @@ def test_switch_invalid_generation_id_aborts_before_side_effects(rig: GraphRig, 
     assert forbidden_calls == []
 
 
+@pytest.mark.db
 def test_run_switch_transaction_failure_rolls_back_even_if_caller_commits(
     rig: GraphRig, monkeypatch
 ):
@@ -415,6 +419,7 @@ def test_run_switch_transaction_failure_rolls_back_even_if_caller_commits(
         assert statuses[seeded["new"]][0] == "shadow"
 
 
+@pytest.mark.db
 def test_run_switch_transaction_rechecks_switched_by_in_transaction(rig: GraphRig):
     """直接调用事务函数：跨 scope switched_by 在同一事务内复核即拒，commit 后无半切换。"""
     with connect() as conn, conn.transaction():
@@ -442,6 +447,7 @@ def test_run_switch_transaction_rechecks_switched_by_in_transaction(rig: GraphRi
         assert statuses[seeded["new"]][0] == "shadow"
 
 
+@pytest.mark.db
 def test_minimal_preflight_count_query_is_scope_constrained(rig: GraphRig):
     """defense-in-depth：confirmed 实体计数显式约束 generation+tenant+org（SQL 记录证明）。"""
     with connect() as conn, conn.transaction():
@@ -480,6 +486,7 @@ def test_minimal_preflight_count_query_is_scope_constrained(rig: GraphRig):
     assert "organization_id=%s" in count_sql
 
 
+@pytest.mark.db
 def test_minimal_preflight_foreign_scope_generation_is_missing(rig: GraphRig):
     """跨 scope 的 shadow 代在 preflight 中等同不存在（scope 约束的行为面）。"""
     with connect() as conn, conn.transaction():

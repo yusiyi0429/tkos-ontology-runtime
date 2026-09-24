@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from dataclasses import dataclass
+import logging
 from typing import Annotated
 
 import psycopg
@@ -12,6 +13,8 @@ from pgvector.psycopg import register_vector
 from memory_service import actors
 
 from adapter.settings import Settings, get_settings
+
+LOGGER = logging.getLogger("tkos.adapter")
 
 
 @dataclass(frozen=True)
@@ -42,7 +45,9 @@ def get_conn(
             settings.database_url, connect_timeout=settings.db_connect_timeout
         )
     except (psycopg.OperationalError, psycopg.InterfaceError) as exc:
-        raise HTTPException(status_code=503, detail=f"memory_service 数据库不可达：{exc}") from exc
+        # 原文带地址、端口、库名与用户名，只进服务端日志。
+        LOGGER.warning("memory_service database unreachable: %s", exc)
+        raise HTTPException(status_code=503, detail="memory_service 数据库不可达") from exc
     try:
         try:
             register_vector(conn)

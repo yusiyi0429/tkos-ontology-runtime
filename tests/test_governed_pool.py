@@ -28,6 +28,7 @@ def _pid(conn) -> int:
     return conn.execute("SELECT pg_backend_pid() AS pid").fetchone()["pid"]
 
 
+@pytest.mark.db
 def test_returned_connection_carries_no_governance_state():
     """Session-level identity written by one caller must not reach the next.
 
@@ -53,6 +54,7 @@ def test_returned_connection_carries_no_governance_state():
     assert not any(residue.values()), f"governance state survived checkout: {residue}"
 
 
+@pytest.mark.db
 def test_exhausted_pool_is_a_retryable_503(monkeypatch):
     monkeypatch.setenv("GOVERNED_POOL_MAX_SIZE", "1")
     monkeypatch.setenv("GOVERNED_POOL_TIMEOUT_SECONDS", "1")

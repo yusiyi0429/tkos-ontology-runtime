@@ -21,6 +21,8 @@ from memory_service.governance import ProposalNotFoundError
 from tests.conftest import Scope, connect
 from tests.fixtures_p0a import GraphRig, borrowed_connection
 
+pytestmark = pytest.mark.db
+
 _VALID_ENTITY_CONTENT = {
     "type_key": "CompanyVision",
     "name": "P0A 愿景",

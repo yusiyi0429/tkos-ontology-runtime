@@ -3,10 +3,14 @@
 The per-scope FOR UPDATE fence deliberately serializes authorized transactions.
 Callers must not commit midway through an authenticated operation or retain an
 AuthContext for a later transaction. Historical reads still use current rights.
+The one sanctioned split is evidence bytes (ADR-0006): upload and download are
+two separately authenticated transactions with object-store I/O between them,
+and only the second transaction's commit counts.
 """
 from __future__ import annotations
 
 from contextlib import ExitStack, contextmanager
+from contextvars import ContextVar
 from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal
@@ -14,6 +18,7 @@ import atexit
 import hashlib
 import os
 import threading
+import time
 from typing import Any, Iterator
 from uuid import UUID
 
@@ -21,8 +26,15 @@ import psycopg
 from psycopg.rows import dict_row
 from psycopg_pool import ConnectionPool, PoolTimeout
 
+from memory_service_runtime import observability
 from . import checkpoints
 from .errors import GovernedError
+
+# 本事务等 scope 栅栏的耗时（毫秒）：authenticate 拿到锁后写入，事务结束记运行记录时读出。
+LOCK_WAIT_MS: ContextVar[float | None] = ContextVar("governed_lock_wait_ms", default=None)
+# 本事务提交的动作（动作类型、回执、效果任务）：只在事务提交后随运行记录写出。
+ACTION: ContextVar[dict[str, Any] | None] = ContextVar("governed_action", default=None)
+_BUSY = "The governed database is busy; retry later."
 
 
 @dataclass(frozen=True)
@@ -111,14 +123,15 @@ def authenticate(conn: psycopg.Connection, token: str) -> AuthContext:
     conn.execute("SELECT set_config('app.governed_credential_digest', %s, true)", (digest,))
     credential = conn.execute(
         """SELECT credential_id, scope_id, principal_id FROM gov_credentials
-            WHERE credential_digest=%s AND revoked_at IS NULL""", (digest,),
+            WHERE credential_digest=%s AND revoked_at IS NULL
+              AND (expires_at IS NULL OR expires_at > clock_timestamp())""", (digest,),
     ).fetchone()
     if credential is None:
         raise GovernedError("UNAUTHENTICATED")
     scope_id = str(credential["scope_id"])
     principal_id = str(credential["principal_id"])
     _set_scope(conn, scope_id)
-    scope = conn.execute("SELECT * FROM gov_scopes WHERE scope_id=%s FOR UPDATE", (scope_id,)).fetchone()
+    scope = acquire_fence(conn, "SELECT * FROM gov_scopes WHERE scope_id=%s FOR UPDATE", (scope_id,))
     if scope is None:
         raise GovernedError("UNAUTHENTICATED")
     checkpoints.checkpoint("auth_fence_acquired", {
@@ -127,7 +140,8 @@ def authenticate(conn: psycopg.Connection, token: str) -> AuthContext:
     current = conn.execute(
         """SELECT credential_id FROM gov_credentials
             WHERE credential_digest=%s AND scope_id=%s AND principal_id=%s
-              AND revoked_at IS NULL""", (digest, scope_id, principal_id),
+              AND revoked_at IS NULL AND (expires_at IS NULL OR expires_at > clock_timestamp())""",
+        (digest, scope_id, principal_id),
     ).fetchone()
     if current is None:
         raise GovernedError("UNAUTHENTICATED")
@@ -264,6 +278,76 @@ def _close_pool() -> None:
             _POOL, _POOL_KEY = None, None
 
 
+def _timeouts() -> tuple[int, int]:
+    """等锁与单条语句的上限（毫秒），可由环境变量调整；0 表示不设上限。"""
+    try:
+        lock = int(os.environ.get("GOVERNED_LOCK_TIMEOUT_MS", "5000"))
+        statement = int(os.environ.get("GOVERNED_STATEMENT_TIMEOUT_MS", "30000"))
+    except ValueError:
+        lock, statement = 5000, 30000
+    return max(lock, 0), max(statement, 0)
+
+
+def acquire_fence(conn: psycopg.Connection, query: str, params: tuple) -> dict[str, Any] | None:
+    """取 scope 栅栏（FOR UPDATE 那一条语句），整体受 GOVERNED_LOCK_TIMEOUT_MS 约束。
+
+    lock_timeout 按每次取锁计：排在别人后面时要先等元组锁、再等持锁事务，最多两倍。
+    这条语句另用 statement_timeout 限在同一上限内，之后恢复平常的语句上限；等锁耗时记入运行记录。
+    """
+    lock, statement = _timeouts()
+    if lock:
+        conn.execute("SELECT set_config('statement_timeout', %s, true)", (f"{lock}ms",))
+    waited = time.perf_counter()
+    row = conn.execute(query, params).fetchone()
+    LOCK_WAIT_MS.set(round((time.perf_counter() - waited) * 1000, 1))
+    if lock:
+        conn.execute("SELECT set_config('statement_timeout', %s, true)", (f"{statement}ms",))
+    return row
+
+
+def record_action(receipt: dict[str, Any], *, replayed: bool) -> dict[str, Any]:
+    """记下本事务提交的动作（类型、回执、效果任务），事务提交后随运行记录写出；不含请求内容。"""
+    ACTION.set({"action_type": receipt["action_type"], "receipt_id": receipt["receipt_id"],
+                "effect_task_ids": receipt.get("effect_task_ids") or [], "replayed": replayed})
+    return receipt
+
+
+def set_timeouts(conn: psycopg.Connection) -> None:
+    """事务内生效：等 scope 栅栏（或任何锁）、执行单条语句超过上限，都由数据库中止。"""
+    lock, statement = _timeouts()
+    conn.execute("SELECT set_config('lock_timeout', %s, true), set_config('statement_timeout', %s, true)",
+                 (f"{lock}ms", f"{statement}ms"))
+
+
+@contextmanager
+def _governed(conn: psycopg.Connection, token: str,
+              pool_wait_ms: float) -> Iterator[tuple[psycopg.Connection, AuthContext]]:
+    """一个治理事务：设超时、认证并拿 scope 栅栏；超时是可重试的 503；结束后记一行运行记录。"""
+    LOCK_WAIT_MS.set(None)
+    ACTION.set(None)
+    started, scope_id, outcome = time.perf_counter(), None, "error"
+    try:
+        with conn.transaction():
+            set_timeouts(conn)
+            try:
+                ctx = authenticate(conn, token)
+                scope_id = ctx.scope_id
+                yield conn, ctx
+            except (psycopg.errors.LockNotAvailable, psycopg.errors.QueryCanceled) as exc:
+                # Same public code as an exhausted pool: the error set has no overload signal yet.
+                raise GovernedError("EVIDENCE_UNAVAILABLE", _BUSY) from exc
+        outcome = "committed"
+    except GovernedError as exc:
+        outcome = exc.code
+        raise
+    finally:
+        action = ACTION.get() if outcome == "committed" else None
+        observability.log("governed_transaction", scope_id=scope_id, pool_wait_ms=round(pool_wait_ms, 1),
+                          lock_wait_ms=LOCK_WAIT_MS.get(),
+                          held_ms=round((time.perf_counter() - started) * 1000, 1),
+                          outcome=outcome, **(action or {}))
+
+
 @contextmanager
 def transaction(token: str) -> Iterator[tuple[psycopg.Connection, AuthContext]]:
     url, max_size, timeout = _pool_config()
@@ -271,11 +355,12 @@ def transaction(token: str) -> Iterator[tuple[psycopg.Connection, AuthContext]]:
         raise GovernedError("EVIDENCE_UNAVAILABLE", "The governed database is unavailable.")
     if max_size == 0:
         with psycopg.connect(url, row_factory=dict_row, connect_timeout=5) as conn:
-            with conn.transaction():
-                yield conn, authenticate(conn, token)
+            with _governed(conn, token, 0.0) as bound:
+                yield bound
         return
     pool = _pool(url, max_size)
     with ExitStack() as stack:
+        started = time.perf_counter()
         try:
             conn = stack.enter_context(pool.connection(timeout=timeout))
         except (PoolTimeout, psycopg.OperationalError) as exc:
@@ -284,5 +369,5 @@ def transaction(token: str) -> Iterator[tuple[psycopg.Connection, AuthContext]]:
             # storage because the public error set has no overload signal yet.
             raise GovernedError("EVIDENCE_UNAVAILABLE",
                                 "The governed database is unavailable.") from exc
-        with conn.transaction():
-            yield conn, authenticate(conn, token)
+        with _governed(conn, token, (time.perf_counter() - started) * 1000) as bound:
+            yield bound

@@ -32,9 +32,10 @@ docker buildx build --load --build-context wheelhouse=/path/to/wheelhouse \
 4. 为 `GOVERNED_EFFECT_URL` 配置可信固定接收器，并配置 `GOVERNED_EFFECT_TOKEN`（或 `GOVERNED_EFFECT_TOKEN_FILE`）。
    - **认证**：派发时带 `Authorization: Bearer <凭证>`，接收器按常量时间比对；返回 401/403 记为认证失败，不重试。
    - **本机以外的接收器**：必须用 https；没配凭证时不派发，任务按配置错误失败（`governance_effect_credential_missing`）。
-   - **参考接收器**：`acceptance/runtime/receiver.py --token-file` 演示接收端的做法。
+   - **参考接收器**：`acceptance/runtime/receiver.py --token-file` 演示接收端的做法；令牌文件每行一个，任一相符即通过。
    - **去重**：接收器还必须持久去重 `Idempotency-Key`，或另外完成对账与补偿设计。
-   - **凭证轮换**：派发端与接收端要同时换。
+   - **凭证轮换**：交替进行。先让接收器同时接受新旧两个凭证，再把派发端换成新凭证，确认派发成功后从接收器删掉旧凭证。
+     两端同时换会留下空档：空档里的派发收到 401，按认证失败直接进入失败终态，而旧效果路径的失败终态没有恢复动作（Codex 评审 R06，#32 未纳入）。
 5. 配置启动顺序、健康检查、日志、备份及同版本恢复，并在目标机器复跑业务闭环、权限拒绝、重试与重启持久化验收。
 
 独立验收中的备份恢复是同一个 PostgreSQL 实例内的新数据库加独立 MinIO 卷；它没有证明整机丢失后的灾难恢复。长任务续租、容量与高可用也需另行验证。

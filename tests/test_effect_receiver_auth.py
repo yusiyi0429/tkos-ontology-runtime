@@ -21,10 +21,22 @@ def test_a_remote_receiver_without_a_credential_is_a_configuration_error(monkeyp
     assert (caught.value.code, caught.value.retryable) == ("governance_effect_credential_missing", False)
 
 
-def test_the_dispatch_headers_carry_the_bearer_credential_and_the_effect_key(monkeypatch):
-    monkeypatch.delenv("GOVERNED_EFFECT_TOKEN_FILE", raising=False)
-    monkeypatch.setenv("GOVERNED_EFFECT_TOKEN", "effect-receiver-secret-0123456789")
-    assert effects.dispatch_headers("r:t") == {"Idempotency-Key": "r:t",
-                                               "Authorization": "Bearer effect-receiver-secret-0123456789"}
-    monkeypatch.delenv("GOVERNED_EFFECT_TOKEN")
-    assert effects.dispatch_headers("r:t") == {"Idempotency-Key": "r:t"}
+def test_the_dispatch_headers_carry_the_bearer_credential_and_the_effect_key():
+    assert effects.dispatch_headers("r:t", "effect-receiver-secret-0123456789") == {
+        "Idempotency-Key": "r:t", "Authorization": "Bearer effect-receiver-secret-0123456789"}
+    assert effects.dispatch_headers("r:t", None) == {"Idempotency-Key": "r:t"}
+
+
+def test_the_reference_receiver_accepts_any_current_token_so_rotation_can_overlap(tmp_path):
+    """轮换：接收端先同时接受新旧两个令牌，派发端换成新的，再删掉旧的，中间不会有 401。"""
+    from acceptance.runtime import receiver
+
+    path = tmp_path / "tokens"
+    path.write_text("old-effect-token-0123456789\n\nnew-effect-token-0123456789\n")
+    tokens = receiver.load_tokens(path)
+    assert tokens == ["old-effect-token-0123456789", "new-effect-token-0123456789"]
+    assert receiver.authorized("Bearer old-effect-token-0123456789", tokens)
+    assert receiver.authorized("Bearer new-effect-token-0123456789", tokens)
+    assert not receiver.authorized("Bearer other-effect-token-0123456789", tokens)
+    assert not receiver.authorized("", tokens)
+    assert not receiver.authorized("Bearer old-effect-token-0123456789", [])  # 空文件：一律拒绝

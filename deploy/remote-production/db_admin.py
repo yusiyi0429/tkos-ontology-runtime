@@ -23,6 +23,9 @@ from psycopg.types.json import Jsonb
 
 
 IDENTIFIER = re.compile(r"^[a-z][a-z0-9_]{0,62}$")
+# The release grant step's classes (deploy/offline-release/db_admin.py). That
+# file cannot be imported: the db-admin service mounts only this one.
+# tests/test_remote_production_grants.py fails if the two diverge.
 MUTABLE_GOV_TABLES = {
     "gov_scopes",
     "gov_principals",
@@ -31,6 +34,20 @@ MUTABLE_GOV_TABLES = {
     "gov_objects",
     "gov_feedback_state",
     "gov_work_item_state",
+    "gov_formation_round_state",
+    "gov_round_formal_submissions",
+    "gov_execution_state",
+    "gov_a3_work_item_state",
+    "gov_method_state",
+    "gov_method_strategy_heads",
+    "gov_method_runs",
+}
+CONTROL_PLANE_TABLES = {
+    "gov_method_profile_revisions",
+    "gov_protocol_policies",
+    "gov_protocol_support_registry",
+    "gov_protocol_control_events",
+    "gov_method_agent_bindings",
 }
 RUNTIME_TABLES = {"runtime_tasks", "runtime_worker_heartbeats"}
 PROVISIONED_TABLES = {
@@ -183,10 +200,21 @@ def transfer() -> dict:
     return {"ok": True, "operation": "transfer", **transferred}
 
 
+def expected_privileges(table: str) -> set[str]:
+    """The release's classes, except that legacy tables stay read-only here."""
+    if table == "schema_migrations" or table in CONTROL_PLANE_TABLES:
+        return {"SELECT"}
+    if table in RUNTIME_TABLES or table in MUTABLE_GOV_TABLES:
+        return {"SELECT", "INSERT", "UPDATE"}
+    if table.startswith("gov_"):
+        return {"SELECT", "INSERT"}
+    return {"SELECT"}
+
+
 def grants() -> dict:
     app = identifier("POSTGRES_APP_USER")
     counts = {"legacy_select_only": 0, "runtime_mutable": 0, "governed_mutable": 0,
-              "governed_append_only": 0}
+              "governed_append_only": 0, "control_read_only": 0}
     with psycopg.connect(env("POSTGRES_MIGRATION_URL")) as conn:
         schemas = [row[0] for row in conn.execute(
             """SELECT nspname FROM pg_namespace
@@ -216,17 +244,16 @@ def grants() -> dict:
             if table == "schema_migrations" or (
                 not table.startswith("gov_") and table not in RUNTIME_TABLES
             ):
-                privileges = "SELECT"
                 counts["legacy_select_only"] += 1
             elif table in RUNTIME_TABLES:
-                privileges = "SELECT, INSERT, UPDATE"
                 counts["runtime_mutable"] += 1
             elif table in MUTABLE_GOV_TABLES:
-                privileges = "SELECT, INSERT, UPDATE"
                 counts["governed_mutable"] += 1
+            elif table in CONTROL_PLANE_TABLES:
+                counts["control_read_only"] += 1
             else:
-                privileges = "SELECT, INSERT"
                 counts["governed_append_only"] += 1
+            privileges = ", ".join(sorted(expected_privileges(table)))
             conn.execute(
                 sql.SQL("GRANT " + privileges + " ON TABLE {} TO {}").format(
                     relation, sql.Identifier(app)
@@ -437,10 +464,9 @@ def verify_permissions() -> dict:
                           has_table_privilege(%s,%s,'TRUNCATE')""",
                 (app, relation, app, relation, app, relation, app, relation),
             ).fetchone()
-            expected_insert = table.startswith("gov_") or table in RUNTIME_TABLES
-            expected_update = table in MUTABLE_GOV_TABLES or table in RUNTIME_TABLES
+            expected = expected_privileges(table)
             if (select_ok, insert_ok, update_ok, delete_ok, truncate_ok) != (
-                True, expected_insert, expected_update, False, False
+                True, "INSERT" in expected, "UPDATE" in expected, False, False
             ):
                 raise RuntimeError("APP_TABLE_PRIVILEGE_DIVERGED:" + table)
         rls = conn.execute(

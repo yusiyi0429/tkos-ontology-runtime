@@ -67,6 +67,7 @@ def test_packaged_migrations_replay_from_empty_database() -> None:
             "0035_world_v01_gates_repin.sql",
             "0036_world_v01_context_packs.sql",
             "0037_append_only_grant_repair.sql",
+            "0038_credential_lifecycle.sql",
         ]
         assert migrate(test_url) == expected
         assert migrate(test_url) == []
@@ -185,7 +186,7 @@ def test_append_only_tables_grant_insert_only_to_writers_of_the_source(
         assert all(widened[(reader, table)] == (True, True) for table in REPAIRED)
 
         monkeypatch.undo()
-        assert migrate(test_url) == ["0037_append_only_grant_repair.sql"]
+        assert migrate(test_url)[0] == "0037_append_only_grant_repair.sql"
         repaired = _privileges(test_url, (reader, writer))
         assert {key: value for key, value in repaired.items() if key[0] == reader} == {
             (reader, table): (True, False) for table in REPAIRED

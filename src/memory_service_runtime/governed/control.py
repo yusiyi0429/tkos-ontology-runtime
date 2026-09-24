@@ -535,6 +535,114 @@ def status(conn: psycopg.Connection, args: argparse.Namespace) -> dict[str, Any]
     })
 
 
+# ------------------------------------------------------------ credentials
+# 凭证只以摘要入库；新凭证只写进 0600 的私有文件（不覆盖已有文件），命令输出与审计事件里都没有它。
+
+
+def _token_file(path: str) -> str:
+    if not path or os.path.lexists(path):
+        _fail("TOKEN_FILE_EXISTS", "The token file must be a new path; existing files are never overwritten.")
+    return path
+
+
+def _write_token(path: str, token: str) -> None:
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as stream:
+        stream.write(token + "\n")
+
+
+def _new_credential(conn: psycopg.Connection, scope_id: str, principal_id: str, label: str,
+                    expires_in_days: int | None, token_file: str) -> dict[str, Any]:
+    if expires_in_days is not None and expires_in_days < 1:
+        _fail("INVALID_REQUEST", "expires_in_days must be at least 1.")
+    principal = conn.execute("SELECT active FROM gov_principals WHERE scope_id=%s AND principal_id=%s",
+                             (scope_id, principal_id)).fetchone()
+    if principal is None or not principal["active"]:
+        _fail("PRINCIPAL_NOT_FOUND", "The principal does not exist or is inactive in this scope.")
+    import secrets
+    token = secrets.token_urlsafe(48)
+    row = conn.execute(
+        """INSERT INTO gov_credentials (scope_id, principal_id, credential_digest, label, expires_at)
+           VALUES (%s, %s, %s, %s, CASE WHEN %s::int IS NULL THEN NULL
+                                        ELSE clock_timestamp() + make_interval(days => %s::int) END)
+           RETURNING credential_id, principal_id, label, created_at, expires_at""",
+        (scope_id, principal_id, hashlib.sha256(token.encode("utf-8")).hexdigest(), label,
+         expires_in_days, expires_in_days),
+    ).fetchone()
+    _write_token(token_file, token)
+    return jsonable(dict(row))
+
+
+def issue_credential(conn: psycopg.Connection, args: argparse.Namespace) -> dict[str, Any]:
+    """给本 scope 的一个在用主体签发 Bearer 凭证，可带有效期。"""
+    token_file = _token_file(args.token_file)
+    _begin(conn, args.scope_id)
+    _require_scope(conn, args.scope_id)
+    issued = _new_credential(conn, args.scope_id, args.principal_id, args.label, args.expires_in_days, token_file)
+    _audit(conn, args.scope_id, "credential_issued", {
+        "credential_id": issued["credential_id"], "principal_id": args.principal_id,
+        "expires_at": issued["expires_at"], "reason": args.reason}, args.actor)
+    return {**issued, "token_file": token_file}
+
+
+def rotate_credential(conn: psycopg.Connection, args: argparse.Namespace) -> dict[str, Any]:
+    """为同一主体签发新凭证；旧凭证在宽限期后过期，宽限期为 0 则立即吊销。"""
+    token_file = _token_file(args.token_file)
+    _begin(conn, args.scope_id)
+    _require_scope(conn, args.scope_id)
+    old = conn.execute(
+        """SELECT credential_id, principal_id, label FROM gov_credentials
+           WHERE scope_id=%s AND credential_id=%s AND revoked_at IS NULL
+             AND (expires_at IS NULL OR expires_at > clock_timestamp()) FOR UPDATE""",
+        (args.scope_id, args.credential_id)).fetchone()
+    if old is None:
+        _fail("CREDENTIAL_NOT_FOUND", "No current credential with this id exists in the scope.")
+    if args.grace_minutes < 0:
+        _fail("INVALID_REQUEST", "grace_minutes cannot be negative.")
+    issued = _new_credential(conn, args.scope_id, str(old["principal_id"]), old["label"],
+                             args.expires_in_days, token_file)
+    if args.grace_minutes:
+        conn.execute(
+            """UPDATE gov_credentials SET expires_at = LEAST(COALESCE(expires_at, 'infinity'),
+                                                             clock_timestamp() + make_interval(mins => %s))
+               WHERE scope_id=%s AND credential_id=%s""", (args.grace_minutes, args.scope_id, args.credential_id))
+    else:
+        conn.execute("UPDATE gov_credentials SET revoked_at = clock_timestamp() WHERE scope_id=%s AND credential_id=%s",
+                     (args.scope_id, args.credential_id))
+    _audit(conn, args.scope_id, "credential_rotated", {
+        "replaced_credential_id": args.credential_id, "credential_id": issued["credential_id"],
+        "principal_id": str(old["principal_id"]), "grace_minutes": args.grace_minutes, "reason": args.reason},
+        args.actor)
+    return {**issued, "replaced_credential_id": args.credential_id, "token_file": token_file}
+
+
+def revoke_credential(conn: psycopg.Connection, args: argparse.Namespace) -> dict[str, Any]:
+    """立即吊销一个凭证；已吊销的再吊销是错误。"""
+    _begin(conn, args.scope_id)
+    _require_scope(conn, args.scope_id)
+    row = conn.execute(
+        """UPDATE gov_credentials SET revoked_at = clock_timestamp()
+           WHERE scope_id=%s AND credential_id=%s AND revoked_at IS NULL
+           RETURNING credential_id, principal_id, revoked_at""", (args.scope_id, args.credential_id)).fetchone()
+    if row is None:
+        _fail("CREDENTIAL_NOT_FOUND", "No unrevoked credential with this id exists in the scope.")
+    _audit(conn, args.scope_id, "credential_revoked", {
+        "credential_id": args.credential_id, "principal_id": str(row["principal_id"]), "reason": args.reason},
+        args.actor)
+    return jsonable(dict(row))
+
+
+def list_credentials(conn: psycopg.Connection, args: argparse.Namespace) -> dict[str, Any]:
+    """列出本 scope 的凭证：标识、主体、标签与日期，不含摘要。"""
+    _begin(conn, args.scope_id)
+    _require_scope(conn, args.scope_id)
+    rows = conn.execute(
+        """SELECT credential_id, principal_id, label, created_at, expires_at, revoked_at FROM gov_credentials
+           WHERE scope_id=%s AND (%s::uuid IS NULL OR principal_id=%s::uuid) ORDER BY created_at, credential_id""",
+        (args.scope_id, args.principal_id, args.principal_id)).fetchall()
+    return {"scope_id": args.scope_id, "credentials": jsonable([dict(row) for row in rows])}
+
+
 def evidence_orphans(conn: psycopg.Connection, args: argparse.Namespace) -> dict[str, Any]:
     """只读对账：对象存储里这家公司 gov/{scope}/ 下的证据版本，哪些没有 EvidenceAsset 修订引用（孤儿），
     哪些被引用却不在存储里（缺失）。
@@ -638,6 +746,31 @@ def main() -> None:
     p = base("evidence-orphans", help="只读列出对象存储里没有修订引用的证据版本，以及被引用却缺失的版本")
     p.add_argument("--scope-id", required=True)
 
+    p = base("issue-credential", help="签发 Bearer 凭证，只写进 --token-file（0600，不覆盖）")
+    p.add_argument("--scope-id", required=True)
+    p.add_argument("--principal-id", required=True)
+    p.add_argument("--label", default="")
+    p.add_argument("--expires-in-days", type=int, default=None)
+    p.add_argument("--token-file", required=True)
+    p.add_argument("--reason", required=True)
+
+    p = base("rotate-credential", help="为同一主体签发新凭证，旧凭证在宽限期后过期（0 为立即吊销）")
+    p.add_argument("--scope-id", required=True)
+    p.add_argument("--credential-id", required=True)
+    p.add_argument("--grace-minutes", type=int, default=0)
+    p.add_argument("--expires-in-days", type=int, default=None)
+    p.add_argument("--token-file", required=True)
+    p.add_argument("--reason", required=True)
+
+    p = base("revoke-credential", help="立即吊销一个凭证")
+    p.add_argument("--scope-id", required=True)
+    p.add_argument("--credential-id", required=True)
+    p.add_argument("--reason", required=True)
+
+    p = base("list-credentials", help="列出凭证的标识、主体与日期，不含摘要")
+    p.add_argument("--scope-id", required=True)
+    p.add_argument("--principal-id", default=None)
+
     args = parser.parse_args()
     handler = {
         "install-profile": install_profile,
@@ -649,6 +782,10 @@ def main() -> None:
         "backfill-legacy": backfill_legacy,
         "status": status,
         "evidence-orphans": evidence_orphans,
+        "issue-credential": issue_credential,
+        "rotate-credential": rotate_credential,
+        "revoke-credential": revoke_credential,
+        "list-credentials": list_credentials,
     }[args.command]
     try:
         with _connect() as conn:

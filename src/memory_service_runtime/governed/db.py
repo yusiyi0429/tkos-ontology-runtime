@@ -123,7 +123,8 @@ def authenticate(conn: psycopg.Connection, token: str) -> AuthContext:
     conn.execute("SELECT set_config('app.governed_credential_digest', %s, true)", (digest,))
     credential = conn.execute(
         """SELECT credential_id, scope_id, principal_id FROM gov_credentials
-            WHERE credential_digest=%s AND revoked_at IS NULL""", (digest,),
+            WHERE credential_digest=%s AND revoked_at IS NULL
+              AND (expires_at IS NULL OR expires_at > clock_timestamp())""", (digest,),
     ).fetchone()
     if credential is None:
         raise GovernedError("UNAUTHENTICATED")
@@ -139,7 +140,8 @@ def authenticate(conn: psycopg.Connection, token: str) -> AuthContext:
     current = conn.execute(
         """SELECT credential_id FROM gov_credentials
             WHERE credential_digest=%s AND scope_id=%s AND principal_id=%s
-              AND revoked_at IS NULL""", (digest, scope_id, principal_id),
+              AND revoked_at IS NULL AND (expires_at IS NULL OR expires_at > clock_timestamp())""",
+        (digest, scope_id, principal_id),
     ).fetchone()
     if current is None:
         raise GovernedError("UNAUTHENTICATED")

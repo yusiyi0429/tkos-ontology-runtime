@@ -103,7 +103,16 @@ control GUC + capability 并断言 `gov_control_plane_on()`，失败整体回滚
 钉住主契约 SHA + `pg_advisory_xact_lock(profile_id@revision)` 跨 scope 并发串行化 +
 同内容幂等 no-op + 审计；--profile-json/--contract-file 缺省用包内冻结资源）、
 install-policy、set-registry、freeze_writes（kill switch，保留 can_read）、
-register-sentinel（ProtocolSentinel，无业务语义）、backfill-legacy（单 scope 只补无绑定对象）、status。
+register-sentinel（ProtocolSentinel，无业务语义）、backfill-legacy（单 scope 只补无绑定对象）、status
+（另报取上下文留痕的行数与占用，ADR-0007）。
+
+#32 追加的命令：
+
+- **evidence-orphans**：只读列出对象存储里没有修订引用的证据版本，以及被引用却缺失的版本（ADR-0006）。
+- **凭证生命周期**：issue-credential、rotate-credential、revoke-credential、list-credentials。
+  - 迁移 0038 给凭证加了可选的 `expires_at`，过期的凭证认证不通过；控制面会话从此可以看见并管理本 scope 的全部凭证，运行时会话仍只看得见自己那一行。
+  - 新凭证只写进 `--token-file`：0600，不覆盖已有文件。命令输出与审计事件里都没有凭证本身，列表也不显示摘要。
+  - 轮换时，旧凭证在 `--grace-minutes` 之后过期；宽限为 0 就立即吊销。
 
 应用角色即使被历史脚本宽泛 GRANT，也只能 SELECT 控制面 4 表（acceptance/runtime/infra.py
 REVOKE INSERT + 断言）；`WITH CHECK gov_control_plane_on()` 使非 owner 写入仍被拒。

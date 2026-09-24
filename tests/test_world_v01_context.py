@@ -326,3 +326,15 @@ def test_a_unit_goal_takes_one_hop_along_goal_ref_to_the_company_goals_definitio
     assert {"ref": f"{COMPANY_GOAL}@1#outcome"} in result["coverage"]["why"]["evidence"]
     assert {"ref": f"{COMPANY_GOAL}@1#outcome"} in result["coverage"]["basis"]["evidence"]
     assert world.inserted is not None and result["budget"]["used_chars"] == len(markdown)
+
+
+def test_event_lines_name_who_recorded_them_and_whom_an_assignment_went_to(world):
+    result = build(world)
+    lines = result["context_pack"]["markdown"].splitlines()
+    assert f"- 2026-09-23T03:00:00Z 指派（事件 `{ASSIGNED}`，Mission Owner 记，指派给 E&O Agent）" in lines
+    assert f"- 2026-09-23T02:23:00Z 外部事件·会议（事件 `{MET}`，方案 IC 记）：9/23 会议定分工" in lines
+    assert f"- 2026-09-22T01:00:00Z 确认·立项·接受（事件 `{CONFIRMED}`，E&O DRI 记）" in lines
+    # 名字也留在包里的事件上，id 照旧。
+    events = {event["event_id"]: event for layer in result["context_pack"]["layers"] for event in layer["events"]}
+    assert [(events[key]["principal_id"], events[key]["principal_name"], events[key]["assignee_name"])
+            for key in (ASSIGNED, MET)] == [(OWNER, "Mission Owner", "E&O Agent"), (IC, "方案 IC", None)]

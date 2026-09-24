@@ -125,11 +125,16 @@ def _responsible(conn: Any, ctx: Any, head: dict[str, Any], revision: dict[str, 
                   AND p.principal_type='human' AND a.valid_from<=clock_timestamp()
                   AND (a.valid_to IS NULL OR clock_timestamp()<a.valid_to)
                 ORDER BY a.principal_id""", (ctx.scope_id, head["domain_id"], rule["role"])).fetchall()]
+    return _principals(conn, ctx, ids)
+
+
+def _principals(conn: Any, ctx: Any, ids: Any) -> list[dict[str, Any]]:
+    """这些责任主体的 id、显示名与类型，按 id 排序。"""
     if not ids:
         return []
     rows = conn.execute("""SELECT principal_id, display_name, principal_type FROM gov_principals
                             WHERE scope_id=%s AND principal_id = ANY(%s::uuid[]) ORDER BY principal_id""",
-                        (ctx.scope_id, [str(value) for value in ids])).fetchall()
+                        (ctx.scope_id, sorted(str(value) for value in ids))).fetchall()
     return [db.jsonable(row) for row in rows]
 
 
@@ -191,6 +196,16 @@ def _hop(conn: Any, ctx: Any, head: dict[str, Any], revision: dict[str, Any], fi
     """主干之外多取的一跳：对象表头与它的定义类块，不带 constraint、责任人、状态与事件。"""
     return {"field": field, "label": label, "object": _object(conn, ctx, head, revision),
             "blocks": _blocks(head, revision, {"definition"})}
+
+
+def _name_events(conn: Any, ctx: Any, layers: list[dict[str, Any]]) -> None:
+    """事件带上记录人与被指派者的显示名（实验报告建议 4），id 照旧留着。"""
+    events = [event for layer in layers for event in layer["events"]]
+    names = {row["principal_id"]: row["display_name"] for row in _principals(
+        conn, ctx, {value for event in events for value in (event["principal_id"], event["assignee"]) if value})}
+    for event in events:
+        event["principal_name"] = names.get(event["principal_id"], event["principal_id"])
+        event["assignee_name"] = event["assignee"] and names.get(event["assignee"], event["assignee"])
 
 
 def _display(group: str, value: str | None) -> str:
@@ -261,8 +276,10 @@ def _items(question: str, start: str, layers: list[dict[str, Any]]) -> list[dict
             label = kinds[event["kind"]] + _display("category", event["category"]) + _display("phase", event["phase"]) \
                 + _display("outcome", event["outcome"])
             body = f"：{event['content']['text']}" if event["content"] and event["content"]["text"] else ""
+            who = f"，{event['principal_name']} 记" + (f"，指派给 {event['assignee_name']}" if event["assignee"] else "")
             items.append(entry(f"event:{event['event_id']}", "event", level, obj["object_id"],
-                               f"- {event['occurred_at']} {label}（事件 `{event['event_id']}`）{body}", event["occurred_at"]))
+                               f"- {event['occurred_at']} {label}（事件 `{event['event_id']}`{who}）{body}",
+                               event["occurred_at"]))
     return items
 
 
@@ -318,6 +335,7 @@ def build(conn: Any, ctx: Any, object_id: str, request: WorldContextRequest) -> 
             break
         hops.append((field, revision["payload"][field]))
         head, _ = readable(conn, ctx, revision["payload"][field]["object_id"])
+    _name_events(conn, ctx, layers)
     start = start or layers[0]["object"]["ref"]
     result = trim(_items(request.question, start, layers), max_chars=budget["max_chars"],
                   max_events_per_object=budget["max_events_per_object"])

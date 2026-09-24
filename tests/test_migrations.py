@@ -219,3 +219,98 @@ def test_append_only_tables_grant_insert_only_to_writers_of_the_source(
             admin.execute(sql.SQL("DROP DATABASE IF EXISTS {}").format(sql.Identifier(database)))
             for role in (reader, writer):
                 admin.execute(sql.SQL("DROP ROLE IF EXISTS {}").format(sql.Identifier(role)))
+
+
+# 迁移器的校验和、互斥锁与编号约束（#32 批次 E）。用临时目录里的迁移副本，不动真实文件。
+
+def _fresh_database(admin_url: str, owner: str) -> str:
+    database = f"tkos_memory_test_{uuid.uuid4().hex[:12]}"
+    with psycopg.connect(admin_url, autocommit=True) as admin:
+        admin.execute(sql.SQL("CREATE DATABASE {} OWNER {}").format(sql.Identifier(database), sql.Identifier(owner)))
+    with psycopg.connect(make_conninfo(admin_url, dbname=database)) as admin:
+        admin.execute("CREATE EXTENSION IF NOT EXISTS vector")
+    return database
+
+
+def _drop(admin_url: str, database: str) -> None:
+    with psycopg.connect(admin_url, autocommit=True) as admin:
+        admin.execute("SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname=%s", (database,))
+        admin.execute(sql.SQL("DROP DATABASE IF EXISTS {}").format(sql.Identifier(database)))
+
+
+@pytest.fixture
+def scratch(tmp_path, monkeypatch):
+    """一份迁移副本和一个空库；测试可以改副本，看迁移器怎么反应。"""
+    admin_url = make_conninfo(os.environ.get("TEST_ADMIN_DATABASE_URL", DATABASE_URL), dbname="postgres")
+    with psycopg.connect(DATABASE_URL) as source:
+        owner = source.execute("SELECT current_user").fetchone()[0]
+    copy = tmp_path / "migrations"
+    copy.mkdir()
+    for path in sorted(MIGRATIONS_DIR.glob("*.sql")):
+        (copy / path.name).write_bytes(path.read_bytes())
+    monkeypatch.setattr(migrate_module, "MIGRATIONS_DIR", copy)
+    database = _fresh_database(admin_url, owner)
+    try:
+        yield copy, make_conninfo(DATABASE_URL, dbname=database)
+    finally:
+        _drop(admin_url, database)
+
+
+def test_every_applied_migration_records_the_sha256_of_its_file(scratch):
+    copy, url = scratch
+    migrate(url)
+    with psycopg.connect(url) as conn:
+        recorded = dict(conn.execute("SELECT name, sha256 FROM schema_migrations").fetchall())
+    import hashlib
+    assert recorded == {path.name: hashlib.sha256(path.read_bytes()).hexdigest() for path in copy.glob("*.sql")}
+
+
+def test_an_applied_migration_whose_file_changed_stops_the_run(scratch):
+    copy, url = scratch
+    migrate(url)
+    changed = copy / "0030_world_v01.sql"
+    changed.write_text(changed.read_text(encoding="utf-8") + "\n-- edited after it was applied\n", encoding="utf-8")
+    (copy / "9999_after_the_edit.sql").write_text("CREATE TABLE after_the_edit(x int);\n", encoding="utf-8")
+    with pytest.raises(migrate_module.MigrationError, match="0030_world_v01.sql"):
+        migrate(url)
+    with psycopg.connect(url) as conn:
+        assert conn.execute("SELECT to_regclass('after_the_edit')").fetchone()[0] is None
+
+
+def test_a_new_duplicate_number_is_refused_before_anything_is_applied(scratch):
+    copy, url = scratch
+    (copy / "0035_duplicate_number.sql").write_text("CREATE TABLE duplicate_number(x int);\n", encoding="utf-8")
+    with pytest.raises(migrate_module.MigrationError, match="0035"):
+        migrate(url)
+    with psycopg.connect(url) as conn:
+        assert conn.execute("SELECT to_regclass('schema_migrations')").fetchone()[0] is None
+
+
+def test_concurrent_runs_apply_each_migration_once(scratch):
+    copy, url = scratch
+    import threading
+    results, errors = [], []
+
+    def run():
+        try:
+            results.append(migrate(url))
+        except Exception as exc:  # noqa: BLE001 — the assertion below reports it
+            errors.append(exc)
+
+    threads = [threading.Thread(target=run) for _ in range(3)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join(120)
+    assert errors == []
+    assert sorted(len(applied) for applied in results) == [0, 0, len(list(copy.glob("*.sql")))]
+
+
+def test_rows_recorded_by_the_old_runner_get_their_sha256_backfilled(scratch):
+    copy, url = scratch
+    migrate(url)
+    with psycopg.connect(url) as conn:
+        conn.execute("ALTER TABLE schema_migrations DROP COLUMN sha256")
+    assert migrate(url) == []
+    with psycopg.connect(url) as conn:
+        assert conn.execute("SELECT count(*) FROM schema_migrations WHERE sha256 IS NULL").fetchone()[0] == 0

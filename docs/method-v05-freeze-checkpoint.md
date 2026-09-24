@@ -39,3 +39,20 @@
 本页的 HEAD `15434b5` 不在 main 的历史上。
 - PR #15 压缩合并为 `ef31b02`。
 - 逐票提交在标签 `method-v0.5-tickets`，即 PR #15 的分支头 `4608f13`；也可以用 `git fetch origin pull/15/head` 取回。
+
+## 冻结后改动（2026-09-25 补记）
+
+- **`governance.py`：「我的待办」（`tasks()`）只列进行中的复核窗口。**
+  - 起因：#32 B 试点链验收观察到，CEO 整组激活后，0.5 窗口已是 `confirmed`、没有可办动作，却仍以「0.5 人工确认事项」留在 CEO 的待办里。0.4 / 0.5 的窗口原先不看阶段一律列出；0.3 只列 `open`、`closed`、`resolved`。
+  - 改动：0.3 与 0.4 / 0.5 的窗口是同一组阶段：`open`，Co-agent 关窗后 `closed`，收拢出候选集合后 `resolved`，整组确认或激活后 `confirmed`；重开时旧窗口记 `reopened`。阶段过滤移到版本分支之前，各版本同一条规则：`confirmed`、`reopened` 不再列出；进行中的窗口即使本人此刻没有可办动作（等 Co-agent 收拢、等 DRI 承诺与 CEO 激活）也照列，与 0.3 的「等待 Co-agent 收拢」一致。标签与动作字段不变，0.3 的规则与标签不变。
+  - 文件：`src/memory_service_runtime/governed/governance.py` 由冻结值 `b44d31c2…` 变为 `b3db1f990a29603aac32a0d85468bf3e26da4798ede8901d62d63d531fbf36af`。
+  - 测试：`tests/governance/test_v05_workbench.py` 新增 16 例：0.4 / 0.5 的两个办结阶段不列，三个进行中阶段无可办动作也列，另有 0.3 的六种情形钉住原规则。原有三例（其中一例在 `test_v04_allowlist.py`）把窗口阶段从 `pending` 改为 `resolved`：`pending` 是候选集合的阶段，窗口没有；断言不变。
+- **复跑**：源码为 `bcdfb1b` 加上述改动，`src/` 里只有 `governance.py` 与 `bcdfb1b` 不同。
+  - Method 0.5 验收（`acceptance/method_v05`，新库，2026-09-24T16:28Z）：27 项全部通过，`runtime_method_v05_api_accepted: true`。
+  - 试点链验收（`acceptance/pilot_workbench_v05`，工具 SHA256 `64e887b2…`，新库与新 scope，2026-09-24T16:28Z）：29 项中 28 项通过。「已办结窗口仍在 CEO 待办」这一观察项由 `[["confirmed", 0]]` 变为 `[]`；「CEO 待办列出 0.5 窗口」（阶段 `open`）仍通过。
+  - 试点链未通过的是第 29 项 `scope_dri_confirms_the_scope_constraint_via_workbench`：DRI 以本人凭证重放原始信封得 403 `FORBIDDEN`。同一工具在干净的 `bcdfb1b` 上结果相同，观察项仍是 `[["confirmed", 0]]`，所以这一项与本改动无关，本节不处理。
+  - pytest：无库 1322 通过、1 跳过；应用角色 102 通过、1 跳过；迁移所有者 42 通过。
+- **本节只记 `governance.py`。** 上表另有 9 个文件在 `bcdfb1b` 上已与冻结值不同，都由其他提交改动，此处不逐一记录：
+  - world 0.1（`7e42004`）改了 `models.py`、`profile.py`、`protocol.py`；
+  - world 0.1 与 #32 都改过 `routes.py`、`control.py`；
+  - #32 的其他提交改了 `method_readers.py`（`520fc63`）、`MethodActions.tsx` 与看板产物 `asset-manifest.json`、`index.html`。

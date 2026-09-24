@@ -8,6 +8,7 @@ from typing import Callable
 
 import psycopg
 
+from memory_service_runtime import observability
 from memory_service_runtime.config import RuntimeConfig
 from memory_service_runtime.governed import db
 from memory_service_runtime.handlers import TaskExecutionError, TaskHandler, default_handlers
@@ -144,6 +145,10 @@ class RuntimeWorker:
                 target,
                 task.attempt,
             )
+            # 结构化运行记录：按 task_id（效果任务另有 receipt_id）与 API 的 governed_transaction 对上。
+            payload = task.payload if isinstance(task.payload, dict) else {}
+            observability.log("runtime_task", task_id=str(task.task_id), task_type=task.task_type, state=target,
+                              attempt=task.attempt, receipt_id=payload.get("receipt_id"), error_code=error_code)
         return True
 
     def run_forever(self, stop: threading.Event) -> None:

@@ -36,13 +36,16 @@ export function PendingUpdateBanner({ onAccept, onDismiss }: { onAccept: () => v
   )
 }
 
-export function AuthLostPanel() {
+/** `personal`: reads use the signed-in person's own session (governance workbench), not a configured viewer. */
+export function AuthLostPanel({ personal = false }: { personal?: boolean }) {
   return (
     <div data-testid="auth-lost"
          className="flex h-full flex-col items-center justify-center gap-2 p-8 text-center">
-      <p className="text-sm font-medium text-foreground">查看身份已失效</p>
+      <p className="text-sm font-medium text-foreground">{personal ? "当前身份暂时无权读取这些内容" : "查看身份已失效"}</p>
       <p className="max-w-sm text-xs text-muted-foreground">
-        受保护内容已清空。请联系看板部署者重新配置本机合成查看身份后刷新页面。
+        {personal
+          ? "受保护内容已清空。这里按你本人的登录会话读取：任职恢复后会自动重新读取；会话失效时请重新登录。"
+          : "受保护内容已清空。请联系看板部署者重新配置本机合成查看身份后刷新页面。"}
       </p>
     </div>
   )

@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-li
 import { afterEach, beforeEach, expect, it, vi } from "vitest"
 import { BusinessMainline } from "@/BusinessMainline"
 import { fetchDownstream, fetchObjects } from "@/lib/api"
+import { ApiError } from "@/lib/errors"
 import { missionItem, objectsPage } from "./fixtures"
 import type { DownstreamEdge, ObjectListItem } from "@/lib/types"
 
@@ -76,6 +77,31 @@ it("narrows the PCO lane to the selected LTCO's exact revision", async () => {
   expect(within(board).getByText("已按长期目标「LTCO l1」的精确版本筛选")).toBeInTheDocument()
 })
 
+it("a failed edge read shows an error with a retry instead of reading forever", async () => {
+  lanes({
+    strategy: [], ltco: [item("l1", "LTCO", { basis_revision_id: "l1-r2" })],
+    pco: [item("keep", "PCO", { basis_revision_id: "keep-r1" }),
+          item("other", "PCO", { basis_revision_id: "other-r1" })],
+    mission: [],
+  })
+  render(<BusinessMainline onOpen={onOpen} onAuthLost={onAuthLost} />)
+  const board = lane("阶段目标 PCO")
+  expect(await within(board).findByText("PCO other")).toBeInTheDocument()
+  down.mockRejectedValueOnce(new TypeError("network"))
+  fireEvent.click(screen.getByTestId("lane-ltco-l1"))
+  expect(await within(board).findByTestId("lane-pco-edge-error")).toBeInTheDocument()
+  expect(within(board).queryByText("正在读取…")).not.toBeInTheDocument()
+  // Without the edges the lane cannot be narrowed exactly, so it shows no cards.
+  expect(within(board).queryByText("PCO other")).not.toBeInTheDocument()
+  down.mockResolvedValue({ items: [edge("keep", "keep-r1", "PCO")],
+                           next_cursor: null, has_more: false, limit: 25, bounded: 0 })
+  fireEvent.click(within(board).getByRole("button", { name: "重试" }))
+  expect(await within(board).findByText("PCO keep")).toBeInTheDocument()
+  expect(within(board).queryByText("PCO other")).not.toBeInTheDocument()
+  expect(within(board).queryByTestId("lane-pco-edge-error")).not.toBeInTheDocument()
+  expect(onAuthLost).not.toHaveBeenCalled()
+})
+
 it("reselecting an upstream card releases its downstream filter", async () => {
   lanes({ strategy: [], ltco: [item("l1", "LTCO")],
           pco: [item("keep", "PCO", { basis_revision_id: "keep-r1" }), item("other", "PCO")], mission: [] })
@@ -106,6 +132,23 @@ it("opens a card at the exact revision the lane showed", async () => {
   render(<BusinessMainline onOpen={onOpen} onAuthLost={onAuthLost} />)
   fireEvent.click(await screen.findByTestId("lane-mission-m1"))
   expect(onOpen).toHaveBeenCalledWith("m1", "m1-r7")
+})
+
+it("a 403 on one lane is that lane's message; only a 401 ends the session", async () => {
+  lanes({ strategy: [], ltco: [], pco: [item("p1", "PCO")], mission: [] })
+  render(<BusinessMainline onOpen={onOpen} onAuthLost={onAuthLost} />)
+  expect(await within(lane("阶段目标 PCO")).findByText("PCO p1")).toBeInTheDocument()
+  list.mockImplementation((query) => query.group === "pco"
+    ? Promise.reject(new ApiError(403, "FORBIDDEN", ""))
+    : Promise.resolve(objectsPage([], { group: query.group })))
+  fireEvent.click(screen.getByRole("button", { name: "刷新" }))
+  expect(await within(lane("阶段目标 PCO")).findByText("当前身份无权读取该内容")).toBeInTheDocument()
+  // The card this identity can no longer read is dropped, not kept as stale content.
+  expect(within(lane("阶段目标 PCO")).queryByText("PCO p1")).not.toBeInTheDocument()
+  expect(onAuthLost).not.toHaveBeenCalled()
+  list.mockImplementation(() => Promise.reject(new ApiError(401, "UNAUTHENTICATED", "")))
+  fireEvent.click(screen.getByRole("button", { name: "刷新" }))
+  await waitFor(() => expect(onAuthLost).toHaveBeenCalled())
 })
 
 it("reads the historical basis from the server rather than filtering it client-side", async () => {

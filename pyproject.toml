@@ -1,6 +1,6 @@
 [project]
 name = "tkos-memory-service"
-version = "0.4.0"
+version = "0.5.0.dev0"
 description = "Standalone governed Memory Service for TKOS clients"
 requires-python = ">=3.12"
 dependencies = [
@@ -39,6 +39,10 @@ dev = [
 
 [tool.pytest.ini_options]
 timeout = 120
+markers = [
+    "db: 需要 DATABASE_URL 指向的隔离 PostgreSQL（见 README 的测试命令）",
+    "owner: 需要迁移所有者身份（建临时库或角色、经 bootstrap 播种），只在迁移所有者那一轮跑",
+]
 
 [build-system]
 requires = ["hatchling"]

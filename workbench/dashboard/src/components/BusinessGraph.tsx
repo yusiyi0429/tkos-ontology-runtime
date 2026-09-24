@@ -5,7 +5,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Input } from "@/components/ui/input"
 import { PanZoomCanvas, type CanvasEdge, type CanvasFocusPoint } from "@/components/PanZoomCanvas"
 import { fetchDetail, fetchDownstream } from "@/lib/api"
-import { errorLabel, isAbort, isAccessDenial } from "@/lib/errors"
+import { errorLabel, isAbort, isAccessDenial, isNotFound } from "@/lib/errors"
 import { RAG_LABELS, TYPE_LABELS, formalBusinessText, referenceLabel } from "@/lib/labels"
 import { rulesOfContractVersion, type RulesVersion } from "@/lib/ontology"
 import { shortId } from "@/lib/format"
@@ -267,7 +267,7 @@ export function BusinessGraph({ strategyId, entryFocus, entryKey, active, select
     const hadExtras = (nodesRef.current[node.key]?.extraDownstream.length ?? 0) > 0
     const { rules, rulesUnknown } = rulesOf(detail)
     patchNode(node.key, {
-      loading: false, expanded: true, neighbors,
+      loading: false, expanded: true, neighbors, error: null,
       extraDownstream: [], extrasCleared: hadExtras,
       objectType: node.objectType || detail.object.object_type,
       title: detail.business.title ?? detail.business.summary ?? node.title,
@@ -453,7 +453,7 @@ export function BusinessGraph({ strategyId, entryFocus, entryKey, active, select
   // Foreground refresh: while the view is visible, re-read every expanded node
   // at its pinned exact revision so statuses/relations stay current; failures
   // keep the last good graph and are announced, never silently emptied.
-  const refreshExpanded = useCallback(async () => {
+  const refreshExpanded = useCallback(async (background = false) => {
     const expanded = order.filter((key) => nodesRef.current[key]?.expanded
                                    && !nodesRef.current[key]?.loading)
     if (expanded.length === 0) return
@@ -464,7 +464,7 @@ export function BusinessGraph({ strategyId, entryFocus, entryKey, active, select
       if (!node) continue
       const { token, signal } = beginRequest(`${key}#refresh`)
       try {
-        const detail = await fetchDetail(node.objectId, node.revisionId, strategyId, signal)
+        const detail = await fetchDetail(node.objectId, node.revisionId, strategyId, signal, background)
         if (!requestValid(`${key}#refresh`, token, generation)) return
         const neighbors = detailNeighbors(detail)
         addNeighbors(node, neighbors)
@@ -475,18 +475,25 @@ export function BusinessGraph({ strategyId, entryFocus, entryKey, active, select
           onAccessDenied()
           return
         }
+        // This exact revision is gone or no longer visible: only this node says
+        // so and drops the relations it contributed; the rest of the graph stays.
+        if (isNotFound(error)) patchNode(key, { error, neighbors: [], extraDownstream: [] })
         failed = true
       }
     }
     if (generationRef.current === generation) setRefreshFailed(failed)
-  }, [order, strategyId, beginRequest, requestValid, addNeighbors, applyDetail, onAccessDenied])
+  }, [order, strategyId, beginRequest, requestValid, addNeighbors, applyDetail, patchNode, onAccessDenied])
 
   useEffect(() => {
     if (!active) return
+    // Returning to the tab is the person's own activity; the interval is not.
     const tick = () => {
       if (document.visibilityState === "visible") void refreshExpanded()
     }
-    const interval = window.setInterval(tick, 5000)
+    const poll = () => {
+      if (document.visibilityState === "visible") void refreshExpanded(true)
+    }
+    const interval = window.setInterval(poll, 5000)
     window.addEventListener("focus", tick)
     document.addEventListener("visibilitychange", tick)
     return () => {

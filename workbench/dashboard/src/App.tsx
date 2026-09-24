@@ -129,12 +129,15 @@ export function App({ embedded = false }: { embedded?: boolean } = {}) {
     setReceiptsLoading(false)
   }, [])
 
+  const resetOverview = useRef<() => void>(() => undefined)
   const onAccessDenied = useCallback(() => {
     // Clear every protected projection, including the overview/private header
-    // (via disabled hooks) and all manual load-more state, and abort in-flight
-    // manual requests so a late response can never repopulate the page.
+    // and (via disabled hooks) the rest, and all manual load-more state, and
+    // abort in-flight manual requests so a late response can never repopulate
+    // the page.  Only the identity read keeps probing, for recovery.
     setAccessLost(true)
     resetDetailLoaders()
+    resetOverview.current()
   }, [resetDetailLoaders])
 
   useEffect(() => () => {
@@ -145,13 +148,18 @@ export function App({ embedded = false }: { embedded?: boolean } = {}) {
 
   const overview = useLiveResource({
     key: `overview#${view.strategy ?? ""}`,
-    fetcher: (_key, signal) => fetchOverview(view.strategy, signal),
+    fetcher: (_key, signal, background) => fetchOverview(view.strategy, signal, background),
     identity: (data) => `${data.viewer?.principal_id ?? "none"}|${data.selected_strategy_id ?? "none"}`
       + `|${data.groups.map((group) => `${group.group}:${group.available}:${group.historical_available}`).join(",")}`
       + `|${data.historical_basis.groups.join(",")}`,
-    enabled: !accessLost,
+    // Stays enabled while access is lost: its next successful read is the
+    // recovery signal, so the page does not stay invalid until a reload.
     onAccessDenied,
   })
+  resetOverview.current = overview.reset
+  useEffect(() => {
+    if (accessLost && overview.data) setAccessLost(false)
+  }, [accessLost, overview.data])
 
   // Exactly one readable Strategy is selected automatically; multiple choices
   // stay explicit (never merged) via the URL.  The initial default adoption
@@ -168,7 +176,7 @@ export function App({ embedded = false }: { embedded?: boolean } = {}) {
 
   const catalog = useLiveResource({
     key: `ontology-catalog#${generation}`,
-    fetcher: (_key, signal) => fetchOntologyCatalog(signal),
+    fetcher: (_key, signal, background) => fetchOntologyCatalog(signal, background),
     identity: (data) => data.versions.map(
       (entry) => `${entry.contract_version}:${entry.object_types.join(",")}`).join("|"),
     enabled: !accessLost && (visitedViews.has("map") || visitedViews.has("definitions")),
@@ -177,7 +185,7 @@ export function App({ embedded = false }: { embedded?: boolean } = {}) {
 
   const methodMap = useLiveResource({
     key: `method-map#${generation}`,
-    fetcher: (_key, signal) => fetchMethodMap(signal),
+    fetcher: (_key, signal, background) => fetchMethodMap(signal, background),
     identity: (data) => `${data.source_snapshot?.snapshot_sha256 ?? ""}`
       + `|${(data.runtime_implementation?.scope_enabled_contract_versions ?? []).join(",")}`
       + `|${(data.entries ?? []).map((entry) => entry.id).join(",")}`,
@@ -233,7 +241,8 @@ export function App({ embedded = false }: { embedded?: boolean } = {}) {
     : `${view.object}#${view.rev ?? "effective"}#${strategyId ?? ""}#${generation}`
   const detail = useLiveResource({
     key: detailKey,
-    fetcher: (_key, signal) => fetchDetail(view.object as string, view.rev, strategyId, signal),
+    fetcher: (_key, signal, background) => fetchDetail(view.object as string, view.rev, strategyId, signal,
+                                                       background),
     identity: (data) =>
       `${data.selected_revision.revision_id}:${data.selected_revision.payload_hash}`
       + `:${data.formal_state.status}:${data.content_confirmation.confirmed_for_selected_revision}`,
@@ -414,7 +423,9 @@ export function App({ embedded = false }: { embedded?: boolean } = {}) {
   const receiptsHasMore = receiptsCursor === null
     ? false
     : Boolean(receiptsCursor ?? detail.data?.receipts.next_cursor)
-  const detailBody = accessLost ? <AuthLostPanel /> : (
+  // Embedded only in the governance workbench, where reads use the person's own session.
+  const authLost = <AuthLostPanel personal={embedded} />
+  const detailBody = accessLost ? authLost : (
     <DetailPane detail={detail.data} loading={detail.loading} error={detail.error}
                 onOpenObject={openObject}
                 onSelectRevision={(revisionId) => navigate({ rev: revisionId })}
@@ -463,7 +474,7 @@ export function App({ embedded = false }: { embedded?: boolean } = {}) {
         {visitedViews.has("definitions") ? (
           <main className={activeView === "definitions" ? "flex min-w-0 flex-1" : "hidden"}
                 aria-hidden={activeView !== "definitions"} data-testid="definitions-view">
-            {accessLost ? <AuthLostPanel /> : (
+            {accessLost ? authLost : (
               <BusinessDefinitions methodMap={methodMap.data} loading={methodMap.loading}
                                    error={methodMap.error}
                                    onOpenType={(type) => { setRulesNotice(false)
@@ -475,7 +486,7 @@ export function App({ embedded = false }: { embedded?: boolean } = {}) {
           <main className={activeView === "map" ? "flex min-w-0 flex-1" : "hidden"}
                 aria-hidden={activeView !== "map"}>
             <section className="min-w-0 flex-1">
-              {accessLost ? <AuthLostPanel /> : !rulesValid ? (
+              {accessLost ? authLost : !rulesValid ? (
                 <div className="p-4" data-testid="rules-invalid">
                   <Alert>
                     <AlertTitle>未知的业务规则版本</AlertTitle>
@@ -569,7 +580,7 @@ export function App({ embedded = false }: { embedded?: boolean } = {}) {
           <main className={activeView === "graph" ? "flex min-w-0 flex-1" : "hidden"}
                 aria-hidden={activeView !== "graph"}>
             <section className="min-w-0 flex-1">
-              {accessLost ? <AuthLostPanel /> : (
+              {accessLost ? authLost : (
                 <BusinessGraph
                   strategyId={strategyId}
                   entryFocus={view.object

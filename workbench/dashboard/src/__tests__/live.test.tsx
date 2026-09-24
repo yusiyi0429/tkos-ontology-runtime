@@ -46,11 +46,11 @@ describe("useLiveResource", () => {
     expect(result.current.data).toEqual({ id: "new" })
   })
 
-  it("clears protected content on 403/404 access denial and never keeps it stale", async () => {
+  it("clears protected content on a 403 access denial and never keeps it stale", async () => {
     const onAccessDenied = vi.fn()
     const fetcher = vi.fn()
       .mockResolvedValueOnce({ id: "secret" })
-      .mockRejectedValueOnce(new ApiError(404, "NOT_FOUND", "The requested record is unavailable."))
+      .mockRejectedValueOnce(new ApiError(403, "FORBIDDEN", "Current authority does not permit this operation."))
     const { result } = renderHook(() => useLiveResource({
       key: "detail", fetcher, identity: (data: { id: string }) => data.id, onAccessDenied }))
     await waitFor(() => expect(result.current.data).toEqual({ id: "secret" }))
@@ -58,6 +58,25 @@ describe("useLiveResource", () => {
     await waitFor(() => expect(result.current.data).toBeNull())
     expect(result.current.stale).toBe(false)
     expect(onAccessDenied).toHaveBeenCalledTimes(1)
+  })
+
+  it("a 404 clears only this item, keeps the reason, and recovers on the next success", async () => {
+    const onAccessDenied = vi.fn()
+    const fetcher = vi.fn()
+      .mockResolvedValueOnce({ id: "secret" })
+      .mockRejectedValueOnce(new ApiError(404, "NOT_FOUND", "The requested record is unavailable."))
+      .mockResolvedValueOnce({ id: "secret" })
+    const { result } = renderHook(() => useLiveResource({
+      key: "detail", fetcher, identity: (data: { id: string }) => data.id, onAccessDenied }))
+    await waitFor(() => expect(result.current.data).toEqual({ id: "secret" }))
+    act(() => { result.current.refresh() })
+    await waitFor(() => expect(result.current.data).toBeNull())
+    expect(result.current.stale).toBe(false)
+    expect((result.current.error as ApiError).code).toBe("NOT_FOUND")
+    expect(onAccessDenied).not.toHaveBeenCalled()
+    act(() => { result.current.refresh() })
+    await waitFor(() => expect(result.current.data).toEqual({ id: "secret" }))
+    expect(result.current.error).toBeNull()
   })
 
   it("clears on an unavailable viewer (503) as well", async () => {

@@ -11,7 +11,9 @@ RUN python -m pip install --dry-run --require-hashes --no-index \
 
 FROM python:3.12-slim-bookworm@sha256:782412e85d0f0984994c290652577d4018aff08145c85b262bb63dc0c7522254 AS runtime-base
 
-ARG VERSION=0.2.1
+# 必须显式传入，且与 wheelhouse 里的 tkos-memory-service wheel 同版本（发布脚本会传）；
+# 不给默认值，免得默认值落后于 pyproject 而装错或装不上。
+ARG VERSION
 ARG VCS_REF=unknown
 ARG BUILD_DATE
 LABEL org.opencontainers.image.title="TKOS Ontology Runtime" \
@@ -24,6 +26,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_INDEX=1
 
+RUN test -n "$VERSION" || { echo "build arg VERSION is required: the tkos-memory-service wheel version in the wheelhouse" >&2; exit 1; }
 RUN useradd --create-home --uid 10001 memory-service
 RUN --mount=type=bind,from=builder,source=/wheels,target=/wheels \
     python -m pip install --no-cache-dir --no-index --find-links=/wheels "tkos-memory-service[s3]==$VERSION"
@@ -49,11 +52,18 @@ assert any(name.endswith(".css") for name in outputs), "dashboard css missing fr
 PY
 
 # Installation is explicit; startup never seeds identities or runs migrations.
+# Every protocol this build supports can be installed from inside the image: profiles,
+# the exact contract bytes they pin, the ontology/world registries, and support registries.
 COPY docs/contracts/method-profile.json docs/contracts/method-profile-0.2.json docs/contracts/method-profile-0.3.json \
+     docs/contracts/method-profile-0.4.json docs/contracts/method-profile-0.5.json docs/contracts/world-profile-0.1.json \
      docs/contracts/tkos-method-0.1.md docs/contracts/tkos-method-0.2.md docs/contracts/tkos-method-0.3.md \
+     docs/contracts/tkos-method-0.4.md docs/contracts/tkos-method-0.5.md docs/contracts/tkos-world-0.1.md \
+     docs/contracts/ontology-registry-0.7.json docs/contracts/world-registry-0.1.json \
      /opt/tkos/docs/contracts/
 COPY docs/runtime-a2-registry.json docs/runtime-a3-registry.json docs/runtime-method-registry.json \
-     docs/runtime-method-registry-0.2.json docs/runtime-method-registry-0.3.json /opt/tkos/docs/
+     docs/runtime-method-registry-0.2.json docs/runtime-method-registry-0.3.json \
+     docs/runtime-method-registry-0.4.json docs/runtime-method-registry-0.5.json docs/runtime-world-support-0.1.json \
+     /opt/tkos/docs/
 
 USER memory-service
 WORKDIR /home/memory-service

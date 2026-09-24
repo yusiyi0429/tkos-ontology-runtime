@@ -7,7 +7,6 @@ the acceptance suite must still be produced through authenticated commands.
 from __future__ import annotations
 
 import hashlib
-import json
 import secrets
 from typing import Any
 from uuid import uuid4
@@ -16,7 +15,7 @@ import psycopg
 from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
 
-from . import profile, protocol
+from . import canon, profile, protocol
 from .db import set_write_capability
 from .errors import GovernedError
 
@@ -113,8 +112,7 @@ def seed_scope(conn: psycopg.Connection, tenant_id: str, company_id: str) -> dic
         object_id, revision_id = _id(), _id()
         payload = {"title": "Synthetic confirmed CompanyOutcome",
                    "terms": {"target": 80, "unit": "deliveries"}, "upstream_refs": []}
-        payload_hash = hashlib.sha256(json.dumps(payload, sort_keys=True, ensure_ascii=False,
-                                                separators=(",", ":")).encode()).hexdigest()
+        payload_hash = canon.digest(payload)
         conn.execute(
             """INSERT INTO gov_objects(object_id,scope_id,domain_id,object_type,lifecycle_status)
                 VALUES (%s,%s,%s,'CompanyOutcome','confirmed')""", (object_id, scope_id, domain_id),

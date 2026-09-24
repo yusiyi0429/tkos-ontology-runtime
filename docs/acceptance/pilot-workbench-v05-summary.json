@@ -1,0 +1,654 @@
+{
+  "scope": "试点链 Method 0.5 × 治理工作台：真实 API 进程 + PostgreSQL + 工作台个人会话（合成数据）",
+  "started_at": "2026-09-24T16:39:58.831625+00:00",
+  "source": {
+    "commit": "206b7de3a65481ca437c1f6e678a6e8d7057790e",
+    "branch": "remediation/assessment-2026-09-24",
+    "dirty_src_paths": [
+      "src/memory_service_app/narrative.py"
+    ],
+    "src_manifest_sha256": "ce645002d3798a473ae24336c3bc61bcb882759b07792f5188f5a84e66d9a1e0",
+    "tool_sha256": "2908d734827952b027ece41106282bb3302ce07d3c6d198acf85f4b7718e1245"
+  },
+  "database": {
+    "name": "tkos_a1_method_32ee372b85f945f0",
+    "fresh": true,
+    "base_commit": "1b8cec9cc30e561e3570bc5dd010a09126f283c2",
+    "migrations_after_baseline": 19,
+    "last_migration": "0038_credential_lifecycle.sql",
+    "repeat_applied": []
+  },
+  "scope_id": "cf414c9f-8bc5-44f9-aae1-1cc4cf1dd626",
+  "tenant_id": "runtime-acceptance-pilot-v05-bb01e0cc",
+  "finished_at": "2026-09-24T16:40:16.563875+00:00",
+  "src_unchanged_during_run": true,
+  "run_error": null,
+  "updated_at": "2026-09-24T16:40:16.563900+00:00",
+  "runtime_pilot_workbench_v05_accepted": true,
+  "planned": 29,
+  "passed": 29,
+  "failed": 0,
+  "not_run": [],
+  "checks": [
+    {
+      "name": "login_wrong_code_and_unknown_user_are_401_login_failed",
+      "group": "1 登录",
+      "passed": true,
+      "evidence": {
+        "wrong_code": [
+          401,
+          "LOGIN_FAILED"
+        ],
+        "unknown_user": [
+          401,
+          "LOGIN_FAILED"
+        ],
+        "cookie_set_on_failure": false,
+        "session_read_without_cookie": [
+          401,
+          "UNAUTHENTICATED"
+        ]
+      }
+    },
+    {
+      "name": "login_right_code_returns_session_cookie_and_csrf",
+      "group": "1 登录",
+      "passed": true,
+      "evidence": {
+        "status": 200,
+        "body_keys": [
+          "csrf",
+          "identity"
+        ],
+        "csrf_length": 43,
+        "identity_is_the_human_ceo": true,
+        "cookie_flags": [
+          "httponly",
+          "samesite=strict",
+          "path=/dashboard/"
+        ],
+        "runtime_credential_in_body": false,
+        "session_read_returns_same_csrf": true
+      }
+    },
+    {
+      "name": "m1a_human_steps_via_workbench_under_0_5",
+      "group": "8 其余人工步骤",
+      "passed": true,
+      "evidence": {
+        "steps": [
+          [
+            "ceo",
+            "m1a_set_participants",
+            "tkos.method/0.5",
+            "committed"
+          ],
+          [
+            "ceo",
+            "m1a_confirm_agreement",
+            "tkos.method/0.5",
+            "committed"
+          ],
+          [
+            "dri-a",
+            "m1a_confirm_agreement",
+            "tkos.method/0.5",
+            "committed"
+          ],
+          [
+            "owner-a",
+            "m1a_confirm_agreement",
+            "tkos.method/0.5",
+            "committed"
+          ],
+          [
+            "ceo",
+            "m1a_confirm_update",
+            "tkos.method/0.5",
+            "committed"
+          ]
+        ],
+        "strategy_effective": true
+      }
+    },
+    {
+      "name": "ceo_method_todos_list_the_0_5_ltco_drafts",
+      "group": "2 待办与 0.5 绑定",
+      "passed": true,
+      "evidence": {
+        "todos": [
+          {
+            "object_type": "LTCO",
+            "phase": "draft",
+            "contract_version": "tkos.method/0.5",
+            "action_contract_versions": [
+              "tkos.method/0.5"
+            ],
+            "allowed_actions": [
+              "m1b_confirm_ltco"
+            ]
+          },
+          {
+            "object_type": "LTCO",
+            "phase": "draft",
+            "contract_version": "tkos.method/0.5",
+            "action_contract_versions": [
+              "tkos.method/0.5"
+            ],
+            "allowed_actions": [
+              "m1b_confirm_ltco"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "csrf_missing_or_wrong_token_is_403_csrf_token_invalid",
+      "group": "5 CSRF",
+      "passed": true,
+      "evidence": {
+        "missing_token": [
+          403,
+          "CSRF_TOKEN_INVALID"
+        ],
+        "wrong_token": [
+          403,
+          "CSRF_TOKEN_INVALID"
+        ],
+        "business_tables_unchanged": true,
+        "session_after": 200,
+        "command_status_after": "prepared",
+        "ltco_phase_after": "draft"
+      }
+    },
+    {
+      "name": "fresh_csrf_from_get_session_then_commit_succeeds",
+      "group": "5 CSRF",
+      "passed": true,
+      "evidence": {
+        "status": "committed",
+        "receipt_action_type": "m1b_confirm_ltco",
+        "ltco_phase_after": "confirmed"
+      }
+    },
+    {
+      "name": "ceo_confirms_0_5_ltcos_via_workbench",
+      "group": "8 其余人工步骤",
+      "passed": true,
+      "evidence": {
+        "ltcos": [
+          [
+            "confirmed",
+            "established",
+            "established",
+            "method_v0_5",
+            true
+          ],
+          [
+            "confirmed",
+            "established",
+            "established",
+            "method_v0_5",
+            true
+          ]
+        ]
+      }
+    },
+    {
+      "name": "ceo_todos_list_the_0_5_review_window",
+      "group": "2 待办与 0.5 绑定",
+      "passed": true,
+      "evidence": {
+        "label": "0.5 人工确认事项",
+        "object_type": null,
+        "phase": "open",
+        "contract_version": "tkos.method/0.5",
+        "action_contract_versions": [
+          "tkos.method/0.5"
+        ],
+        "allowed_actions": [
+          "m1b_reopen_window"
+        ]
+      }
+    },
+    {
+      "name": "review_window_view_is_method_0_5_bound",
+      "group": "2 待办与 0.5 绑定",
+      "passed": true,
+      "evidence": {
+        "ceo": {
+          "monthly": null,
+          "scenes": 0,
+          "can_create_scene": false,
+          "contract_version": "tkos.method/0.5",
+          "interpretation_status": "method_v0_5",
+          "profile_id": "urn:tkos:method:m1a-m1b",
+          "action_contract_versions": [
+            "tkos.method/0.5"
+          ],
+          "allowed_actions": [
+            "m1b_reopen_window"
+          ],
+          "mentions_0_3": false
+        },
+        "dri-a": {
+          "monthly": null,
+          "scenes": 0,
+          "can_create_scene": false,
+          "contract_version": "tkos.method/0.5",
+          "interpretation_status": "method_v0_5",
+          "profile_id": "urn:tkos:method:m1a-m1b",
+          "action_contract_versions": [
+            "tkos.method/0.5"
+          ],
+          "allowed_actions": [
+            "m1b_comment",
+            "m1b_replace_comment",
+            "m1b_withdraw_comment"
+          ],
+          "mentions_0_3": false
+        }
+      }
+    },
+    {
+      "name": "participant_handles_the_0_5_window_via_workbench",
+      "group": "8 其余人工步骤",
+      "passed": true,
+      "evidence": {
+        "contract_version": "tkos.method/0.5",
+        "status": "committed",
+        "records": [
+          [
+            "window_comment",
+            true
+          ]
+        ]
+      }
+    },
+    {
+      "name": "scope_dris_commit_the_candidate_set_via_workbench",
+      "group": "8 其余人工步骤",
+      "passed": true,
+      "evidence": {
+        "commitments": [
+          [
+            "dri-a",
+            true,
+            "tkos.method/0.5",
+            "committed"
+          ],
+          [
+            "dri-b",
+            true,
+            "tkos.method/0.5",
+            "committed"
+          ]
+        ],
+        "committed_by_the_two_dris": true
+      }
+    },
+    {
+      "name": "non_ceo_activation_is_403_forbidden_and_session_survives",
+      "group": "4 业务拒绝",
+      "passed": true,
+      "evidence": {
+        "offer": [
+          false,
+          "current_role_not_permitted"
+        ],
+        "prepare": [
+          403,
+          "FORBIDDEN"
+        ],
+        "business_tables_unchanged": true,
+        "session_after": 200,
+        "journal_entries": 0
+      }
+    },
+    {
+      "name": "ceo_activates_the_0_5_candidate_set_via_workbench",
+      "group": "3 人工门与正式回执",
+      "passed": true,
+      "evidence": {
+        "todo": {
+          "object_type": "CandidateSet",
+          "phase": "pending",
+          "contract_version": "tkos.method/0.5",
+          "action_contract_versions": [
+            "tkos.method/0.5"
+          ],
+          "allowed_actions": [
+            "m1b_activate_candidates",
+            "m1b_reopen_candidates"
+          ]
+        },
+        "sent_contract_version": "tkos.method/0.5",
+        "stored_contract_version": "tkos.method/0.5",
+        "preview_members": 4,
+        "status": "committed",
+        "receipt": [
+          "94779fdb-ca79-4266-bf0c-83cf0b6aeeb3",
+          "committed",
+          "m1b_activate_candidates"
+        ],
+        "execution_authority_created": false,
+        "core_receipt_read": true,
+        "candidate_phase": [
+          "pending",
+          "confirmed"
+        ],
+        "candidate_version": [
+          3,
+          4
+        ],
+        "candidate_effective": true,
+        "members_confirmed_at_candidate_revisions": true,
+        "missions_carry_owner_activation_record": true,
+        "window_phase": "confirmed",
+        "execution_side_effects": 0,
+        "observation_handled_window_still_in_ceo_todos": []
+      }
+    },
+    {
+      "name": "recommit_retry_and_reprepare_return_the_same_receipt",
+      "group": "6 幂等与响应丢失",
+      "passed": true,
+      "evidence": {
+        "receipt_ids_equal": true,
+        "same_command_on_reprepare": true,
+        "statuses": [
+          "committed",
+          "committed",
+          "committed"
+        ],
+        "version_revisions_receipts": [
+          [
+            4,
+            1,
+            1
+          ],
+          [
+            4,
+            1,
+            1
+          ]
+        ],
+        "receipt_rows_for_key": 1
+      }
+    },
+    {
+      "name": "core_replay_of_the_original_envelope_returns_the_same_receipt",
+      "group": "6 幂等与响应丢失",
+      "passed": true,
+      "evidence": {
+        "same_receipt": true,
+        "footprint_unchanged": true
+      }
+    },
+    {
+      "name": "ceo_method_todos_list_the_0_5_period_review",
+      "group": "2 待办与 0.5 绑定",
+      "passed": true,
+      "evidence": {
+        "object_type": "PeriodReview",
+        "phase": "generated",
+        "contract_version": "tkos.method/0.5",
+        "action_contract_versions": [
+          "tkos.method/0.5"
+        ],
+        "allowed_actions": [
+          "m1b_confirm_review"
+        ]
+      }
+    },
+    {
+      "name": "lost_commit_response_recovered_from_my_submissions",
+      "group": "6 幂等与响应丢失",
+      "passed": true,
+      "evidence": {
+        "client_read_timeout": true,
+        "journal_status_in_flight": "unknown",
+        "recovered_status": "committed",
+        "retry_and_recommit_same_receipt": true,
+        "review_confirmations": 1,
+        "confirm_review_receipts_on_object": 1,
+        "listed_in_my_submissions": [
+          "committed"
+        ]
+      }
+    },
+    {
+      "name": "ceo_confirms_the_0_5_period_review_via_workbench",
+      "group": "8 其余人工步骤",
+      "passed": true,
+      "evidence": {
+        "contract_version": "tkos.method/0.5",
+        "phase": "confirmed",
+        "effective_is_confirmed_revision": true,
+        "findings": [
+          "CEO 调整后的发现。"
+        ],
+        "agent_generation_kept": true
+      }
+    },
+    {
+      "name": "restart_keeps_receipts_state_and_my_submissions",
+      "group": "7 重启恢复",
+      "passed": true,
+      "evidence": {
+        "new_process_same_port": [
+          true,
+          55368
+        ],
+        "my_submissions_before_after": [
+          7,
+          7
+        ],
+        "identical": true,
+        "exactly_the_commands_the_ceo_submitted": true,
+        "all_committed_with_receipt": true,
+        "activation_receipt_kept": true,
+        "core_receipt_read": "m1b_activate_candidates",
+        "candidate_version_phase": [
+          [
+            4,
+            "confirmed"
+          ],
+          [
+            4,
+            "confirmed"
+          ]
+        ]
+      }
+    },
+    {
+      "name": "restart_drops_in_memory_sessions_old_cookie_401",
+      "group": "7 重启恢复",
+      "passed": true,
+      "evidence": {
+        "old_cookie_session_read": [
+          401,
+          "UNAUTHENTICATED"
+        ],
+        "old_cookie_commit": [
+          401,
+          "UNAUTHENTICATED"
+        ],
+        "note": "已知限制：会话在进程内存，重启后需重新登录"
+      }
+    },
+    {
+      "name": "fresh_login_after_restart_and_replay_returns_the_same_receipt",
+      "group": "7 重启恢复",
+      "passed": true,
+      "evidence": {
+        "login": 200,
+        "replay": [
+          "committed",
+          true
+        ],
+        "object_version_unchanged": true
+      }
+    },
+    {
+      "name": "session_facade_rejects_agent_and_api_only_actions",
+      "group": "8 其余人工步骤",
+      "passed": true,
+      "evidence": {
+        "agent_only_m1b_close_window": [
+          403,
+          "FORBIDDEN"
+        ],
+        "api_only_m1b_record_constraint": [
+          403,
+          "FORBIDDEN"
+        ]
+      }
+    },
+    {
+      "name": "hardcoded_0_3_command_on_a_0_5_object_is_rejected",
+      "group": "8 其余人工步骤",
+      "passed": true,
+      "evidence": {
+        "prepare": [
+          409,
+          "PROTOCOL_BINDING_CONFLICT"
+        ],
+        "business_tables_unchanged": true
+      }
+    },
+    {
+      "name": "private_command_hidden_from_another_person",
+      "group": "8 其余人工步骤",
+      "passed": true,
+      "evidence": {
+        "read": [
+          404,
+          "NOT_FOUND"
+        ],
+        "commit": [
+          404,
+          "NOT_FOUND"
+        ],
+        "listed": false
+      }
+    },
+    {
+      "name": "cross_origin_write_is_rejected",
+      "group": "8 其余人工步骤",
+      "passed": true,
+      "evidence": {
+        "prepare_with_foreign_origin": [
+          403,
+          "FORBIDDEN"
+        ]
+      }
+    },
+    {
+      "name": "logout_invalidates_the_session",
+      "group": "8 其余人工步骤",
+      "passed": true,
+      "evidence": {
+        "logout": 200,
+        "read_after_logout": [
+          401,
+          "UNAUTHENTICATED"
+        ]
+      }
+    },
+    {
+      "name": "ceo_confirms_the_company_constraint_via_workbench",
+      "group": "8 其余人工步骤",
+      "passed": true,
+      "evidence": {
+        "todo": {
+          "object_type": "Constraint",
+          "phase": "draft",
+          "contract_version": "tkos.method/0.5",
+          "action_contract_versions": [
+            "tkos.method/0.5"
+          ],
+          "allowed_actions": [
+            "m1b_confirm_constraint"
+          ]
+        },
+        "sent": [
+          "tkos.method/0.5",
+          "committed"
+        ],
+        "phase": "confirmed",
+        "effective_is_recorded_revision": true
+      }
+    },
+    {
+      "name": "ceo_cannot_confirm_a_scope_constraint_403",
+      "group": "4 业务拒绝",
+      "passed": true,
+      "evidence": {
+        "offer": [
+          false,
+          "not_responsible_owner"
+        ],
+        "prepare": [
+          403,
+          "FORBIDDEN"
+        ],
+        "business_tables_unchanged": true,
+        "session_after": 200
+      }
+    },
+    {
+      "name": "scope_dri_confirms_the_scope_constraint_via_workbench",
+      "group": "8 其余人工步骤",
+      "passed": true,
+      "evidence": {
+        "offer_allowed": true,
+        "contract_version": "tkos.method/0.5",
+        "prepare": [
+          200,
+          null
+        ],
+        "commit": [
+          200,
+          "committed"
+        ],
+        "constraint_after_ceo_read": [
+          "confirmed",
+          true
+        ],
+        "journal_status_on_disk": "committed",
+        "listed_in_my_submissions": [
+          "committed"
+        ],
+        "core_receipt_read_by_the_dri": [
+          200,
+          null
+        ],
+        "core_replay_by_the_dri": [
+          200,
+          null
+        ],
+        "core_receipt_read_by_the_ceo": 200
+      }
+    }
+  ],
+  "limitations": [
+    "会话只在 API 进程内存里：重启后旧 cookie 一律 401，需要重新登录（设计如此，tests/governance/test_sessions.py::test_restart_requires_login）；本验收把它作为已知限制核对，不算失败。",
+    "工作台命令日志是单实例本机文件（TKOS_GOVERNANCE_COMMANDS_DIR），「我的提交」跨重启靠它；不支持多实例共享。",
+    "登录限流按对端地址计数，成功的登录也占每分钟 10 次的额度（governance_sessions.login）；本验收每个 API 进程登录不超过 6 次。",
+    "响应丢失用测试专用启动器 acceptance/runtime/server.py 的 before_business_commit 挂起点制造（客户端读超时断开）；挂起点只能暂停，不能改变授权或结果。"
+  ],
+  "uncovered": [
+    "浏览器界面（R02 路由、R03 四类错误的页面表现、轮询不冲掉「加载更多」、读边失败重试、404 不置整面板失效）：本工具只验 HTTP 面，浏览器复核用 serve 模式另做。",
+    "后台轮询不续会话（X-TKOS-Background）、会话 8 小时 / 空闲 30 分钟过期、登录限流 429、重置登录码使旧会话失效：只有单元测试（tests/governance/test_sessions.py）。",
+    "撤权竞争（prepare 之后撤销任职再 commit）与同一命令并发提交：未驱动。",
+    "0.5 人工动作中未经工作台驱动的：m1b_replace_comment、m1b_withdraw_comment、m1b_reopen_window、m1b_reopen_candidates、method_open_problem、method_revise_problem、method_close_problem；LTCO 的 maintained / revised 结论。",
+    "0.5 Agent 能力中本链未驱动的：复盘重新生成、Constraint 修订、LTCO 修订、五个集合列表、公司集合视图（见 acceptance/method_v05）。",
+    "证据上传：工作台没有上传能力，本链的合成证据由 CEO 凭证经 /v1/evidence-assets 上传。",
+    "容器镜像入口、真实模型、Clark 接线、企业身份（SSO）、远程部署。"
+  ],
+  "browser": "not_run（本工具只验 HTTP 面；serve 模式供浏览器复核）",
+  "real_model": "not_run",
+  "partner_wiring": "not_verified",
+  "deployed": false
+}

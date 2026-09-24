@@ -1,0 +1,501 @@
+{
+  "schema_version": "tkos.delivery-candidate/1",
+  "commit": "cf5edb66267929a5827e8dbcd04488275f872ec4",
+  "version": "0.5.0.dev0",
+  "architecture": "arm64",
+  "started_at": "2026-09-24T17:04:38.075769+00:00",
+  "checks": {
+    "clean_checkout": {
+      "pass": true,
+      "commit": "cf5edb66267929a5827e8dbcd04488275f872ec4"
+    },
+    "project_wheel_built_from_the_checkout": {
+      "pass": true,
+      "wheel": "tkos_memory_service-0.5.0.dev0-py3-none-any.whl",
+      "dependency_wheels": 28
+    },
+    "images_carry_the_version_and_commit": {
+      "pass": true,
+      "images": {
+        "runtime": {
+          "tag": "tkos/ontology-runtime:v0.5.0.dev0-candidate-arm64",
+          "id": "sha256:2b7a5af503d47faddcad9f0a57908bfcd3875d13bb1537ead89970da033a9794"
+        },
+        "worker": {
+          "tag": "tkos/ontology-worker:v0.5.0.dev0-candidate-arm64",
+          "id": "sha256:8b170e51fcda1bb9fe76eb70a34db4bc7a4df4180b7b78d3ea29f726451545db"
+        }
+      }
+    },
+    "fresh_stack_starts_healthy_from_the_documented_script": {
+      "pass": true,
+      "port": "loopback"
+    },
+    "empty_database_is_migrated_to_the_head_with_file_digests": {
+      "pass": true,
+      "applied": 32,
+      "head": "0038_credential_lifecycle.sql"
+    },
+    "method_0_4_0_5_and_world_0_1_install_from_the_image_materials": {
+      "pass": true,
+      "steps": {
+        "method-0.4": [
+          {
+            "command": "install-profile",
+            "rc": 0,
+            "ok": true
+          },
+          {
+            "command": "install-policy",
+            "rc": 0,
+            "ok": true
+          },
+          {
+            "command": "set-registry",
+            "rc": 0,
+            "ok": true
+          },
+          {
+            "command": "install-activation-policy",
+            "rc": 0,
+            "ok": true
+          }
+        ],
+        "method-0.5": [
+          {
+            "command": "install-profile",
+            "rc": 0,
+            "ok": true
+          },
+          {
+            "command": "install-policy",
+            "rc": 0,
+            "ok": true
+          },
+          {
+            "command": "set-registry",
+            "rc": 0,
+            "ok": true
+          },
+          {
+            "command": "install-activation-policy",
+            "rc": 0,
+            "ok": true
+          }
+        ],
+        "world-0.1": [
+          {
+            "command": "install-profile",
+            "rc": 0,
+            "ok": true
+          },
+          {
+            "command": "install-policy",
+            "rc": 0,
+            "ok": true
+          },
+          {
+            "command": "set-registry",
+            "rc": 0,
+            "ok": true
+          },
+          {
+            "command": "install-activation-policy",
+            "rc": 0,
+            "ok": true
+          }
+        ]
+      }
+    },
+    "the_installed_protocols_answer_over_http_on_the_fresh_stack": {
+      "pass": true,
+      "method-0.4": {
+        "installed_scope": {
+          "status": 403,
+          "error": {
+            "code": "FORBIDDEN",
+            "message": "This action must be published by the responsible principal."
+          }
+        },
+        "scope_without_0_4": {
+          "status": 409,
+          "error": {
+            "code": "PROTOCOL_BINDING_CONFLICT",
+            "message": "A referenced object is registered under a conflicting protocol."
+          }
+        }
+      },
+      "method-0.5": {
+        "record_constraint": {
+          "status": 200
+        },
+        "confirm_constraint": {
+          "status": 200
+        },
+        "read_own_receipt": 200,
+        "contract_version": "tkos.method/0.5",
+        "phase": "confirmed"
+      },
+      "world-0.1": {
+        "create_company": {
+          "status": 200
+        },
+        "object_type": "Company"
+      }
+    },
+    "the_released_v0_4_0_migration_files_are_unchanged_in_the_candidate": {
+      "pass": true,
+      "released_files": 22,
+      "differing": []
+    },
+    "the_released_v0_4_0_database_upgrades_to_the_head": {
+      "pass": true,
+      "released_head": "0028_workspace_v02_grant_repair.sql",
+      "applied": [
+        "0029_method_v05.sql",
+        "0030_world_v01.sql",
+        "0031_world_v01_contract_repin.sql",
+        "0032_world_v01_revise_repin.sql",
+        "0033_world_v01_state_events_repin.sql",
+        "0034_world_v01_assign_owner.sql",
+        "0035_world_v01_gates_repin.sql",
+        "0036_world_v01_context_packs.sql",
+        "0037_append_only_grant_repair.sql",
+        "0038_credential_lifecycle.sql"
+      ],
+      "rows": 32
+    },
+    "the_no_database_tests_pass_on_the_same_checkout": {
+      "pass": true,
+      "summary": "1330 passed, 1 skipped, 145 deselected in 20.18s"
+    }
+  },
+  "not_covered": [
+    "数据库测试（CI 的 python-db 与本机隔离栈另跑）",
+    "各独立验收矩阵（按提交另跑，摘要另入库）",
+    "Method 0.4 的成功路径（本检查只核对分派）",
+    "目标环境、真实身份与真实数据"
+  ],
+  "wheel": {
+    "name": "tkos_memory_service-0.5.0.dev0-py3-none-any.whl",
+    "sha256": "aea07f9ff614c4da23d5c48bd066fc02221885a9955a6405b256d7d3fe2f9111"
+  },
+  "images": {
+    "runtime": {
+      "tag": "tkos/ontology-runtime:v0.5.0.dev0-candidate-arm64",
+      "id": "sha256:2b7a5af503d47faddcad9f0a57908bfcd3875d13bb1537ead89970da033a9794",
+      "architecture": "arm64",
+      "version_label": "0.5.0.dev0",
+      "revision_label": "cf5edb66267929a5827e8dbcd04488275f872ec4"
+    },
+    "worker": {
+      "tag": "tkos/ontology-worker:v0.5.0.dev0-candidate-arm64",
+      "id": "sha256:8b170e51fcda1bb9fe76eb70a34db4bc7a4df4180b7b78d3ea29f726451545db",
+      "architecture": "arm64",
+      "version_label": "0.5.0.dev0",
+      "revision_label": "cf5edb66267929a5827e8dbcd04488275f872ec4"
+    }
+  },
+  "vendor_images": {
+    "offline-postgres-pgvector": {
+      "tag": "tkos/offline-postgres-pgvector:v0.4.0-arm64",
+      "id": "sha256:f1152484f5b882c4a9b4d08e9160fb91625f89804ef3e84b42372535034cdca6"
+    },
+    "offline-minio": {
+      "tag": "tkos/offline-minio:v0.4.0-arm64",
+      "id": "sha256:54d3d6a0a58fb25b4e9943d1db3828d3b4de44666f911381b4fda57175488194"
+    },
+    "offline-minio-mc": {
+      "tag": "tkos/offline-minio-mc:v0.4.0-arm64",
+      "id": "sha256:d798ef4fe8f417b814a8968682c1e172cdfabe59da81b39e4d9cc108a355b271"
+    }
+  },
+  "migrations": [
+    {
+      "name": "0001_init.sql",
+      "sha256": "26a5ecca13468bd76616fa86f610d2745d703aba148c8ebc16aeb289d4e7f16e"
+    },
+    {
+      "name": "0002_identity_uniq.sql",
+      "sha256": "b65baf37d274bde0883c8d31076a0a651eec27b1d0d596efaa9b56ff317459f6"
+    },
+    {
+      "name": "0003_entity_normalized_name.sql",
+      "sha256": "3eed7602654e431de9c1b3375aa1dbb287435a09454bde7f7011b4f7faec2a39"
+    },
+    {
+      "name": "0004_evals_sync_state.sql",
+      "sha256": "cfb560a371056020d9569e79946b9c2adb11f60a039e022f87526eb09deaf109"
+    },
+    {
+      "name": "0005_context_graph.sql",
+      "sha256": "3b6078064167fd14174f7eec4a0b8ff20a9ecb571aa560de95c67d39d901ba19"
+    },
+    {
+      "name": "0006_working_memory.sql",
+      "sha256": "3b5d0ea432d24f281bbb741f668209d7aca16d8717759c455a8069af041be102"
+    },
+    {
+      "name": "0007_memory_service_boundary.sql",
+      "sha256": "e63a7ef6c46888b6997bcd68a4a615a7981bcf0bd25f82da6a8833e72cb36768"
+    },
+    {
+      "name": "0015_runtime_tasks.sql",
+      "sha256": "eebe891b9c3e7d13d7aa399fa6ae33cd076fad233aefa34dc6a22b436333c9e4"
+    },
+    {
+      "name": "0016_governed_runtime.sql",
+      "sha256": "51aee44b73d5e64424da306de4fd807154dafd866a079fe461983233a0ebfe49"
+    },
+    {
+      "name": "0017_dri_delivery.sql",
+      "sha256": "e3f35646ec5579e8a2f2bb503233cd635582fbaff2a389cd5ea8c520d5b2ffae"
+    },
+    {
+      "name": "0018_method_protocol.sql",
+      "sha256": "2903e4f46df2b8243de702573be266471fc09c50880b910aea69b6d367b45ed6"
+    },
+    {
+      "name": "0019_company_composition.sql",
+      "sha256": "cedbc71fa2c3625443b2e0cab87df960a35126c4f8c54153eb240dfed947ade1"
+    },
+    {
+      "name": "0020_execution_handover.sql",
+      "sha256": "f46815d29d0ab8ef06be4acaa986515b791f01f9b5da3135574706e62cf1343c"
+    },
+    {
+      "name": "0021_method_foundation.sql",
+      "sha256": "db4d30dcd2fbda335c5b6fc46b347fe7be782ab7eea6e765e6e218e1d944aa8d"
+    },
+    {
+      "name": "0022_workspace_scenes.sql",
+      "sha256": "63f7a11b0bd17cc94e91f56e81e72b0eb7b7360f748e5ca43e7e3b12e752f680"
+    },
+    {
+      "name": "0023_method_lifecycle_v02.sql",
+      "sha256": "7fc88f6923b512674c84cf9c5608644a4d4eeed664c377bd0fddbf593e7903b5"
+    },
+    {
+      "name": "0024_method_v02_binding_gate.sql",
+      "sha256": "49af3b2c9dc4e48792b3818634af6db197ec64cb9a1d19857f3fcd65827fe50f"
+    },
+    {
+      "name": "0025_method_anchors_v03.sql",
+      "sha256": "8db68d6562f72ea8068bad7957d7d9f2c1ced65d8f430fee77ae02aca46b68fe"
+    },
+    {
+      "name": "0026_workspace_sources_v02.sql",
+      "sha256": "9f643a4fec4cde3d3ed0eb205996d153ed2c9e5353ecf04660f17cb6d43f0ef9"
+    },
+    {
+      "name": "0027_method_v04.sql",
+      "sha256": "038116140c1096873e7ecd53fff0257242e76bd6d2e4de754c9ea2ce48605287"
+    },
+    {
+      "name": "0028_method_v04_contract_repin.sql",
+      "sha256": "e9bbd8e02c5b14194b37df654dd30299d7e312ebbd121d6801ec49b536b0c77f"
+    },
+    {
+      "name": "0028_workspace_v02_grant_repair.sql",
+      "sha256": "6c6ccb898b7c421c9b53022adcae7b37020521b3a348d75996db5ac514c189cb"
+    },
+    {
+      "name": "0029_method_v05.sql",
+      "sha256": "1865fcca203aa93acaad6cbb98cd1d9c7273e0282fc261c5ac2023de69f4174d"
+    },
+    {
+      "name": "0030_world_v01.sql",
+      "sha256": "aae9236d3850736caa1b610e21fba6123059fb21523b0e9f42c07eef5b2ecdf6"
+    },
+    {
+      "name": "0031_world_v01_contract_repin.sql",
+      "sha256": "35cc9290668fdd92f4c88a1c9003e365e34120e203d260faa0500f35b1c77de1"
+    },
+    {
+      "name": "0032_world_v01_revise_repin.sql",
+      "sha256": "e72d60a4f00e6e4f16bc1dd04d5dcfe0971c9f633aea04ebcec2a54658bc3ca2"
+    },
+    {
+      "name": "0033_world_v01_state_events_repin.sql",
+      "sha256": "4cc7e1d12aa775d15f14993f63c8de9f0582cd7c7352b0fbfc2b605fd5a0f552"
+    },
+    {
+      "name": "0034_world_v01_assign_owner.sql",
+      "sha256": "cb7822387749fb3db0822a9ae3208fa3d58cee3a8897883c10cf1c1b93ebcea8"
+    },
+    {
+      "name": "0035_world_v01_gates_repin.sql",
+      "sha256": "7cac7f4e7f5f390f9d9d8558c99f3184ba9e9c6dd3ceff164be3b06f6c63cfd3"
+    },
+    {
+      "name": "0036_world_v01_context_packs.sql",
+      "sha256": "25695f9a7ef17cc702d5754f7887bee2b230ee9beb95ec8213b3da4da56c4924"
+    },
+    {
+      "name": "0037_append_only_grant_repair.sql",
+      "sha256": "deb706804a5d1993fde901cac3b8bd7c0a16d312366c87ae113015262cf9907e"
+    },
+    {
+      "name": "0038_credential_lifecycle.sql",
+      "sha256": "92a1c42a0dcddb99624a5074d00a2166a6751c000fab6b8b5c05133bb4fbea5f"
+    }
+  ],
+  "protocol_installs": {
+    "method-0.4": [
+      {
+        "command": "install-profile",
+        "rc": 0,
+        "ok": true
+      },
+      {
+        "command": "install-policy",
+        "rc": 0,
+        "ok": true
+      },
+      {
+        "command": "set-registry",
+        "rc": 0,
+        "ok": true
+      },
+      {
+        "command": "install-activation-policy",
+        "rc": 0,
+        "ok": true
+      }
+    ],
+    "method-0.5": [
+      {
+        "command": "install-profile",
+        "rc": 0,
+        "ok": true
+      },
+      {
+        "command": "install-policy",
+        "rc": 0,
+        "ok": true
+      },
+      {
+        "command": "set-registry",
+        "rc": 0,
+        "ok": true
+      },
+      {
+        "command": "install-activation-policy",
+        "rc": 0,
+        "ok": true
+      }
+    ],
+    "world-0.1": [
+      {
+        "command": "install-profile",
+        "rc": 0,
+        "ok": true
+      },
+      {
+        "command": "install-policy",
+        "rc": 0,
+        "ok": true
+      },
+      {
+        "command": "set-registry",
+        "rc": 0,
+        "ok": true
+      },
+      {
+        "command": "install-activation-policy",
+        "rc": 0,
+        "ok": true
+      }
+    ]
+  },
+  "protocol_actions": {
+    "method-0.4": {
+      "installed_scope": {
+        "status": 403,
+        "error": {
+          "code": "FORBIDDEN",
+          "message": "This action must be published by the responsible principal."
+        }
+      },
+      "scope_without_0_4": {
+        "status": 409,
+        "error": {
+          "code": "PROTOCOL_BINDING_CONFLICT",
+          "message": "A referenced object is registered under a conflicting protocol."
+        }
+      }
+    },
+    "method-0.5": {
+      "record_constraint": {
+        "status": 200
+      },
+      "confirm_constraint": {
+        "status": 200
+      },
+      "read_own_receipt": 200,
+      "contract_version": "tkos.method/0.5",
+      "phase": "confirmed"
+    },
+    "world-0.1": {
+      "create_company": {
+        "status": 200
+      },
+      "object_type": "Company"
+    }
+  },
+  "upgrade": {
+    "released_image": {
+      "tag": "tkos/ontology-runtime:v0.4.0-arm64",
+      "id": "sha256:0fbdfaaad79631ac81dafb5b1d36899cb4d15eda0e1aa6c150d1c15830e177aa"
+    },
+    "applied_by_released": [
+      "0001_init.sql",
+      "0002_identity_uniq.sql",
+      "0003_entity_normalized_name.sql",
+      "0004_evals_sync_state.sql",
+      "0005_context_graph.sql",
+      "0006_working_memory.sql",
+      "0007_memory_service_boundary.sql",
+      "0015_runtime_tasks.sql",
+      "0016_governed_runtime.sql",
+      "0017_dri_delivery.sql",
+      "0018_method_protocol.sql",
+      "0019_company_composition.sql",
+      "0020_execution_handover.sql",
+      "0021_method_foundation.sql",
+      "0022_workspace_scenes.sql",
+      "0023_method_lifecycle_v02.sql",
+      "0024_method_v02_binding_gate.sql",
+      "0025_method_anchors_v03.sql",
+      "0026_workspace_sources_v02.sql",
+      "0027_method_v04.sql",
+      "0028_method_v04_contract_repin.sql",
+      "0028_workspace_v02_grant_repair.sql"
+    ],
+    "applied_by_candidate": [
+      "0029_method_v05.sql",
+      "0030_world_v01.sql",
+      "0031_world_v01_contract_repin.sql",
+      "0032_world_v01_revise_repin.sql",
+      "0033_world_v01_state_events_repin.sql",
+      "0034_world_v01_assign_owner.sql",
+      "0035_world_v01_gates_repin.sql",
+      "0036_world_v01_context_packs.sql",
+      "0037_append_only_grant_repair.sql",
+      "0038_credential_lifecycle.sql"
+    ],
+    "rows": 32,
+    "rows_with_digest": 32
+  },
+  "regression": {
+    "no_database_selection": "1330 passed, 1 skipped, 145 deselected in 20.18s",
+    "exit_code": 0
+  },
+  "accepted": true,
+  "teardown": {
+    "stack_down": true,
+    "worktree_removed": true,
+    "candidate_images_removed": true
+  },
+  "finished_at": "2026-09-24T17:06:49.515995+00:00"
+}

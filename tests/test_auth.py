@@ -3,10 +3,14 @@ from __future__ import annotations
 
 import base64
 
+import pytest
+
 from adapter.main import app
 from adapter.settings import Settings, get_settings
 from tests.asgi_client import get
 from tests.conftest import DATABASE_URL, Scope
+
+pytestmark = pytest.mark.db
 
 
 def _settings(scope: Scope, auth: str) -> Settings:

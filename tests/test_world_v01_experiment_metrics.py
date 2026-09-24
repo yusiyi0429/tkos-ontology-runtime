@@ -4,7 +4,8 @@
 - A 组 why 三次（取到 2/2、2/2、0/2；断言可追溯 3/3、1/2、1/3），who 三次（事件带大写与空格的写法也认），
   now 一次有效、一次污染不计；
 - B 组每问一次取上下文，包里混进了无关事件；
-- 全量塞入 20000 字符。"""
+- 全量塞入 20000 字符；
+- A0 组（纯模型遍历，#32 D）取 A 组里从没调过取上下文的那些运行（why-2 调过，不算），与 A 同一口径、各自判定。"""
 import json
 from pathlib import Path
 
@@ -22,11 +23,16 @@ def load(name: str) -> dict:
     return json.loads((FIXTURE / name).read_text())
 
 
+def pure(runs: list[dict]) -> list[dict]:
+    return [run for run in runs if all(line['tool'] != 'world_get_context' for line in run['log'])]
+
+
 @pytest.fixture
 def summary():
     gold = metrics.resolve(load('gold.json'), load('manifest.json'))
-    return metrics.summarize(gold, metrics.load_runs(FIXTURE / 'a'), metrics.load_runs(FIXTURE / 'b'), load('world.json'),
-                             attempts=3)
+    a_runs = metrics.load_runs(FIXTURE / 'a')
+    return metrics.summarize(gold, {'a': a_runs, 'a0': pure(a_runs)}, metrics.load_runs(FIXTURE / 'b'),
+                             load('world.json'), attempts=3)
 
 
 def test_gold_placeholders_become_the_references_of_this_seeding():
@@ -84,10 +90,35 @@ def test_b_group_is_scored_from_the_context_pack_it_returned(summary):
 def test_the_report_holds_each_metric_against_its_pass_criterion(summary):
     assert summary['full_chars'] == 20000
     # B 的长度按渲染后 Markdown 的字符数（规格的预算口径），另记经 MCP 返回的 JSON 字符数；逐问比，why 的 A 超过了 B。
-    assert summary['budget'] == {'a_of_full': pytest.approx(12400 / 9 / 20000), 'a_of_b': pytest.approx(12400 / 9 / 2000),
-                                 'a_of_b_json': pytest.approx(12400 / 9 / 5000), 'over': ['why']}
-    assert summary['verdict'] == {'recall': False, 'traceability': False, 'budget': False, 'determinism': False,
-                                  'counterexamples': False}
+    assert summary['a']['budget'] == {'of_full': pytest.approx(12400 / 9 / 20000), 'of_b': pytest.approx(12400 / 9 / 2000),
+                                      'of_b_json': pytest.approx(12400 / 9 / 5000), 'over': ['why']}
+    assert summary['a']['verdict'] == {'recall': False, 'traceability': False, 'budget': False, 'determinism': False,
+                                       'counterexamples': False}
+
+
+def test_the_pure_traversal_group_is_scored_with_the_same_metrics_and_judged_on_its_own(summary):
+    a0 = summary['a0']
+    assert set(a0) == set(summary['a']) and a0['runs'] == {'ok': 6, 'contaminated': 1}
+    why = a0['questions']['why']
+    # why 只剩 why-1、why-3：取到 2/2 与 0/2，可追溯 3/3 与 1/3；取到的集合 9 项与 3 项，交 3。
+    assert (why['runs'], why['recall'], why['traceability']) == (2, [2, 4], [4, 6])
+    assert why['determinism'] == pytest.approx(1 / 3) and why['chars'] == 1750
+    assert a0['questions']['who'] == summary['a']['questions']['who']
+    assert (a0['recall'], a0['traceability']) == (pytest.approx(9 / 11), pytest.approx(9 / 11))
+    assert a0['determinism'] == pytest.approx(11 / 18) and a0['short'] == {'why': 2, 'now': 1}
+    assert a0['counterexamples'] == {'old_version': 0, 'other_unit_constraint': 0, 'unrelated_event': 1,
+                                     'empty_block_as_content': 1}
+    # 同一口径比预算：A0 各问都不超过全量塞入的一半，也不高于 B；A 的 why 因为调了取上下文才超过 B。
+    assert a0['chars'] == pytest.approx(11150 / 9)
+    assert a0['budget'] == {'of_full': pytest.approx(11150 / 9 / 20000), 'of_b': pytest.approx(11150 / 9 / 2000),
+                            'of_b_json': pytest.approx(11150 / 9 / 5000), 'over': []}
+    assert a0['verdict'] == {'recall': False, 'traceability': False, 'budget': True, 'determinism': False,
+                             'counterexamples': False}
+    assert list(summary) == ['a', 'a0', 'b', 'full_chars']
+
+
+def test_a_group_that_was_not_run_has_no_runs(tmp_path):
+    assert metrics.load_runs(tmp_path / 'a0') == []
 
 
 def test_citing_any_version_older_than_the_seeded_one_is_an_old_version_counterexample():
@@ -97,3 +128,28 @@ def test_citing_any_version_older_than_the_seeded_one_is_an_old_version_countere
         {'claim': '旧版验收', 'kind': 'gap', 'refs': [f'{TASK}@1#acceptance', f'{MISSION}@3#definition']},
         {'claim': '现行定义', 'kind': 'fact', 'refs': [f'{TASK}@3#definition']}]}}
     assert metrics.score(run, [], gold, set())['counterexamples']['old_version'] == 2
+
+
+def test_answer_coverage_counts_the_expected_references_each_answer_cited(summary):
+    """第二轮报告的口径（#32 D）：期望引用是整个对象时，引了它的某个版本或块也算；块与事件要完全相同。
+    why：2/2、1/2（引的是旧版本的 Task 定义）、1/2；who 三次都 2/2（大写与不带前缀的写法也认）；
+    now 只有一次有效，引了快照的块，算覆盖了整个快照。A0 不含调过取上下文的 why-2。"""
+    a = summary['a']
+    assert {key: item['answer_coverage'] for key, item in a['questions'].items()} == {
+        'why': [4, 6], 'who': [6, 6], 'now': [1, 1]}
+    assert a['answer_coverage'] == pytest.approx(11 / 13)
+    assert summary['a0']['answer_coverage'] == pytest.approx(10 / 11)
+
+
+def test_call_patterns_count_calls_repeats_and_runs_that_left_the_start_object():
+    """有效的 7 次运行共 12 次调用；只有 why-1 读了起点以外的对象（Task、Mission）；why-2 调了一次取上下文。"""
+    gold = metrics.resolve(load('gold.json'), load('manifest.json'))
+    runs = metrics.load_runs(FIXTURE / 'a')
+    result = metrics.summarize(gold, {'a': runs}, metrics.load_runs(FIXTURE / 'b'), load('world.json'),
+                               attempts=3, start=ACT)
+    assert result['a']['calls'] == {'runs': 7, 'per_run': pytest.approx(12 / 7), 'repeated': 0,
+                                    'context_per_run': pytest.approx(1 / 7), 'left_start': 1,
+                                    'objects_per_run': pytest.approx(9 / 7)}
+    line = {'tool': 'world_get_object', 'arguments': {'object_id': ACT}, 'chars': 10, 'read_refs': [f'{ACT}@2']}
+    repeated = {'question': 'who', 'status': 'ok', 'log': [line, dict(line)], 'answer': None}
+    assert metrics.score(repeated, gold['questions']['who']['expected'], gold, set())['repeated_calls'] == 1

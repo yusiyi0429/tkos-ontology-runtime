@@ -29,6 +29,11 @@ _REF = re.compile(r"^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{1
 RefText = Annotated[str, StringConstraints(pattern=_REF.pattern)]
 
 
+def citation(object_id: str, version: int, block: str | None = None) -> str:
+    """引用的业务形式。"""
+    return f"{object_id}@{version}" + (f"#{block}" if block else "")
+
+
 def parse_ref(text: str) -> dict[str, Any]:
     """把业务形式拆成对象 id、版本号与块路径；修订 id 由服务端在写入时解析并钉住。"""
     match = _REF.match(text)
@@ -152,6 +157,44 @@ def validate_input(object_type: str, payload: Any) -> dict[str, Any]:
     return input_model(object_type).model_validate(payload).model_dump(mode="json")
 
 
+def server_owned(object_type: str) -> list[str]:
+    """只由服务写的字段：由事件写的属性与只经 world_relate 写的关系引用字段。"""
+    spec = world_registry.object_spec(object_type)
+    return ([a["id"] for a in spec["attributes"] if a["set_by"] is not None]
+            + [f["field"] for f in spec["relation_fields"] if f["written_by"] != "world_create_object"])
+
+
+def server_fields(object_type: str, stored: dict[str, Any]) -> dict[str, Any]:
+    return {field: stored[field] for field in server_owned(object_type)}
+
+
+def written_form(object_type: str, stored: dict[str, Any]) -> dict[str, Any]:
+    """存储载荷中客户端可写的部分，钉定引用还原成业务形式；合并修订从它出发。"""
+    spec = world_registry.object_spec(object_type)
+    owned = server_owned(object_type)
+    value = {key: item for key, item in stored.items() if key not in owned}
+
+    def text(pinned: dict[str, Any]) -> str:
+        return citation(pinned["object_id"], pinned["object_version"], pinned["block"])
+    fields = [a["id"] for a in spec["attributes"] if a["value"] == "ref"] + [f["field"] for f in spec["relation_fields"]]
+    for field in fields:
+        if value.get(field):
+            value[field] = text(value[field])
+    value["blocks"] = {block_id: block and {**block, "refs": [text(ref) for ref in block["refs"]]}
+                       for block_id, block in stored["blocks"].items()}
+    return value
+
+
+def merge_revision(object_type: str, stored: dict[str, Any], patch: Any) -> dict[str, Any]:
+    """合并修订（契约第 11 节）：只改给出的字段与块，块给 null 即清空，其余沿用当前版本；校验同建对象。"""
+    if not isinstance(patch.get("blocks", {}), dict):
+        raise ValueError("the blocks of a revision patch, if given, are an object")
+    current = written_form(object_type, stored)
+    merged = {**current, **{key: item for key, item in patch.items() if key != "blocks"},
+              "blocks": {**current["blocks"], **patch.get("blocks", {})}}
+    return validate_input(object_type, merged)
+
+
 def listed(value: Any) -> list[Any]:
     """关系引用字段的值（单个、列表或空）一律当列表处理。"""
     return value if isinstance(value, list) else [value] if value else []
@@ -168,8 +211,10 @@ def ref_texts(object_type: str, payload: dict[str, Any]) -> list[str]:
     return texts
 
 
-def stored_payload(object_type: str, payload: dict[str, Any], pins: dict[str, dict[str, Any]]) -> dict[str, Any]:
-    """把写入载荷里的引用换成钉定结果，补上只由服务写的字段，按存储模型校验后返回。"""
+def stored_payload(object_type: str, payload: dict[str, Any], pins: dict[str, dict[str, Any]],
+                   server: dict[str, Any] | None = None) -> dict[str, Any]:
+    """把写入载荷里的引用换成钉定结果，只由服务写的字段取 server（修订时沿用当前版本）或默认值，
+    按存储模型校验后返回。"""
     spec = world_registry.object_spec(object_type)
     value = dict(payload)
     for attribute in spec["attributes"]:
@@ -183,6 +228,7 @@ def stored_payload(object_type: str, payload: dict[str, Any], pins: dict[str, di
             value[field] = pins[value[field]]
     value["blocks"] = {block_id: block and {**block, "refs": [pins[text] for text in block["refs"]]}
                        for block_id, block in payload["blocks"].items()}
+    value.update(server or {})
     return stored_model(object_type).model_validate(value).model_dump(mode="json")
 
 
@@ -221,6 +267,33 @@ class WorldCreateObjectParams(StrictModel):
         return value
 
 
-ACTION_PARAMS = {"world_create_object": WorldCreateObjectParams}
-# 动作 -> 允许的目标类型；空集表示该动作不带 target。
-ACTION_TARGETS: dict[str, frozenset[str]] = {"world_create_object": frozenset()}
+class WorldReviseObjectParams(StrictModel):
+    """合并修订的补丁：按类型的校验在服务里对合并结果做（契约第 11 节）。"""
+    payload: dict[str, Any]
+    declaration: Optional[Declaration] = None
+
+
+class WorldRelateParams(StrictModel):
+    """整体替换一个跨链关系字段的列表（契约第 6 节）；列表里的引用指向对象本身，同一对象只出现一次。"""
+    field: Literal["depends_on", "contributes_to"]
+    refs: list[_ref_to(None)]
+    declaration: Optional[Declaration] = None
+
+    @field_validator("refs")
+    @classmethod
+    def distinct_objects(cls, refs: list[str]) -> list[str]:
+        if len({parse_ref(text)["object_id"] for text in refs}) != len(refs):
+            raise ValueError("a relation list names each object once")
+        return refs
+
+
+ACTION_PARAMS = {"world_create_object": WorldCreateObjectParams, "world_revise_object": WorldReviseObjectParams,
+                 "world_relate": WorldRelateParams}
+# 动作 -> 允许的目标类型；空集表示该动作不带 target。状态快照不修订（错快照用新快照），
+# 只有带跨链关系字段的 Mission、Task 能建关系。
+ACTION_TARGETS: dict[str, frozenset[str]] = {
+    "world_create_object": frozenset(),
+    "world_revise_object": frozenset({"Company", "Strategy", "ResponsibilityUnit", "LongTermGoal", "PeriodGoal",
+                                      "Mission", "Task", "Activity"}),
+    "world_relate": frozenset({"Mission", "Task"}),
+}

@@ -33,7 +33,7 @@ def company_root(h, f, flow):
     check = _checker(checks)
 
     last = flow.rows('SELECT name FROM schema_migrations ORDER BY name DESC LIMIT 1')[0]['name']
-    check('the_world_migration_is_the_newest_applied_migration', last == '0031_world_v01_contract_repin.sql')
+    check('the_world_migration_is_the_newest_applied_migration', last == '0032_world_v01_revise_repin.sql')
 
     # ------------------------------------------------------------ happy path
     identity = {'text': '一家为企业做经营系统的公司。', 'artifacts': ['https://example.test/company-brief']}
@@ -162,39 +162,38 @@ def objects_and_refs(h, f, flow, company):
     """票 #20：其余七类经 world_create_object 建出并读回，引用在写入时钉定；拒绝用例库快照不变。"""
     checks = []
     check = _checker(checks)
-    ref = _ref
 
     def created(actor, object_type, domain, payload, declaration=None):
         receipt = flow.create(actor, object_type, domain, payload, declaration)
         return receipt, receipt['result']
 
     # ------------------------------------------------------------ the spine, top to bottom
-    choices = {'text': '聚焦企业经营系统。', 'refs': [ref(company, 'identity')]}
+    choices = {'text': '聚焦企业经营系统。', 'refs': [_ref(company, 'identity')]}
     _, strategy = created('ceo', 'Strategy', 'company', {
-        'title': 'E&O 战略', 'parent_ref': ref(company),
+        'title': 'E&O 战略', 'parent_ref': _ref(company),
         'blocks': {'choices': choices, 'responsibility_structure': {'text': 'E&O 与交付两个战场。'}}})
     _, unit = created('ceo', 'ResponsibilityUnit', 'a', {
-        'title': 'E&O', 'unit_kind': 'battlefield', 'architecture_ref': ref(strategy, 'responsibility_structure')})
+        'title': 'E&O', 'unit_kind': 'battlefield', 'architecture_ref': _ref(strategy, 'responsibility_structure')})
     _, company_goal = created('ceo', 'LongTermGoal', 'company', {
-        'title': '公司三年目标', 'scope': 'company', 'horizon': '2029 年底', 'parent_ref': ref(company)})
+        'title': '公司三年目标', 'scope': 'company', 'horizon': '2029 年底', 'parent_ref': _ref(company)})
     _, unit_goal = created('a', 'LongTermGoal', 'a', {
         'title': 'E&O 年度目标', 'scope': 'unit', 'horizon': '2027 年底',
-        'parent_ref': ref(unit), 'goal_ref': ref(company_goal)})
+        'parent_ref': _ref(unit), 'goal_ref': _ref(company_goal)})
     _, period_goal = created('a', 'PeriodGoal', 'a', {
-        'title': '9 月', 'period': '2026-09', 'goal_ref': ref(unit_goal)})
+        'title': '9 月', 'period': '2026-09', 'goal_ref': _ref(unit_goal)})
     # 空块也可引用：周期目标的验收标准块此刻为 null。
     _, mission = created('a', 'Mission', 'a', {
-        'title': '9 月底 CU Agent、DRI Agent 与 M1、M1B 真实可用', 'goal_ref': ref(period_goal),
-        'blocks': {'acceptance': {'text': '按周期目标验收。', 'refs': [ref(period_goal, 'acceptance')]}}})
-    declaration = {'scene': ref(mission), 'trigger': '9/23 会议拆解 Mission',
+        'title': '9 月底 CU Agent、DRI Agent 与 M1、M1B 真实可用', 'goal_ref': _ref(period_goal),
+        'blocks': {'acceptance': {'text': '按周期目标验收。', 'refs': [_ref(period_goal, 'acceptance')]}}})
+    declaration = {'scene': _ref(mission), 'trigger': '9/23 会议拆解 Mission',
                    'human_acceptance': {'required': True, 'acceptor': f['actors']['ceo']['principal_id']}}
-    task_receipt, task = created('a', 'Task', 'a', {'title': '数据环境准备', 'parent_ref': ref(mission)}, declaration)
-    _, activity = created('ceo', 'Activity', 'a', {'title': '隔离库迁移与播种', 'parent_ref': ref(task)})
+    task_receipt, task = created('a', 'Task', 'a', {'title': '数据环境准备', 'parent_ref': _ref(mission)}, declaration)
+    _, activity = created('ceo', 'Activity', 'a', {'title': '隔离库迁移与播种', 'parent_ref': _ref(task)})
     made = {'Strategy': strategy, 'ResponsibilityUnit': unit, 'LongTermGoal': company_goal,
             'UnitLongTermGoal': unit_goal, 'PeriodGoal': period_goal, 'Mission': mission, 'Task': task,
             'Activity': activity}
     check('the_ceo_and_the_unit_dri_create_the_whole_spine_over_http',
-          all(obj['version'] == 1 and obj['ref'] == ref(obj) for obj in made.values()))
+          all(obj['version'] == 1 and obj['ref'] == _ref(obj) for obj in made.values()))
 
     views = {name: flow.read('outsider', obj['object_id']) for name, obj in made.items()}
     relations = {name: {r['field']: r['value'] for r in view['relations']} for name, view in views.items()}
@@ -250,40 +249,40 @@ def objects_and_refs(h, f, flow, company):
     for label, payload, says in (
             ('an_unknown_object', {'title': 'x', 'parent_ref': missing_object}, unresolved),
             ('an_unknown_version', {'title': 'x', 'parent_ref': f"{mission['object_id']}@2"}, unresolved),
-            ('a_block_its_type_does_not_have', {'title': 'x', 'parent_ref': ref(mission),
-                                                'blocks': {'plan': {'text': 'x', 'refs': [ref(mission, 'plan')]}}},
+            ('a_block_its_type_does_not_have', {'title': 'x', 'parent_ref': _ref(mission),
+                                                'blocks': {'plan': {'text': 'x', 'refs': [_ref(mission, 'plan')]}}},
              'names a block its object type does not have'),
     ):
         flow.deny_create('a', 'Task', 'a', payload, codes={'INVALID_REQUEST'}, says=says)
         check(f'a_reference_to_{label}_is_refused')
-    flow.deny_create('a', 'Task', 'a', {'title': 'x', 'parent_ref': ref(mission), 'owner': 'not in the contract'},
+    flow.deny_create('a', 'Task', 'a', {'title': 'x', 'parent_ref': _ref(mission), 'owner': 'not in the contract'},
                      codes={'INVALID_REQUEST'}, says='Payload does not satisfy')
     check('a_field_outside_the_contract_is_refused')
-    flow.deny_create('a', 'Mission', 'a', {'title': 'x', 'goal_ref': ref(period_goal), 'depends_on': [ref(mission)]},
+    flow.deny_create('a', 'Mission', 'a', {'title': 'x', 'goal_ref': _ref(period_goal), 'depends_on': [_ref(mission)]},
                      codes={'INVALID_REQUEST'}, says='Payload does not satisfy')
     check('a_cross_chain_relation_is_not_written_by_creation')
 
     # ------------------------------------------------------------ where objects live and what they hang on
     misplaced, decomposes = 'not placed in the domain its spine parent requires', 'Only a unit-level goal decomposes'
-    new_unit = {'title': 'x', 'unit_kind': 'domain', 'architecture_ref': ref(strategy, 'responsibility_structure')}
+    new_unit = {'title': 'x', 'unit_kind': 'domain', 'architecture_ref': _ref(strategy, 'responsibility_structure')}
     for label, actor, object_type, domain, payload, says in (
             ('a_strategy_outside_the_company_domain', 'ceo', 'Strategy', 'a',
-             {'title': 'x', 'parent_ref': ref(company)}, misplaced),
+             {'title': 'x', 'parent_ref': _ref(company)}, misplaced),
             ('a_unit_in_the_company_domain', 'ceo', 'ResponsibilityUnit', 'company', new_unit, misplaced),
             ('a_mission_in_another_unit_than_its_period_goal', 'ceo', 'Mission', 'b',
-             {'title': 'x', 'goal_ref': ref(period_goal)}, misplaced),
+             {'title': 'x', 'goal_ref': _ref(period_goal)}, misplaced),
             ('a_company_goal_hanging_on_a_unit', 'ceo', 'LongTermGoal', 'a',
-             {'title': 'x', 'scope': 'company', 'horizon': 'x', 'parent_ref': ref(unit)},
+             {'title': 'x', 'scope': 'company', 'horizon': 'x', 'parent_ref': _ref(unit)},
              'company-level goal hangs on the Company'),
             ('a_company_goal_with_a_goal_ref', 'ceo', 'LongTermGoal', 'company',
-             {'title': 'x', 'scope': 'company', 'horizon': 'x', 'parent_ref': ref(company),
-              'goal_ref': ref(company_goal)}, decomposes),
+             {'title': 'x', 'scope': 'company', 'horizon': 'x', 'parent_ref': _ref(company),
+              'goal_ref': _ref(company_goal)}, decomposes),
             ('a_unit_goal_decomposing_a_unit_goal', 'a', 'LongTermGoal', 'a',
-             {'title': 'x', 'scope': 'unit', 'horizon': 'x', 'parent_ref': ref(unit), 'goal_ref': ref(unit_goal)},
+             {'title': 'x', 'scope': 'unit', 'horizon': 'x', 'parent_ref': _ref(unit), 'goal_ref': _ref(unit_goal)},
              decomposes),
             ('a_period_goal_advancing_a_company_goal', 'ceo', 'PeriodGoal', 'company',
-             {'title': 'x', 'period': '2026-10', 'goal_ref': ref(company_goal)}, 'long-term goal of its own unit'),
-            ('a_task_under_a_task', 'a', 'Task', 'a', {'title': 'x', 'parent_ref': ref(task)},
+             {'title': 'x', 'period': '2026-10', 'goal_ref': _ref(company_goal)}, 'long-term goal of its own unit'),
+            ('a_task_under_a_task', 'a', 'Task', 'a', {'title': 'x', 'parent_ref': _ref(task)},
              'parent_ref must point to one of Mission'),
     ):
         flow.deny_create(actor, object_type, domain, payload, codes={'INVALID_REQUEST'}, says=says)
@@ -292,7 +291,7 @@ def objects_and_refs(h, f, flow, company):
                      says='exactly one responsibility unit')
     check('a_domain_has_exactly_one_responsibility_unit')
     flow.deny_create('ceo', 'StateSnapshot', 'a',
-                     {'title': 'x', 'subject_ref': ref(mission), 'as_of': '2026-09-24T09:37:00Z'},
+                     {'title': 'x', 'subject_ref': _ref(mission), 'as_of': '2026-09-24T09:37:00Z'},
                      codes={'ACTION_NOT_SUPPORTED_FOR_PROTOCOL'}, says='written by world_refresh_state')
     check('a_state_snapshot_is_not_written_by_creation')
 
@@ -302,16 +301,16 @@ def objects_and_refs(h, f, flow, company):
     check('a_dri_cannot_create_in_a_domain_where_they_hold_no_role')
     flow.deny_create('b', 'ResponsibilityUnit', 'b', new_unit, codes={'FORBIDDEN'}, says=not_responsible)
     check('only_the_ceo_creates_a_responsibility_unit')
-    flow.deny_create('unrelated', 'Strategy', 'company', {'title': 'x', 'parent_ref': ref(company)},
+    flow.deny_create('unrelated', 'Strategy', 'company', {'title': 'x', 'parent_ref': _ref(company)},
                      codes={'FORBIDDEN'}, says=not_responsible)
     check('an_ic_cannot_create_a_strategy')
     # 判权先于其余校验：别的单元的 DRI 挂到本单元的周期目标下，先被拒在责任人上，不暴露放置错误。
-    flow.deny_create('b', 'Mission', 'b', {'title': 'x', 'goal_ref': ref(period_goal)},
+    flow.deny_create('b', 'Mission', 'b', {'title': 'x', 'goal_ref': _ref(period_goal)},
                      codes={'FORBIDDEN'}, says=not_responsible)
     check('a_dri_cannot_create_under_another_units_goal')
 
     # ------------------------------------------------------------ write declarations (Agent only)
-    agent_task = {'title': 'Agent 分解', 'parent_ref': ref(mission)}
+    agent_task = {'title': 'Agent 分解', 'parent_ref': _ref(mission)}
     flow.deny_create('agent', 'Task', 'a', agent_task, codes={'INVALID_REQUEST'}, says='must declare its scene')
     check('an_agent_write_without_a_declaration_is_refused')
     for item in ('scene', 'trigger', 'human_acceptance'):
@@ -322,7 +321,7 @@ def objects_and_refs(h, f, flow, company):
     check('a_declared_agent_still_needs_to_be_responsible_up_the_spine')
     no_person = 'declared acceptor is an active person'
     for label, bad, says in (
-            ('whose_scene_is_not_a_mission_or_task', {**declaration, 'scene': ref(period_goal)},
+            ('whose_scene_is_not_a_mission_or_task', {**declaration, 'scene': _ref(period_goal)},
              'declared scene is a Mission or a Task'),
             ('whose_acceptor_is_an_agent', {**declaration, 'human_acceptance': {
                 'required': True, 'acceptor': f['actors']['agent']['principal_id']}}, no_person),
@@ -331,10 +330,180 @@ def objects_and_refs(h, f, flow, company):
             ('whose_acceptor_is_unknown', {**declaration, 'human_acceptance': {
                 'required': True, 'acceptor': '00000000-0000-4000-8000-000000000000'}}, no_person),
     ):
-        flow.deny_create('a', 'Task', 'a', {'title': 'x', 'parent_ref': ref(mission)}, bad,
+        flow.deny_create('a', 'Task', 'a', {'title': 'x', 'parent_ref': _ref(mission)}, bad,
                          codes={'INVALID_REQUEST'}, says=says)
         check(f'a_declaration_{label}_is_refused')
     return {'checks': checks, 'made': made}
+
+
+def revise_and_relate(h, f, flow, company, made):
+    """票 #21：合并修订与版本链、引用不漂移、改钉同一对象的新版本、跨链关系、按 parent_ref 反查子对象。"""
+    checks = []
+    check = _checker(checks)
+    strategy, unit, mission, task = made['Strategy'], made['ResponsibilityUnit'], made['Mission'], made['Task']
+    period_goal, company_goal = made['PeriodGoal'], made['LongTermGoal']
+
+    def world_events(kind, object_id):
+        return flow.rows("SELECT subject_refs FROM gov_world_events WHERE scope_id=%s AND kind=%s"
+                         " AND subject_refs->0->>'object_id' = %s", (f['scope_id'], kind, object_id))
+
+    # ------------------------------------------------------------ merge revision and the version chain
+    before = flow.read('outsider', strategy['object_id'])
+    strategy2 = flow.revise('ceo', strategy['object_id'], {
+        'title': 'E&O 战略（二）', 'blocks': {'path': {'text': '先 E&O 后交付。'}, 'choices': None}})['result']
+    now = flow.read('outsider', strategy['object_id'])
+    blocks = {b['id']: b for b in now['blocks']}
+    check('a_revision_changes_only_what_it_names_and_the_rest_carries_over',
+          strategy2['version'] == 2 and now['version'] == 2 and now['title'] == 'E&O 战略（二）'
+          and blocks['path']['text'] == '先 E&O 后交付。'
+          and blocks['choices']['empty'] and blocks['choices']['text'] == '当前没有战略选择'
+          and blocks['responsibility_structure']['text'] == 'E&O 与交付两个战场。'
+          and {r['field']: r['value'] for r in now['relations']} == {'parent_ref': _pinned(company)})
+    old = flow.read('outsider', strategy['object_id'], version=1)
+    check('the_old_version_is_still_read_by_its_number_and_the_new_one_supersedes_it',
+          now['supersedes'] == _pinned(strategy) and old['supersedes'] is None
+          and old['version'] == 1 and old['revision_id'] == strategy['revision_id']
+          and {b['id']: b['value'] for b in old['blocks']} == {b['id']: b['value'] for b in before['blocks']}
+          and now['formal'] == {'lifecycle_status': 'recorded', 'effective_revision_id': strategy2['revision_id']})
+    flow.read('outsider', strategy['object_id'], version=3, expected=404)
+    check('a_version_that_does_not_exist_is_not_found')
+    events = world_events('object.revised', strategy['object_id'])
+    check('a_revision_writes_one_object_revised_event_pinned_to_the_new_version',
+          [e['subject_refs'] for e in events] == [[{k: v for k, v in _pinned(strategy2).items() if k != 'ref'}]])
+
+    # 被引用对象出新修订，引用不漂移：Company、Strategy 都到了新版本，下级读回的仍是原来钉的版本。
+    body = flow.prepare('ceo', flow.targeted('world_revise_object', company['object_id'], {
+        'payload': {'blocks': {'constraint': {'text': '只做经营系统。'}}}}))
+    receipt = flow.commit('ceo', body)
+    replay = flow.commit('ceo', deepcopy(body))
+    changed = deepcopy(body)
+    changed['params']['payload'] = {'title': 'Another revision under the same key'}
+    flow.deny('ceo', changed, codes={'IDEMPOTENCY_CONFLICT'}, prepare=False)
+    check('a_replayed_revision_returns_its_receipt_and_a_reused_key_for_another_patch_is_refused',
+          replay['receipt_id'] == receipt['receipt_id'] and receipt['result']['version'] == 2
+          and len(world_events('object.revised', company['object_id'])) == 1)
+    relations = {r['field']: r['value'] for r in flow.read('outsider', unit['object_id'])['relations']}
+    check('references_stay_pinned_after_the_referenced_objects_get_new_versions',
+          flow.read('outsider', company['object_id'])['version'] == 2
+          and {r['field']: r['value'] for r in flow.read('outsider', strategy['object_id'], version=1)['relations']}
+          == {'parent_ref': _pinned(company)}
+          and relations == {'architecture_ref': _pinned(strategy, 'responsibility_structure')})
+    flow.revise('ceo', unit['object_id'], {'architecture_ref': _ref(strategy2, 'responsibility_structure')})
+    relations = {r['field']: r['value'] for r in flow.read('outsider', unit['object_id'])['relations']}
+    check('a_creation_reference_can_follow_the_same_object_to_a_newer_version',
+          relations == {'architecture_ref': _pinned(strategy2, 'responsibility_structure')})
+
+    # 有门类型草稿期由责任人直接修订，正式内容指针不动；无门类型由主干上级修订（Task 还没有责任人）。
+    flow.revise('a', period_goal['object_id'], {'blocks': {'acceptance': {'text': '两个 Agent 都真实跑通。'}}})
+    pg = flow.read('outsider', period_goal['object_id'])
+    flow.revise('a', task['object_id'], {'blocks': {'plan': {'text': '人建库，Agent 播种。'}}})
+    check('a_draft_gated_goal_is_revised_without_moving_its_formal_pointer_and_a_task_by_its_unit_dri',
+          pg['version'] == 2 and pg['formal'] == {'lifecycle_status': 'draft', 'effective_revision_id': None}
+          and flow.read('outsider', task['object_id'])['version'] == 2)
+
+    # ------------------------------------------------------------ cross-chain relations
+    second = flow.create('a', 'Mission', 'a', {'title': '数据环境可用', 'goal_ref': _ref(period_goal)})['result']
+    unit_b = flow.create('ceo', 'ResponsibilityUnit', 'b', {
+        'title': '交付', 'unit_kind': 'domain', 'architecture_ref': _ref(strategy2, 'responsibility_structure')})['result']
+    goal_b = flow.create('b', 'LongTermGoal', 'b', {'title': '交付年度目标', 'scope': 'unit', 'horizon': '2027 年底',
+                                                    'parent_ref': _ref(unit_b)})['result']
+    mission_before = flow.read('outsider', mission['object_id'])['version']
+    related = flow.relate('a', mission['object_id'], 'depends_on', [_ref(second)])['result']
+    flow.relate('a', mission['object_id'], 'contributes_to', [_ref(goal_b)])
+    view = flow.read('outsider', mission['object_id'])
+    relations = {r['field']: r['value'] for r in view['relations']}
+    relate_events = world_events('relate', mission['object_id'])
+    check('relations_read_back_pinned_on_the_object_that_holds_them_and_the_other_end_is_untouched',
+          related['version'] == mission_before + 1 and view['version'] == mission_before + 2
+          and relations['depends_on'] == [_pinned(second)] and relations['contributes_to'] == [_pinned(goal_b)]
+          and relations['goal_ref'] == _pinned(period_goal)
+          and flow.read('outsider', second['object_id'])['version'] == 1
+          and view['formal'] == {'lifecycle_status': 'draft', 'effective_revision_id': None})
+    check('each_relate_writes_exactly_one_relate_event_naming_both_ends',
+          len(relate_events) == 2
+          and all([r['object_id'] for r in e['subject_refs']][:1] == [mission['object_id']] for e in relate_events)
+          and sorted(e['subject_refs'][1]['object_id'] for e in relate_events)
+          == sorted([second['object_id'], goal_b['object_id']]))
+    source = _pinned({'object_id': mission['object_id'], 'version': view['version'], 'revision_id': view['revision_id']})
+    check('the_other_end_lists_the_relations_that_point_at_it',
+          flow.read('outsider', second['object_id'])['referenced_by']
+          == [{'field': 'depends_on', 'relation': 'depends_on', 'source': source, 'target': _pinned(second)}]
+          and flow.read('outsider', goal_b['object_id'])['referenced_by']
+          == [{'field': 'contributes_to', 'relation': 'contributes_to', 'source': source, 'target': _pinned(goal_b)}])
+    body = flow.prepare('a', flow.targeted('world_relate', mission['object_id'], {'field': 'depends_on', 'refs': []}))
+    receipt = flow.commit('a', body)
+    replay = flow.commit('a', deepcopy(body))
+    relations = {r['field']: r['value'] for r in flow.read('outsider', mission['object_id'])['relations']}
+    check('a_relation_list_is_replaced_as_a_whole_so_it_can_be_emptied_and_a_replay_changes_nothing',
+          relations['depends_on'] == [] and relations['contributes_to'] == [_pinned(goal_b)]
+          and replay['receipt_id'] == receipt['receipt_id'] and len(world_events('relate', mission['object_id'])) == 3
+          and flow.read('outsider', second['object_id'])['referenced_by'] == [])
+
+    # ------------------------------------------------------------ children by parent_ref
+    task2 = flow.create('a', 'Task', 'a', {'title': '写内容块标准', 'parent_ref': _ref(mission)})['result']
+    kids = flow.children('outsider', mission['object_id'])['children']
+    company_kids = flow.children('outsider', company['object_id'])['children']
+    check('children_are_all_and_only_the_objects_whose_parent_ref_points_at_the_object',
+          flow.children('outsider', strategy['object_id'])['children'] == []  # 责任单元经 architecture_ref 挂在 Strategy 下
+          and sorted(c['object_id'] for c in kids) == sorted([task['object_id'], task2['object_id']])
+          and {c['object_type'] for c in kids} == {'Task'}
+          and sorted(c['object_id'] for c in company_kids) == sorted([strategy['object_id'], company_goal['object_id']])
+          and all(c['parent_ref']['object_id'] == mission['object_id'] for c in kids))
+    flow.children('foreign_ceo', mission['object_id'], expected=404)
+    check('an_identity_from_another_scope_cannot_list_children')
+
+    # ------------------------------------------------------------ rejections
+    not_responsible = 'Only a responsible person up the spine'
+    cannot_move = 'can only be re-pinned to another version of the object it was created with'
+    declaration = {'scene': _ref(mission), 'trigger': '会后整理',
+                   'human_acceptance': {'required': True, 'acceptor': f['actors']['ceo']['principal_id']}}
+
+    def deny_revise(actor, obj, patch, codes, says=None, declared=None, target=None, prepare=True):
+        params = {'payload': patch, **({'declaration': declared} if declared else {})}
+        flow.deny(actor, flow.targeted('world_revise_object', obj['object_id'], params, target), codes=codes,
+                  says=says, prepare=prepare)
+
+    def deny_relate(actor, obj, field, refs, codes, says=None, declared=None):
+        params = {'field': field, 'refs': refs, **({'declaration': declared} if declared else {})}
+        flow.deny(actor, flow.targeted('world_relate', obj['object_id'], params), codes=codes, says=says)
+
+    deny_revise('unrelated', strategy, {'title': 'x'}, {'FORBIDDEN'}, not_responsible)
+    check('someone_not_responsible_up_the_spine_cannot_revise')
+    deny_revise('ic_a', task, {'title': 'x'}, {'FORBIDDEN'}, not_responsible)
+    check('a_unit_member_who_is_not_responsible_cannot_revise_a_task')
+    deny_revise('agent', mission, {'title': 'x'}, {'FORBIDDEN'}, 'Agent revises only ungated', declaration)
+    check('an_agent_cannot_revise_a_gated_type')
+    deny_revise('agent', task, {'title': 'x'}, {'INVALID_REQUEST'}, 'must declare its scene')
+    check('an_agent_revision_without_a_declaration_is_refused')
+    unattended = {**declaration, 'human_acceptance': {'required': False}}
+    deny_revise('agent', task, {'title': 'x'}, {'INVALID_REQUEST'}, 'needs human acceptance', unattended)
+    check('an_agent_revision_must_ask_for_human_acceptance')
+    deny_revise('agent', task, {'title': 'x'}, {'FORBIDDEN'}, not_responsible, declaration)
+    check('a_declared_agent_still_needs_to_be_responsible_to_revise')
+    stale = {'object_id': strategy['object_id'], 'revision_id': strategy2['revision_id'], 'expected_version': 1}
+    deny_revise('ceo', strategy, {'title': 'x'}, {'VERSION_CONFLICT'}, target=stale, prepare=False)
+    check('a_revision_with_a_wrong_expected_version_is_refused')
+    deny_revise('a', task, {'parent_ref': _ref(second)}, {'INVALID_REQUEST'}, cannot_move)
+    check('a_revision_cannot_move_an_object_under_another_parent')
+    deny_revise('a', made['UnitLongTermGoal'], {'goal_ref': None}, {'INVALID_REQUEST'}, cannot_move)
+    check('a_revision_cannot_drop_a_creation_reference')
+    deny_revise('a', mission, {'responsible': f['actors']['a']['principal_id']}, {'INVALID_REQUEST'},
+                'Payload does not satisfy')
+    check('a_revision_cannot_write_a_field_only_the_service_writes')
+
+    deny_relate('ic_a', mission, 'depends_on', [_ref(second)], {'FORBIDDEN'}, not_responsible)
+    check('someone_not_responsible_cannot_relate')
+    deny_relate('a', mission, 'depends_on', [_ref(mission)], {'INVALID_REQUEST'}, 'cannot depend on itself')
+    check('an_object_cannot_depend_on_itself')
+    deny_relate('a', mission, 'contributes_to', [_ref(period_goal)], {'INVALID_REQUEST'}, 'of another unit')
+    check('a_contribution_goes_to_another_units_goal')
+    deny_relate('a', mission, 'contributes_to', [_ref(company_goal)], {'INVALID_REQUEST'}, 'of another unit')
+    check('a_contribution_does_not_go_to_a_company_level_goal')
+    deny_relate('a', mission, 'depends_on', [_ref(task)], {'INVALID_REQUEST'}, 'depends_on must point to one of Mission')
+    check('a_relation_points_to_a_type_the_registry_allows')
+    deny_relate('a', task, 'contributes_to', [_ref(goal_b)], {'INVALID_REQUEST'}, 'has no contributes_to')
+    check('a_relation_field_the_type_does_not_have_is_refused')
+    return {'checks': checks}
 
 
 def revocation(h, f, flow, company_command):
@@ -354,11 +523,13 @@ def run(h: MethodHarness, source: Path):
     try:
         ctx = company_root(h, f, flow)
         objects = objects_and_refs(h, f, flow, ctx['company'])
-        checks = ctx['checks'] + objects['checks'] + revocation(h, f, flow, ctx['company_command'])
+        revisions = revise_and_relate(h, f, flow, ctx['company'], objects['made'])
+        checks = (ctx['checks'] + objects['checks'] + revisions['checks']
+                  + revocation(h, f, flow, ctx['company_command']))
         public_json(h.output / 'summary.json', {
             'world_v01_skeleton_passed': True, 'checks': checks,
-            'scope': 'Tickets #19-#20: world wiring, the Company root, the other seven creatable types and '
-                     'reference pinning over real HTTP/PostgreSQL; synthetic data',
+            'scope': 'Tickets #19-#21: world wiring, the Company root, the other seven creatable types, '
+                     'reference pinning, revisions and cross-chain relations over real HTTP/PostgreSQL; synthetic data',
             'world_api_accepted': False, 'world_api_accepted_note': 'set only by the finished matrix (ticket #27)',
             'real_model': 'not_run', 'mcp': 'not_built', 'deployment': 'not_verified'})
     finally:

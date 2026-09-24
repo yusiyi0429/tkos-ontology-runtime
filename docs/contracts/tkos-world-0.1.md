@@ -2,7 +2,7 @@
 
 状态：**契约文字按规格 #17 与 2026-09-24 的补充决定定稿**。0.1 只有在协议登记显式登记、且支持状态为本进程编译支持后才可调用；启用前，通过授权的 world 请求返回 `PROTOCOL_NOT_SUPPORTED`（授权先于协议错误），不产生业务成功。tkos.method/0.4、0.5 冻结，其解释、绑定、历史回执与回归保持不变（ADR-0001）。
 
-来源：《TKOS 语义模型与运行时重构方案 v0.1》、CEO《企业业务世界建模框架 内部讨论稿 v0.1》与 9/23 会议结论、规格 #17、2026-09-24 访谈与补充决定、术语表 `CONTEXT.md`、ADR-0001 至 0005。本契约第 2 至 10 节的清单以机器可读形式登记在 `docs/contracts/world-registry-0.1.json`（`tkos.world-registry` 0.1.1，规范 JSON：键排序、缩进 1、UTF-8、结尾换行）。world profile 同时钉定本契约与该登记的原始字节，任一改动都产生新修订并重新钉定。
+来源：《TKOS 语义模型与运行时重构方案 v0.1》、CEO《企业业务世界建模框架 内部讨论稿 v0.1》与 9/23 会议结论、规格 #17、2026-09-24 访谈与补充决定、术语表 `CONTEXT.md`、ADR-0001 至 0005。本契约第 2 至 10 节的清单以机器可读形式登记在 `docs/contracts/world-registry-0.1.json`（`tkos.world-registry` 0.1.2，规范 JSON：键排序、缩进 1、UTF-8、结尾换行）。world profile 同时钉定本契约与该登记的原始字节，任一改动都产生新修订并重新钉定。
 
 ## 1. 版本、启用与隔离
 
@@ -82,7 +82,8 @@
 
 - 目标约束：公司级长期目标的 `parent_ref` 指向 Company，不带 `goal_ref`；责任单元级长期目标的 `parent_ref` 指向所属责任单元，`goal_ref` 只能指向公司级长期目标；周期目标的 `goal_ref` 指向本单元的长期目标；`contributes_to` 指向另一责任单元的周期目标或长期目标。Strategy 的责任结构块是 Strategy 自身的一部分。
 - 主干：Activity → Task → Mission → 周期目标 → 长期目标 → 责任单元 → Strategy → Company。每一层沿登记的主干字段向上：Activity、Task、长期目标、Strategy 用 `parent_ref`；Mission、周期目标用 `goal_ref`；责任单元用 `architecture_ref`。公司级长期目标直接挂在 Company 下。
-- `depends_on[]` 与 `contributes_to[]` 只经 `world_relate` 写入，建对象与修订时不接受；其余引用字段在建对象时写入。
+- `depends_on[]` 与 `contributes_to[]` 只经 `world_relate` 写入，建对象与修订时不接受；其余引用字段在建对象时写入，修订时只能改钉到同一对象的另一个已有版本（例如跟进上一级的新版本），不能换挂到别的对象，换挂要新建对象。
+- `world_relate` 以 `{field, refs}` 整体替换该字段的列表（可增可删）：`depends_on` 不能指向对象自己，`contributes_to` 指向另一责任单元的周期目标或单元级长期目标，列表内不重复。关系记在持有该字段的对象上，被指向的对象不出新修订；取对象时，被指向的一端列出指向它的跨链关系。
 - 跨链关系只展示不递归。第一版不建关系表。
 
 ## 7. 状态快照
@@ -105,13 +106,13 @@
 | kind | 含义 | 谁能记 |
 |-|-|-|
 | object.created | 建对象，subject_refs 钉到第一个修订 | 新对象主干上某一级的责任人（第 9 节） |
-| object.revised | 对象或块变化，subject_refs 钉到新修订 | 对象责任人；确认写回时由服务记 |
+| object.revised | 对象或块变化，subject_refs 钉到新修订 | 该对象或其主干上某一级的责任人（第 11 节）；确认写回时由服务记 |
 | state.refreshed | 状态快照写入 | Co-Agent、执行 Agent、责任人 |
 | event.recorded | 外部发生的事，带 category 与 artifact 链接 | 有 scope 权限的人或 Agent |
 | commit | 下级承诺 | 周期目标由 DRI；Mission 由 Owner |
 | confirm | 上级签字 | 长期目标、周期目标由 CEO；Mission 由 DRI；核心战役立项再加 CEO |
 | assign | 责任指派，生效时间即 `occurred_at` | CEO 指派 DRI，DRI 指派 Owner，Owner 指派 Task 与 Activity 的责任人 |
-| relate | 建立跨链关系 | 对象责任人 |
+| relate | 建立跨链关系，subject_refs 钉到新修订与列表里的对象 | 该对象或其主干上某一级的责任人（第 11 节） |
 | core_battle.marked | Mission 标为核心战役 | CEO |
 
 - 0.1 不做未来才生效的指派：assign 的生效时间就是该事件的 `occurred_at`。
@@ -159,9 +160,10 @@
 ## 11. 修改规则、正式内容与候选内容
 
 - 有门类型（长期目标、周期目标、Mission）只在草稿态允许责任人直接 object.revised；已成立或已确认后，改动必须重走承诺与确认，新正式版在确认时写回，旧版成为历史依据。确认前的新内容是候选内容，以状态快照 artifacts 链接的形式存在；已有正式内容不因候选出现而失效。
-- 无门类型责任人随时可改；Mission 的 Owner 可改其下 Task 与 Activity。
-- Agent 身份的 object.revised 只允许无门类型，且必须声明人工验收与验收人。
-- 内核对象的状态列与生效修订指针只承担正式内容指针：有门类型建对象为 `draft`，确认接受时改为 `confirmed` 并把生效指针挪到被确认的修订；无门类型一律 `recorded`，生效指针等于最新。这不是业务生命周期（ADR-0002）。
+- 修订与建关系者须是该对象本身或其主干上某一级的责任人，与建对象同一规则（第 9 节）：无门类型随时可改；Mission 的 Owner 可改其下 Task 与 Activity，Task 的责任人可改其下 Activity，单元 DRI 与 CEO 可改其下的对象。
+- 修订按合并：只改请求里给出的字段与块，块给 null 即清空，其余沿用当前版本。状态快照不修订，错快照用新快照更正。
+- Agent 身份的 object.revised 只允许无门类型，且声明里必须需要人工验收并给出验收人。
+- 内核对象的状态列与生效修订指针只承担正式内容指针：有门类型建对象为 `draft`，确认接受时改为 `confirmed` 并把生效指针挪到被确认的修订；无门类型一律 `recorded`，生效指针等于最新。修订与建关系产生新修订时，生效指针原先等于最新修订的随之移动，否则不动。这不是业务生命周期（ADR-0002）。
 
 ## 12. 读写权限
 

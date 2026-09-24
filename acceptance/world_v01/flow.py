@@ -48,8 +48,30 @@ class Flow:
             assert says is None or says in response['error']['message'], (path, response, says)
             assert self.h.snapshot(self.f) == before, path
 
-    def read(self, actor, oid, *, expected=200):
-        return self.clients[actor].json('GET', f'/v1/world/objects/{oid}', expected=expected)
+    def read(self, actor, oid, *, version=None, expected=200):
+        suffix = f'?version={version}' if version is not None else ''
+        return self.clients[actor].json('GET', f'/v1/world/objects/{oid}{suffix}', expected=expected)
+
+    def children(self, actor, oid, *, expected=200):
+        return self.clients[actor].json('GET', f'/v1/world/objects/{oid}/children', expected=expected)
+
+    def target(self, oid):
+        """当前最新修订作为目标：对象 id、最新修订 id 与期望版本。"""
+        view = self.read('outsider', oid)
+        return {'object_id': oid, 'revision_id': view['revision_id'], 'expected_version': view['object_version']}
+
+    def targeted(self, kind, oid, params, target=None):
+        body = self.command(kind, params)
+        body['target'] = target or self.target(oid)
+        return body
+
+    def revise(self, actor, oid, patch, declaration=None):
+        params = {'payload': patch, **({'declaration': declaration} if declaration else {})}
+        return self.commit(actor, self.prepare(actor, self.targeted('world_revise_object', oid, params)))
+
+    def relate(self, actor, oid, field, refs, declaration=None):
+        params = {'field': field, 'refs': refs, **({'declaration': declaration} if declaration else {})}
+        return self.commit(actor, self.prepare(actor, self.targeted('world_relate', oid, params)))
 
     def company_params(self, *, title='E&O 合成公司', blocks=None, domain='company'):
         return {'domain_id': self.f['domains'][domain], 'object_type': 'Company',

@@ -8,17 +8,15 @@ from __future__ import annotations
 
 from typing import Any
 
+from psycopg.types.json import Jsonb
+
 from . import db, protocol
 from . import world_v01_registry as world_registry
 from .errors import GovernedError
-from .world_v01_models import ACTION_PARAMS
+from .world_v01_models import ACTION_PARAMS, citation
 
 # 空块的标准句在投影层配置（契约第 3 节）。
 EMPTY_BLOCK_SENTENCE = "当前没有{name}"
-
-
-def citation(object_id: str, version: int, block: str | None = None) -> str:
-    return f"{object_id}@{version}" + (f"#{block}" if block else "")
 
 
 def cited(pinned: Any) -> Any:
@@ -30,7 +28,9 @@ def cited(pinned: Any) -> Any:
     return {**pinned, "ref": citation(pinned["object_id"], pinned["object_version"], pinned["block"])}
 
 
-def object_view(head: dict[str, Any], revision: dict[str, Any], metadata: dict[str, Any]) -> dict[str, Any]:
+def object_view(head: dict[str, Any], revision: dict[str, Any], metadata: dict[str, Any],
+                supersedes: dict[str, Any] | None = None,
+                referenced_by: list[dict[str, Any]] | None = None) -> dict[str, Any]:
     spec = world_registry.object_spec(head["object_type"])
     payload, version = revision["payload"], revision["object_version"]
     blocks = []
@@ -47,12 +47,15 @@ def object_view(head: dict[str, Any], revision: dict[str, Any], metadata: dict[s
     return {"object_id": head["object_id"], "object_type": head["object_type"],
             "type_display_name": spec["display_name"], "version": version, "revision_id": revision["revision_id"],
             "title": payload["title"], "attributes": attributes, "blocks": blocks, "relations": relations,
+            "referenced_by": referenced_by or [], "supersedes": cited(supersedes),
+            # 对象行的并发版本：修订、建关系时作为 target.expected_version，与修订序号 version 不必相等。
+            "object_version": head["object_version"],
             "formal": {"lifecycle_status": head["lifecycle_status"],
                        "effective_revision_id": head["effective_revision_id"]},
             "protocol": metadata}
 
 
-def _world_head(conn: Any, ctx: Any, object_id: str) -> dict[str, Any]:
+def world_head(conn: Any, ctx: Any, object_id: str) -> dict[str, Any]:
     db._assignments(conn, ctx)  # 没有任何生效指派的调用者是 403
     object_id = db._uuid(object_id)
     row = conn.execute("SELECT * FROM gov_objects WHERE scope_id=%s AND object_id=%s",
@@ -63,16 +66,76 @@ def _world_head(conn: Any, ctx: Any, object_id: str) -> dict[str, Any]:
     return db.jsonable(row)
 
 
-def read_object(conn: Any, ctx: Any, object_id: str) -> dict[str, Any]:
-    head = _world_head(conn, ctx, object_id)
+def _readable(conn: Any, ctx: Any, object_id: str) -> tuple[dict[str, Any], dict[str, Any]]:
+    head = world_head(conn, ctx, object_id)
     # 共享的读支持闸门服务于其他协议的读取器，不接受 world；world 在这里自己核对解释状态。
     metadata = protocol.read_metadata(conn, ctx.scope_id, head["object_id"])
     if metadata["interpretation_status"] != "world_v0_1":
         raise GovernedError("PROTOCOL_NOT_SUPPORTED", "The object is not read under tkos.world/0.1.", status=409)
-    revision = db.jsonable(conn.execute(
-        "SELECT * FROM gov_object_revisions WHERE scope_id=%s AND object_id=%s AND revision_id=%s",
-        (ctx.scope_id, head["object_id"], head["latest_revision_id"])).fetchone())
-    return object_view(head, revision, metadata)
+    return head, metadata
+
+
+def _revision(conn: Any, ctx: Any, object_id: str, version: int) -> dict[str, Any] | None:
+    row = conn.execute("SELECT * FROM gov_object_revisions WHERE scope_id=%s AND object_id=%s AND object_version=%s",
+                       (ctx.scope_id, object_id, version)).fetchone()
+    return db.jsonable(row) if row is not None else None
+
+
+def read_object(conn: Any, ctx: Any, object_id: str, version: int | None = None) -> dict[str, Any]:
+    """取对象：默认最新修订，给 version 取该修订序号；supersedes 指向它取代的上一版本（修订链），
+    referenced_by 列出指向它的跨链关系（契约第 6 节）。修订序号从 1 连续递增。"""
+    head, metadata = _readable(conn, ctx, object_id)
+    if version is None:
+        revision = db.jsonable(conn.execute(
+            "SELECT * FROM gov_object_revisions WHERE scope_id=%s AND revision_id=%s",
+            (ctx.scope_id, head["latest_revision_id"])).fetchone())
+    else:
+        revision = _revision(conn, ctx, head["object_id"], version)
+    if revision is None:
+        raise GovernedError("NOT_FOUND")
+    previous = _revision(conn, ctx, head["object_id"], revision["object_version"] - 1)
+    supersedes = previous and {"object_id": head["object_id"], "object_version": previous["object_version"],
+                               "revision_id": previous["revision_id"], "block": None}
+    return object_view(head, revision, metadata, supersedes, _referenced_by(conn, ctx, head["object_id"]))
+
+
+def _referenced_by(conn: Any, ctx: Any, object_id: str) -> list[dict[str, Any]]:
+    """最新修订的跨链关系列表里钉着该对象（任一版本）的 world 对象，逐条列出。"""
+    fields = {field["field"]: field["relation"] for item in world_registry.registry()["objects"]
+              for field in item["relation_fields"] if field["written_by"] == "world_relate"}
+    probe = Jsonb([{"object_id": object_id}])
+    rows = conn.execute(
+        """SELECT o.object_id, r.object_version, r.revision_id, r.payload
+             FROM gov_object_revisions r JOIN gov_objects o
+               ON o.scope_id=r.scope_id AND o.object_id=r.object_id AND o.latest_revision_id=r.revision_id
+            WHERE r.scope_id=%s AND (""" + " OR ".join(["r.payload->%s @> %s"] * len(fields)) + """)
+            ORDER BY o.created_at, o.object_id""",
+        (ctx.scope_id, *[value for field in fields for value in (field, probe)])).fetchall()
+    found = []
+    for row in map(db.jsonable, rows):
+        source = {"object_id": row["object_id"], "object_version": row["object_version"],
+                  "revision_id": row["revision_id"], "block": None}
+        found.extend({"field": field, "relation": relation, "source": cited(source), "target": cited(pin)}
+                     for field, relation in fields.items() for pin in row["payload"].get(field, [])
+                     if pin["object_id"] == object_id)
+    return found
+
+
+def children(conn: Any, ctx: Any, object_id: str) -> dict[str, Any]:
+    """反向查找：最新修订的 parent_ref 指向该对象（任一版本）的 world 对象。"""
+    head, _ = _readable(conn, ctx, object_id)
+    rows = conn.execute(
+        """SELECT o.object_id, o.object_type, r.object_version, r.revision_id, r.payload
+             FROM gov_object_revisions r JOIN gov_objects o
+               ON o.scope_id=r.scope_id AND o.object_id=r.object_id AND o.latest_revision_id=r.revision_id
+            WHERE r.scope_id=%s AND r.payload ? 'parent_ref' AND r.payload->'parent_ref' ? 'object_version'
+              AND r.payload->'parent_ref'->>'object_id'=%s
+            ORDER BY o.created_at, o.object_id""", (ctx.scope_id, head["object_id"])).fetchall()
+    return {"object_id": head["object_id"], "children": [
+        {"object_id": row["object_id"], "object_type": row["object_type"], "title": row["payload"]["title"],
+         "version": row["object_version"], "revision_id": row["revision_id"],
+         "ref": citation(row["object_id"], row["object_version"]), "parent_ref": cited(row["payload"]["parent_ref"])}
+        for row in map(db.jsonable, rows)]}
 
 
 def is_receipt(row: dict[str, Any]) -> bool:
@@ -89,7 +152,7 @@ def authorize_receipt(conn: Any, ctx: Any, row: dict[str, Any], *, replay: bool 
     if row["target_object_id"]:
         ids.add(str(row["target_object_id"]))
     for object_id in ids:
-        _world_head(conn, ctx, object_id)
+        world_head(conn, ctx, object_id)
     if not replay:
         return
     if str(row["principal_id"]) != ctx.principal_id:

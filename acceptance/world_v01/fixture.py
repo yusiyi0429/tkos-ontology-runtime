@@ -1,8 +1,10 @@
 """world 验收的合成身份与登记：身份只由 owner SQL 播种，业务成功一律来自 HTTP。"""
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
+import secrets
 
 import psycopg
 from psycopg.rows import dict_row
@@ -32,8 +34,28 @@ def seed_world(env, path: Path, label: str):
     for scope in (f, foreign):
         _open_world_actions(env, scope)
     f['bystander_principal_id'] = _seed_bystander(env, f)
+    f['actors']['ic_a'] = _seed_actor(env, f, 'IC', f['domains']['a'])
     private_json(path, f)
     return f
+
+
+def _seed_actor(env, f, role, domain):
+    """本 scope 里再加一名持凭证的人，只在给定的域有一条指派（例如单元里的 IC：在域里有角色，但不在任何主干上负责）。"""
+    principal, assignment, token = uid(), uid(), secrets.token_urlsafe(48)
+    digest = hashlib.sha256(token.encode()).hexdigest()
+    with psycopg.connect(env.values['MIGRATION_DATABASE_URL'], row_factory=dict_row) as conn:
+        conn.execute("SELECT set_config('app.runtime_write_capability','tkos-runtime-a1',true)")
+        conn.execute("SELECT set_config('app.gov_control_plane','on',true)")
+        conn.execute("SELECT set_config('app.governed_scope_id',%s,true)", (f['scope_id'],))
+        conn.execute("SELECT set_config('app.governed_credential_digest',%s,true)", (digest,))
+        conn.execute('INSERT INTO gov_principals(principal_id,scope_id,principal_type,display_name) VALUES (%s,%s,%s,%s)',
+                     (principal, f['scope_id'], 'human', 'Synthetic world ' + role))
+        conn.execute('INSERT INTO gov_role_assignments(assignment_id,scope_id,principal_id,domain_id,role) VALUES (%s,%s,%s,%s,%s)',
+                     (assignment, f['scope_id'], principal, domain, role))
+        conn.execute('INSERT INTO gov_credentials(scope_id,principal_id,credential_digest,label) VALUES (%s,%s,%s,%s)',
+                     (f['scope_id'], principal, digest, 'Synthetic world ' + role))
+    return {'principal_id': principal, 'assignment_id': assignment, 'token': token, 'domain_id': domain,
+            'role': role, 'valid_to': None}
 
 
 def _seed_bystander(env, f):

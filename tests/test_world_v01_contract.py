@@ -36,7 +36,7 @@ def test_registry_is_canonical_json_naming_the_nine_first_class_object_types():
     assert text == json.dumps(json.loads(text), ensure_ascii=False, sort_keys=True, indent=1) + "\n"
     data = registry()
     assert (data["registry_id"], data["revision"], data["protocol_id"], data["contract_version"]) == (
-        "tkos.world-registry", "0.1.1", "tkos.world", "tkos.world/0.1")
+        "tkos.world-registry", "0.1.2", "tkos.world", "tkos.world/0.1")
     assert [item["type"] for item in data["objects"]] == NINE_TYPES
     assert {t for t, item in objects().items() if item["stub"]} == {"Company", "Strategy"}
     assert {t for t, item in objects().items() if item["gated"]} == {"LongTermGoal", "PeriodGoal", "Mission"}
@@ -347,7 +347,7 @@ def test_contract_text_names_everything_the_registry_declares():
 
 @pytest.mark.parametrize("change", [
     {"display_name": "World 0.1 changed"},
-    {"world_registry_ref": {"registry_id": "tkos.world-registry", "revision": "0.1.1", "content_sha256": "0" * 64}},
+    {"world_registry_ref": {"registry_id": "tkos.world-registry", "revision": "0.1.2", "content_sha256": "0" * 64}},
     {"action_contract_ref": {"contract_id": "tkos.world", "revision": "0.1", "content_sha256": "0" * 64}},
 ])
 def test_profile_rejects_changed_content_and_foreign_pins(change):

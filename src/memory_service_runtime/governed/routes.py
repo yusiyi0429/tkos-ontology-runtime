@@ -91,10 +91,18 @@ def object_get(object_id: uuid.UUID, token: Annotated[str, Depends(bearer)]):
 
 
 @router.get("/world/objects/{object_id}")
-def world_object_get(object_id: uuid.UUID, token: Annotated[str, Depends(bearer)]):
+def world_object_get(object_id: uuid.UUID, token: Annotated[str, Depends(bearer)],
+                     version: Annotated[int | None, Query(ge=1)] = None):
     from . import world_v01_readers
     with db.transaction(token) as (conn, ctx):
-        return world_v01_readers.read_object(conn, ctx, str(object_id))
+        return world_v01_readers.read_object(conn, ctx, str(object_id), version)
+
+
+@router.get("/world/objects/{object_id}/children")
+def world_object_children(object_id: uuid.UUID, token: Annotated[str, Depends(bearer)]):
+    from . import world_v01_readers
+    with db.transaction(token) as (conn, ctx):
+        return world_v01_readers.children(conn, ctx, str(object_id))
 
 
 @router.get("/objects/{object_id}/revisions/{revision_id}")

@@ -264,7 +264,7 @@
    "outcome_required": false,
    "outcomes": [],
    "phase": "forbidden",
-   "recorded_by": "对象责任人；确认写回时由服务记"
+   "recorded_by": "该对象或其主干上某一级的责任人；确认写回时由服务记"
   },
   {
    "category": "forbidden",
@@ -324,7 +324,7 @@
    "outcome_required": false,
    "outcomes": [],
    "phase": "forbidden",
-   "recorded_by": "对象责任人"
+   "recorded_by": "该对象或其主干上某一级的责任人"
   },
   {
    "category": "forbidden",
@@ -1562,7 +1562,7 @@
    ]
   }
  ],
- "revision": "0.1.1",
+ "revision": "0.1.2",
  "spine": [
   "Activity",
   "Task",

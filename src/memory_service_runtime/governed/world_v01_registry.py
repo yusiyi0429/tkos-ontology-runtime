@@ -29,6 +29,10 @@ def object_types() -> frozenset[str]:
     return frozenset(item["type"] for item in registry()["objects"])
 
 
+def action_spec(action: str) -> dict[str, Any]:
+    return next(item for item in registry()["actions"] if item["action"] == action)
+
+
 def object_spec(object_type: str) -> dict[str, Any]:
     for item in registry()["objects"]:
         if item["type"] == object_type:

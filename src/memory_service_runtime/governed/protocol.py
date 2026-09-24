@@ -48,6 +48,7 @@ SUPPORTED_PROTOCOL_CONTRACTS = frozenset(
         ("tkos.method", "tkos.method/0.3"),
         ("tkos.method", "tkos.method/0.4"),
         ("tkos.method", "tkos.method/0.5"),
+        ("tkos.world", "tkos.world/0.1"),
         (profile.CONTRACT_A_PROTOCOL_ID, profile.CONTRACT_A_CONTRACT_VERSION),
     }
 )
@@ -76,7 +77,7 @@ def installed_profile(conn: Any, scope_id: str, profile_id: str, revision: str) 
 
 
 def current_registry(conn: Any, scope_id: str, protocol_id: str, contract_version: str | None = None) -> dict[str, Any] | None:
-    if protocol_id == "tkos.method" and contract_version is not None:
+    if protocol_id in ("tkos.method", "tkos.world") and contract_version is not None:
         row = conn.execute(
             """SELECT * FROM gov_protocol_support_registry
                WHERE scope_id=%s AND protocol_id=%s AND contract_version=%s
@@ -253,6 +254,18 @@ def gate_target_action(conn: Any, scope_id: str, target_object_id: str,
         _fail("PROTOCOL_BINDING_MISSING")
     registry = _check_registry(conn, scope_id, binding["protocol_id"], binding["contract_version"])
     _check_binding_profile(conn, scope_id, binding)
+    if binding["protocol_id"] == "tkos.world":
+        from .world_v01_models import ACTION_TARGETS as WORLD_ACTION_TARGETS
+        if declared != binding["contract_version"]:
+            _fail("PROTOCOL_BINDING_CONFLICT")
+        target = conn.execute("SELECT object_type FROM gov_objects WHERE scope_id=%s AND object_id=%s",
+                              (scope_id, target_object_id)).fetchone()
+        if (target is None or target["object_type"] not in WORLD_ACTION_TARGETS.get(action_type, frozenset())
+                or action_type not in registry.actions or target["object_type"] not in registry.object_types):
+            _fail("ACTION_NOT_SUPPORTED_FOR_PROTOCOL")
+        if not registry.can_write:
+            _fail("PROTOCOL_WRITE_DISABLED")
+        return binding["contract_version"]
     if binding["protocol_id"] == "tkos.method":
         from .method_models import registry as method_registry
         _, METHOD_ACTION_TARGETS, _ = method_registry(binding["contract_version"])
@@ -372,7 +385,22 @@ def resolve_creation(conn: Any, scope_id: str, domain_id: str, object_type: str,
     policy = _policy_content(policy_row)
     if (policy.default_protocol, policy.default_contract_version) not in SUPPORTED_PROTOCOL_CONTRACTS:
         _fail("PROTOCOL_NOT_SUPPORTED")
-    if policy.default_protocol == "tkos.method":
+    if policy.default_protocol == "tkos.world":
+        from .world_v01_models import ACTION_PARAMS as WORLD_ACTION_PARAMS
+        from .world_v01_registry import object_types as world_object_types
+        if for_evidence:
+            # world 0.1 不收证据上传：artifacts 只是 URL（契约第 13 节）。
+            _fail("PROTOCOL_WRITE_DISABLED")
+        if declared != policy.default_contract_version:
+            _fail("PROTOCOL_BINDING_CONFLICT")
+        registry = _check_registry(conn, scope_id, policy.default_protocol, policy.default_contract_version)
+        if not registry.can_write or not registry.can_create:
+            _fail("PROTOCOL_WRITE_DISABLED")
+        if object_type not in world_object_types() or object_type not in registry.object_types:
+            _fail("ACTION_NOT_SUPPORTED_FOR_PROTOCOL")
+        if action_type not in WORLD_ACTION_PARAMS or action_type not in registry.actions:
+            _fail("ACTION_NOT_SUPPORTED_FOR_PROTOCOL")
+    elif policy.default_protocol == "tkos.method":
         from .method_models import registry as method_registry
         METHOD_ACTION_PARAMS, _, payloads = method_registry(policy.default_contract_version)
         METHOD_OBJECT_TYPES = frozenset(payloads) | {"EvidenceAsset"}
@@ -574,6 +602,9 @@ def _binding_interpretation(installed: dict[str, Any] | None,
     if not read_supported:
         return "read_unsupported", ("The current support registry does not grant read interpretation "
                                     "for this protocol/contract version; no legacy meaning is attached.")
+    if binding["protocol_id"] == "tkos.world":
+        return "world_v0_1", ("World 0.1; business world objects with content blocks, pinned references, "
+                              "an append-only event log and lifecycle derived from events.")
     if binding["protocol_id"] == "tkos.method":
         if binding["contract_version"] == "tkos.method/0.5":
             return "method_v0_5", ("Method 0.5; 0.4 rules plus Constraint, LTCO review conclusion, "

@@ -1,0 +1,10 @@
+{
+  "can_read": true,
+  "can_create": true,
+  "can_write": true,
+  "evidence_upload": false,
+  "actions": ["world_create_object"],
+  "object_types": ["Company"],
+  "readonly_compat": ["tkos.world/0.1"],
+  "notes": "World 0.1 support registry content; lists only the actions and object types implemented so far."
+}

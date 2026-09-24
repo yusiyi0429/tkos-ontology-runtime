@@ -111,7 +111,9 @@ def install_profile(conn: psycopg.Connection, args: argparse.Namespace) -> dict[
         _fail("PROFILE_CONTENT_CONFLICT",
               "action_contract_ref.content_sha256 does not match the supplied contract file bytes.")
     from . import method_profile, method_v02_profile, method_v03_profile, method_v04_profile, method_v05_profile
-    pinned_sha = (method_v05_profile.CONTRACT_SHA256 if core.profile_core_schema_version == method_v05_profile.SCHEMA_VERSION
+    from . import world_v01_profile
+    pinned_sha = (world_v01_profile.CONTRACT_SHA256 if core.profile_core_schema_version == world_v01_profile.SCHEMA_VERSION
+                  else method_v05_profile.CONTRACT_SHA256 if core.profile_core_schema_version == method_v05_profile.SCHEMA_VERSION
                   else method_v04_profile.CONTRACT_SHA256 if core.profile_core_schema_version == method_v04_profile.SCHEMA_VERSION
                   else method_v03_profile.CONTRACT_SHA256 if core.profile_core_schema_version == method_v03_profile.SCHEMA_VERSION
                   else method_v02_profile.CONTRACT_SHA256 if core.profile_core_schema_version == method_v02_profile.SCHEMA_VERSION
@@ -121,6 +123,14 @@ def install_profile(conn: psycopg.Connection, args: argparse.Namespace) -> dict[
         _fail("PROFILE_CONTENT_CONFLICT",
               "The compiled tkos.contract-a/0.1 support is bound to the pinned main-contract "
               "SHA256; changed contract bytes require a new contract revision.")
+    if core.profile_core_schema_version == world_v01_profile.SCHEMA_VERSION:
+        if not args.world_registry_file:
+            _fail("PROFILE_CONTENT_CONFLICT",
+                  "World 0.1 profiles require --world-registry-file to verify world_registry_ref.")
+        registry_sha = hashlib.sha256(Path(args.world_registry_file).read_bytes()).hexdigest()
+        if registry_sha != core.world_registry_ref.content_sha256 or registry_sha != world_v01_profile.REGISTRY_SHA256:
+            _fail("PROFILE_CONTENT_CONFLICT",
+                  "world_registry_ref.content_sha256 does not match the supplied registry bytes or the compiled pin.")
     if core.profile_core_schema_version == method_v05_profile.SCHEMA_VERSION:
         if not args.ontology_registry_file:
             _fail("PROFILE_CONTENT_CONFLICT",
@@ -492,6 +502,8 @@ def main() -> None:
                         "defaults to the bundled pinned contract artifact.")
     p.add_argument("--ontology-registry-file", default=None,
                    help="Path to the exact ontology registry JSON bytes named by ontology_registry_ref (Method 0.5).")
+    p.add_argument("--world-registry-file", default=None,
+                   help="Path to the exact world registry JSON bytes named by world_registry_ref (World 0.1).")
     p.add_argument("--reason", required=True)
 
     p = base("install-policy")

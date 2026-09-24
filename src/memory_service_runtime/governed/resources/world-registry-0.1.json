@@ -1,0 +1,1590 @@
+{
+ "actions": [
+  {
+   "action": "world_create_object",
+   "display_name": "建对象",
+   "event_kind": "object.created",
+   "gate_roles": null,
+   "mcp": false,
+   "outcomes": [],
+   "phases": [],
+   "target_type": null
+  },
+  {
+   "action": "world_revise_object",
+   "display_name": "修订对象",
+   "event_kind": "object.revised",
+   "gate_roles": null,
+   "mcp": true,
+   "outcomes": [],
+   "phases": [],
+   "target_type": null
+  },
+  {
+   "action": "world_refresh_state",
+   "display_name": "写状态快照",
+   "event_kind": "state.refreshed",
+   "gate_roles": null,
+   "mcp": true,
+   "outcomes": [],
+   "phases": [],
+   "target_type": null
+  },
+  {
+   "action": "world_record_event",
+   "display_name": "记外部事件",
+   "event_kind": "event.recorded",
+   "gate_roles": null,
+   "mcp": true,
+   "outcomes": [],
+   "phases": [],
+   "target_type": null
+  },
+  {
+   "action": "world_assign",
+   "display_name": "指派",
+   "event_kind": "assign",
+   "gate_roles": null,
+   "mcp": false,
+   "outcomes": [],
+   "phases": [],
+   "target_type": null
+  },
+  {
+   "action": "world_relate",
+   "display_name": "建立跨链关系",
+   "event_kind": "relate",
+   "gate_roles": null,
+   "mcp": false,
+   "outcomes": [],
+   "phases": [],
+   "target_type": null
+  },
+  {
+   "action": "world_commit_period_goal",
+   "display_name": "承诺周期目标",
+   "event_kind": "commit",
+   "gate_roles": [
+    "DOMAIN_DRI"
+   ],
+   "mcp": false,
+   "outcomes": [
+    "withdrawn"
+   ],
+   "phases": [],
+   "target_type": "PeriodGoal"
+  },
+  {
+   "action": "world_commit_mission",
+   "display_name": "承诺 Mission",
+   "event_kind": "commit",
+   "gate_roles": [
+    "OWNER"
+   ],
+   "mcp": false,
+   "outcomes": [
+    "withdrawn"
+   ],
+   "phases": [
+    "initiation",
+    "delivery"
+   ],
+   "target_type": "Mission"
+  },
+  {
+   "action": "world_confirm_long_term_goal",
+   "display_name": "确认长期目标",
+   "event_kind": "confirm",
+   "gate_roles": [
+    "CEO"
+   ],
+   "mcp": false,
+   "outcomes": [
+    "accepted",
+    "returned",
+    "withdrawn"
+   ],
+   "phases": [],
+   "target_type": "LongTermGoal"
+  },
+  {
+   "action": "world_confirm_period_goal",
+   "display_name": "确认周期目标",
+   "event_kind": "confirm",
+   "gate_roles": [
+    "CEO"
+   ],
+   "mcp": false,
+   "outcomes": [
+    "accepted",
+    "returned",
+    "withdrawn"
+   ],
+   "phases": [],
+   "target_type": "PeriodGoal"
+  },
+  {
+   "action": "world_confirm_mission",
+   "display_name": "确认 Mission",
+   "event_kind": "confirm",
+   "gate_roles": [
+    "DOMAIN_DRI"
+   ],
+   "mcp": false,
+   "outcomes": [
+    "accepted",
+    "returned",
+    "withdrawn"
+   ],
+   "phases": [
+    "initiation",
+    "delivery"
+   ],
+   "target_type": "Mission"
+  },
+  {
+   "action": "world_confirm_mission_core_battle",
+   "display_name": "CEO 确认核心战役立项",
+   "event_kind": "confirm",
+   "gate_roles": [
+    "CEO"
+   ],
+   "mcp": false,
+   "outcomes": [
+    "accepted",
+    "returned",
+    "withdrawn"
+   ],
+   "phases": [
+    "initiation"
+   ],
+   "target_type": "Mission"
+  },
+  {
+   "action": "world_mark_core_battle",
+   "display_name": "标记核心战役",
+   "event_kind": "core_battle.marked",
+   "gate_roles": [
+    "CEO"
+   ],
+   "mcp": false,
+   "outcomes": [],
+   "phases": [],
+   "target_type": "Mission"
+  }
+ ],
+ "assign_effective_time": "occurred_at",
+ "block_value_fields": [
+  "text",
+  "refs",
+  "artifacts"
+ ],
+ "contract_version": "tkos.world/0.1",
+ "event_attribute_values": {
+  "category": [
+   {
+    "display_name": "会议",
+    "id": "meeting"
+   },
+   {
+    "display_name": "评审",
+    "id": "review"
+   },
+   {
+    "display_name": "交付",
+    "id": "delivery"
+   },
+   {
+    "display_name": "验收",
+    "id": "acceptance"
+   },
+   {
+    "display_name": "其他",
+    "id": "other"
+   },
+   {
+    "display_name": "更正",
+    "id": "correction"
+   }
+  ],
+  "outcome": [
+   {
+    "display_name": "接受",
+    "id": "accepted"
+   },
+   {
+    "display_name": "退回",
+    "id": "returned"
+   },
+   {
+    "display_name": "撤回",
+    "id": "withdrawn"
+   }
+  ],
+  "phase": [
+   {
+    "display_name": "立项",
+    "id": "initiation"
+   },
+   {
+    "display_name": "交付",
+    "id": "delivery"
+   }
+  ]
+ },
+ "event_fields": [
+  "event_id",
+  "scope",
+  "kind",
+  "phase",
+  "category",
+  "outcome",
+  "subject_refs",
+  "principal",
+  "occurred_at",
+  "recorded_at",
+  "content",
+  "action_id",
+  "supersedes_event_id"
+ ],
+ "event_kinds": [
+  {
+   "category": "forbidden",
+   "display_name": "对象创建",
+   "kind": "object.created",
+   "outcome_required": false,
+   "outcomes": [],
+   "phase": "forbidden",
+   "recorded_by": "对象责任人"
+  },
+  {
+   "category": "forbidden",
+   "display_name": "对象修订",
+   "kind": "object.revised",
+   "outcome_required": false,
+   "outcomes": [],
+   "phase": "forbidden",
+   "recorded_by": "对象责任人；确认写回时由服务记"
+  },
+  {
+   "category": "forbidden",
+   "display_name": "状态快照写入",
+   "kind": "state.refreshed",
+   "outcome_required": false,
+   "outcomes": [],
+   "phase": "forbidden",
+   "recorded_by": "Co-Agent、执行 Agent、责任人"
+  },
+  {
+   "category": "required",
+   "display_name": "外部事件",
+   "kind": "event.recorded",
+   "outcome_required": false,
+   "outcomes": [],
+   "phase": "forbidden",
+   "recorded_by": "有 scope 权限的人或 Agent"
+  },
+  {
+   "category": "forbidden",
+   "display_name": "承诺",
+   "kind": "commit",
+   "outcome_required": false,
+   "outcomes": [
+    "withdrawn"
+   ],
+   "phase": "by_action",
+   "recorded_by": "周期目标由 DRI；Mission 由 Owner"
+  },
+  {
+   "category": "forbidden",
+   "display_name": "确认",
+   "kind": "confirm",
+   "outcome_required": true,
+   "outcomes": [
+    "accepted",
+    "returned",
+    "withdrawn"
+   ],
+   "phase": "by_action",
+   "recorded_by": "长期目标、周期目标由 CEO；Mission 由 DRI；核心战役再加 CEO"
+  },
+  {
+   "category": "forbidden",
+   "display_name": "指派",
+   "kind": "assign",
+   "outcome_required": false,
+   "outcomes": [],
+   "phase": "forbidden",
+   "recorded_by": "CEO 指派 DRI，DRI 指派 Owner，Owner 指派 Task 与 Activity 的责任人"
+  },
+  {
+   "category": "forbidden",
+   "display_name": "建立跨链关系",
+   "kind": "relate",
+   "outcome_required": false,
+   "outcomes": [],
+   "phase": "forbidden",
+   "recorded_by": "对象责任人"
+  },
+  {
+   "category": "forbidden",
+   "display_name": "标记核心战役",
+   "kind": "core_battle.marked",
+   "outcome_required": false,
+   "outcomes": [],
+   "phase": "forbidden",
+   "recorded_by": "CEO"
+  }
+ ],
+ "evidence_upload": false,
+ "lifecycles": {
+  "Activity": {
+   "initial": "unassigned",
+   "states": [
+    {
+     "display_name": "未指派",
+     "id": "unassigned"
+    },
+    {
+     "display_name": "已指派",
+     "id": "assigned"
+    },
+    {
+     "display_name": "进行中",
+     "id": "in_progress"
+    },
+    {
+     "display_name": "已交付",
+     "id": "delivered"
+    },
+    {
+     "display_name": "已关闭",
+     "id": "closed"
+    }
+   ],
+   "transitions": [
+    {
+     "action": "world_assign",
+     "category": null,
+     "from": "unassigned",
+     "guard": null,
+     "outcome": null,
+     "phase": null,
+     "to": "assigned"
+    },
+    {
+     "action": "world_refresh_state",
+     "category": null,
+     "from": "assigned",
+     "guard": null,
+     "outcome": null,
+     "phase": null,
+     "to": "in_progress"
+    },
+    {
+     "action": "world_record_event",
+     "category": "delivery",
+     "from": "in_progress",
+     "guard": null,
+     "outcome": null,
+     "phase": null,
+     "to": "delivered"
+    },
+    {
+     "action": "world_record_event",
+     "category": "acceptance",
+     "from": "delivered",
+     "guard": "spine_parent_responsible",
+     "outcome": null,
+     "phase": null,
+     "to": "closed"
+    }
+   ]
+  },
+  "LongTermGoal": {
+   "initial": "draft",
+   "states": [
+    {
+     "display_name": "草稿",
+     "id": "draft"
+    },
+    {
+     "display_name": "已确认",
+     "id": "confirmed"
+    }
+   ],
+   "transitions": [
+    {
+     "action": "world_confirm_long_term_goal",
+     "category": null,
+     "from": "draft",
+     "guard": null,
+     "outcome": "accepted",
+     "phase": null,
+     "to": "confirmed"
+    },
+    {
+     "action": "world_confirm_long_term_goal",
+     "category": null,
+     "from": "draft",
+     "guard": null,
+     "outcome": "returned",
+     "phase": null,
+     "to": "draft"
+    }
+   ]
+  },
+  "Mission": {
+   "initial": "draft",
+   "states": [
+    {
+     "display_name": "草稿",
+     "id": "draft"
+    },
+    {
+     "display_name": "已承诺",
+     "id": "committed"
+    },
+    {
+     "display_name": "已成立",
+     "id": "established"
+    },
+    {
+     "display_name": "等 CEO 确认",
+     "id": "awaiting_ceo"
+    },
+    {
+     "display_name": "进行中",
+     "id": "in_progress"
+    },
+    {
+     "display_name": "已交付",
+     "id": "delivered"
+    },
+    {
+     "display_name": "调整",
+     "id": "adjusting"
+    },
+    {
+     "display_name": "已关闭",
+     "id": "closed"
+    }
+   ],
+   "transitions": [
+    {
+     "action": "world_commit_mission",
+     "category": null,
+     "from": "draft",
+     "guard": null,
+     "outcome": null,
+     "phase": "initiation",
+     "to": "committed"
+    },
+    {
+     "action": "world_confirm_mission",
+     "category": null,
+     "from": "committed",
+     "guard": "not_core_battle",
+     "outcome": "accepted",
+     "phase": "initiation",
+     "to": "established"
+    },
+    {
+     "action": "world_confirm_mission",
+     "category": null,
+     "from": "committed",
+     "guard": "core_battle",
+     "outcome": "accepted",
+     "phase": "initiation",
+     "to": "awaiting_ceo"
+    },
+    {
+     "action": "world_confirm_mission",
+     "category": null,
+     "from": "committed",
+     "guard": null,
+     "outcome": "returned",
+     "phase": "initiation",
+     "to": "draft"
+    },
+    {
+     "action": "world_confirm_mission_core_battle",
+     "category": null,
+     "from": "awaiting_ceo",
+     "guard": null,
+     "outcome": "accepted",
+     "phase": "initiation",
+     "to": "established"
+    },
+    {
+     "action": "world_confirm_mission_core_battle",
+     "category": null,
+     "from": "awaiting_ceo",
+     "guard": null,
+     "outcome": "returned",
+     "phase": "initiation",
+     "to": "draft"
+    },
+    {
+     "action": "world_mark_core_battle",
+     "category": null,
+     "from": "draft",
+     "guard": null,
+     "outcome": null,
+     "phase": null,
+     "to": "draft"
+    },
+    {
+     "action": "world_mark_core_battle",
+     "category": null,
+     "from": "committed",
+     "guard": null,
+     "outcome": null,
+     "phase": null,
+     "to": "committed"
+    },
+    {
+     "action": "world_mark_core_battle",
+     "category": null,
+     "from": "established",
+     "guard": null,
+     "outcome": null,
+     "phase": null,
+     "to": "awaiting_ceo"
+    },
+    {
+     "action": "world_refresh_state",
+     "category": null,
+     "from": "established",
+     "guard": null,
+     "outcome": null,
+     "phase": null,
+     "to": "in_progress"
+    },
+    {
+     "action": "world_commit_mission",
+     "category": null,
+     "from": "in_progress",
+     "guard": null,
+     "outcome": null,
+     "phase": "delivery",
+     "to": "delivered"
+    },
+    {
+     "action": "world_confirm_mission",
+     "category": null,
+     "from": "delivered",
+     "guard": null,
+     "outcome": "accepted",
+     "phase": "delivery",
+     "to": "closed"
+    },
+    {
+     "action": "world_confirm_mission",
+     "category": null,
+     "from": "delivered",
+     "guard": null,
+     "outcome": "returned",
+     "phase": "delivery",
+     "to": "adjusting"
+    },
+    {
+     "action": "world_refresh_state",
+     "category": null,
+     "from": "adjusting",
+     "guard": null,
+     "outcome": null,
+     "phase": null,
+     "to": "in_progress"
+    },
+    {
+     "action": "world_commit_mission",
+     "category": null,
+     "from": "adjusting",
+     "guard": null,
+     "outcome": null,
+     "phase": "delivery",
+     "to": "delivered"
+    }
+   ]
+  },
+  "PeriodGoal": {
+   "initial": "draft",
+   "states": [
+    {
+     "display_name": "草稿",
+     "id": "draft"
+    },
+    {
+     "display_name": "已承诺",
+     "id": "committed"
+    },
+    {
+     "display_name": "已确认",
+     "id": "confirmed"
+    }
+   ],
+   "transitions": [
+    {
+     "action": "world_commit_period_goal",
+     "category": null,
+     "from": "draft",
+     "guard": null,
+     "outcome": null,
+     "phase": null,
+     "to": "committed"
+    },
+    {
+     "action": "world_confirm_period_goal",
+     "category": null,
+     "from": "committed",
+     "guard": null,
+     "outcome": "accepted",
+     "phase": null,
+     "to": "confirmed"
+    },
+    {
+     "action": "world_confirm_period_goal",
+     "category": null,
+     "from": "committed",
+     "guard": null,
+     "outcome": "returned",
+     "phase": null,
+     "to": "draft"
+    }
+   ]
+  },
+  "Task": {
+   "initial": "unassigned",
+   "states": [
+    {
+     "display_name": "未指派",
+     "id": "unassigned"
+    },
+    {
+     "display_name": "已指派",
+     "id": "assigned"
+    },
+    {
+     "display_name": "进行中",
+     "id": "in_progress"
+    },
+    {
+     "display_name": "已交付",
+     "id": "delivered"
+    },
+    {
+     "display_name": "已关闭",
+     "id": "closed"
+    }
+   ],
+   "transitions": [
+    {
+     "action": "world_assign",
+     "category": null,
+     "from": "unassigned",
+     "guard": null,
+     "outcome": null,
+     "phase": null,
+     "to": "assigned"
+    },
+    {
+     "action": "world_refresh_state",
+     "category": null,
+     "from": "assigned",
+     "guard": null,
+     "outcome": null,
+     "phase": null,
+     "to": "in_progress"
+    },
+    {
+     "action": "world_record_event",
+     "category": "delivery",
+     "from": "in_progress",
+     "guard": null,
+     "outcome": null,
+     "phase": null,
+     "to": "delivered"
+    },
+    {
+     "action": "world_record_event",
+     "category": "acceptance",
+     "from": "delivered",
+     "guard": "spine_parent_responsible",
+     "outcome": null,
+     "phase": null,
+     "to": "closed"
+    }
+   ]
+  }
+ },
+ "objects": [
+  {
+   "attributes": [
+    {
+     "display_name": "标题",
+     "id": "title",
+     "required": true,
+     "set_by": null,
+     "value": "text",
+     "values": null
+    }
+   ],
+   "blocks": [
+    {
+     "display_name": "身份",
+     "id": "identity",
+     "kind": "definition"
+    },
+    {
+     "display_name": "约束",
+     "id": "constraint",
+     "kind": "constraint"
+    }
+   ],
+   "display_name": "公司",
+   "gated": false,
+   "relation_fields": [],
+   "responsible": {
+    "role": "CEO",
+    "source": "role"
+   },
+   "spine_parent_field": null,
+   "stub": true,
+   "type": "Company"
+  },
+  {
+   "attributes": [
+    {
+     "display_name": "标题",
+     "id": "title",
+     "required": true,
+     "set_by": null,
+     "value": "text",
+     "values": null
+    }
+   ],
+   "blocks": [
+    {
+     "display_name": "战略选择",
+     "id": "choices",
+     "kind": "definition"
+    },
+    {
+     "display_name": "路径",
+     "id": "path",
+     "kind": "definition"
+    },
+    {
+     "display_name": "关键假设",
+     "id": "assumptions",
+     "kind": "definition"
+    },
+    {
+     "display_name": "能力",
+     "id": "capabilities",
+     "kind": "definition"
+    },
+    {
+     "display_name": "责任结构",
+     "id": "responsibility_structure",
+     "kind": "definition"
+    },
+    {
+     "display_name": "约束",
+     "id": "constraint",
+     "kind": "constraint"
+    }
+   ],
+   "display_name": "战略",
+   "gated": false,
+   "relation_fields": [
+    {
+     "field": "parent_ref",
+     "many": false,
+     "relation": "has",
+     "required": true,
+     "target_block": null,
+     "targets": [
+      "Company"
+     ],
+     "written_by": "world_create_object"
+    }
+   ],
+   "responsible": {
+    "role": "CEO",
+    "source": "role"
+   },
+   "spine_parent_field": "parent_ref",
+   "stub": true,
+   "type": "Strategy"
+  },
+  {
+   "attributes": [
+    {
+     "display_name": "标题",
+     "id": "title",
+     "required": true,
+     "set_by": null,
+     "value": "text",
+     "values": null
+    },
+    {
+     "display_name": "单元类型",
+     "id": "unit_kind",
+     "required": true,
+     "set_by": null,
+     "value": "enum",
+     "values": [
+      {
+       "display_name": "战场",
+       "id": "battlefield"
+      },
+      {
+       "display_name": "域",
+       "id": "domain"
+      }
+     ]
+    }
+   ],
+   "blocks": [
+    {
+     "display_name": "定义",
+     "id": "definition",
+     "kind": "definition"
+    },
+    {
+     "display_name": "边界",
+     "id": "boundary",
+     "kind": "definition"
+    },
+    {
+     "display_name": "约束",
+     "id": "constraint",
+     "kind": "constraint"
+    }
+   ],
+   "display_name": "责任单元",
+   "gated": false,
+   "relation_fields": [
+    {
+     "field": "architecture_ref",
+     "many": false,
+     "relation": "defines",
+     "required": true,
+     "target_block": "responsibility_structure",
+     "targets": [
+      "Strategy"
+     ],
+     "written_by": "world_create_object"
+    }
+   ],
+   "responsible": {
+    "role": "DOMAIN_DRI",
+    "source": "role"
+   },
+   "spine_parent_field": "architecture_ref",
+   "stub": false,
+   "type": "ResponsibilityUnit"
+  },
+  {
+   "attributes": [
+    {
+     "display_name": "标题",
+     "id": "title",
+     "required": true,
+     "set_by": null,
+     "value": "text",
+     "values": null
+    },
+    {
+     "display_name": "范围",
+     "id": "scope",
+     "required": true,
+     "set_by": null,
+     "value": "enum",
+     "values": [
+      {
+       "display_name": "公司级",
+       "id": "company"
+      },
+      {
+       "display_name": "责任单元级",
+       "id": "unit"
+      }
+     ]
+    },
+    {
+     "display_name": "期限",
+     "id": "horizon",
+     "required": true,
+     "set_by": null,
+     "value": "text",
+     "values": null
+    }
+   ],
+   "blocks": [
+    {
+     "display_name": "结果",
+     "id": "outcome",
+     "kind": "definition"
+    },
+    {
+     "display_name": "衡量",
+     "id": "measures",
+     "kind": "definition"
+    },
+    {
+     "display_name": "约束",
+     "id": "constraint",
+     "kind": "constraint"
+    }
+   ],
+   "display_name": "长期目标",
+   "gated": true,
+   "relation_fields": [
+    {
+     "field": "parent_ref",
+     "many": false,
+     "relation": "has",
+     "required": true,
+     "target_block": null,
+     "targets": [
+      "Company",
+      "ResponsibilityUnit"
+     ],
+     "written_by": "world_create_object"
+    },
+    {
+     "field": "goal_ref",
+     "many": false,
+     "relation": "decomposes_to",
+     "required": false,
+     "target_block": null,
+     "targets": [
+      "LongTermGoal"
+     ],
+     "written_by": "world_create_object"
+    }
+   ],
+   "responsible": {
+    "role": "CEO",
+    "source": "role"
+   },
+   "spine_parent_field": "parent_ref",
+   "stub": false,
+   "type": "LongTermGoal"
+  },
+  {
+   "attributes": [
+    {
+     "display_name": "标题",
+     "id": "title",
+     "required": true,
+     "set_by": null,
+     "value": "text",
+     "values": null
+    },
+    {
+     "display_name": "周期",
+     "id": "period",
+     "required": true,
+     "set_by": null,
+     "value": "month",
+     "values": null
+    }
+   ],
+   "blocks": [
+    {
+     "display_name": "结果",
+     "id": "outcome",
+     "kind": "definition"
+    },
+    {
+     "display_name": "验收标准",
+     "id": "acceptance",
+     "kind": "definition"
+    },
+    {
+     "display_name": "约束",
+     "id": "constraint",
+     "kind": "constraint"
+    }
+   ],
+   "display_name": "周期目标",
+   "gated": true,
+   "relation_fields": [
+    {
+     "field": "goal_ref",
+     "many": false,
+     "relation": "advances",
+     "required": true,
+     "target_block": null,
+     "targets": [
+      "LongTermGoal"
+     ],
+     "written_by": "world_create_object"
+    }
+   ],
+   "responsible": {
+    "role": "DOMAIN_DRI",
+    "source": "role"
+   },
+   "spine_parent_field": "goal_ref",
+   "stub": false,
+   "type": "PeriodGoal"
+  },
+  {
+   "attributes": [
+    {
+     "display_name": "标题",
+     "id": "title",
+     "required": true,
+     "set_by": null,
+     "value": "text",
+     "values": null
+    },
+    {
+     "display_name": "核心战役",
+     "id": "core_battle",
+     "required": false,
+     "set_by": "core_battle.marked",
+     "value": "boolean",
+     "values": null
+    },
+    {
+     "display_name": "责任人",
+     "id": "responsible",
+     "required": false,
+     "set_by": "assign",
+     "value": "principal",
+     "values": null
+    }
+   ],
+   "blocks": [
+    {
+     "display_name": "定义",
+     "id": "definition",
+     "kind": "definition"
+    },
+    {
+     "display_name": "验收标准",
+     "id": "acceptance",
+     "kind": "definition"
+    },
+    {
+     "display_name": "打法",
+     "id": "play",
+     "kind": "definition"
+    },
+    {
+     "display_name": "约束",
+     "id": "constraint",
+     "kind": "constraint"
+    }
+   ],
+   "display_name": "Mission",
+   "gated": true,
+   "relation_fields": [
+    {
+     "field": "goal_ref",
+     "many": false,
+     "relation": "serves",
+     "required": true,
+     "target_block": null,
+     "targets": [
+      "PeriodGoal"
+     ],
+     "written_by": "world_create_object"
+    },
+    {
+     "field": "depends_on",
+     "many": true,
+     "relation": "depends_on",
+     "required": false,
+     "target_block": null,
+     "targets": [
+      "Mission"
+     ],
+     "written_by": "world_relate"
+    },
+    {
+     "field": "contributes_to",
+     "many": true,
+     "relation": "contributes_to",
+     "required": false,
+     "target_block": null,
+     "targets": [
+      "PeriodGoal",
+      "LongTermGoal"
+     ],
+     "written_by": "world_relate"
+    }
+   ],
+   "responsible": {
+    "role": null,
+    "source": "attribute"
+   },
+   "spine_parent_field": "goal_ref",
+   "stub": false,
+   "type": "Mission"
+  },
+  {
+   "attributes": [
+    {
+     "display_name": "标题",
+     "id": "title",
+     "required": true,
+     "set_by": null,
+     "value": "text",
+     "values": null
+    },
+    {
+     "display_name": "责任人",
+     "id": "responsible",
+     "required": false,
+     "set_by": "assign",
+     "value": "principal",
+     "values": null
+    }
+   ],
+   "blocks": [
+    {
+     "display_name": "定义",
+     "id": "definition",
+     "kind": "definition"
+    },
+    {
+     "display_name": "验收标准",
+     "id": "acceptance",
+     "kind": "definition"
+    },
+    {
+     "display_name": "计划",
+     "id": "plan",
+     "kind": "definition"
+    },
+    {
+     "display_name": "约束",
+     "id": "constraint",
+     "kind": "constraint"
+    }
+   ],
+   "display_name": "Task",
+   "gated": false,
+   "relation_fields": [
+    {
+     "field": "parent_ref",
+     "many": false,
+     "relation": "decomposed_into",
+     "required": true,
+     "target_block": null,
+     "targets": [
+      "Mission"
+     ],
+     "written_by": "world_create_object"
+    },
+    {
+     "field": "depends_on",
+     "many": true,
+     "relation": "depends_on",
+     "required": false,
+     "target_block": null,
+     "targets": [
+      "Task"
+     ],
+     "written_by": "world_relate"
+    }
+   ],
+   "responsible": {
+    "role": null,
+    "source": "attribute"
+   },
+   "spine_parent_field": "parent_ref",
+   "stub": false,
+   "type": "Task"
+  },
+  {
+   "attributes": [
+    {
+     "display_name": "标题",
+     "id": "title",
+     "required": true,
+     "set_by": null,
+     "value": "text",
+     "values": null
+    },
+    {
+     "display_name": "责任人",
+     "id": "responsible",
+     "required": false,
+     "set_by": "assign",
+     "value": "principal",
+     "values": null
+    }
+   ],
+   "blocks": [
+    {
+     "display_name": "执行指令",
+     "id": "instruction",
+     "kind": "definition"
+    },
+    {
+     "display_name": "约束",
+     "id": "constraint",
+     "kind": "constraint"
+    }
+   ],
+   "display_name": "Activity",
+   "gated": false,
+   "relation_fields": [
+    {
+     "field": "parent_ref",
+     "many": false,
+     "relation": "decomposed_into",
+     "required": true,
+     "target_block": null,
+     "targets": [
+      "Task"
+     ],
+     "written_by": "world_create_object"
+    }
+   ],
+   "responsible": {
+    "role": null,
+    "source": "attribute"
+   },
+   "spine_parent_field": "parent_ref",
+   "stub": false,
+   "type": "Activity"
+  },
+  {
+   "attributes": [
+    {
+     "display_name": "标题",
+     "id": "title",
+     "required": true,
+     "set_by": null,
+     "value": "text",
+     "values": null
+    },
+    {
+     "display_name": "主体",
+     "id": "subject_ref",
+     "required": true,
+     "set_by": null,
+     "value": "ref",
+     "values": null
+    },
+    {
+     "display_name": "时点",
+     "id": "as_of",
+     "required": true,
+     "set_by": null,
+     "value": "timestamp",
+     "values": null
+    },
+    {
+     "display_name": "周期",
+     "id": "period",
+     "required": false,
+     "set_by": null,
+     "value": "month",
+     "values": null
+    }
+   ],
+   "blocks": [
+    {
+     "display_name": "进展",
+     "id": "progress",
+     "kind": "state"
+    },
+    {
+     "display_name": "问题",
+     "id": "issue",
+     "kind": "state"
+    },
+    {
+     "display_name": "产物",
+     "id": "artifacts",
+     "kind": "state"
+    }
+   ],
+   "display_name": "状态快照",
+   "gated": false,
+   "relation_fields": [],
+   "responsible": {
+    "role": null,
+    "source": "writer"
+   },
+   "spine_parent_field": null,
+   "stub": false,
+   "type": "StateSnapshot"
+  }
+ ],
+ "protocol_id": "tkos.world",
+ "registry_id": "tkos.world-registry",
+ "relations": [
+  {
+   "carriers": [
+    {
+     "field": "parent_ref",
+     "on": "Strategy",
+     "via": "ref_field"
+    },
+    {
+     "field": "parent_ref",
+     "on": "LongTermGoal",
+     "via": "ref_field"
+    }
+   ],
+   "display_name": "包含",
+   "from": [
+    "Company",
+    "ResponsibilityUnit"
+   ],
+   "id": "has",
+   "name": "has / contains",
+   "to": [
+    "Strategy",
+    "LongTermGoal"
+   ]
+  },
+  {
+   "carriers": [
+    {
+     "field": "architecture_ref",
+     "on": "ResponsibilityUnit",
+     "via": "ref_field"
+    }
+   ],
+   "display_name": "定义",
+   "from": [
+    "Strategy"
+   ],
+   "id": "defines",
+   "name": "defines",
+   "to": [
+    "ResponsibilityUnit"
+   ]
+  },
+  {
+   "carriers": [
+    {
+     "field": "goal_ref",
+     "on": "LongTermGoal",
+     "via": "ref_field"
+    }
+   ],
+   "display_name": "分解到",
+   "from": [
+    "LongTermGoal"
+   ],
+   "id": "decomposes_to",
+   "name": "decomposes_to / allocates_to",
+   "to": [
+    "LongTermGoal"
+   ]
+  },
+  {
+   "carriers": [
+    {
+     "field": "goal_ref",
+     "on": "PeriodGoal",
+     "via": "ref_field"
+    }
+   ],
+   "display_name": "推进",
+   "from": [
+    "PeriodGoal"
+   ],
+   "id": "advances",
+   "name": "advances",
+   "to": [
+    "LongTermGoal"
+   ]
+  },
+  {
+   "carriers": [
+    {
+     "field": "goal_ref",
+     "on": "Mission",
+     "via": "ref_field"
+    }
+   ],
+   "display_name": "服务",
+   "from": [
+    "Mission"
+   ],
+   "id": "serves",
+   "name": "serves",
+   "to": [
+    "PeriodGoal"
+   ]
+  },
+  {
+   "carriers": [
+    {
+     "field": "parent_ref",
+     "on": "Task",
+     "via": "ref_field"
+    },
+    {
+     "field": "parent_ref",
+     "on": "Activity",
+     "via": "ref_field"
+    }
+   ],
+   "display_name": "分解为",
+   "from": [
+    "Mission",
+    "Task"
+   ],
+   "id": "decomposed_into",
+   "name": "decomposed_into",
+   "to": [
+    "Task",
+    "Activity"
+   ]
+  },
+  {
+   "carriers": [
+    {
+     "field": null,
+     "on": "ResponsibilityUnit",
+     "via": "role_assignment"
+    },
+    {
+     "field": "responsible",
+     "on": "Mission",
+     "via": "attribute"
+    },
+    {
+     "field": "responsible",
+     "on": "Task",
+     "via": "attribute"
+    },
+    {
+     "field": "responsible",
+     "on": "Activity",
+     "via": "attribute"
+    }
+   ],
+   "display_name": "负责",
+   "from": [
+    "Principal"
+   ],
+   "id": "responsible_for",
+   "name": "responsible_for",
+   "to": [
+    "ResponsibilityUnit",
+    "Mission",
+    "Task",
+    "Activity"
+   ]
+  },
+  {
+   "carriers": [
+    {
+     "field": "depends_on",
+     "on": "Mission",
+     "via": "ref_field"
+    },
+    {
+     "field": "depends_on",
+     "on": "Task",
+     "via": "ref_field"
+    }
+   ],
+   "display_name": "依赖",
+   "from": [
+    "Mission",
+    "Task"
+   ],
+   "id": "depends_on",
+   "name": "depends_on",
+   "to": [
+    "Mission",
+    "Task"
+   ]
+  },
+  {
+   "carriers": [
+    {
+     "field": "contributes_to",
+     "on": "Mission",
+     "via": "ref_field"
+    }
+   ],
+   "display_name": "贡献",
+   "from": [
+    "Mission"
+   ],
+   "id": "contributes_to",
+   "name": "contributes_to",
+   "to": [
+    "PeriodGoal",
+    "LongTermGoal"
+   ]
+  },
+  {
+   "carriers": [
+    {
+     "field": null,
+     "on": null,
+     "via": "revision_chain"
+    }
+   ],
+   "display_name": "取代",
+   "from": [
+    "Company",
+    "Strategy",
+    "ResponsibilityUnit",
+    "LongTermGoal",
+    "PeriodGoal",
+    "Mission",
+    "Task",
+    "Activity",
+    "StateSnapshot"
+   ],
+   "id": "supersedes",
+   "name": "supersedes",
+   "to": [
+    "Company",
+    "Strategy",
+    "ResponsibilityUnit",
+    "LongTermGoal",
+    "PeriodGoal",
+    "Mission",
+    "Task",
+    "Activity",
+    "StateSnapshot"
+   ]
+  }
+ ],
+ "revision": "0.1.0",
+ "spine": [
+  "Activity",
+  "Task",
+  "Mission",
+  "PeriodGoal",
+  "LongTermGoal",
+  "ResponsibilityUnit",
+  "Strategy",
+  "Company"
+ ],
+ "supersedes_required_when": {
+  "category": [
+   "correction"
+  ],
+  "outcome": [
+   "withdrawn"
+  ]
+ },
+ "withdrawal": {
+  "outcome": "withdrawn",
+  "recorded_by": "same_role",
+  "references": "supersedes_event_id",
+  "reverts": "gate_event_that_produced_current_state"
+ }
+}

@@ -1,6 +1,6 @@
 # tkos.world/0.1 — 业务世界模型契约
 
-状态：**契约文字按规格 #17 与 2026-09-24 的补充决定定稿**。0.1 只有在协议登记显式登记、且支持状态为本进程编译支持后才可调用；启用前任何 world 请求返回 `PROTOCOL_NOT_SUPPORTED`，不产生业务成功。tkos.method/0.4、0.5 冻结，其解释、绑定、历史回执与回归保持不变（ADR-0001）。
+状态：**契约文字按规格 #17 与 2026-09-24 的补充决定定稿**。0.1 只有在协议登记显式登记、且支持状态为本进程编译支持后才可调用；启用前，通过授权的 world 请求返回 `PROTOCOL_NOT_SUPPORTED`（授权先于协议错误），不产生业务成功。tkos.method/0.4、0.5 冻结，其解释、绑定、历史回执与回归保持不变（ADR-0001）。
 
 来源：《TKOS 语义模型与运行时重构方案 v0.1》、CEO《企业业务世界建模框架 内部讨论稿 v0.1》与 9/23 会议结论、规格 #17、2026-09-24 访谈与补充决定、术语表 `CONTEXT.md`、ADR-0001 至 0005。本契约第 2 至 10 节的清单以机器可读形式登记在 `docs/contracts/world-registry-0.1.json`（`tkos.world-registry` 0.1.0，规范 JSON：键排序、缩进 1、UTF-8、结尾换行）。world profile 同时钉定本契约与该登记的原始字节，任一改动都产生新修订并重新钉定。
 
@@ -8,7 +8,7 @@
 
 - 协议 `tkos.world`，契约版本 `tkos.world/0.1`，profile 结构版本 `tkos.world-profile/0.1`。
 - 一个 scope（tenant + organization）就是一家公司，Company 是 scope 内唯一的根对象。world 在独立的新 scope 启用。
-- 每个责任单元对应一条域记录；单元级角色（CEO、DOMAIN_DRI、OWNER、IC、AGENT）记在该域的角色指派里；公司级对象放公司域。角色映射：CEO→CEO，DRI→DOMAIN_DRI，Owner→OWNER，Task 的责任人→IC；Activity 的责任人→IC（人）或 AGENT（Agent）。
+- 每个责任单元对应一条域记录；单元级角色（CEO、DOMAIN_DRI、OWNER、IC、AGENT）记在该域的角色指派里。Company 所在的域即公司域，公司级对象放公司域。角色映射：CEO→CEO，DRI→DOMAIN_DRI，Owner→OWNER，Task 的责任人→IC；Activity 的责任人→IC（人）或 AGENT（Agent）。
 - 不从 tkos.method 迁移数据、不建桥。同名类型（Strategy、Mission）的含义由对象绑定的协议决定。
 
 ## 2. 一级对象
@@ -32,6 +32,7 @@
 - 块值是三件套 `{text, refs[], artifacts[]}`：text 为 Markdown，refs 为引用（第 5 节），artifacts 为文档链接（URL）。
 - 块路径只一层。块 id 为英文 snake_case，中文显示名在登记里。
 - 空块存 null，读取时渲染标准句「当前没有〈块名〉」，句子在投影层配置。
+- 非空块至少含文字、引用或文档链接之一；文字只有空白且没有引用与链接的块视为空块，必须存 null，不能以空内容冒充有内容。
 - 块随对象出版，改块即对象出新修订；块没有自己的版本。运行时只校验块的结构，不校验内容质量。
 - 除状态快照外，每类对象固定「定义类块 + constraint」。constraint 是每个对象自己的块，不继承、不汇总。状态快照固定三块：progress（进展）、issue（问题）、artifacts（产物）。
 - 临时定义类块清单（方法侧正式清单到了，整体替换登记并重新钉定）：
@@ -86,7 +87,7 @@
 ## 7. 状态快照
 
 - StateSnapshot 是独立对象，属性见第 4 节，三块见第 3 节。写入即生效，无人确认（ADR-0003）；读侧展示时须标明它未经确认。
-- 同一主体同一时刻（`subject_ref` 加 `as_of`）唯一。只读最新，历史天然保留；错快照用新快照更正。
+- 同一主体同一时刻（`subject_ref` 加 `as_of`）唯一。`as_of` 以 UTC 规范文本存储（`YYYY-MM-DDTHH:MM:SS[.ffffff]Z`），同一时刻只有一种写法，唯一性按这一写法判定。只读最新，历史天然保留；错快照用新快照更正。
 - issue 是块，不分战略与管理问题，由 Co-Agent 分流，不产生对象。
 - Agent 起草的对象内容以 artifacts 链接放在状态快照里，只有经承诺与确认写回对象后才是正式内容。
 

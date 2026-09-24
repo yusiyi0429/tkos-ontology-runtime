@@ -32,4 +32,6 @@
 
 **收尾**：删除临时栈（含卷）、worktree 与候选镜像，各步的退出码记在清单的 `teardown` 里；要保留镜像就加 `--keep-images`。
 
+**最近一次**：`cf5edb6` 上 10/10 通过，清单见 [docs/acceptance/delivery-candidate-cf5edb6.json](../../docs/acceptance/delivery-candidate-cf5edb6.json)。
+
 **这不是发布**：它证明「按文档能从干净源码装起来、升得上去」，不代替目标环境的部署、恢复与业务回归。

@@ -67,6 +67,18 @@ Runtime 提供 Clark 现有月度核对、周进展和会议工作面的 Runtime
 
 实验报告里的调整建议 1–4 与 6 已在 #32 批次 D 落到代码并重跑：取上下文经 MCP 只给包 id、Markdown、覆盖与预算摘要，Why 沿 `goal_ref` 多取一跳，Markdown 开头按问题给出处，事件行写出人名，跑器分 B、A、A0 三组。关键回答的内容对不对，由 E&O DRI 人工核验，结果另补。播种、实验跑器与指标在 `experiments/world_v01/`。main 上是压缩合并的 `7e42004`；文档里引用的逐票提交（`0a6736a`、`d5b158e`、`3fdbe83`、`2d2dca7`、`fdaeeab`）在标签 `world-v0.1-tickets`，也就是 PR #30 的分支头。
 
+## 评估整改（#32）
+
+2026-09-24 的两份外部评估（外部专家、Codex）逐条核实后，按批次 A–E 整改，追踪票 [#32](https://github.com/yusiyi0429/tkos-ontology-runtime/issues/32)。版本号改为 `0.5.0.dev0`；未发布、未部署。
+
+| 验证范围 | 结果 |
+| --- | --- |
+| 试点链 Method 0.5 × 治理工作台（`acceptance/pilot_workbench_v05/`） | **29/29**（`206b7de`）：登录、待办、0.5 门动作的正式回执、业务拒绝、CSRF、幂等与响应丢失、API 重启恢复、会话面边界。它找出的三处缺陷都已修。登录后的浏览器复核尚未进行，见[摘要](docs/acceptance/pilot-workbench-v05-summary.json) |
+| 运行与恢复基线（`acceptance/runtime_baseline/`） | 阈值 T1–T8 先定后测，改动后 **8/8**，见[容量基线](docs/runtime-capacity-baseline.md) |
+| 交付候选的干净环境安装（`acceptance/delivery_candidate/`） | **10/10**（`cf5edb6`）。从干净检出构建 wheel 与镜像；全新离线栈空库迁移到 0038；只用镜像里的材料经控制面装好 Method 0.4、0.5 与 world 0.1，并经 HTTP 办真实动作；v0.4.0 的迁移文件逐字节未变，旧库升级到迁移头。见[交付清单](docs/acceptance/delivery-candidate-cf5edb6.json) |
+| 独立验收重跑 | Method 0.5 **27/27**、Method 0.4 **68/68**、world 复验 **248/248**（`d261eb9`）；v0.2 运行时 **20/20**（`a6d1efa`） |
+| 尚待人或目标环境完成 | 登录后的浏览器复核；第二轮实验关键回答的人工核验；企业身份与正式 profile 的裁决（[ADR-0008](docs/adr/0008-enterprise-identity-and-formal-profile-path.md)）；目标环境的部署与恢复演练 |
+
 ## Runtime 经营看板：`tkos.dashboard/0.1`
 
 面向业务读者的本机只读看板（React + TypeScript + Vite + Tailwind + 官方 shadcn/ui，编译进 wheel），
@@ -182,6 +194,9 @@ WorkItem 固定承诺版本、指定 DRI、指定验收人及标准。Deliverabl
 | `acceptance/method_independent/` | M1A＋M1B 完整 API、权限、并发、恢复与历史兼容验收 |
 | `acceptance/composition_a2_independent/`、`acceptance/execution_a3_independent/` | A2 公司组合与 A3 执行交接独立验收 |
 | `acceptance/runtime/` | 既有 v0.2 HTTP、数据库、S3、故障和恢复验收 |
+| `acceptance/pilot_workbench_v05/` | 试点链 Method 0.5 × 治理工作台的 HTTP／数据库验收 |
+| `acceptance/runtime_baseline/` | 容量与恢复基线（阈值 T1–T8） |
+| `acceptance/delivery_candidate/` | 交付候选的干净环境安装验收与交付清单 |
 | `docs/contracts/` | Method 与 World 的冻结规则、登记与 Profile |
 | `tests/` | Method、旧协议、叙述与 Worker 回归测试 |
 

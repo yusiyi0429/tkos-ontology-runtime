@@ -528,6 +528,41 @@ def status(conn: psycopg.Connection, args: argparse.Namespace) -> dict[str, Any]
     })
 
 
+def evidence_orphans(conn: psycopg.Connection, args: argparse.Namespace) -> dict[str, Any]:
+    """只读对账：对象存储里这家公司 gov/{scope}/ 下的证据版本，哪些没有 EvidenceAsset 修订引用（孤儿），
+    哪些被引用却不在存储里（缺失）。
+
+    孤儿来自上传第二段被拒（ADR-0006）或旧版本落库失败；Object Lock 保留期内删不掉，这里只列出。
+    """
+    from memory_service_runtime.config import env_value
+    from . import evidence
+    from .errors import GovernedError
+
+    scope_id = args.scope_id
+    _begin(conn, scope_id)
+    _require_scope(conn, scope_id)
+    referenced = {(row["key"], row["version_id"]) for row in conn.execute(
+        """SELECT r.payload->>'key' AS key, r.payload->>'version_id' AS version_id
+             FROM gov_object_revisions r
+             JOIN gov_objects o ON o.scope_id=r.scope_id AND o.object_id=r.object_id
+            WHERE r.scope_id=%s AND o.object_type='EvidenceAsset'""", (scope_id,)).fetchall()}
+    stored: dict[tuple[str, str], dict[str, Any]] = {}
+    try:
+        bucket = env_value("TKOS_OBJECT_STORE_BUCKET", required=True)
+        with evidence.object_client() as client:
+            for page in client.get_paginator("list_object_versions").paginate(Bucket=bucket, Prefix=f"gov/{scope_id}/"):
+                for item in page.get("Versions", []):
+                    stored[(item["Key"], item["VersionId"])] = {"size": item.get("Size"),
+                                                               "last_modified": item.get("LastModified")}
+    except GovernedError as exc:
+        _fail("EVIDENCE_UNAVAILABLE", exc.message)
+    return {"scope_id": scope_id, "bucket": bucket, "stored_versions": len(stored),
+            "referenced_versions": len(referenced),
+            "orphans": [{"key": key, "version_id": version, **stored[(key, version)]}
+                        for key, version in sorted(set(stored) - referenced)],
+            "missing": [{"key": key, "version_id": version} for key, version in sorted(referenced - set(stored))]}
+
+
 # ---------------------------------------------------------------------- main
 
 
@@ -593,6 +628,9 @@ def main() -> None:
     p = base("status")
     p.add_argument("--scope-id", required=True)
 
+    p = base("evidence-orphans", help="只读列出对象存储里没有修订引用的证据版本，以及被引用却缺失的版本")
+    p.add_argument("--scope-id", required=True)
+
     args = parser.parse_args()
     handler = {
         "install-profile": install_profile,
@@ -603,6 +641,7 @@ def main() -> None:
         "register-sentinel": register_sentinel,
         "backfill-legacy": backfill_legacy,
         "status": status,
+        "evidence-orphans": evidence_orphans,
     }[args.command]
     try:
         with _connect() as conn:

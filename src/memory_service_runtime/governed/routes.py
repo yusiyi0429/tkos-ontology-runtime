@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import base64
 import binascii
+import hashlib
 from typing import Annotated
 import uuid
 
@@ -69,6 +70,15 @@ class EvidenceRequest(BaseModel):
     content_base64: str = Field(min_length=1, max_length=2_796_204)
     media_type: str = Field(default="application/octet-stream", min_length=3, max_length=120,
                            pattern=r"^[A-Za-z0-9!#$&^_.+-]+/[A-Za-z0-9!#$&^_.+-]+$")
+    # 可选：同一主体用同一个键重放，返回原结果而不再写存储；不给则每次都是新上传。
+    idempotency_key: str | None = Field(default=None, min_length=16, max_length=128)
+
+    @field_validator("idempotency_key")
+    @classmethod
+    def trimmed_key(cls, value: str | None) -> str | None:
+        if value is not None and value != value.strip():
+            raise ValueError("idempotency_key cannot have surrounding whitespace")
+        return value
 
 
 @router.post("/actions")
@@ -306,23 +316,58 @@ def snapshot_get(snapshot_id: uuid.UUID, token: Annotated[str, Depends(bearer)])
         return readers.context_snapshot(conn, ctx, str(snapshot_id))
 
 
+def _evidence_replay(conn, ctx, key: str | None, request_hash: str, domain_id: str) -> dict | None:
+    """同一主体用同一幂等键重放：命令相同就按当前权限返回原结果，不同就是冲突。"""
+    if key is None:
+        return None
+    row = conn.execute(
+        "SELECT receipt_id, action_type, request_hash, result FROM gov_action_receipts WHERE scope_id=%s AND principal_id=%s AND idempotency_key=%s",
+        (ctx.scope_id, ctx.principal_id, key),
+    ).fetchone()
+    if row is None:
+        return None
+    if row["action_type"] != "upload_evidence" or row["request_hash"] != request_hash:
+        raise GovernedError("IDEMPOTENCY_CONFLICT")
+    db.authorize_domain(conn, ctx, domain_id, "upload_evidence")
+    revision = conn.execute("SELECT recorded_at FROM gov_object_revisions WHERE scope_id=%s AND revision_id=%s",
+                            (ctx.scope_id, row["result"]["revision_id"])).fetchone()
+    return {**row["result"], "receipt_id": str(row["receipt_id"]), "recorded_at": db.jsonable(revision["recorded_at"])}
+
+
 @router.post("/evidence-assets")
 def evidence_create(body: EvidenceRequest, token: Annotated[str, Depends(bearer)]):
     try:
         content = base64.b64decode(body.content_base64, validate=True)
     except (ValueError, binascii.Error) as exc:
         raise GovernedError("INVALID_REQUEST", "Evidence content is not valid base64", status=422) from exc
+    domain = str(body.domain_id)
+    # 命令本身的摘要，重放时比对；与存储版本无关。
+    request_hash = canon.digest({"domain_id": domain, "title": body.title, "media_type": body.media_type,
+                                 "sha256": hashlib.sha256(content).hexdigest(), "length": len(content)})
+    # 第一段：认证、判权与登记检查。被拒的上传不碰对象存储；重放直接返回原结果。
     with db.transaction(token) as (conn, ctx):
-        db.authorize_domain(conn, ctx, str(body.domain_id), "upload_evidence")
-        # Protocol/namespace registration resolves BEFORE any object-store
-        # write: a rejected upload must leave S3 untouched and no DB rows.
-        creation = protocol.evidence_protocol_fields(conn, ctx.scope_id, str(body.domain_id))
-        payload = evidence.store_bytes(ctx, str(body.domain_id), body.title, content, body.media_type)
-        db.authorize_domain(conn, ctx, str(body.domain_id), "upload_evidence")
+        replayed = _evidence_replay(conn, ctx, body.idempotency_key, request_hash, domain)
+        if replayed is not None:
+            return replayed
+        db.authorize_domain(conn, ctx, domain, "upload_evidence")
+        protocol.evidence_protocol_fields(conn, ctx.scope_id, domain)
+        scope_id = ctx.scope_id
+    # 字节在栅栏之外写（ADR-0006），慢存储不再挡住这家公司的其他请求。键按内容寻址，重试复用同一对象；
+    # 第二段被拒时留下的对象不被任何记录引用，由孤儿对象对账列出。
+    payload = evidence.store_bytes(scope_id, domain, body.title, content, body.media_type)
+    # 第二段：重新认证与判权后落库，授权以这一段提交为准。
+    with db.transaction(token) as (conn, ctx):
+        if ctx.scope_id != scope_id:
+            raise GovernedError("UNAUTHENTICATED")
+        replayed = _evidence_replay(conn, ctx, body.idempotency_key, request_hash, domain)
+        if replayed is not None:
+            return replayed
+        db.authorize_domain(conn, ctx, domain, "upload_evidence")
+        creation = protocol.evidence_protocol_fields(conn, ctx.scope_id, domain)
         oid, rid, receipt_id = (str(uuid.uuid4()) for _ in range(3))
         digest = canon.digest(payload)
         conn.execute("INSERT INTO gov_objects(object_id,scope_id,domain_id,object_type,lifecycle_status) VALUES(%s,%s,%s,'EvidenceAsset','stored')",
-                     (oid, ctx.scope_id, str(body.domain_id)))
+                     (oid, ctx.scope_id, domain))
         protocol.insert_binding(conn, ctx.scope_id, oid, creation,
                                 registered_by=ctx.principal_id, receipt_id=receipt_id)
         revision = conn.execute(
@@ -340,8 +385,8 @@ def evidence_create(body: EvidenceRequest, token: Annotated[str, Depends(bearer)
                   "length": payload["length"], "version_id": payload["version_id"], "referenced_object_ids": [oid]}
         conn.execute(
             "INSERT INTO gov_action_receipts(receipt_id,scope_id,principal_id,idempotency_key,request_hash,action_type,auth_epoch,result,object_versions,target_object_id) VALUES(%s,%s,%s,%s,%s,'upload_evidence',%s,%s,%s,%s)",
-            (receipt_id, ctx.scope_id, ctx.principal_id, f"evidence-upload-{uuid.uuid4()}", digest, ctx.auth_epoch,
-             Jsonb(result), Jsonb([{"object_id": oid, "object_version": 1}]), oid),
+            (receipt_id, ctx.scope_id, ctx.principal_id, body.idempotency_key or f"evidence-upload-{uuid.uuid4()}",
+             request_hash, ctx.auth_epoch, Jsonb(result), Jsonb([{"object_id": oid, "object_version": 1}]), oid),
         )
         return {**result, "receipt_id": receipt_id, "recorded_at": db.jsonable(revision["recorded_at"])}
 
@@ -349,6 +394,7 @@ def evidence_create(body: EvidenceRequest, token: Annotated[str, Depends(bearer)
 @router.get("/evidence-assets/{object_id}/revisions/{revision_id}")
 def evidence_download(object_id: uuid.UUID, revision_id: uuid.UUID, token: Annotated[str, Depends(bearer)]):
     with db.transaction(token) as (conn, ctx):
+        scope_id = ctx.scope_id
         # An exact-version source share authorizes exactly this revision; the
         # domain/Method path is bypassed only for that active share.
         shared = workspace_v02_guard.shared_revision(conn, ctx, str(object_id), str(revision_id))
@@ -356,35 +402,29 @@ def evidence_download(object_id: uuid.UUID, revision_id: uuid.UUID, token: Annot
             obj, revision = shared
             workspace_v02_guard.enforce_object(conn, ctx, str(object_id), str(revision_id))
             protocol.require_read_support(conn, ctx.scope_id, str(object_id))
-            payload = revision["payload"]
-            content = evidence.fetch_payload(payload, scope_id=ctx.scope_id, domain_id=obj["domain_id"])
-            return Response(content, media_type=payload["media_type"],
-                            headers={"ETag": f'"{payload["sha256"]}"',
-                                     "Content-Disposition": f'attachment; filename="{object_id}"',
-                                     "Cache-Control": "no-store"})
-        from . import method_access
-        method = method_access.is_method_object(conn, ctx, str(object_id))
-        obj = method_access.head(conn, ctx, str(object_id)) if method else db.object_row(conn, ctx, str(object_id))
-        if obj["object_type"] != "EvidenceAsset":
-            raise GovernedError("NOT_FOUND", "Evidence was not found", status=404)
-        revision = (method_access.revision(conn, ctx, str(object_id), str(revision_id)) if method
-                    else db.revision_row(conn, ctx, str(object_id), str(revision_id)))
-        # A linked 0.2 private source artifact stays behind its scene fence for
-        # the byte download too, before any object-store access happens.
-        workspace_v02_guard.enforce_object(conn, ctx, str(object_id), str(revision_id))
-        # Read-support re-check before touching the object store: unregistered
-        # or read-unsupported bindings never reach S3.
-        protocol.require_read_support(conn, ctx.scope_id, str(object_id))
-        payload = revision["payload"]
-        content = evidence.fetch_payload(payload, scope_id=ctx.scope_id, domain_id=obj["domain_id"])
-        if method:
-            method_access.revision(conn, ctx, str(object_id), str(revision_id))
         else:
-            db.authorize_domain(conn, ctx, obj["domain_id"], "read")
-        return Response(content, media_type=payload["media_type"],
-                        headers={"ETag": f'"{payload["sha256"]}"',
-                                 "Content-Disposition": f'attachment; filename="{object_id}"',
-                                 "Cache-Control": "no-store"})
+            from . import method_access
+            method = method_access.is_method_object(conn, ctx, str(object_id))
+            obj = method_access.head(conn, ctx, str(object_id)) if method else db.object_row(conn, ctx, str(object_id))
+            if obj["object_type"] != "EvidenceAsset":
+                raise GovernedError("NOT_FOUND", "Evidence was not found", status=404)
+            revision = (method_access.revision(conn, ctx, str(object_id), str(revision_id)) if method
+                        else db.revision_row(conn, ctx, str(object_id), str(revision_id)))
+            # A linked 0.2 private source artifact stays behind its scene fence for
+            # the byte download too, before any object-store access happens.
+            workspace_v02_guard.enforce_object(conn, ctx, str(object_id), str(revision_id))
+            # Read-support re-check before touching the object store: unregistered
+            # or read-unsupported bindings never reach S3.
+            protocol.require_read_support(conn, ctx.scope_id, str(object_id))
+            if not method:
+                db.authorize_domain(conn, ctx, obj["domain_id"], "read")
+        payload, domain_id = revision["payload"], obj["domain_id"]
+    # 字节在栅栏之外取（ADR-0006）：授权以上面提交的事务为准，慢存储不再挡住这家公司的其他请求。
+    content = evidence.fetch_payload(payload, scope_id=scope_id, domain_id=domain_id)
+    return Response(content, media_type=payload["media_type"],
+                    headers={"ETag": f'"{payload["sha256"]}"',
+                             "Content-Disposition": f'attachment; filename="{object_id}"',
+                             "Cache-Control": "no-store"})
 
 
 def install_errors(app):

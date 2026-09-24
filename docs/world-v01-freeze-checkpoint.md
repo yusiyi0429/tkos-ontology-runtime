@@ -48,5 +48,5 @@
   - 改动在 `fdaeeab`（#29，静态截面实验）：运行日志多记 `read_refs` 与 `read_event_ids` 两个字段，七个工具的参数与返回不变。
   - 这部分由 `tests/test_world_mcp.py` 覆盖。
   - 上表的验收矩阵是在这次改动之前跑的。
-  - 差异复验在 `5734e0f` 上完成：12 组、248 项、4 个门槛全部通过。见 [复验检查点](world-v01-recheck-checkpoint.md)。
+  - 差异复验先在 `5734e0f` 上完成，#32 全部批次完成后又在 `d261eb9` 上重跑：两次都是 12 组、248 项、4 个门槛全部通过。见 [复验检查点](world-v01-recheck-checkpoint.md)。
 - **冻结后追加的迁移**：`0037_append_only_grant_repair.sql` 收回只读角色在 `gov_world_events`、`gov_world_context_packs` 上的 INSERT，Method 的 `gov_method_commitments` 一并收回。表结构、触发器与绑定门都不变。

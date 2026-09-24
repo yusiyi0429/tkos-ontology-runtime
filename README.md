@@ -60,7 +60,7 @@ Runtime 提供 Clark 现有月度核对、周进展和会议工作面的 Runtime
 | 验证范围 | 结果 |
 | --- | --- |
 | 独立验收矩阵 `acceptance/world_v01/` | **248/248** 项、12/12 组、4/4 环境门槛，钉在提交 `0a6736a` 上运行，`world_api_accepted: true`。见 [验收报告](docs/world-v01-acceptance-report.md)、[冻结检查点](docs/world-v01-freeze-checkpoint.md) |
-| 冻结后差异复验（#32） | 在 `5734e0f` 上重跑同一矩阵：**248/248**、12/12、4/4。覆盖冻结后的 MCP 与取上下文调整、迁移 0037 及内核改动，见 [复验检查点](docs/world-v01-recheck-checkpoint.md) |
+| 冻结后差异复验（#32） | 在 `d261eb9` 上重跑同一矩阵：**248/248**、12/12、4/4。覆盖冻结后的 MCP 与取上下文调整、迁移 0037 与 0038 及 #32 各批次的内核改动，见 [复验检查点](docs/world-v01-recheck-checkpoint.md) |
 | Python 回归 | 验收时（`0a6736a`）应用角色 **1329 passed、2 skipped**，迁移所有者 **15 passed**，见验收报告。此后每个提交由 [CI](.github/workflows/ci.yml) 按[同一组命令](#测试)执行 |
 | E&O 九月回放静态截面实验（不作为验收门） | 第二轮（#32，gpt-6-sol）三组对照：A（遍历 + 取上下文）召回 1.00、可追溯 100%、确定性 0.995、反例 0，每次 3.0 万字符，是全量塞入的 0.35 倍（第一轮 1.37 倍）；A0（纯遍历）召回只有 0.52；B（固定取上下文）召回 1.00，经 MCP 的返回由 5.6 万字符降到 1.3 万。「A 不高于 B」仍不达标，而按这个定义也不可能达标。回答引用的覆盖由 0.49 升到 0.60，Why 仍只有 3/12。见 [第二轮报告](docs/world-v01-experiment-round2.md)、[第一轮报告](docs/world-v01-experiment-report.md) 与 [播种与标准答案审阅稿](docs/world-v01-eo-september-review.md) |
 | Clark 接线、真实部署 | **尚未进行** |

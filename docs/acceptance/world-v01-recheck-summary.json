@@ -9,8 +9,8 @@
   },
   "status": "independently_accepted_locally",
   "world_api_accepted": true,
-  "source_commit": "5734e0fa4543908f26a88d2cea0f9d792e1d9a9e",
-  "completed_at": "2026-09-24T15:23:16.800158+00:00",
+  "source_commit": "d261eb983576056e7496fb480ff0cf544812324c",
+  "completed_at": "2026-09-24T16:45:32.276734+00:00",
   "groups": 12,
   "passed_groups": 12,
   "mandatory_checks": 248,
@@ -213,9 +213,9 @@
       "missing_declaration": "门只由人签，不带写入声明（契约第 9 节）；七个门动作共用同一处人身份检查，Agent 签门被拒见 an_agent_holding_the_dri_role_cannot_sign_a_gate。"
     }
   },
-  "source_files": 185,
-  "source_manifest_sha256": "5131aa2bd168628e8c0f39066011368a55af9bd858de38b1b2e8cb94b14125c7",
-  "report_sha256": "92667fe3638e3000b9449698232652929df89ac10915dfd39ccdeabdfb7d2cf5",
+  "source_files": 186,
+  "source_manifest_sha256": "ed0b445f61a5021f55acd27c6b2ad74117d9d5063860020ab43f4ba66fce4c77",
+  "report_sha256": "f108712a050a7130d4130ac1fbcc42c30659b7e1a77db97062f81fd529daf28e",
   "excluded_capabilities": [
     "raw_evidence_storage（world 0.1 不上传证据）",
     "existing_containers_preserved",

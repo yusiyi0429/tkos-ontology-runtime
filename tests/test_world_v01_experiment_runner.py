@@ -80,3 +80,16 @@ def test_a_get_context_call_in_a_pure_traversal_run_is_contamination():
     assert experiment.contamination(events('clean.jsonl'), experiment.GROUPS['a0']) == [
         'mcp_tool_call:tkos_world/world_get_context']
     assert experiment.contamination(events('clean.jsonl'), experiment.GROUPS['a']) == []
+
+
+def test_the_review_material_takes_the_valid_run_of_the_first_attempt(tmp_path):
+    """人工核验材料每问每组取一份回答：第 1 次尝试有效就取它，否则取它有效的那次重试，不拿第 2、3 次顶替。"""
+    from experiments.world_v01 import review
+
+    for name, status in (('why-1', 'contaminated'), ('why-1-retry1', 'failed'), ('why-1-retry2', 'ok'),
+                         ('why-2', 'ok'), ('who-1', 'ok'), ('now-1', 'failed'), ('now-2', 'ok')):
+        (tmp_path / name).mkdir()
+        (tmp_path / name / 'run.json').write_text(json.dumps({'status': status}))
+    assert review.first_valid_run(tmp_path, 'why').name == 'why-1-retry2'
+    assert review.first_valid_run(tmp_path, 'who').name == 'who-1'
+    assert review.first_valid_run(tmp_path, 'now') is None

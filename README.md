@@ -10,7 +10,7 @@ Runtime 提供 Clark 现有月度核对、周进展和会议工作面的 Runtime
 
 已合并的 `tkos.method/0.4` 把 CEO Agent 立项、Agreement 全体精确确认与多 PCO 候选整组激活纳入正式链，并新增 `tkos.workspace/0.2` 独立来源场景（无业务锚点的会议／文档／本人选定对话、来源版本与更正、精确分享、默认私有）。同期新增本机**治理工作台**：有权本人以个人会话办理白名单动作，Runtime 只负责权限、版本、正式效力与回执。该增量纳入 v0.4.0，迁移头到 0028；0.1/0.2/0.3 对象保留原协议绑定与原生效规则。
 
-已合并的 `tkos.world/0.1`（[PR #30](https://github.com/yusiyi0429/tkos-ontology-runtime/pull/30)）是独立的业务世界模型协议，按 CEO《企业业务世界建模框架》把公司表达为九类一级对象、内容块、少量关系，以及所有对象共有的状态快照与事件；同时提供按主干组装上下文的 Context Runtime 和给 Agent 的 MCP 入口。它与 `tkos.method` 并存，语义互不改写。迁移头到 0036。该协议尚未进入任何 Release，也没有部署。
+已合并的 `tkos.world/0.1`（[PR #30](https://github.com/yusiyi0429/tkos-ontology-runtime/pull/30)）是独立的业务世界模型协议，按 CEO《企业业务世界建模框架》把公司表达为九类一级对象、内容块、少量关系，以及所有对象共有的状态快照与事件；同时提供按主干组装上下文的 Context Runtime 和给 Agent 的 MCP 入口。它与 `tkos.method` 并存，语义互不改写。迁移头到 0036；0037 是随后追加的授权修复，收回只读角色在三张只增表上的写权。该协议尚未进入任何 Release，也没有部署。
 
 ## 当前交付状态
 
@@ -21,7 +21,7 @@ Runtime 提供 Clark 现有月度核对、周进展和会议工作面的 Runtime
 | 验证范围 | 结果 |
 | --- | --- |
 | Method 0.4 ＋ workspace 0.2 本地受控链 | 浏览器人类链与受控 Co-agent HTTP/DB 均由 root 独立执行，见[交付报告](docs/method-04-delivery-report.md)、[合并前复核](docs/acceptance/method04-premerge.md) |
-| 治理工作台真实 HTTP／数据库 | **23/23**：三个独立会话、跨身份日志隐藏、CAS、关窗竞争、本人核对不生效、DRI 不能确认、CEO 整组确认；另真实浏览器三 profile 与重启复核，见[验收](docs/acceptance/runtime-governance-workbench.md) |
+| 治理工作台真实 HTTP／数据库 | **23/23**（基于 Method 0.3 的 `acea4d4`，不覆盖 0.4/0.5 的办理页）：三个独立会话、跨身份日志隐藏、CAS、关窗竞争、本人核对不生效、DRI 不能确认、CEO 整组确认；另真实浏览器三 profile 与重启复核，见[验收](docs/acceptance/runtime-governance-workbench.md) |
 | Method 0.3 实际 HTTP／PostgreSQL／MinIO 增量 | **35/35**：Architecture、State、Problem、Agent 立项、原子移交、权限与恢复、M1B 回归 |
 | Method 0.2 独立回归 | **22/22**：生命周期、关窗竞争、候选原子性与旧版共存 |
 | Python 回归 | 主回归 **941 passed、2 skipped**（应用角色）；旧叙述集成另 **14 passed**（owner 角色） |
@@ -60,11 +60,11 @@ Runtime 提供 Clark 现有月度核对、周进展和会议工作面的 Runtime
 | 验证范围 | 结果 |
 | --- | --- |
 | 独立验收矩阵 `acceptance/world_v01/` | **248/248** 项、12/12 组、4/4 环境门槛，钉在提交 `0a6736a` 上运行，`world_api_accepted: true`。见 [验收报告](docs/world-v01-acceptance-report.md)、[冻结检查点](docs/world-v01-freeze-checkpoint.md) |
-| Python 回归 | **1358 passed、2 skipped**（应用角色），owner 角色 **15 passed** |
+| Python 回归 | 验收时（`0a6736a`）应用角色 **1329 passed、2 skipped**，迁移所有者 **15 passed**，见验收报告。此后每个提交由 [CI](.github/workflows/ci.yml) 按[同一组命令](#测试)执行 |
 | E&O 九月回放静态截面实验（不作为验收门） | 用 gpt-6-sol 跑：召回 0.95、可追溯 100%、确定性 1.00、八类反例 0 次；预算不达标，A 组约为全量塞入的 1.37 倍。另有两个问题：Agent 几乎只用取上下文，回答真正引用的标准引用只占 0.49。见 [实验报告](docs/world-v01-experiment-report.md) 与 [播种与标准答案审阅稿](docs/world-v01-eo-september-review.md) |
 | Clark 接线、真实部署 | **尚未进行** |
 
-实验报告里的调整建议（取上下文经 MCP 只给 Markdown、Why 沿 `goal_ref` 多取一跳、Markdown 按问题组织、事件行写出人名）尚未实施。播种、实验跑器与指标在 `experiments/world_v01/`。逐票提交见 PR #30。
+实验报告里的调整建议（取上下文经 MCP 只给 Markdown、Why 沿 `goal_ref` 多取一跳、Markdown 按问题组织、事件行写出人名）尚未实施。播种、实验跑器与指标在 `experiments/world_v01/`。main 上是压缩合并的 `7e42004`；文档里引用的逐票提交（`0a6736a`、`d5b158e`、`3fdbe83`、`2d2dca7`、`fdaeeab`）在标签 `world-v0.1-tickets`，也就是 PR #30 的分支头。
 
 ## Runtime 经营看板：`tkos.dashboard/0.1`
 

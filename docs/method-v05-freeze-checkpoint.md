@@ -33,3 +33,9 @@
 | `src/memory_service_runtime/governed/profile.py` | `48faffd8186f32a976f0dd5c9bf826d62bb16bfbf579b09407623614890d7a4e` |
 | `src/memory_service_runtime/governed/protocol.py` | `f8166586e270a8e878e3a533b8978088ce190f56c348a761699e74d1fdc301fa` |
 | `src/memory_service_runtime/governed/workbench.py` | `f0457d3b4929aa3e17a835ecbbbf567531e60b90a5c85c45d010901de1dcee0c` |
+
+## 提交去处（2026-09-24 补记）
+
+本页的 HEAD `15434b5` 不在 main 的历史上。
+- PR #15 压缩合并为 `ef31b02`。
+- 逐票提交在标签 `method-v0.5-tickets`，即 PR #15 的分支头 `4608f13`；也可以用 `git fetch origin pull/15/head` 取回。

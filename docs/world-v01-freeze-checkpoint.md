@@ -38,3 +38,14 @@
 | `src/tkos_world_mcp/__init__.py` | `0442f09becb18c325c998425e4d905ca728d15df39c183f2046f943a438ec640` |
 | `src/tkos_world_mcp/cli.py` | `609f23de2969dca00e01e140d368e94886fa9e836e0c8813cf0adabc480d9471` |
 | `src/tkos_world_mcp/server.py` | `fc2736d09d49583b7bd0f1df742c0b35e5c051591824591661734d574caf30de` |
+
+## 冻结之后（2026-09-24 补记）
+
+- **提交去处**：本页的提交 `0a6736a` 不在 main 的历史上。
+  - PR #30 压缩合并为 `7e42004`。
+  - 逐票提交在标签 `world-v0.1-tickets`，即 PR #30 的分支头 `06ae091`；也可以用 `git fetch origin pull/30/head` 取回。
+- **冻结后改过的文件**：清单里只有 `src/tkos_world_mcp/server.py` 变了。
+  - 改动在 `fdaeeab`（#29，静态截面实验）：运行日志多记 `read_refs` 与 `read_event_ids` 两个字段，七个工具的参数与返回不变。
+  - 这部分由 `tests/test_world_mcp.py` 覆盖。
+  - 上表的验收矩阵是在这次改动之前跑的；差异复验见 #32。
+- **冻结后追加的迁移**：`0037_append_only_grant_repair.sql` 收回只读角色在 `gov_world_events`、`gov_world_context_packs` 上的 INSERT，Method 的 `gov_method_commitments` 一并收回。表结构、触发器与绑定门都不变。

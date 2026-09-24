@@ -24,7 +24,8 @@ def seed_world(env, path: Path, label: str):
     """一个 world scope（五个域与 A2 基础身份），外加另一 scope 的一名 CEO 作为 scope 外的读者。
 
     world 动作在每个域的激活策略里对全部角色开放：谁能做什么由服务代码的责任人规则拦下，
-    这样拒绝用例证明的是代码规则，而不是策略没配。
+    这样拒绝用例证明的是代码规则，而不是策略没配。唯一例外是 outsider 域的策略不列外部事件，
+    用来证明外部事件按 scope 判权、不看调用者所在域的策略。
     """
     foreign = seed_authority(env, path.with_name('foreign-' + path.name), label + '-foreign')
     f = seed_authority(env, path, label)
@@ -35,12 +36,15 @@ def seed_world(env, path: Path, label: str):
         _open_world_actions(env, scope)
     f['bystander_principal_id'] = _seed_bystander(env, f)
     f['actors']['ic_a'] = _seed_actor(env, f, 'IC', f['domains']['a'])
+    f['actors']['agent_a'] = _seed_actor(env, f, 'AGENT', f['domains']['a'], principal_type='agent')
+    f['actors']['lapsed'] = _seed_actor(env, f, 'IC', f['domains']['a'])
     private_json(path, f)
     return f
 
 
-def _seed_actor(env, f, role, domain):
-    """本 scope 里再加一名持凭证的人，只在给定的域有一条指派（例如单元里的 IC：在域里有角色，但不在任何主干上负责）。"""
+def _seed_actor(env, f, role, domain, principal_type='human'):
+    """本 scope 里再加一名持凭证的身份，只在给定的域有一条指派（例如单元里的 IC：在域里有角色，但不在任何主干上
+    负责；单元里持 AGENT 角色的 Agent）。"""
     principal, assignment, token = uid(), uid(), secrets.token_urlsafe(48)
     digest = hashlib.sha256(token.encode()).hexdigest()
     with psycopg.connect(env.values['MIGRATION_DATABASE_URL'], row_factory=dict_row) as conn:
@@ -49,7 +53,7 @@ def _seed_actor(env, f, role, domain):
         conn.execute("SELECT set_config('app.governed_scope_id',%s,true)", (f['scope_id'],))
         conn.execute("SELECT set_config('app.governed_credential_digest',%s,true)", (digest,))
         conn.execute('INSERT INTO gov_principals(principal_id,scope_id,principal_type,display_name) VALUES (%s,%s,%s,%s)',
-                     (principal, f['scope_id'], 'human', 'Synthetic world ' + role))
+                     (principal, f['scope_id'], principal_type, 'Synthetic world ' + role))
         conn.execute('INSERT INTO gov_role_assignments(assignment_id,scope_id,principal_id,domain_id,role) VALUES (%s,%s,%s,%s,%s)',
                      (assignment, f['scope_id'], principal, domain, role))
         conn.execute('INSERT INTO gov_credentials(scope_id,principal_id,credential_digest,label) VALUES (%s,%s,%s,%s)',
@@ -76,11 +80,12 @@ def _open_world_actions(env, f):
         conn.execute("SELECT set_config('app.gov_control_plane','on',true)")
         conn.execute("SELECT set_config('app.governed_scope_id',%s,true)", (f['scope_id'],))
         conn.execute('SELECT scope_id FROM gov_scopes WHERE scope_id=%s FOR UPDATE', (f['scope_id'],))
-        for domain in f['domains'].values():
+        for name, domain in f['domains'].items():
+            actions = [action for action in WORLD_ACTIONS if not (name == 'outsider' and action == 'world_record_event')]
             old = conn.execute('''SELECT * FROM gov_activation_policies WHERE scope_id=%s AND domain_id=%s
                 ORDER BY policy_seq DESC LIMIT 1''', (f['scope_id'], domain)).fetchone()
             content = dict(old['content'])
-            content['action_roles'] = {**content['action_roles'], **{action: WORLD_ROLES for action in WORLD_ACTIONS}}
+            content['action_roles'] = {**content['action_roles'], **{action: WORLD_ROLES for action in actions}}
             conn.execute('''INSERT INTO gov_activation_policies
                 (policy_revision_id,scope_id,domain_id,policy_id,policy_seq,content,recorded_by)
                 VALUES (%s,%s,%s,%s,%s,%s,%s)''',

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
+from urllib.parse import quote
 
 from acceptance.runtime.client import Client
 
@@ -51,6 +52,20 @@ class Flow:
     def read(self, actor, oid, *, version=None, expected=200):
         suffix = f'?version={version}' if version is not None else ''
         return self.clients[actor].json('GET', f'/v1/world/objects/{oid}{suffix}', expected=expected)
+
+    def state(self, actor, oid, *, as_of=None, expected=200):
+        suffix = f'?as_of={quote(as_of)}' if as_of else ''
+        return self.clients[actor].json('GET', f'/v1/world/objects/{oid}/state{suffix}', expected=expected)
+
+    def events(self, actor, oid, *, since=None, expected=200):
+        suffix = f'?since={quote(since)}' if since else ''
+        return self.clients[actor].json('GET', f'/v1/world/objects/{oid}/events{suffix}', expected=expected)
+
+    def refresh(self, actor, payload, declaration=None):
+        return self.act(actor, 'world_refresh_state', {'payload': payload, **({'declaration': declaration} if declaration else {})})
+
+    def record(self, actor, params):
+        return self.act(actor, 'world_record_event', params)
 
     def children(self, actor, oid, *, expected=200):
         return self.clients[actor].json('GET', f'/v1/world/objects/{oid}/children', expected=expected)

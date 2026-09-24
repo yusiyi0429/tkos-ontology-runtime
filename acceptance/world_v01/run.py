@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 from copy import deepcopy
+from datetime import datetime, timezone
 import json
 from pathlib import Path
 
@@ -33,7 +34,7 @@ def company_root(h, f, flow):
     check = _checker(checks)
 
     last = flow.rows('SELECT name FROM schema_migrations ORDER BY name DESC LIMIT 1')[0]['name']
-    check('the_world_migration_is_the_newest_applied_migration', last == '0032_world_v01_revise_repin.sql')
+    check('the_world_migration_is_the_newest_applied_migration', last == '0033_world_v01_state_events_repin.sql')
 
     # ------------------------------------------------------------ happy path
     identity = {'text': '一家为企业做经营系统的公司。', 'artifacts': ['https://example.test/company-brief']}
@@ -506,6 +507,166 @@ def revise_and_relate(h, f, flow, company, made):
     return {'checks': checks}
 
 
+def state_and_events(h, f, flow, made):
+    """票 #22：状态快照写入与按时点取状态，外部事件、更正与按起始时间取事件；拒绝用例库快照不变。"""
+    checks = []
+    check = _checker(checks)
+    mission, task = made['Mission'], made['Task']
+    mission_id = mission['object_id']
+    declaration = {'scene': _ref(mission), 'trigger': '9/22 17:37 会后整理',
+                   'human_acceptance': {'required': True, 'acceptor': f['actors']['ceo']['principal_id']}}
+
+    def refresh_body(payload, declared=None):
+        return flow.command('world_refresh_state', {'payload': payload, **({'declaration': declared} if declared else {})})
+
+    # ------------------------------------------------------------ state snapshots
+    first = flow.refresh('a', {'title': '9/22 状态', 'subject_ref': _ref(mission), 'as_of': '2026-09-22T17:37:00+08:00',
+                               'blocks': {'progress': {'text': '数据环境搭了一半。'}, 'issue': {'text': '缺隔离库权限。'}}})['result']
+    second = flow.refresh('agent_a', {
+        'title': '9/23 状态', 'subject_ref': _ref(mission), 'as_of': '2026-09-23T10:00:00.5Z',
+        'blocks': {'progress': {'text': '隔离库已迁移。'},
+                   'artifacts': {'text': '播种草稿', 'artifacts': ['https://example.test/seed-draft']}}}, declaration)['result']
+    rows = flow.rows("""SELECT o.domain_id, o.lifecycle_status, o.latest_revision_id, o.effective_revision_id, r.payload
+                          FROM gov_objects o JOIN gov_object_revisions r
+                            ON r.scope_id=o.scope_id AND r.revision_id=o.latest_revision_id
+                         WHERE o.scope_id=%s AND o.object_id = ANY(%s::uuid[]) ORDER BY r.payload->>'title'""",
+                     (f['scope_id'], [first['object_id'], second['object_id']]))
+    check('a_unit_dri_and_a_unit_agent_write_snapshots_stored_in_the_subjects_domain_with_utc_text',
+          [row['payload']['as_of'] for row in rows] == ['2026-09-22T09:37:00Z', '2026-09-23T10:00:00.500000Z']
+          and all(str(row['domain_id']) == f['domains']['a'] and row['lifecycle_status'] == 'recorded'
+                  and row['effective_revision_id'] == row['latest_revision_id'] for row in rows)
+          and all(row['payload']['subject_ref'] == {k: v for k, v in _pinned(mission).items() if k != 'ref'}
+                  for row in rows))
+    at = {label: flow.state('outsider', mission_id, as_of=moment)['snapshot'] for label, moment in (
+        ('before', '2026-09-21T00:00:00Z'), ('between', '2026-09-23T00:00:00Z'), ('exactly', '2026-09-23T10:00:00.5Z'),
+        ('after', '2026-09-24T00:00:00Z'))}
+    latest = flow.state('outsider', mission_id)['snapshot']
+    check('get_state_returns_the_latest_snapshot_not_later_than_the_given_time',
+          at['before'] is None and at['between']['object_id'] == first['object_id']
+          and at['exactly']['object_id'] == second['object_id'] and at['after']['object_id'] == second['object_id']
+          and latest['object_id'] == second['object_id'] and at['between']['unconfirmed'] is True
+          and at['between']['attributes']['as_of'] == '2026-09-22T09:37:00Z'
+          and at['between']['attributes']['subject_ref'] == _pinned(mission))
+    view = flow.read('outsider', mission_id)
+    blocks = {b['id']: b for b in view['state']['blocks']}
+    check('get_object_carries_the_latest_snapshot_and_every_snapshot_read_is_marked_unconfirmed',
+          view['state']['object_id'] == second['object_id'] and view['state']['unconfirmed'] is True
+          and blocks['progress']['text'] == '隔离库已迁移。' and blocks['issue']['text'] == '当前没有问题'
+          and flow.read('outsider', first['object_id'])['unconfirmed'] is True and 'state' not in view['state'])
+    refreshed = flow.rows("SELECT subject_refs FROM gov_world_events WHERE scope_id=%s AND kind='state.refreshed'"
+                          " AND subject_refs->0->>'object_id' = %s", (f['scope_id'], first['object_id']))
+    check('a_snapshot_write_records_one_state_refreshed_event_naming_the_snapshot_then_its_subject',
+          [row['subject_refs'] for row in refreshed] == [[
+              {'object_id': first['object_id'], 'object_version': 1, 'revision_id': first['revision_id'], 'block': None},
+              {k: v for k, v in _pinned(mission).items() if k != 'ref'}]])
+    same_instant = refresh_body({'title': 'x', 'subject_ref': _ref(mission), 'as_of': '2026-09-22T09:37:00.000000Z'})
+    flow.deny('a', same_instant, codes={'INVALID_STATE'}, prepare=False, says='already has a snapshot at this time')
+    check('a_second_snapshot_of_the_same_subject_at_the_same_instant_is_refused')
+    body = flow.prepare('a', refresh_body({'title': '9/23 晚', 'subject_ref': _ref(task), 'as_of': '2026-09-23T20:00:00Z'}))
+    receipt, replay = flow.commit('a', body), flow.commit('a', deepcopy(body))
+    changed = deepcopy(body)
+    changed['params']['payload']['as_of'] = '2026-09-23T21:00:00Z'
+    flow.deny('a', changed, codes={'IDEMPOTENCY_CONFLICT'}, prepare=False)
+    check('a_replayed_snapshot_write_returns_its_receipt_and_a_reused_key_for_another_snapshot_is_refused',
+          replay['receipt_id'] == receipt['receipt_id']
+          and flow.state('outsider', task['object_id'])['snapshot']['object_id'] == receipt['result']['object_id'])
+
+    # ------------------------------------------------------------ external events
+    meeting = flow.record('a', {'category': 'meeting', 'subject_refs': [_ref(mission), _ref(task)],
+                                'occurred_at': '2026-09-22T17:37:00+08:00',
+                                'content': {'text': '9/22 17:37 会议：先把数据环境准备好。',
+                                            'artifacts': ['https://example.test/minutes-0922']}})['result']
+    original = flow.rows('SELECT * FROM gov_world_events WHERE scope_id=%s AND event_id=%s', (f['scope_id'], meeting['event_id']))
+    check('an_external_event_that_happened_earlier_is_recorded_at_its_own_occurred_at',
+          len(original) == 1 and original[0]['kind'] == 'event.recorded' and original[0]['category'] == 'meeting'
+          and original[0]['occurred_at'].isoformat() == '2026-09-22T09:37:00+00:00'
+          and original[0]['occurred_at'] < original[0]['recorded_at']
+          and [r['object_id'] for r in original[0]['subject_refs']] == [mission_id, task['object_id']])
+    review = flow.record('b', {'category': 'review', 'subject_refs': [_ref(mission)], 'occurred_at': '2026-09-23T09:00:00Z',
+                               'content': {'text': '交付单元评审了 E&O 的 Mission。'}})['result']
+    # outsider 所在域的策略不列外部事件，他在 E&O 域也没有角色：记得成，说明判权只看 scope 内有没有生效指派。
+    observed = flow.record('outsider', {'category': 'other', 'subject_refs': [_ref(mission)],
+                                        'occurred_at': '2026-09-23T09:30:00Z', 'content': {'text': '旁听记录。'}})['result']
+    check('events_are_recorded_by_scope_permission_regardless_of_any_domain_policy',
+          review['event_id'] != meeting['event_id'] and observed['occurred_at'] == '2026-09-23T09:30:00Z')
+    by_agent = flow.record('agent_a', {'category': 'other', 'subject_refs': [_ref(mission)],
+                                       'occurred_at': '2026-09-23T11:00:00Z', 'content': {'text': 'Agent 整理了会议纪要。'},
+                                       'declaration': declaration})['result']
+    check('a_unit_agent_records_an_event_with_its_declaration', by_agent['declaration']['scene'] == _pinned(mission))
+    correction = flow.record('ceo', {'category': 'correction', 'supersedes_event_id': meeting['event_id'],
+                                     'subject_refs': [_ref(mission)], 'occurred_at': '2026-09-22T17:37:00+08:00',
+                                     'content': {'text': '更正：会上决定的是先建隔离库。'}})['result']
+    after = flow.rows('SELECT * FROM gov_world_events WHERE scope_id=%s AND event_id=%s', (f['scope_id'], meeting['event_id']))
+    check('a_correction_references_the_original_which_stays_unchanged', after == original)
+
+    listed = flow.events('outsider', mission_id)['events']
+    by_id = {e['event_id']: e for e in listed}
+    moments = [datetime.fromisoformat(e['occurred_at'].replace('Z', '+00:00')) for e in listed]
+    check('get_events_lists_every_event_about_the_object_in_occurred_at_order_and_marks_corrections',
+          {meeting['event_id'], review['event_id'], by_agent['event_id'], correction['event_id']} <= set(by_id)
+          and {'object.created', 'relate', 'state.refreshed', 'event.recorded'} <= {e['kind'] for e in listed}
+          and moments == sorted(moments)
+          and by_id[meeting['event_id']]['corrected_by'] == [correction['event_id']]
+          and by_id[correction['event_id']]['supersedes_event_id'] == meeting['event_id']
+          and by_id[meeting['event_id']]['content']['artifacts'] == ['https://example.test/minutes-0922']
+          and by_id[meeting['event_id']]['subject_refs'][0] == _pinned(mission)
+          and by_id[meeting['event_id']]['occurred_at'] == '2026-09-22T09:37:00Z'
+          and all(e['occurred_at'].endswith('Z') and e['recorded_at'].endswith('Z') for e in listed))
+    since = flow.events('outsider', mission_id, since='2026-09-23T08:00:00+08:00')
+    start = datetime(2026, 9, 23, tzinfo=timezone.utc)
+    check('get_events_starts_at_the_given_time',
+          since['since'] == '2026-09-23T00:00:00Z'
+          and {review['event_id'], by_agent['event_id']} <= {e['event_id'] for e in since['events']}
+          and not {meeting['event_id'], correction['event_id']} & {e['event_id'] for e in since['events']}
+          and all(datetime.fromisoformat(e['occurred_at'].replace('Z', '+00:00')) >= start for e in since['events']))
+    flow.events('foreign_ceo', mission_id, expected=404)
+    flow.state('foreign_ceo', mission_id, expected=404)
+    check('an_identity_from_another_scope_reads_neither_events_nor_state')
+
+    # ------------------------------------------------------------ rejections
+    event = {'category': 'meeting', 'subject_refs': [_ref(mission)], 'occurred_at': '2026-09-23T12:00:00Z',
+             'content': {'text': 'x'}}
+    flow.deny('a', flow.command('world_record_event', {**event, 'subject_refs': []}), codes={'INVALID_REQUEST'})
+    check('an_event_without_subjects_is_refused')
+    body = flow.prepare('lapsed', flow.command('world_record_event', event))
+    receipt, replay = flow.commit('lapsed', body), flow.commit('lapsed', deepcopy(body))
+    changed = deepcopy(body)
+    changed['params']['content'] = {'text': 'Another event under the same key'}
+    flow.deny('lapsed', changed, codes={'IDEMPOTENCY_CONFLICT'}, prepare=False)
+    check('a_replayed_event_returns_its_receipt_and_a_reused_key_for_another_event_is_refused',
+          replay['receipt_id'] == receipt['receipt_id'])
+    # 最后一条指派撤掉后，这名身份在 scope 内已没有生效指派：不能再记事件、不能把原命令重放成成功、也读不到。
+    revoke_assignment(h.env, f, f['actors']['lapsed']['assignment_id'])
+    flow.deny('lapsed', flow.command('world_record_event', event), codes={'FORBIDDEN', 'UNAUTHENTICATED'})
+    flow.deny('lapsed', deepcopy(body), codes={'FORBIDDEN', 'UNAUTHENTICATED'}, prepare=False)
+    flow.events('lapsed', mission_id, expected={401, 403})
+    flow.state('lapsed', mission_id, expected={401, 403})
+    check('an_identity_without_a_current_assignment_in_the_scope_can_neither_record_replay_nor_read')
+    flow.deny('agent_a', flow.command('world_record_event', event), codes={'INVALID_REQUEST'}, says='must declare its scene')
+    snapshot = {'title': 'x', 'subject_ref': _ref(task), 'as_of': '2026-09-23T12:00:00Z'}
+    flow.deny('agent_a', refresh_body(snapshot), codes={'INVALID_REQUEST'}, says='must declare its scene')
+    check('an_agent_event_or_snapshot_without_a_declaration_is_refused')
+    flow.deny('ic_a', refresh_body(snapshot), codes={'FORBIDDEN'}, says='Only a responsible person up the spine')
+    check('a_person_not_responsible_up_the_spine_cannot_write_a_snapshot')
+    flow.deny('agent', refresh_body(snapshot, declaration), codes={'FORBIDDEN'}, says='AGENT role')
+    check('an_agent_without_the_agent_role_in_the_unit_cannot_write_a_snapshot')
+    flow.deny('a', refresh_body({**snapshot, 'subject_ref': _ref({**first, 'version': 1})}), codes={'INVALID_REQUEST'},
+              says='A state snapshot is not the subject of a snapshot')
+    check('a_snapshot_cannot_be_the_subject_of_a_snapshot')
+    flow.deny('a', flow.command('world_record_event', {**event, 'occurred_at': '2099-01-01T00:00:00Z'}),
+              codes={'INVALID_REQUEST'}, says='has not happened yet')
+    flow.deny('a', refresh_body({**snapshot, 'as_of': '2099-01-01T00:00:00Z'}), codes={'INVALID_REQUEST'},
+              says='has not come yet')
+    check('an_event_or_snapshot_dated_in_the_future_is_refused')
+    refreshed_id = str(flow.rows("SELECT event_id FROM gov_world_events WHERE scope_id=%s AND kind='state.refreshed' LIMIT 1",
+                                 (f['scope_id'],))[0]['event_id'])
+    flow.deny('ceo', flow.command('world_record_event', {**event, 'category': 'correction',
+                                                         'supersedes_event_id': refreshed_id}),
+              codes={'INVALID_REQUEST'}, says='corrects an external event')
+    check('a_correction_can_only_correct_an_external_event')
+    return {'checks': checks}
+
+
 def revocation(h, f, flow, company_command):
     """最后撤掉 CEO 在公司域的那条 CEO 指派：CEO 在别的域还有角色，仍是 scope 成员，但原命令不能再被重放成成功。"""
     checks = []
@@ -524,12 +685,14 @@ def run(h: MethodHarness, source: Path):
         ctx = company_root(h, f, flow)
         objects = objects_and_refs(h, f, flow, ctx['company'])
         revisions = revise_and_relate(h, f, flow, ctx['company'], objects['made'])
-        checks = (ctx['checks'] + objects['checks'] + revisions['checks']
+        states = state_and_events(h, f, flow, objects['made'])
+        checks = (ctx['checks'] + objects['checks'] + revisions['checks'] + states['checks']
                   + revocation(h, f, flow, ctx['company_command']))
         public_json(h.output / 'summary.json', {
             'world_v01_skeleton_passed': True, 'checks': checks,
-            'scope': 'Tickets #19-#21: world wiring, the Company root, the other seven creatable types, '
-                     'reference pinning, revisions and cross-chain relations over real HTTP/PostgreSQL; synthetic data',
+            'scope': 'Tickets #19-#22: world wiring, the Company root, the other seven creatable types, '
+                     'reference pinning, revisions, cross-chain relations, state snapshots and external events '
+                     'over real HTTP/PostgreSQL; synthetic data',
             'world_api_accepted': False, 'world_api_accepted_note': 'set only by the finished matrix (ticket #27)',
             'real_model': 'not_run', 'mcp': 'not_built', 'deployment': 'not_verified'})
     finally:

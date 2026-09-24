@@ -185,6 +185,17 @@ def _check_registry(conn: Any, scope_id: str, protocol_id: str,
     return _registry_content(row)
 
 
+def gate_world_action(conn: Any, scope_id: str, action_type: str) -> str:
+    """不落在某个对象上的 world 动作（外部事件）：支持登记列出该动作且可写。声明的契约已由请求信封限定为 world。"""
+    from .world_v01_models import CONTRACT_VERSION as WORLD_CONTRACT
+    registry = _check_registry(conn, scope_id, "tkos.world", WORLD_CONTRACT)
+    if action_type not in registry.actions:
+        _fail("ACTION_NOT_SUPPORTED_FOR_PROTOCOL")
+    if not registry.can_write:
+        _fail("PROTOCOL_WRITE_DISABLED")
+    return WORLD_CONTRACT
+
+
 def _declared_mismatch(code_for_known_legacy_or_absent: bool, declared: str | None,
                        binding_version: str) -> None:
     """Frozen rejection matrix for a declared contract_version ≠ the binding's."""

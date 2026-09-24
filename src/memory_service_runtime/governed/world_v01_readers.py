@@ -13,10 +13,13 @@ from psycopg.types.json import Jsonb
 from . import db, protocol
 from . import world_v01_registry as world_registry
 from .errors import GovernedError
-from .world_v01_models import ACTION_PARAMS, citation
+from .world_v01_models import ACTION_PARAMS, SCOPE_ACTIONS, citation, utc_text
 
 # 空块的标准句在投影层配置（契约第 3 节）。
 EMPTY_BLOCK_SENTENCE = "当前没有{name}"
+# 按主体找状态快照的条件，与迁移 0030 的唯一索引 ux_gov_world_snapshot_subject_as_of 的谓词一致。
+SNAPSHOTS_OF_SUBJECT = ("scope_id=%s AND payload->'subject_ref' ? 'object_version' AND payload ? 'as_of' "
+                        "AND payload->'subject_ref'->>'object_id'=%s")
 
 
 def cited(pinned: Any) -> Any:
@@ -96,7 +99,54 @@ def read_object(conn: Any, ctx: Any, object_id: str, version: int | None = None)
     previous = _revision(conn, ctx, head["object_id"], revision["object_version"] - 1)
     supersedes = previous and {"object_id": head["object_id"], "object_version": previous["object_version"],
                                "revision_id": previous["revision_id"], "block": None}
-    return object_view(head, revision, metadata, supersedes, _referenced_by(conn, ctx, head["object_id"]))
+    view = object_view(head, revision, metadata, supersedes, _referenced_by(conn, ctx, head["object_id"]))
+    if head["object_type"] == "StateSnapshot":
+        view["unconfirmed"] = True  # 读侧展示快照都标明它未经确认（契约第 7 节）
+    else:
+        view["state"] = _snapshot(conn, ctx, head["object_id"])
+    return view
+
+
+def _snapshot(conn: Any, ctx: Any, subject_id: str, as_of: Any = None) -> dict[str, Any] | None:
+    """主体的 as_of 不晚于该时点（不给即最新）的那条状态快照，标明未经确认（契约第 7 节）。"""
+    row = conn.execute(
+        "SELECT object_id FROM gov_object_revisions WHERE " + SNAPSHOTS_OF_SUBJECT + """
+              AND (%s::timestamptz IS NULL OR (payload->>'as_of')::timestamptz <= %s::timestamptz)
+            ORDER BY (payload->>'as_of')::timestamptz DESC LIMIT 1""",
+        (ctx.scope_id, subject_id, as_of, as_of)).fetchone()
+    return row and read_object(conn, ctx, str(row["object_id"]))
+
+
+def state(conn: Any, ctx: Any, object_id: str, as_of: Any = None) -> dict[str, Any]:
+    """取状态：按主体与时点。"""
+    head, _ = _readable(conn, ctx, object_id)
+    return {"object_id": head["object_id"], "as_of": as_of and utc_text(as_of.isoformat()),
+            "snapshot": _snapshot(conn, ctx, head["object_id"], as_of)}
+
+
+def events(conn: Any, ctx: Any, object_id: str, since: Any = None) -> dict[str, Any]:
+    """取事件：subject_refs 含该对象、occurred_at 不早于起始时间的全部事件，按 occurred_at 升序；
+    被更正的事件列出更正它的事件（契约第 12 节）。"""
+    head, _ = _readable(conn, ctx, object_id)
+    rows = [db.jsonable(row) for row in conn.execute(
+        """SELECT * FROM gov_world_events
+            WHERE scope_id=%s AND subject_refs @> %s AND (%s::timestamptz IS NULL OR occurred_at >= %s::timestamptz)
+            ORDER BY occurred_at, recorded_at, event_id""",
+        (ctx.scope_id, Jsonb([{"object_id": head["object_id"]}]), since, since)).fetchall()]
+    corrected_by: dict[str, list[str]] = {}
+    for row in conn.execute(
+            """SELECT supersedes_event_id, event_id FROM gov_world_events
+                WHERE scope_id=%s AND category='correction' AND supersedes_event_id = ANY(%s::uuid[])
+                ORDER BY recorded_at, event_id""",
+            (ctx.scope_id, [row["event_id"] for row in rows])).fetchall():
+        corrected_by.setdefault(str(row["supersedes_event_id"]), []).append(str(row["event_id"]))
+    return {"object_id": head["object_id"], "since": since and utc_text(since.isoformat()),
+            "events": [{**{key: row[key] for key in ("event_id", "kind", "phase", "category", "outcome", "principal_id",
+                                                      "action_id", "supersedes_event_id")},
+                        "occurred_at": utc_text(row["occurred_at"]), "recorded_at": utc_text(row["recorded_at"]),
+                        "subject_refs": cited(row["subject_refs"]),
+                        "content": row["content"] and {**row["content"], "refs": cited(row["content"]["refs"])},
+                        "corrected_by": corrected_by.get(row["event_id"], [])} for row in rows]}
 
 
 def _referenced_by(conn: Any, ctx: Any, object_id: str) -> list[dict[str, Any]]:
@@ -146,9 +196,11 @@ def authorize_receipt(conn: Any, ctx: Any, row: dict[str, Any], *, replay: bool 
     """读 world 回执按 world 读规则：调用者在 scope 内有生效指派，回执涉及的对象仍是 world 对象。
 
     重放是再次执行成功，另按当前权限复核：必须是原调用者，动作当时用到的指派仍然有效，
-    且调用者在该域仍有这个动作的角色；scope 成员身份或无关角色不能复活被撤销的命令。
+    且调用者在该域仍有这个动作的角色（按 scope 判权的外部事件只要仍在 scope 内）；
+    scope 成员身份或无关角色不能复活被撤销的命令。
     """
     ids = {str(item["object_id"]) for item in row["object_versions"]}
+    ids.update(str(item["object_id"]) for item in row["result"].get("subject_refs", []))
     if row["target_object_id"]:
         ids.add(str(row["target_object_id"]))
     for object_id in ids:
@@ -160,4 +212,5 @@ def authorize_receipt(conn: Any, ctx: Any, row: dict[str, Any], *, replay: bool 
     current = {item["assignment_id"] for item in db._assignments(conn, ctx)}
     if any(aid not in current for aid in row["result"].get("required_assignment_ids", [])):
         raise GovernedError("FORBIDDEN", "An assignment this command relied on is no longer valid.")
-    db.authorize_domain(conn, ctx, row["result"]["domain_id"], row["action_type"])
+    if row["action_type"] not in SCOPE_ACTIONS:  # 外部事件按 scope 判权，不看各域策略
+        db.authorize_domain(conn, ctx, row["result"]["domain_id"], row["action_type"])

@@ -20,7 +20,7 @@ from . import world_v01_registry as world_registry
 from .errors import GovernedError
 from .service import ActionExecution
 from .world_v01_models import citation
-from .world_v01_readers import cited, world_head
+from .world_v01_readers import SNAPSHOTS_OF_SUBJECT, cited, world_head
 
 
 def _fail(code: str, message: str = "", status: int | None = None) -> None:
@@ -39,14 +39,19 @@ class WorldExecution(ActionExecution):
     def authorize(self) -> None:
         self.pins: dict[str, dict[str, Any]] = {}
         self.referenced: dict[str, dict[str, Any]] = {}
-        self.related: list[dict[str, Any]] = []
+        # 事件 subject_refs 里除新修订外还要钉的对象：建关系的列表、快照的主体、外部事件的全部主体。
+        self.event_subjects: list[dict[str, Any]] = []
         if self.kind == "world_create_object":
             self.authorize_create()
+        elif self.kind == "world_refresh_state":
+            self.authorize_refresh_state()
+        elif self.kind == "world_record_event":
+            self.authorize_record_event()
         else:
             self.authorize_target()
 
     def authorize_create(self) -> None:
-        object_type = self.params["object_type"]
+        object_type = self.object_type = self.params["object_type"]
         self.domain_id = self.params["domain_id"]
         self.action_assignments = db.authorize_domain(self.conn, self.ctx, self.domain_id, self.kind)
         if object_type == "Company":
@@ -61,15 +66,7 @@ class WorldExecution(ActionExecution):
         # world_refresh_state 列出状态快照后，建对象仍不收它。
         if object_type == "StateSnapshot":
             _fail("ACTION_NOT_SUPPORTED_FOR_PROTOCOL", "A state snapshot is written by world_refresh_state.")
-        self.creation_fields = protocol.resolve_creation(
-            self.conn, self.ctx.scope_id, self.domain_id, object_type, self.request.contract_version,
-            action_type=self.kind)
-        self.protocol_context = self.creation_fields["contract_version"]
-        self.require_declaration()
-        try:
-            self.written = models.validate_input(object_type, self.params["payload"])
-        except ValueError:
-            _invalid("Payload does not satisfy this world object type.")
+        self.open_creation(object_type)
         # 记下这次调用实际依赖的指派（让调用者成为责任人的那条），重放与最终复核都按它来。
         if object_type == "Company":
             used = sorted(ceo, key=lambda row: row["assignment_id"])[0]
@@ -77,10 +74,52 @@ class WorldExecution(ActionExecution):
             field = world_registry.object_spec(object_type)["spine_parent_field"]
             used = self.responsible_up_the_spine(self.pin(self.written[field])["object_id"])
         self.required_assignments.add(used["assignment_id"])
-        for text in models.ref_texts(object_type, self.written):
-            self.pin(text)
-        self.payload = models.stored_payload(object_type, self.written, self.pins)
+        self.store_written(object_type)
         self.check_placement(object_type)
+        self.declaration = self.pinned_declaration()
+
+    def authorize_refresh_state(self) -> None:
+        """写状态快照（契约第 7 节）：所在域随主体；人须是主体主干上的责任人，Agent 须在该域持 AGENT 角色。"""
+        self.object_type = "StateSnapshot"
+        try:
+            subject_id = models.parse_ref(self.params["payload"].get("subject_ref"))["object_id"]
+        except (ValueError, TypeError):
+            _invalid("A state snapshot names its subject as <object id>@<version>.")
+        subject = world_head(self.conn, self.ctx, subject_id)
+        self.domain_id = subject["domain_id"]
+        self.action_assignments = db.authorize_domain(self.conn, self.ctx, self.domain_id, self.kind)
+        self.open_creation(self.object_type)
+        if subject["object_type"] == "StateSnapshot":
+            _invalid("A state snapshot is not the subject of a snapshot.")
+        self.not_in_future(self.written["as_of"], "A snapshot cannot be as of a time that has not come yet.")
+        if self.ctx.principal_type == "agent":
+            held = [row for row in self.action_assignments if row["role"] == "AGENT"]
+            if not held:
+                _fail("FORBIDDEN", "An Agent writes a snapshot only with the AGENT role in the subject's unit.")
+            used = held[0]
+        else:
+            used = self.responsible_up_the_spine(subject_id)
+        self.required_assignments.add(used["assignment_id"])
+        self.store_written(self.object_type)
+        self.event_subjects = [self.pins[self.written["subject_ref"]]]
+        self.declaration = self.pinned_declaration()
+
+    def authorize_record_event(self) -> None:
+        """记外部事件（契约第 8 节）：按 scope 判权，不看各域策略；主体与内容里的引用钉定，更正只更正外部事件。"""
+        db._assignments(self.conn, self.ctx)  # scope 内没有生效指派的调用者是 403
+        self.protocol_context = protocol.gate_world_action(self.conn, self.ctx.scope_id, self.kind)
+        self.require_declaration()
+        self.event_subjects = [self.pin(text) for text in self.params["subject_refs"]]
+        # 回执记第一条主体所在的域；判权不看它。
+        self.domain_id = self.referenced[self.params["subject_refs"][0]]["domain_id"]
+        self.not_in_future(self.params["occurred_at"], "An external event that has not happened yet cannot be recorded.")
+        original = self.params.get("supersedes_event_id")
+        if original is not None and self.conn.execute(
+                "SELECT 1 FROM gov_world_events WHERE scope_id=%s AND event_id=%s AND kind='event.recorded'",
+                (self.ctx.scope_id, original)).fetchone() is None:
+            _invalid("A correction corrects an external event in this scope.")
+        content = self.params["content"]
+        self.content = {**content, "refs": [self.pin(text) for text in content["refs"]]}
         self.declaration = self.pinned_declaration()
 
     def authorize_target(self) -> None:
@@ -121,10 +160,7 @@ class WorldExecution(ActionExecution):
             if pointed(before.get(relation["field"])) != pointed(self.written.get(relation["field"])):
                 _invalid(f"{relation['field']} can only be re-pinned to another version of the object it was "
                          "created with; create a new object to hang it elsewhere.")
-        for text in models.ref_texts(object_type, self.written):
-            self.pin(text)
-        self.payload = models.stored_payload(object_type, self.written, self.pins,
-                                             server=models.server_fields(object_type, current))
+        self.store_written(object_type, server=models.server_fields(object_type, current))
         self.check_placement(object_type)
 
     def relate(self, object_type: str, current: dict[str, Any]) -> None:
@@ -136,7 +172,7 @@ class WorldExecution(ActionExecution):
         if relation is None:
             _invalid(f"{object_type} has no {field}.")
         for text in self.params["refs"]:
-            self.related.append(self.pin(text))
+            self.event_subjects.append(self.pin(text))
             target = self.check_target_type(relation, text)
             if target["object_id"] == self.target["object_id"]:
                 _invalid("An object cannot depend on itself.")
@@ -144,7 +180,29 @@ class WorldExecution(ActionExecution):
             if field == "contributes_to" and (target["domain_id"] == self.domain_id or company_goal):
                 _invalid("A contribution goes to a period goal or unit-level goal of another unit.")
         self.payload = models.stored_model(object_type).model_validate(
-            {**current, field: self.related}).model_dump(mode="json")
+            {**current, field: self.event_subjects}).model_dump(mode="json")
+
+    def open_creation(self, object_type: str) -> None:
+        """在已判权的域里建一类对象：过创建闸门，看 Agent 的声明是否带齐，载荷按类型校验。"""
+        self.creation_fields = protocol.resolve_creation(
+            self.conn, self.ctx.scope_id, self.domain_id, object_type, self.request.contract_version,
+            action_type=self.kind)
+        self.protocol_context = self.creation_fields["contract_version"]
+        self.require_declaration()
+        try:
+            self.written = models.validate_input(object_type, self.params["payload"])
+        except ValueError:
+            _invalid("Payload does not satisfy this world object type.")
+
+    def store_written(self, object_type: str, server: dict[str, Any] | None = None) -> None:
+        """钉定写入载荷里的全部引用，得到存储载荷。"""
+        for text in models.ref_texts(object_type, self.written):
+            self.pin(text)
+        self.payload = models.stored_payload(object_type, self.written, self.pins, server=server)
+
+    def not_in_future(self, moment: str, message: str) -> None:
+        if self.conn.execute("SELECT %s::timestamptz > clock_timestamp() AS future", (moment,)).fetchone()["future"]:
+            _invalid(message)
 
     def require_declaration(self) -> None:
         """写入声明只对 Agent 强制（契约第 9 节）；Agent 的修订还必须需要人工验收（第 11 节）。"""
@@ -278,8 +336,10 @@ class WorldExecution(ActionExecution):
                 _fail("STALE_DEPENDENCY", "Target must identify the current candidate revision.")
 
     def recheck_final_barrier(self) -> None:
-        # 让调用者成为责任人的指派可以在上一级对象的域（例如公司域的 CEO），不必在本动作的域。
-        db.authorize_domain(self.conn, self.ctx, self.domain_id, action_type=self.kind)
+        # 让调用者成为责任人的指派可以在上一级对象的域（例如公司域的 CEO），不必在本动作的域；
+        # 按 scope 判权的动作只复核调用者仍在 scope 内有生效指派。
+        if self.kind not in models.SCOPE_ACTIONS:
+            db.authorize_domain(self.conn, self.ctx, self.domain_id, action_type=self.kind)
         current = {row["assignment_id"] for row in db._assignments(self.conn, self.ctx)}
         if not self.required_assignments <= current:
             _fail("FORBIDDEN", "A required assignment is not currently valid.")
@@ -289,18 +349,39 @@ class WorldExecution(ActionExecution):
         """引用钉在不可变的修订上，不随被引用对象更新而漂移，所以不是需要期望版本的可变依赖。"""
 
     def run_action(self) -> dict[str, Any]:
-        if self.kind == "world_create_object":
-            return self.create_world_object()
+        if self.kind in {"world_create_object", "world_refresh_state"}:
+            return self.create_world_object(self.object_type)
+        if self.kind == "world_record_event":
+            return self.record_event()
         return self.new_revision()
 
-    def world_event(self, kind: str, subject_refs: list[dict[str, Any]]) -> None:
-        self.conn.execute(
-            """INSERT INTO gov_world_events (scope_id, kind, subject_refs, principal_id, occurred_at, action_id)
-               VALUES (%s,%s,%s,%s,clock_timestamp(),%s)""",
-            (self.ctx.scope_id, kind, Jsonb(subject_refs), self.ctx.principal_id, self.action_id))
+    def world_event(self, kind: str, subject_refs: list[dict[str, Any]], *, category: str | None = None,
+                    occurred_at: str | None = None, content: dict[str, Any] | None = None,
+                    supersedes_event_id: str | None = None) -> str:
+        """写恰好一条 world 事件；occurred_at 不给即记录时刻。"""
+        return str(self.conn.execute(
+            """INSERT INTO gov_world_events (scope_id, kind, category, subject_refs, principal_id, occurred_at, content,
+                                             action_id, supersedes_event_id)
+               VALUES (%s,%s,%s,%s,%s,COALESCE(%s::timestamptz, clock_timestamp()),%s,%s,%s) RETURNING event_id""",
+            (self.ctx.scope_id, kind, category, Jsonb(subject_refs), self.ctx.principal_id, occurred_at,
+             Jsonb(content) if content is not None else None, self.action_id, supersedes_event_id)).fetchone()["event_id"])
 
-    def create_world_object(self) -> dict[str, Any]:
-        object_type = self.params["object_type"]
+    def record_event(self) -> dict[str, Any]:
+        event_id = self.world_event(world_registry.action_spec(self.kind)["event_kind"], self.event_subjects,
+                                    category=self.params["category"],
+                                    occurred_at=self.params["occurred_at"], content=self.content,
+                                    supersedes_event_id=self.params.get("supersedes_event_id"))
+        result = {"event_id": event_id, "occurred_at": self.params["occurred_at"],
+                  "subject_refs": cited(self.event_subjects)}
+        if self.declaration is not None:
+            result["declaration"] = self.declaration
+        return result
+
+    def create_world_object(self, object_type: str) -> dict[str, Any]:
+        if object_type == "StateSnapshot" and self.conn.execute(
+                "SELECT 1 FROM gov_object_revisions WHERE " + SNAPSHOTS_OF_SUBJECT + " AND payload->>'as_of'=%s LIMIT 1",
+                (self.ctx.scope_id, self.payload["subject_ref"]["object_id"], self.payload["as_of"])).fetchone():
+            _fail("INVALID_STATE", "The subject already has a snapshot at this time.")
         if object_type == "Company" and self.conn.execute(
                 "SELECT 1 FROM gov_objects WHERE scope_id=%s AND object_type='Company' LIMIT 1",
                 (self.ctx.scope_id,)).fetchone() is not None:
@@ -337,11 +418,11 @@ class WorldExecution(ActionExecution):
         return self.written_result(obj, revision)
 
     def written_result(self, obj: dict[str, Any], revision: dict[str, Any]) -> dict[str, Any]:
-        """写恰好一条 world 事件（钉到新修订，建关系时再加列表里的对象），返回回执结果。"""
+        """写恰好一条 world 事件（钉到新修订；建关系时再加列表里的对象，写快照时再加它的主体），返回回执结果。"""
         version = revision["object_version"]
         pinned = {"object_id": obj["object_id"], "object_version": version, "revision_id": revision["revision_id"],
                   "block": None}
-        self.world_event(world_registry.action_spec(self.kind)["event_kind"], [pinned, *self.related])
+        self.world_event(world_registry.action_spec(self.kind)["event_kind"], [pinned, *self.event_subjects])
         result = {"object_id": obj["object_id"], "revision_id": revision["revision_id"], "version": version,
                   "ref": citation(obj["object_id"], version)}
         if self.declaration is not None:

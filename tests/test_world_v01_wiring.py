@@ -9,7 +9,7 @@ from memory_service_runtime.governed import world_v01_profile as profile
 
 ROOT = Path(__file__).resolve().parents[1]
 # 契约或登记每改一次就追加一个重钉迁移；当前的绑定门以最新那个为准。
-MIGRATION = ROOT / "src/memory_service_app/migrations/0032_world_v01_revise_repin.sql"
+MIGRATION = ROOT / "src/memory_service_app/migrations/0033_world_v01_state_events_repin.sql"
 
 
 def test_world_migration_pins_the_same_contract_and_registry_bytes_as_the_profile():

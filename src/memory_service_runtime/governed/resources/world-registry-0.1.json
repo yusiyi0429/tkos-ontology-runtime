@@ -273,7 +273,7 @@
    "outcome_required": false,
    "outcomes": [],
    "phase": "forbidden",
-   "recorded_by": "Co-Agent、执行 Agent、责任人"
+   "recorded_by": "主体主干上的责任人；主体所在域持有 AGENT 角色的 Co-Agent、执行 Agent"
   },
   {
    "category": "required",
@@ -282,7 +282,7 @@
    "outcome_required": false,
    "outcomes": [],
    "phase": "forbidden",
-   "recorded_by": "有 scope 权限的人或 Agent"
+   "recorded_by": "有 scope 权限（scope 内任一生效指派）的人或 Agent"
   },
   {
    "category": "forbidden",
@@ -1562,7 +1562,7 @@
    ]
   }
  ],
- "revision": "0.1.2",
+ "revision": "0.1.3",
  "spine": [
   "Activity",
   "Task",

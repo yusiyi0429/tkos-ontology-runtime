@@ -78,7 +78,7 @@ class StoredBlock(_BlockBase):
     refs: list[PinnedRef] = Field(default_factory=list)
 
 
-def _utc_text(value: str) -> str:
+def utc_text(value: str) -> str:
     """时间戳规范成 UTC 文本 `YYYY-MM-DDTHH:MM:SS[.ffffff]Z`，同一时刻只有一种写法（契约第 7 节）。"""
     moment = datetime.fromisoformat(value.replace("Z", "+00:00")).astimezone(timezone.utc)
     text = moment.strftime("%Y-%m-%dT%H:%M:%S")
@@ -88,7 +88,7 @@ def _utc_text(value: str) -> str:
 Month = Annotated[str, StringConstraints(pattern=r"^[0-9]{4}-(0[1-9]|1[0-2])$")]
 Timestamp = Annotated[str, StringConstraints(
     pattern=r"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]{1,6})?(Z|[+-][0-9]{2}:[0-9]{2})$"),
-    AfterValidator(_utc_text)]
+    AfterValidator(utc_text)]
 
 
 def _value_type(attribute: dict[str, Any], *, stored: bool) -> Any:
@@ -287,8 +287,40 @@ class WorldRelateParams(StrictModel):
         return refs
 
 
+class WorldRefreshStateParams(StrictModel):
+    """写状态快照：载荷按 StateSnapshot 校验，所在域随主体（契约第 7 节）。"""
+    payload: dict[str, Any]
+    declaration: Optional[Declaration] = None
+
+
+class WorldRecordEventParams(StrictModel):
+    """记外部事件（契约第 8 节）：category 必填，更正且只有更正以 supersedes_event_id 引用原事件。"""
+    category: Literal["meeting", "review", "delivery", "acceptance", "other", "correction"]
+    subject_refs: list[RefText] = Field(min_length=1)
+    occurred_at: Timestamp
+    content: Block
+    supersedes_event_id: Optional[CanonicalUUID] = None
+    declaration: Optional[Declaration] = None
+
+    @field_validator("subject_refs")
+    @classmethod
+    def distinct_subjects(cls, refs: list[str]) -> list[str]:
+        if len({parse_ref(text)["object_id"] for text in refs}) != len(refs):
+            raise ValueError("an event names each subject object once")
+        return refs
+
+    @model_validator(mode="after")
+    def correction_references_its_original(self) -> "WorldRecordEventParams":
+        if (self.category == "correction") != (self.supersedes_event_id is not None):
+            raise ValueError("a correction, and only a correction, references the event it corrects")
+        return self
+
+
 ACTION_PARAMS = {"world_create_object": WorldCreateObjectParams, "world_revise_object": WorldReviseObjectParams,
-                 "world_relate": WorldRelateParams}
+                 "world_relate": WorldRelateParams, "world_refresh_state": WorldRefreshStateParams,
+                 "world_record_event": WorldRecordEventParams}
+# 不落在某个对象上、按 scope 判权的动作（契约第 8 节）：外部事件。
+SCOPE_ACTIONS = frozenset({"world_record_event"})
 # 动作 -> 允许的目标类型；空集表示该动作不带 target。状态快照不修订（错快照用新快照），
 # 只有带跨链关系字段的 Mission、Task 能建关系。
 ACTION_TARGETS: dict[str, frozenset[str]] = {
@@ -296,4 +328,6 @@ ACTION_TARGETS: dict[str, frozenset[str]] = {
     "world_revise_object": frozenset({"Company", "Strategy", "ResponsibilityUnit", "LongTermGoal", "PeriodGoal",
                                       "Mission", "Task", "Activity"}),
     "world_relate": frozenset({"Mission", "Task"}),
+    "world_refresh_state": frozenset(),
+    "world_record_event": frozenset(),
 }

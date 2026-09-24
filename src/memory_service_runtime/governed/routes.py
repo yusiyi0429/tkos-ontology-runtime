@@ -98,6 +98,22 @@ def world_object_get(object_id: uuid.UUID, token: Annotated[str, Depends(bearer)
         return world_v01_readers.read_object(conn, ctx, str(object_id), version)
 
 
+@router.get("/world/objects/{object_id}/state")
+def world_object_state(object_id: uuid.UUID, token: Annotated[str, Depends(bearer)],
+                       as_of: Annotated[AwareDatetime | None, Query()] = None):
+    from . import world_v01_readers
+    with db.transaction(token) as (conn, ctx):
+        return world_v01_readers.state(conn, ctx, str(object_id), as_of)
+
+
+@router.get("/world/objects/{object_id}/events")
+def world_object_events(object_id: uuid.UUID, token: Annotated[str, Depends(bearer)],
+                        since: Annotated[AwareDatetime | None, Query()] = None):
+    from . import world_v01_readers
+    with db.transaction(token) as (conn, ctx):
+        return world_v01_readers.events(conn, ctx, str(object_id), since)
+
+
 @router.get("/world/objects/{object_id}/children")
 def world_object_children(object_id: uuid.UUID, token: Annotated[str, Depends(bearer)]):
     from . import world_v01_readers

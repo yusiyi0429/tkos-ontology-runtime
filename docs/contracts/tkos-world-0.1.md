@@ -2,7 +2,7 @@
 
 状态：**契约文字按规格 #17 与 2026-09-24 的补充决定定稿**。0.1 只有在协议登记显式登记、且支持状态为本进程编译支持后才可调用；启用前，通过授权的 world 请求返回 `PROTOCOL_NOT_SUPPORTED`（授权先于协议错误），不产生业务成功。tkos.method/0.4、0.5 冻结，其解释、绑定、历史回执与回归保持不变（ADR-0001）。
 
-来源：《TKOS 语义模型与运行时重构方案 v0.1》、CEO《企业业务世界建模框架 内部讨论稿 v0.1》与 9/23 会议结论、规格 #17、2026-09-24 访谈与补充决定、术语表 `CONTEXT.md`、ADR-0001 至 0005。本契约第 2 至 10 节的清单以机器可读形式登记在 `docs/contracts/world-registry-0.1.json`（`tkos.world-registry` 0.1.2，规范 JSON：键排序、缩进 1、UTF-8、结尾换行）。world profile 同时钉定本契约与该登记的原始字节，任一改动都产生新修订并重新钉定。
+来源：《TKOS 语义模型与运行时重构方案 v0.1》、CEO《企业业务世界建模框架 内部讨论稿 v0.1》与 9/23 会议结论、规格 #17、2026-09-24 访谈与补充决定、术语表 `CONTEXT.md`、ADR-0001 至 0005。本契约第 2 至 10 节的清单以机器可读形式登记在 `docs/contracts/world-registry-0.1.json`（`tkos.world-registry` 0.1.3，规范 JSON：键排序、缩进 1、UTF-8、结尾换行）。world profile 同时钉定本契约与该登记的原始字节，任一改动都产生新修订并重新钉定。
 
 ## 1. 版本、启用与隔离
 
@@ -89,13 +89,14 @@
 ## 7. 状态快照
 
 - StateSnapshot 是独立对象，属性见第 4 节，三块见第 3 节。写入即生效，无人确认（ADR-0003）；读侧展示时须标明它未经确认。
-- 同一主体同一时刻（`subject_ref` 加 `as_of`）唯一。`as_of` 以 UTC 规范文本存储（`YYYY-MM-DDTHH:MM:SS[.ffffff]Z`），同一时刻只有一种写法，唯一性按这一写法判定。只读最新，历史天然保留；错快照用新快照更正。
+- 只经 `world_refresh_state` 写入，不修订。主体是除状态快照外的任一 world 对象，快照与其主体同域。可写者：主体本身或其主干上某一级的责任人（人，规则同第 11 节），或在主体所在域持有 AGENT 角色的 Agent（Co-Agent、执行 Agent）。state.refreshed 的 subject_refs 依次钉到新快照与其主体。
+- 同一主体同一时刻（`subject_ref` 加 `as_of`）唯一。`as_of` 以 UTC 规范文本存储（`YYYY-MM-DDTHH:MM:SS[.ffffff]Z`），同一时刻只有一种写法，唯一性按这一写法判定；`as_of` 不能晚于写入时刻。读侧的时刻一律以这一写法给出。只读最新，历史天然保留；错快照用新快照更正。
 - issue 是块，不分战略与管理问题，由 Co-Agent 分流，不产生对象。
 - Agent 起草的对象内容以 artifacts 链接放在状态快照里，只有经承诺与确认写回对象后才是正式内容。
 
 ## 8. 事件
 
-- 只追加，是唯一的触发源。字段：`event_id`、`scope`、`kind`、`phase`、`category`、`outcome`、`subject_refs`（至少一条）、`principal`、`occurred_at`、`recorded_at`（`occurred_at` 可早于 `recorded_at`）、`content`（三件套）、`action_id`（指回回执）、`supersedes_event_id`。
+- 只追加，是唯一的触发源。字段：`event_id`、`scope`、`kind`、`phase`、`category`、`outcome`、`subject_refs`（至少一条）、`principal`、`occurred_at`、`recorded_at`（`occurred_at` 可早于 `recorded_at`，不能晚于它）、`content`（三件套）、`action_id`（指回回执）、`supersedes_event_id`。
 - 每个 world 动作在同一事务里恰好写一条事件。
 - 结构化属性的取值：
   - phase（承诺与确认用）：`initiation`（立项）、`delivery`（交付）。只有 Mission 的门带 phase。
@@ -107,8 +108,8 @@
 |-|-|-|
 | object.created | 建对象，subject_refs 钉到第一个修订 | 新对象主干上某一级的责任人（第 9 节） |
 | object.revised | 对象或块变化，subject_refs 钉到新修订 | 该对象或其主干上某一级的责任人（第 11 节）；确认写回时由服务记 |
-| state.refreshed | 状态快照写入 | Co-Agent、执行 Agent、责任人 |
-| event.recorded | 外部发生的事，带 category 与 artifact 链接 | 有 scope 权限的人或 Agent |
+| state.refreshed | 状态快照写入 | 主体主干上的责任人；主体所在域持有 AGENT 角色的 Co-Agent、执行 Agent（第 7 节） |
+| event.recorded | 外部发生的事，带 category 与 artifact 链接 | 有 scope 权限（scope 内任一生效指派，不看各域策略）的人或 Agent；更正同此 |
 | commit | 下级承诺 | 周期目标由 DRI；Mission 由 Owner |
 | confirm | 上级签字 | 长期目标、周期目标由 CEO；Mission 由 DRI；核心战役立项再加 CEO |
 | assign | 责任指派，生效时间即 `occurred_at` | CEO 指派 DRI，DRI 指派 Owner，Owner 指派 Task 与 Activity 的责任人 |
@@ -116,7 +117,7 @@
 | core_battle.marked | Mission 标为核心战役 | CEO |
 
 - 0.1 不做未来才生效的指派：assign 的生效时间就是该事件的 `occurred_at`。
-- 事件不删不改：错快照用新快照；错外部事件记 category 为 `correction` 的新事件，以 `supersedes_event_id` 引用原事件；错承诺或确认按第 10 节撤回。
+- 事件不删不改：错快照用新快照；错外部事件记 category 为 `correction` 的新事件，以 `supersedes_event_id` 引用原事件（被更正的须是外部事件）；错承诺或确认按第 10 节撤回。
 
 ## 9. 动作、门与写入声明
 
@@ -154,7 +155,7 @@
   - 进行中 →（`world_commit_mission` 交付）已交付 →（`world_confirm_mission` 交付 接受）已关闭。
   - 已交付时被退回 → 调整。调整 →（此后第一条以该 Mission 为主体的 state.refreshed）进行中；调整中也可直接再承诺交付（→ 已交付）。
   - 核心战役（`world_mark_core_battle`）只能在草稿、已承诺、已成立时标记：草稿、已承诺时标记不改变所处的段，已成立时被标记转入等 CEO 确认。CEO 只确认立项，交付只由 DRI 确认。
-- Task 与 Activity（无门）：未指派 →（`world_assign`）已指派 →（此后第一条以该对象为主体的 state.refreshed）进行中 →（event.recorded，category 为 `delivery`）已交付 →（event.recorded，category 为 `acceptance`）已关闭。验收事件由上一级对象的责任人记：Activity 由其 Task 的责任人，Task 由其 Mission 的 Owner。
+- Task 与 Activity（无门）：未指派 →（`world_assign`）已指派 →（此后第一条以该对象为主体的 state.refreshed）进行中 →（event.recorded，category 为 `delivery`）已交付 →（event.recorded，category 为 `acceptance`）已关闭。验收事件由上一级对象的责任人记：Activity 由其 Task 的责任人，Task 由其 Mission 的 Owner；有 scope 权限的人都能记验收类外部事件（第 8 节），但只有上一级对象的责任人记的那条推进生命周期。
 - 撤回：只能撤回推出对象当前生命周期段的那条承诺或确认；此后若有任何事件改变过生命周期（包括 state.refreshed 这类非门事件），就不能再撤回。由与原事件相同的角色记同类事件，outcome 为 `withdrawn`，以 `supersedes_event_id` 引用原事件；生命周期回到原事件之前的那一段，被撤回的事件保留。例：Mission 已因 state.refreshed 进入进行中，就不能再撤回立项确认。
 
 ## 11. 修改规则、正式内容与候选内容
@@ -170,6 +171,7 @@
 - scope 内有任一生效角色指派的责任主体，可读该 scope 全部 world 对象、事件与状态快照；scope 外不可读。0.1 不做单元级读隔离。
 - 写入按角色与门判权；Agent 以 Agent 身份写入。
 - 四个读投影（取对象、取上下文、取事件、取状态）的输出形状见规格 #17；本契约只约定其中的空块标准句、引用形式与 lifecycle。
+- 取状态按主体与时点：返回 `as_of` 不晚于该时点的最新一条快照，不给时点即最新一条；取对象附最新一条，都标明未经确认。取事件按主体与起始时间：subject_refs 含该对象、`occurred_at` 不早于起始时间的全部事件，按 `occurred_at` 升序，被更正的事件列出更正它的事件。
 
 ## 13. 未交付边界与未决
 

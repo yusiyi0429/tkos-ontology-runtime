@@ -21,6 +21,15 @@ def citation(object_id: str, version: int, block: str | None = None) -> str:
     return f"{object_id}@{version}" + (f"#{block}" if block else "")
 
 
+def cited(pinned: Any) -> Any:
+    """钉定引用读回时同时给出结构化四项与业务形式（契约第 5 节）；列表逐项处理，空值原样。"""
+    if isinstance(pinned, list):
+        return [cited(item) for item in pinned]
+    if pinned is None:
+        return None
+    return {**pinned, "ref": citation(pinned["object_id"], pinned["object_version"], pinned["block"])}
+
+
 def object_view(head: dict[str, Any], revision: dict[str, Any], metadata: dict[str, Any]) -> dict[str, Any]:
     spec = world_registry.object_spec(head["object_type"])
     payload, version = revision["payload"], revision["object_version"]
@@ -28,13 +37,13 @@ def object_view(head: dict[str, Any], revision: dict[str, Any], metadata: dict[s
     for block in spec["blocks"]:
         value = payload["blocks"][block["id"]]
         blocks.append({"id": block["id"], "display_name": block["display_name"], "kind": block["kind"],
-                       "value": value, "empty": value is None,
+                       "value": value and {**value, "refs": cited(value["refs"])}, "empty": value is None,
                        "text": EMPTY_BLOCK_SENTENCE.format(name=block["display_name"]) if value is None else value["text"],
                        "ref": citation(head["object_id"], version, block["id"])})
-    relations = [{"field": field["field"], "relation": field["relation"], "value": payload.get(field["field"])}
+    relations = [{"field": field["field"], "relation": field["relation"], "value": cited(payload.get(field["field"]))}
                  for field in spec["relation_fields"]]
-    attributes = {attribute["id"]: payload.get(attribute["id"]) for attribute in spec["attributes"]
-                  if attribute["id"] != "title"}
+    attributes = {attribute["id"]: cited(payload.get(attribute["id"])) if attribute["value"] == "ref"
+                  else payload.get(attribute["id"]) for attribute in spec["attributes"] if attribute["id"] != "title"}
     return {"object_id": head["object_id"], "object_type": head["object_type"],
             "type_display_name": spec["display_name"], "version": version, "revision_id": revision["revision_id"],
             "title": payload["title"], "attributes": attributes, "blocks": blocks, "relations": relations,

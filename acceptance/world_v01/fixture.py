@@ -31,8 +31,21 @@ def seed_world(env, path: Path, label: str):
     f['foreign_domains'] = foreign['domains']
     for scope in (f, foreign):
         _open_world_actions(env, scope)
+    f['bystander_principal_id'] = _seed_bystander(env, f)
     private_json(path, f)
     return f
+
+
+def _seed_bystander(env, f):
+    """本 scope 里一个启用的人，但没有任何角色指派：不算 scope 内有效的人（契约第 12 节）。"""
+    principal = uid()
+    with psycopg.connect(env.values['MIGRATION_DATABASE_URL'], row_factory=dict_row) as conn:
+        conn.execute("SELECT set_config('app.runtime_write_capability','tkos-runtime-a1',true)")
+        conn.execute("SELECT set_config('app.gov_control_plane','on',true)")
+        conn.execute("SELECT set_config('app.governed_scope_id',%s,true)", (f['scope_id'],))
+        conn.execute('INSERT INTO gov_principals(principal_id,scope_id,principal_type,display_name) VALUES (%s,%s,%s,%s)',
+                     (principal, f['scope_id'], 'human', 'Synthetic world bystander'))
+    return principal
 
 
 def _open_world_actions(env, f):
@@ -66,7 +79,7 @@ def revoke_assignment(env, f, assignment_id):
 
 
 def probe_binding_gate(env, f, forged_contract_sha):
-    """在回滚的 owner 事务里伪造一份 world profile（契约字节不对），看 0030 绑定门是否拒绝。"""
+    """在回滚的 owner 事务里伪造一份 world profile（契约字节不对），看 world 绑定门是否拒绝。"""
     with psycopg.connect(env.values['MIGRATION_DATABASE_URL'], row_factory=dict_row) as conn:
         conn.execute("SELECT set_config('app.runtime_write_capability','tkos-runtime-a1',true)")
         conn.execute("SELECT set_config('app.gov_control_plane','on',true)")

@@ -8,13 +8,15 @@ import pytest
 from memory_service_runtime.governed import world_v01_profile as profile
 
 ROOT = Path(__file__).resolve().parents[1]
-MIGRATION = ROOT / "src/memory_service_app/migrations/0030_world_v01.sql"
+# 契约或登记每改一次就追加一个重钉迁移；当前的绑定门以最新那个为准。
+MIGRATION = ROOT / "src/memory_service_app/migrations/0031_world_v01_contract_repin.sql"
 
 
 def test_world_migration_pins_the_same_contract_and_registry_bytes_as_the_profile():
     sql = MIGRATION.read_text(encoding="utf-8")
     assert "NEW.protocol_id = 'tkos.world' AND NEW.contract_version = 'tkos.world/0.1'" in sql
     assert profile.CONTRACT_SHA256 in sql and profile.REGISTRY_SHA256 in sql
+    assert f"prow.content->'world_registry_ref'->>'revision' = '{profile.REGISTRY_REVISION}'" in sql
     assert f"prow.schema_version = '{profile.SCHEMA_VERSION}'" in sql
 
 
@@ -37,10 +39,10 @@ def test_a_bundled_registry_that_does_not_match_the_pin_fails_closed(monkeypatch
 
 def test_a_company_payload_keeps_every_block_and_stores_empty_blocks_as_null():
     from memory_service_runtime.governed import world_v01_models as models
-    assert models.validate_payload("Company", {"title": "E&O 公司"}) == {
+    assert models.validate_input("Company", {"title": "E&O 公司"}) == {
         "title": "E&O 公司", "blocks": {"identity": None, "constraint": None}}
     identity = {"text": "一家做企业经营系统的公司。", "artifacts": ["https://example.test/brief"]}
-    assert models.validate_payload("Company", {"title": "E&O 公司", "blocks": {"identity": identity}}) == {
+    assert models.validate_input("Company", {"title": "E&O 公司", "blocks": {"identity": identity}}) == {
         "title": "E&O 公司",
         "blocks": {"identity": {"text": "一家做企业经营系统的公司。", "refs": [],
                                 "artifacts": ["https://example.test/brief"]},
@@ -59,7 +61,7 @@ def test_a_company_payload_keeps_every_block_and_stores_empty_blocks_as_null():
 def test_a_company_payload_that_breaks_the_contract_is_refused(payload):
     from memory_service_runtime.governed import world_v01_models as models
     with pytest.raises(ValueError):
-        models.validate_payload("Company", payload)
+        models.validate_input("Company", payload)
 
 
 def _create_company(**overrides):

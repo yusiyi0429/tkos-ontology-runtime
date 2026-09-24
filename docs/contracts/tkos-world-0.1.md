@@ -2,13 +2,13 @@
 
 状态：**契约文字按规格 #17 与 2026-09-24 的补充决定定稿**。0.1 只有在协议登记显式登记、且支持状态为本进程编译支持后才可调用；启用前，通过授权的 world 请求返回 `PROTOCOL_NOT_SUPPORTED`（授权先于协议错误），不产生业务成功。tkos.method/0.4、0.5 冻结，其解释、绑定、历史回执与回归保持不变（ADR-0001）。
 
-来源：《TKOS 语义模型与运行时重构方案 v0.1》、CEO《企业业务世界建模框架 内部讨论稿 v0.1》与 9/23 会议结论、规格 #17、2026-09-24 访谈与补充决定、术语表 `CONTEXT.md`、ADR-0001 至 0005。本契约第 2 至 10 节的清单以机器可读形式登记在 `docs/contracts/world-registry-0.1.json`（`tkos.world-registry` 0.1.0，规范 JSON：键排序、缩进 1、UTF-8、结尾换行）。world profile 同时钉定本契约与该登记的原始字节，任一改动都产生新修订并重新钉定。
+来源：《TKOS 语义模型与运行时重构方案 v0.1》、CEO《企业业务世界建模框架 内部讨论稿 v0.1》与 9/23 会议结论、规格 #17、2026-09-24 访谈与补充决定、术语表 `CONTEXT.md`、ADR-0001 至 0005。本契约第 2 至 10 节的清单以机器可读形式登记在 `docs/contracts/world-registry-0.1.json`（`tkos.world-registry` 0.1.1，规范 JSON：键排序、缩进 1、UTF-8、结尾换行）。world profile 同时钉定本契约与该登记的原始字节，任一改动都产生新修订并重新钉定。
 
 ## 1. 版本、启用与隔离
 
 - 协议 `tkos.world`，契约版本 `tkos.world/0.1`，profile 结构版本 `tkos.world-profile/0.1`。
 - 一个 scope（tenant + organization）就是一家公司，Company 是 scope 内唯一的根对象。world 在独立的新 scope 启用。
-- 每个责任单元对应一条域记录；单元级角色（CEO、DOMAIN_DRI、OWNER、IC、AGENT）记在该域的角色指派里。Company 所在的域即公司域，公司级对象放公司域。角色映射：CEO→CEO，DRI→DOMAIN_DRI，Owner→OWNER，Task 的责任人→IC；Activity 的责任人→IC（人）或 AGENT（Agent）。
+- 每个责任单元对应一条域记录；单元级角色（CEO、DOMAIN_DRI、OWNER、IC、AGENT）记在该域的角色指派里。Company 所在的域即公司域。对象所在的域：Company、Strategy、公司级长期目标在公司域；每个责任单元在自己的域（不是公司域，一个域只有一个责任单元）；单元级长期目标、周期目标、Mission、Task、Activity 与主干上一级在同一个域。角色映射：CEO→CEO，DRI→DOMAIN_DRI，Owner→OWNER，Task 的责任人→IC；Activity 的责任人→IC（人）或 AGENT（Agent）。
 - 不从 tkos.method 迁移数据、不建桥。同名类型（Strategy、Mission）的含义由对象绑定的协议决定。
 
 ## 2. 一级对象
@@ -60,9 +60,10 @@
 
 ## 5. 引用
 
-- 业务形式 `<对象 id>@<版本号>#<块路径>`，版本号为整数修订序号；关系引用字段指向对象本身时不带块路径。
+- 业务形式 `<对象 id>@<版本号>#<块路径>`，版本号为整数修订序号。写入时引用一律用业务形式的字符串；读回时同时给出业务形式与钉定后的结构化对象。
+- 关系引用字段按登记带或不带块路径：`architecture_ref` 必须带 `#responsibility_structure`，其余关系引用字段指向对象本身、不带块路径。块内引用可指向本 scope 任一 world 对象的任一已有版本，块路径须是该类型登记的块（空块也可引用）。
 - 存储为结构化对象：对象 id、版本号、修订 id、块路径。服务端在写入时把版本号解析成修订 id 并钉住；引用固定在版本上，不随对方更新而漂移。
-- 指向不存在的对象、版本或块的引用被拒绝。
+- 指向不存在的对象、版本或块的引用被拒绝；指向非 world 记录或 scope 外对象的引用按不存在处理。
 
 ## 6. 关系与主干
 
@@ -79,7 +80,7 @@
 | contributes_to | Mission 到另一责任单元的目标 | 引用列表 `contributes_to[]` |
 | supersedes | 新版到旧版 | 修订链 |
 
-- 目标约束：公司级长期目标的 `parent_ref` 指向 Company；责任单元级长期目标的 `parent_ref` 指向所属责任单元，`goal_ref` 只能指向公司级长期目标；周期目标的 `goal_ref` 指向本单元的长期目标；`contributes_to` 指向另一责任单元的周期目标或长期目标。Strategy 的责任结构块是 Strategy 自身的一部分。
+- 目标约束：公司级长期目标的 `parent_ref` 指向 Company，不带 `goal_ref`；责任单元级长期目标的 `parent_ref` 指向所属责任单元，`goal_ref` 只能指向公司级长期目标；周期目标的 `goal_ref` 指向本单元的长期目标；`contributes_to` 指向另一责任单元的周期目标或长期目标。Strategy 的责任结构块是 Strategy 自身的一部分。
 - 主干：Activity → Task → Mission → 周期目标 → 长期目标 → 责任单元 → Strategy → Company。每一层沿登记的主干字段向上：Activity、Task、长期目标、Strategy 用 `parent_ref`；Mission、周期目标用 `goal_ref`；责任单元用 `architecture_ref`。公司级长期目标直接挂在 Company 下。
 - `depends_on[]` 与 `contributes_to[]` 只经 `world_relate` 写入，建对象与修订时不接受；其余引用字段在建对象时写入。
 - 跨链关系只展示不递归。第一版不建关系表。
@@ -103,7 +104,8 @@
 
 | kind | 含义 | 谁能记 |
 |-|-|-|
-| object.created / object.revised | 对象或块变化，subject_refs 钉到新修订 | 对象责任人；确认写回时由服务记 |
+| object.created | 建对象，subject_refs 钉到第一个修订 | 新对象主干上某一级的责任人（第 9 节） |
+| object.revised | 对象或块变化，subject_refs 钉到新修订 | 对象责任人；确认写回时由服务记 |
 | state.refreshed | 状态快照写入 | Co-Agent、执行 Agent、责任人 |
 | event.recorded | 外部发生的事，带 category 与 artifact 链接 | 有 scope 权限的人或 Agent |
 | commit | 下级承诺 | 周期目标由 DRI；Mission 由 Owner |
@@ -118,6 +120,7 @@
 ## 9. 动作、门与写入声明
 
 - 协议动作即事件类型。每个动作走 HTTP 的 prepare／commit 两段式请求（与承诺事件 `commit` 无关）、乐观并发（期望版本）、幂等键与回执；world 动作不入队、不外发。
+- 建对象：`world_create_object` 建除状态快照外的八类对象；状态快照只经 `world_refresh_state` 写入。建对象者须是新对象主干上某一级对象的责任人（按第 4 节解析；按角色解析的责任人须是人，Agent 只经 `responsible` 属性成为责任人）；Company 由 CEO 本人建。即：Strategy、公司级长期目标、责任单元由 CEO 建；单元级长期目标、周期目标、Mission、Task、Activity 由 CEO 或该单元的 DRI 建；Mission 有 Owner 后，Owner 可建其下 Task 与 Activity；Task 有责任人后，责任人可建其下 Activity。
 - 通用动作：`world_create_object`（object.created）、`world_revise_object`（object.revised）、`world_refresh_state`（state.refreshed）、`world_record_event`（event.recorded）、`world_assign`（assign）、`world_relate`（relate）。「只有责任人能改」一类规则写在服务代码里。`world_relate` 为对象产生新修订并只记一条 relate 事件；跨链关系不属于正式内容块，有门对象成立后建关系也不重走承诺与确认。
 - 门动作按目标类型拆名，角色全部写在激活策略的 `action_roles` 里，与下表一一对应（ADR-0005）：
 
@@ -131,7 +134,7 @@
 | `world_confirm_mission_core_battle` | confirm | Mission | CEO | 立项 | 接受、退回、撤回 |
 | `world_mark_core_battle` | core_battle.marked | Mission | CEO | 无 | 无 |
 
-- 写入声明三项：场景（属于哪个 Mission 或 Task）、触发事件、是否人工验收及验收人。只对 Agent 身份的写入强制，缺一拒绝；人经工作台或 HTTP 写入不强制。三项在 HTTP 服务端校验。
+- 写入声明三项：场景（属于哪个 Mission 或 Task）、触发事件、是否人工验收及验收人。以请求参数 `declaration` 提交：`scene` 为 Mission 或 Task 的引用 `<对象 id>@<版本号>`，写入时钉定；`trigger` 为触发事件的文字说明；`human_acceptance` 为 `{required, acceptor}`，需要人工验收时 `acceptor` 必须是本 scope 内有效的人，不需要时不带验收人。声明随回执留存。只对 Agent 身份的写入强制，缺一拒绝；人经工作台或 HTTP 写入不强制，带了按同样规则校验。三项在 HTTP 服务端校验。
 - MCP 只开放 `world_revise_object`、`world_refresh_state`、`world_record_event`；其余动作只走工作台或 HTTP。
 
 ## 10. 生命周期

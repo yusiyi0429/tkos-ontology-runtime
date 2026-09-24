@@ -1,7 +1,7 @@
 {
   "profile_core_schema_version": "tkos.world-profile/0.1",
   "profile_id": "urn:tkos:world",
-  "revision": "0.1.0",
+  "revision": "0.1.1",
   "display_name": "World 0.1 business world model 2026-09-24",
   "record_origin": "synthetic",
   "experimental": true,
@@ -9,12 +9,12 @@
   "action_contract_ref": {
     "contract_id": "tkos.world",
     "revision": "0.1",
-    "content_sha256": "f72be2ee059cc1a2ebb95565f8ac463e5d521991f4cd6e71b567c63410f9cf28"
+    "content_sha256": "faf9cfb797cbad1a40c61dc60a16dce5a5679003b21e47aa63ab46442492c684"
   },
   "world_registry_ref": {
     "registry_id": "tkos.world-registry",
-    "revision": "0.1.0",
-    "content_sha256": "4be616319a48d0cf45807bac7f288bb17deaa67f601538883b6e6ea74ce0a507"
+    "revision": "0.1.1",
+    "content_sha256": "3d202e5666ea7b1735f798cdf633b8c5c8242904e6163b9a8c70260397b9fe03"
   },
-  "canonical_hash": "788201af10b27b1a03b3702119498b797fb7caf1aac0fee3a95a902cf40c4b6d"
+  "canonical_hash": "d8cc595bf1e8b77f5f2d1668aa1ab34fa2dcd18298567acda972a80ccdf00861"
 }

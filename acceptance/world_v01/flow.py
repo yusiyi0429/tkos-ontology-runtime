@@ -37,14 +37,15 @@ class Flow:
     def act(self, actor, kind, params, *, key=None):
         return self.commit(actor, self.prepare(actor, self.command(kind, params, key=key)))
 
-    def deny(self, actor, body, *, codes, prepare=True):
-        """先后打 prepare 与 commit 两个入口（或只打 commit），每次都核对全部业务表不变。"""
+    def deny(self, actor, body, *, codes, prepare=True, says=None):
+        """先后打 prepare 与 commit 两个入口（或只打 commit），每次都核对全部业务表不变；says 为错误信息须含的片段。"""
         before = self.h.snapshot(self.f)
         paths = ['/v1/actions/prepare', '/v1/actions'] if prepare else ['/v1/actions']
         for path in paths:
             response = self.clients[actor].json('POST', path, body, expected={400, 401, 403, 404, 409, 422})
             code = response.get('error', {}).get('code')
             assert code in codes, (path, code, codes)
+            assert says is None or says in response['error']['message'], (path, response, says)
             assert self.h.snapshot(self.f) == before, path
 
     def read(self, actor, oid, *, expected=200):
@@ -53,6 +54,22 @@ class Flow:
     def company_params(self, *, title='E&O 合成公司', blocks=None, domain='company'):
         return {'domain_id': self.f['domains'][domain], 'object_type': 'Company',
                 'payload': {'title': title, 'blocks': blocks if blocks is not None else {}}}
+
+    def create_params(self, object_type, domain, payload, declaration=None):
+        params = {'domain_id': self.f['domains'][domain], 'object_type': object_type,
+                  'payload': {'blocks': {}, **payload}}
+        if declaration is not None:
+            params['declaration'] = declaration
+        return params
+
+    def create(self, actor, object_type, domain, payload, declaration=None):
+        """经 prepare + commit 建一个 world 对象，返回回执。"""
+        return self.act(actor, 'world_create_object', self.create_params(object_type, domain, payload, declaration))
+
+    def deny_create(self, actor, object_type, domain, payload, declaration=None, **deny):
+        """建对象被拒：同 deny，入口与库快照的核对不变。"""
+        self.deny(actor, self.command('world_create_object', self.create_params(object_type, domain, payload, declaration)),
+                  **deny)
 
     def rows(self, statement, params=()):
         return self.h.sql(self.f, statement, params)

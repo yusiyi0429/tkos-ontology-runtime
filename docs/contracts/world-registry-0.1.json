@@ -255,7 +255,7 @@
    "outcome_required": false,
    "outcomes": [],
    "phase": "forbidden",
-   "recorded_by": "对象责任人"
+   "recorded_by": "新对象主干上某一级的责任人"
   },
   {
    "category": "forbidden",
@@ -1562,7 +1562,7 @@
    ]
   }
  ],
- "revision": "0.1.0",
+ "revision": "0.1.1",
  "spine": [
   "Activity",
   "Task",

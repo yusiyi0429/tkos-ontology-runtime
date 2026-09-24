@@ -3,6 +3,8 @@
 
 Uses Python's standard library for orchestration and an existing project Python
 for psycopg/botocore. It installs no packages and never loads any existing .env.
+``attach`` provisions the same roles on an already running, disposable
+PostgreSQL (a CI service container) instead of starting the compose project.
 """
 from __future__ import annotations
 
@@ -153,11 +155,11 @@ def port(service: str, container_port: str) -> str:
 def test_admin_url() -> str:
     """Only for isolated infra or an explicitly requested migration-test child."""
     data = credentials()
-    return dsn(ADMIN, data["POSTGRES_ADMIN_PASSWORD"], port("postgres", "5432"))
+    pg_port = data["POSTGRES_PORT"] if data.get("ATTACHED") else port("postgres", "5432")
+    return dsn(ADMIN, data["POSTGRES_ADMIN_PASSWORD"], pg_port)
 
 
-def write_environment(data: dict[str, str]) -> dict[str, str]:
-    pg_port, s3_port = port("postgres", "5432"), port("minio", "9000")
+def write_environment(data: dict[str, str], pg_port: str, s3_port: str | None) -> dict[str, str]:
     # Preserve additional test tokens/bootstrap values written by the acceptance suite.
     env = json.loads(ENV_FILE.read_text()) if ENV_FILE.exists() else {}
     env.update({
@@ -166,17 +168,20 @@ def write_environment(data: dict[str, str]) -> dict[str, str]:
         "MIGRATION_DATABASE_URL": dsn(OWNER, data["POSTGRES_OWNER_PASSWORD"], pg_port),
         "MEMORY_TENANT": data["MEMORY_TENANT"],
         "MEMORY_ORG": data["MEMORY_ORG"],
-        "TKOS_OBJECT_STORE_ENDPOINT": f"http://127.0.0.1:{s3_port}",
-        "TKOS_OBJECT_STORE_BUCKET": SNAPSHOT_BUCKET,
-        "TKOS_OBJECT_STORE_ARTIFACT_BUCKET": "runtime-acceptance-artifacts",
-        "TKOS_OBJECT_STORE_ACCESS_KEY": data["MINIO_APP_ACCESS_KEY"],
-        "TKOS_OBJECT_STORE_SECRET_KEY": data["MINIO_APP_SECRET_KEY"],
-        "TKOS_OBJECT_STORE_REGION": "us-east-1",
-        "TKOS_OBJECT_STORE_VERIFY_TLS": "false",
         "RUNTIME_WORKER_ID": "runtime-acceptance-worker",
         "TKOS_ACCEPTANCE_PROJECT": PROJECT,
         "TKOS_ACCEPTANCE_PYTHON": python_path(),
     })
+    if s3_port is not None:
+        env.update({
+            "TKOS_OBJECT_STORE_ENDPOINT": f"http://127.0.0.1:{s3_port}",
+            "TKOS_OBJECT_STORE_BUCKET": SNAPSHOT_BUCKET,
+            "TKOS_OBJECT_STORE_ARTIFACT_BUCKET": "runtime-acceptance-artifacts",
+            "TKOS_OBJECT_STORE_ACCESS_KEY": data["MINIO_APP_ACCESS_KEY"],
+            "TKOS_OBJECT_STORE_SECRET_KEY": data["MINIO_APP_SECRET_KEY"],
+            "TKOS_OBJECT_STORE_REGION": "us-east-1",
+            "TKOS_OBJECT_STORE_VERIFY_TLS": "false",
+        })
     private_json(ENV_FILE, env)
     app_env = {key: value for key, value in env.items() if key != "MIGRATION_DATABASE_URL"}
     private_write(STATE / "app.env", "".join(f"{k}={v}\n" for k, v in app_env.items()))
@@ -274,7 +279,7 @@ def up() -> dict[str, Any]:
     run(compose("config", "--quiet"))
     run(compose("up", "-d", "--no-build", "--pull", "never", "--wait", "--wait-timeout", "90", "postgres", "minio"))
     run(compose("run", "--rm", "--no-deps", "minio-init"))
-    env = write_environment(data)
+    env = write_environment(data, port("postgres", "5432"), port("minio", "9000"))
     child_python(PROVISION_DB, {
         "admin_url": dsn(ADMIN, data["POSTGRES_ADMIN_PASSWORD"], port("postgres", "5432")),
         "owner": OWNER, "app": APP, "database": DATABASE,
@@ -292,6 +297,46 @@ def up() -> dict[str, Any]:
     return report
 
 
+def attach() -> dict[str, Any]:
+    """Provision owner/app roles, migrations and grants on a running PostgreSQL.
+
+    Meant for a disposable CI service container on this host: the admin password
+    and loopback port come from TKOS_ACCEPTANCE_ADMIN_PASSWORD and
+    TKOS_ACCEPTANCE_POSTGRES_PORT, the database must be named DATABASE, and no
+    object storage is provisioned (pytest does not need it).
+    """
+    admin_password = os.environ.get("TKOS_ACCEPTANCE_ADMIN_PASSWORD", "")
+    pg_port = os.environ.get("TKOS_ACCEPTANCE_POSTGRES_PORT", "")
+    if not admin_password or not pg_port.isdigit():
+        raise RuntimeError("attach requires TKOS_ACCEPTANCE_ADMIN_PASSWORD and TKOS_ACCEPTANCE_POSTGRES_PORT")
+    if SECRETS.exists():
+        raise RuntimeError("private acceptance state already exists; attach only provisions a fresh checkout")
+    STATE.mkdir(mode=0o700, parents=True, exist_ok=True)
+    STATE.chmod(0o700)
+    private_write(STATE / ".gitignore", "*\n")
+    data = {
+        "ATTACHED": "true",
+        "POSTGRES_ADMIN_PASSWORD": admin_password,
+        "POSTGRES_OWNER_PASSWORD": secrets.token_hex(24),
+        "POSTGRES_APP_PASSWORD": secrets.token_hex(24),
+        "MEMORY_TENANT": "runtime-acceptance-" + secrets.token_hex(6),
+        "MEMORY_ORG": "runtime-acceptance-org-" + secrets.token_hex(6),
+        "POSTGRES_PORT": pg_port,
+    }
+    private_json(SECRETS, data)
+    env = write_environment(data, pg_port, None)
+    child_python(PROVISION_DB, {
+        "admin_url": dsn(ADMIN, admin_password, pg_port),
+        "owner": OWNER, "app": APP, "database": DATABASE,
+        "owner_password": data["POSTGRES_OWNER_PASSWORD"], "app_password": data["POSTGRES_APP_PASSWORD"],
+    })
+    report = {"ok": True, "project": PROJECT, "postgres": "127.0.0.1:" + pg_port,
+              "object_store": None, **migrate_and_grant(env),
+              "claim": "attached to an existing PostgreSQL; application acceptance not yet performed"}
+    private_json(STATE / "infra-report.json", report)
+    return report
+
+
 def load_environment() -> dict[str, str]:
     if not ENV_FILE.exists():
         raise RuntimeError("run up first")
@@ -301,7 +346,7 @@ def load_environment() -> dict[str, str]:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
-    for name in ("up", "start", "stop", "status", "migrate"):
+    for name in ("up", "start", "stop", "status", "migrate", "attach"):
         sub.add_parser(name)
     runner = sub.add_parser("run", help="run a child with app credentials; never print them")
     runner.add_argument("--migration", action="store_true", help="use owner URL only in this child")
@@ -309,6 +354,8 @@ def main() -> None:
     args = parser.parse_args()
     if args.command in ("up", "start"):
         report = up()
+    elif args.command == "attach":
+        report = attach()
     elif args.command == "stop":
         run(compose("stop", "--timeout", "30", "postgres", "minio"))
         report = {"ok": True, "project": PROJECT, "stopped": True, "volumes_preserved": True}

@@ -1,11 +1,15 @@
 """Canonical service readiness check shared by native and compatibility routes."""
 from __future__ import annotations
 
+import logging
+
 import psycopg
 
 from memory_service import working
 from memory_service_app.contracts import HealthReport
 from memory_service_app.settings import Settings
+
+LOGGER = logging.getLogger("tkos.memory.health")
 
 
 def build_health_report(settings: Settings) -> HealthReport:
@@ -27,7 +31,9 @@ def build_health_report(settings: Settings) -> HealthReport:
             )
         )
     except psycopg.Error as exc:
-        warnings.append(f"数据库不可达：{exc}")
+        # 原文带地址、端口、库名与用户名，只进服务端日志；未鉴权的响应只说不可达。
+        LOGGER.warning("health check could not reach the database: %s", exc)
+        warnings.append("数据库不可达")
     finally:
         if conn is not None:
             conn.close()

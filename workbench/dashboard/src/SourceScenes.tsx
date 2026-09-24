@@ -6,7 +6,9 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { BACKGROUND_HEADERS } from "@/lib/api"
 import { ApiError } from "@/lib/errors"
+import { PAGE_SIZE, pageQuery, readWindow, type CursorPage } from "@/lib/paging"
 
 export type SourceSession = { identity: { principal_id: string; display_name: string }; csrf: string }
 type Payload = Record<string, unknown>
@@ -53,6 +55,18 @@ const ITEM_KINDS = ['fact', 'request', 'suggestion', 'accepted'] as const
 function err(error: unknown) {
   if (error instanceof ApiError) return `操作未完成（${error.code}）`
   return '服务暂时不可用；已发送的提交请先核对结果。'
+}
+
+/** Session read that keeps the server's error code, so a 403 stays a permission rejection.
+ *  `background` marks the timer-driven poll, which the session does not count as activity. */
+async function readJson<T>(path: string, signal?: AbortSignal, background = false): Promise<T> {
+  const response = await fetch(`${BASE}${path}`, { credentials: 'same-origin', cache: 'no-store', signal,
+    headers: { Accept: 'application/json', ...(background ? BACKGROUND_HEADERS : {}) } })
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}))
+    throw new ApiError(response.status, data.error?.code ?? 'UNAVAILABLE', '')
+  }
+  return await response.json() as T
 }
 
 export function sceneEnvelope(sceneId: string, expectedVersion: number, event: Payload, key: string) {
@@ -236,18 +250,27 @@ export function SourceScenes({ session, prepare, onError }: {
   const contextAbort = useRef<AbortController | null>(null)
   const contextIdRef = useRef('')
   const selectedRef = useRef<string | null>(null)
+  // How many scenes the person has loaded: every refresh re-reads that whole
+  // window, and 「加载更多」 widens it, so polling never drops loaded pages.
+  const listWindow = useRef(PAGE_SIZE)
+  const listEpoch = useRef(0)
 
-  const loadList = useCallback(async () => {
+  const loadList = useCallback(async (background = false) => {
+    const generation = ++listEpoch.current
     try {
-      const response = await fetch(`${BASE}/governance/sources`, { credentials: 'same-origin',
-        cache: 'no-store', headers: { Accept: 'application/json' } })
-      if (!response.ok) throw new ApiError(response.status, 'UNAVAILABLE', '')
-      const page = await response.json() as { items: SourceSceneSummary[]; next_after: string | null }
-      if (mounted.current) { setScenes(page.items); setNextAfter(page.next_after); setFailure(''); setListFailed(false) }
-    } catch (error) { if (mounted.current) { setFailure(err(error)); setListFailed(true); onError(error) } }
+      const page = await readWindow((after, limit) =>
+        readJson<CursorPage<SourceSceneSummary>>(`/governance/sources${pageQuery(limit, after)}`, undefined, background),
+        listWindow.current)
+      if (mounted.current && generation === listEpoch.current) { setScenes(page.items); setNextAfter(page.next_after); setFailure(''); setListFailed(false) }
+    } catch (error) {
+      if (!mounted.current || generation !== listEpoch.current) return
+      // A list this identity may no longer read is dropped, not kept as stale content.
+      if (error instanceof ApiError && [403, 404].includes(error.status)) { setScenes([]); setNextAfter(null) }
+      setFailure(err(error)); setListFailed(true); onError(error)
+    }
   }, [onError])
 
-  const loadDetail = useCallback(async (sceneId: string) => {
+  const loadDetail = useCallback(async (sceneId: string, background = false) => {
     // Per-scene generation + abort: a late response for a previous scene can
     // never replace the newly selected scene's data.
     const generation = ++sceneEpoch.current
@@ -255,11 +278,8 @@ export function SourceScenes({ session, prepare, onError }: {
     const controller = new AbortController()
     detailAbort.current = controller
     try {
-      const response = await fetch(`${BASE}/governance/sources/${encodeURIComponent(sceneId)}`,
-        { credentials: 'same-origin', cache: 'no-store', signal: controller.signal,
-          headers: { Accept: 'application/json' } })
-      if (!response.ok) throw new ApiError(response.status, 'UNAVAILABLE', '')
-      const value = await response.json() as SourceSceneView
+      const value = await readJson<SourceSceneView>(`/governance/sources/${encodeURIComponent(sceneId)}`,
+                                                    controller.signal, background)
       if (mounted.current && generation === sceneEpoch.current && selectedRef.current === sceneId) {
         setDetail(value); setStale(false)
       }
@@ -273,18 +293,15 @@ export function SourceScenes({ session, prepare, onError }: {
     }
   }, [onError])
 
-  const loadContext = useCallback(async (sceneId: string, contextKey: string) => {
+  const loadContext = useCallback(async (sceneId: string, contextKey: string, background = false) => {
     if (!contextKey) return
     const generation = ++contextEpoch.current
     contextAbort.current?.abort()
     const controller = new AbortController()
     contextAbort.current = controller
     try {
-      const response = await fetch(`${BASE}/governance/sources/contexts/${encodeURIComponent(contextKey)}`,
-        { credentials: 'same-origin', cache: 'no-store', signal: controller.signal,
-          headers: { Accept: 'application/json' } })
-      if (!response.ok) throw new ApiError(response.status, 'UNAVAILABLE', '')
-      const value = await response.json() as Payload
+      const value = await readJson<Payload>(`/governance/sources/contexts/${encodeURIComponent(contextKey)}`,
+                                            controller.signal, background)
       if (mounted.current && generation === contextEpoch.current && selectedRef.current === sceneId) {
         setContext(value)
       }
@@ -299,13 +316,13 @@ export function SourceScenes({ session, prepare, onError }: {
   // No contextId state dependency: the timer/refresh lifecycle stays stable
   // while the current key is read from a ref, so a new snapshot id can never
   // be aborted by an effect re-run before its read starts.
-  const refreshAll = useCallback((contextHint?: string) => {
-    void loadList()
+  const refreshAll = useCallback((contextHint?: string, background = false) => {
+    void loadList(background)
     const sceneId = selectedRef.current
     if (sceneId) {
-      void loadDetail(sceneId)
+      void loadDetail(sceneId, background)
       const key = contextHint || contextIdRef.current
-      if (key) { contextIdRef.current = key; setContextId(key); void loadContext(sceneId, key) }
+      if (key) { contextIdRef.current = key; setContextId(key); void loadContext(sceneId, key, background) }
     }
   }, [loadList, loadDetail, loadContext])
 
@@ -316,7 +333,7 @@ export function SourceScenes({ session, prepare, onError }: {
     // A newly known snapshot id must actually trigger a read even when it
     // arrives while the component keeps re-rendering.
     void loadList()
-    const timer = setInterval(() => { if (!document.hidden) refreshAll() }, 5000)
+    const timer = setInterval(() => { if (!document.hidden) refreshAll(undefined, true) }, 5000)
     window.addEventListener('focus', onFocus)
     window.addEventListener('governance-committed', onCommitted)
     return () => {
@@ -457,10 +474,8 @@ export function SourceScenes({ session, prepare, onError }: {
           <span className="text-sm font-medium">{scene.title}</span>
           <span className="ml-2 text-[11px] text-muted-foreground">{scene.scene_type} · v{scene.version}</span>
         </button>)}
-        {nextAfter && <Button variant="outline" onClick={async () => {
-          const response = await fetch(`${BASE}/governance/sources?after=${nextAfter}`, { credentials: 'same-origin', cache: 'no-store' })
-          if (response.ok) { const page = await response.json() as { items: SourceSceneSummary[]; next_after: string | null }
-            setScenes((current) => [...current, ...page.items]); setNextAfter(page.next_after) } }}>加载更多</Button>}
+        {nextAfter && <Button variant="outline" onClick={() => {
+          listWindow.current += PAGE_SIZE; void loadList() }}>加载更多</Button>}
       </div>}
       {selected && <div className="space-y-4">
         <Button variant="ghost" onClick={() => { setSelected(null); setDetail(null); setOperation(null) }}>← 返回场景列表</Button>

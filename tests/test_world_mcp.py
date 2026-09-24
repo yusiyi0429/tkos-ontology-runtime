@@ -1,7 +1,8 @@
 """tkos-world-mcp（票 #26）：用 mcp 客户端经 stdio 拉起 server 子进程，让它打一个假的 HTTP 面。
 
-断言工具清单、参数校验、对 HTTP 面的透传（路径、查询、请求体、凭证、prepare 再 commit），以及运行日志。
-不连数据库，也不启动真 API；真 API 上的四读三写在 acceptance/world_v01 里跑。
+断言工具清单、参数校验、对 HTTP 面的透传（路径、查询、请求体、凭证、prepare 再 commit）、取上下文只交出
+包 id、Markdown、覆盖与预算摘要（#32 D），以及运行日志。不连数据库，也不启动真 API；真 API 上的四读三写在
+acceptance/world_v01 里跑。
 """
 from __future__ import annotations
 
@@ -71,6 +72,11 @@ ACTIVITY_PACK = {"question": "为什么？", "markdown": "…", "layers": [{
     "state": {"ref": f"{SNAPSHOT}@1", "pinned": pinned(SNAPSHOT, 1), "as_of": "2026-09-23T10:00:00Z", "unconfirmed": True,
               "blocks": [{**block(SNAPSHOT, 1, "progress", "改了一半"), "pinned": pinned(SNAPSHOT, 1, "progress")}]},
     "events": [EVENT_VIEW]}]}
+ACTIVITY_COVERAGE = {"what": {"question": "做什么", "answered": True, "evidence": [{"ref": f"{ACTIVITY}@2#instruction"}],
+                              "gap": None}}
+ACTIVITY_TRIMMED = [{"kind": "event", "level": 0, "key": f"event:{LIFECYCLE_EVENT}", "reason": "over_level_cap"},
+                    {"kind": "block", "level": 1, "key": f"block:{OBJ}@3#definition", "reason": "over_budget"},
+                    {"kind": "block", "level": 1, "key": f"block:{OBJ}@3#constraint", "reason": "over_budget"}]
 REASON = "Agent write through tkos-world-mcp"
 TOOLS = {"world_get_object", "world_get_context", "world_get_events", "world_get_state",
          "world_revise_object", "world_refresh_state", "world_record_event"}
@@ -122,7 +128,8 @@ class FakeApi:
                          "blocks": [{"id": "instruction", "ref": f"{OBJ}@3#instruction", "text": "补齐播种脚本。"}]}
         if path == base + "/context":
             return 200, {"context_pack_id": EVENT, "context_pack": {"markdown": f"### 执行指令 `{OBJ}@3#instruction`"},
-                         "plan": {"walked": [{"pinned": f"{OBJ}@1"}], "trimmed": [{"key": f"block:{OBJ}@3#constraint"}]},
+                         "plan": {"walked": [{"pinned": f"{OBJ}@1"}], "trimmed": [
+                             {"kind": "block", "level": 1, "key": f"block:{OBJ}@3#constraint", "reason": "over_budget"}]},
                          "budget": {"used_chars": 29},
                          "coverage": {"what": {"answered": True, "evidence": [{"ref": f"{OBJ}@3#instruction"}]}}}
         if path == base + "/events":
@@ -137,8 +144,10 @@ class FakeApi:
         if path == activity + "/events":
             return 200, {"object_id": ACTIVITY, "events": [EVENT_VIEW]}
         if path == activity + "/context":
-            return 200, {"context_pack_id": REV, "context_pack": ACTIVITY_PACK, "budget": {"used_chars": 1},
-                         "plan": {"walked": [{"pinned": f"{OBJ}@3"}]}}
+            return 200, {"context_pack_id": REV, "created_at": "2026-09-24T12:00:00Z", "object_id": ACTIVITY,
+                         "question": "为什么？", "context_pack": ACTIVITY_PACK, "coverage": ACTIVITY_COVERAGE,
+                         "budget": {"max_chars": 12000, "used_chars": 1, "over_budget": False},
+                         "plan": {"walked": [{"pinned": f"{OBJ}@3"}], "trimmed": ACTIVITY_TRIMMED}}
         if path in {"/v1/actions/prepare", "/v1/actions"}:
             if not body["params"].get("declaration"):
                 return 422, REFUSAL
@@ -160,8 +169,8 @@ def api():
     fake.close()
 
 
-def run_session(api: FakeApi, log_dir: Path, calls: list[tuple[str, dict]], url: str | None = None) -> tuple[list[str], list]:
-    """经命令入口拉起 server 子进程，列工具、依次调用，返回工具名与每次调用的结果。"""
+def run_session(api: FakeApi, log_dir: Path, calls: list[tuple[str, dict]], url: str | None = None) -> tuple[dict, list]:
+    """经命令入口拉起 server 子进程，列工具、依次调用，返回工具（按名）与每次调用的结果。"""
     params = StdioServerParameters(command=sys.executable, args=["-m", "tkos_world_mcp.cli"], cwd=str(ROOT),
                                    env={"PYTHONPATH": str(ROOT / "src"), "TKOS_WORLD_API_URL": url or api.url,
                                         "TKOS_WORLD_AGENT_TOKEN": TOKEN, "TKOS_WORLD_MCP_LOG_DIR": str(log_dir)})
@@ -169,9 +178,9 @@ def run_session(api: FakeApi, log_dir: Path, calls: list[tuple[str, dict]], url:
     async def main():
         async with stdio_client(params) as (read, write), ClientSession(read, write) as session:
             await session.initialize()
-            names = [tool.name for tool in (await session.list_tools()).tools]
+            tools = {tool.name: tool for tool in (await session.list_tools()).tools}
             results = [await session.call_tool(name, arguments) for name, arguments in calls]
-            return names, results
+            return tools, results
     return anyio.run(main)
 
 
@@ -338,3 +347,33 @@ def test_the_log_tells_what_came_back_with_its_content_from_what_was_only_cited(
     assert lines[3]["read_refs"] == sorted([f"{ACTIVITY}@2", f"{ACTIVITY}@2#instruction",
                                             f"{SNAPSHOT}@1", f"{SNAPSHOT}@1#progress"])
     assert lines[3]["read_event_ids"] == [EVENT] and LIFECYCLE_EVENT in lines[3]["event_ids"]
+
+
+def test_get_context_hands_the_model_only_the_pack_id_markdown_coverage_and_a_budget_summary(api, tmp_path):
+    _, results = run_session(api, tmp_path, [("world_get_context", {"object_id": ACTIVITY, "question": "为什么？"})])
+    shown = json.loads(text(results[0]))
+    # 分层 JSON、检索计划与钉定信息只留在 HTTP 面与上下文包表里；裁剪只给按原因、按类的条数。
+    assert shown == {"context_pack_id": REV, "markdown": ACTIVITY_PACK["markdown"], "coverage": ACTIVITY_COVERAGE,
+                     "budget": {"max_chars": 12000, "used_chars": 1, "over_budget": False,
+                                "trimmed": {"over_level_cap": {"event": 1}, "over_budget": {"block": 2}}}}
+    assert results[0].structured_content == shown and not results[0].is_error
+    # 日志照旧按 HTTP 面返回的整包记引用、事件、读到的内容、包 id 与 Markdown 字符数；chars 是真正交给调用方的字符数。
+    line = json.loads(next(tmp_path.iterdir()).read_text())
+    full = json.dumps(api.reply("POST", f"/v1/world/objects/{ACTIVITY}/context", None)[1], ensure_ascii=False)
+    assert line["chars"] == len(text(results[0])) < len(full)
+    assert line["read_refs"] == sorted([f"{ACTIVITY}@2", f"{ACTIVITY}@2#instruction", f"{SNAPSHOT}@1",
+                                        f"{SNAPSHOT}@1#progress"]) and line["read_event_ids"] == [EVENT]
+    assert {f"{OBJ}@3#acceptance", f"{OTHER}@1"} <= set(line["refs"]) and LIFECYCLE_EVENT in line["event_ids"]
+    assert (line["context_pack_id"], line["used_chars"]) == (REV, 1)
+
+
+def test_a_refused_context_request_comes_back_verbatim(api, tmp_path):
+    _, results = run_session(api, tmp_path, [("world_get_context", {"object_id": BROKEN, "question": "为什么？"})])
+    assert results[0].is_error and json.loads(text(results[0])) == {"error": {"code": "NOT_FOUND"}}
+
+
+def test_the_context_tool_says_its_question_is_only_recorded_and_one_call_per_question_is_enough(api, tmp_path):
+    tools, _ = run_session(api, tmp_path, [])
+    tool = tools["world_get_context"]
+    assert "只做记录" in tool.description and "同一问题取一次即可" in tool.description
+    assert "只做记录" in tool.input_schema["properties"]["question"]["description"]

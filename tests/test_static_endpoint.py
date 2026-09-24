@@ -3,12 +3,15 @@ from __future__ import annotations
 
 import uuid
 from urllib.parse import urlencode
+import pytest
 
 from adapter.main import app
 from adapter.settings import Settings, get_settings
 from adapter.wm_views import build_code_index
 from tests.asgi_client import get
 from tests.conftest import DATABASE_URL, Scope, connect
+
+pytestmark = pytest.mark.db
 
 
 def _settings(scope: Scope, *, viewer_user_id: str) -> Settings:

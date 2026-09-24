@@ -86,7 +86,7 @@ export function CatalogRecords({ objectType, onOpenRecord, onAccessDenied,
 
   const page = useLiveResource({
     key: `catalog-objects#${objectType}`,
-    fetcher: (_key, signal) => fetchCatalogObjects(objectType, null, signal),
+    fetcher: (_key, signal, background) => fetchCatalogObjects(objectType, null, signal, background),
     identity: pageIdentity,
     onAccessDenied,
   })

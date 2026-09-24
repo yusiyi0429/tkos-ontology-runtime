@@ -5,7 +5,9 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { BACKGROUND_HEADERS } from "@/lib/api"
 import { ApiError } from "@/lib/errors"
+import { PAGE_SIZE, pageQuery, readWindow, type CursorPage } from "@/lib/paging"
 
 export type MethodExactRef = { object_id: string; revision_id: string; payload_hash: string }
 export type MethodActionTarget = MethodExactRef & { expected_version: number }
@@ -31,8 +33,24 @@ export type MethodTask = { object_id: string; object_type: string; title: string
                            payload?: Record<string, unknown>; method_state?: Record<string, unknown>
                            members?: MethodCandidateMember[]; commitments?: MethodCommitment[] }
 export type MethodSession = { identity: { principal_id: string; display_name: string }; csrf: string }
+/** The governance review-window read for a Method-bound window (no 0.3 monthly view). */
+type MethodWindowView = { object: { object_id: string; object_type: string; method_state?: Record<string, unknown>;
+                                    latest_revision?: { payload?: Record<string, unknown> } | null;
+                                    protocol: { contract_version: string } };
+                          actions?: MethodAction[] }
 
 const BASE = '/dashboard/api/v1'
+/** Review windows bound to these contracts are handled here, never by the 0.3 window page. */
+export const METHOD_WINDOW_VERSIONS: readonly string[] = ['tkos.method/0.4', 'tkos.method/0.5']
+
+function windowTask(view: MethodWindowView): MethodTask {
+  const payload = view.object.latest_revision?.payload ?? {}
+  const state = view.object.method_state ?? {}
+  return { object_id: view.object.object_id, object_type: view.object.object_type,
+           title: String(payload.title ?? view.object.object_type), phase: String(state.phase ?? 'unknown'),
+           contract_version: view.object.protocol.contract_version, actions: view.actions ?? [],
+           payload, method_state: state }
+}
 const STATUS: Record<string, string> = { issue_confirmed: '议题已确认', draft: '草稿', awaiting_confirmation: '等待全体确认',
   formal: 'Agreement 已正式', proposed: '待最终确认', reviewed: '已复核', returned: '已退回',
   open: '开放', closed: '已关窗', pending: '待承诺', under_review: '核对中', resolved: '候选待激活',
@@ -572,11 +590,16 @@ export function MethodContentPreview({ task }: { task: MethodTask }) {
   )
 }
 
-export function MethodActions({ session, prepare, onError, onExplore }: {
+export function MethodActions({ session, prepare, onError, onExplore, windowId, onBack, onVersion }: {
   session: MethodSession
   prepare: (body: Record<string, unknown>) => Promise<void>
   onError: (error: unknown) => void
   onExplore: (objectId: string) => void
+  /** Handle this one review window (opened from 我的待办) instead of listing Method tasks. */
+  windowId?: string
+  onBack?: () => void
+  /** The window turned out to be bound to another contract: route it to that contract's page. */
+  onVersion?: (contractVersion: string) => void
 }) {
   const [tasks, setTasks] = useState<MethodTask[]>([])
   const [nextAfter, setNextAfter] = useState<string | null>(null)
@@ -588,21 +611,42 @@ export function MethodActions({ session, prepare, onError, onExplore }: {
   const mounted = useRef(true)
   const epoch = useRef(0)
   const controller = useRef<AbortController | null>(null)
+  const versionRef = useRef(onVersion)
+  versionRef.current = onVersion
+  // How many tasks the person has loaded: every refresh re-reads that whole
+  // window, and 「加载更多」 widens it, so polling never drops loaded pages.
+  const shown = useRef(PAGE_SIZE)
 
-  const load = useCallback(async () => {
+  // `background`: the timer-driven poll, which the session does not count as the person's activity.
+  const load = useCallback(async (background = false) => {
     const generation = ++epoch.current
     controller.current?.abort()
     const current = new AbortController()
     controller.current = current
-    try {
-      const response = await fetch(`${BASE}/governance/method/tasks`, {
+    const read = async <T,>(path: string): Promise<T> => {
+      const response = await fetch(`${BASE}${path}`, {
         credentials: 'same-origin', cache: 'no-store', signal: current.signal,
-        headers: { Accept: 'application/json' } })
+        headers: { Accept: 'application/json', ...(background ? BACKGROUND_HEADERS : {}) } })
       if (!response.ok) {
         const data = await response.json().catch(() => ({}))
         throw new ApiError(response.status, data.error?.code ?? 'UNAVAILABLE', '')
       }
-      const page = await response.json() as { items: MethodTask[]; next_after: string | null }
+      return await response.json() as T
+    }
+    try {
+      let page: CursorPage<MethodTask>
+      if (windowId) {
+        const view = await read<MethodWindowView>(`/governance/review-windows/${encodeURIComponent(windowId)}`)
+        const version = view.object.protocol.contract_version
+        if (!METHOD_WINDOW_VERSIONS.includes(version)) {
+          if (mounted.current && generation === epoch.current) versionRef.current?.(version)
+          return
+        }
+        page = { items: [windowTask(view)], next_after: null }
+      } else {
+        page = await readWindow((after, limit) =>
+          read<CursorPage<MethodTask>>(`/governance/method/tasks${pageQuery(limit, after)}`), shown.current)
+      }
       if (mounted.current && generation === epoch.current) {
         setTasks(page.items.map((task) => ({ ...task,
           actions: (task.actions ?? []).filter((action) => BROWSER_ACTIONS.has(action.action_type)) })))
@@ -611,17 +655,21 @@ export function MethodActions({ session, prepare, onError, onExplore }: {
     } catch (error) {
       if (!mounted.current || generation !== epoch.current) return
       if (error instanceof DOMException && error.name === 'AbortError') return
+      // Items this identity can no longer read are dropped, not kept as stale content
+      // (an open form hides with its item but keeps its input for when it is readable again).
+      if (error instanceof ApiError && [403, 404].includes(error.status)) { setTasks([]); setNextAfter(null) }
       onError(error); setLoading(false); setFailed(true)
     }
-  }, [onError])
+  }, [onError, windowId])
 
   useEffect(() => {
     mounted.current = true
     void load()
-    const timer = setInterval(() => { if (!document.hidden) void load() }, 5000)
-    window.addEventListener('focus', load)
+    const timer = setInterval(() => { if (!document.hidden) void load(true) }, 5000)
+    const wake = () => void load()
+    window.addEventListener('focus', wake)
     return () => { mounted.current = false; clearInterval(timer); epoch.current++
-      controller.current?.abort(); window.removeEventListener('focus', load) }
+      controller.current?.abort(); window.removeEventListener('focus', wake) }
   }, [load])
 
   const start = (task: MethodTask, action: MethodAction) => {
@@ -684,17 +732,10 @@ export function MethodActions({ session, prepare, onError, onExplore }: {
     setValues((current) => ({ ...current, [field.name]: [...rows(current, field.name), {}] }))
   const removeRow = (field: Field, index: number) =>
     setValues((current) => ({ ...current, [field.name]: rows(current, field.name).filter((_row, i) => i !== index) }))
-  const loadMore = async () => {
+  const loadMore = () => {
     if (!nextAfter) return
-    try {
-      const response = await fetch(`${BASE}/governance/method/tasks?after=${nextAfter}`, {
-        credentials: 'same-origin', cache: 'no-store', headers: { Accept: 'application/json' } })
-      if (!response.ok) throw new ApiError(response.status, 'UNAVAILABLE', '')
-      const page = await response.json() as { items: MethodTask[]; next_after: string | null }
-      setTasks((current) => [...current, ...page.items.map((task) => ({ ...task,
-        actions: (task.actions ?? []).filter((action) => BROWSER_ACTIONS.has(action.action_type)) }))])
-      setNextAfter(page.next_after)
-    } catch (error) { onError(error) }
+    shown.current += PAGE_SIZE
+    void load()
   }
 
   const renderField = (field: Field) => {
@@ -812,10 +853,13 @@ export function MethodActions({ session, prepare, onError, onExplore }: {
 
   return (
     <div className="space-y-4" data-testid="method-actions">
+      {windowId && onBack && <Button variant="ghost" className="self-start" onClick={onBack}>← 返回我的待办</Button>}
       <div className="flex items-center justify-between">
         <div>
-          <p className="gov-eyebrow">Agreement · 承诺 · 状态 / METHOD 0.4</p>
-          <h2 className="text-xl font-semibold">需要本人确认或承诺的事项</h2>
+          <p className="gov-eyebrow">{windowId
+            ? `复核窗口 · 按绑定规则 ${tasks[0]?.contract_version ?? ''} 办理`
+            : 'Agreement · 承诺 · 状态 / METHOD 0.4'}</p>
+          <h2 className="text-xl font-semibold">{windowId ? '办理本人参与的复核窗口' : '需要本人确认或承诺的事项'}</h2>
           <p className="text-sm text-muted-foreground">
             只显示当前身份被列为必要参与人、且属于本人责任的事项；确切引用一律从本人可读对象中派生，
             不接受手工 ID/hash；提交前一律预览，核心在校验时重新检查当前任职。
@@ -879,8 +923,8 @@ export function MethodActions({ session, prepare, onError, onExplore }: {
           </div>
         </section>
       ))}
-      {nextAfter && <Button variant="outline" onClick={() => void loadMore()}>加载更多</Button>}
-      {openAction && (
+      {nextAfter && <Button variant="outline" onClick={loadMore}>加载更多</Button>}
+      {openAction && tasks.some((task) => task.object_id === openAction.task.object_id) && (
         <form className="space-y-3 border-t pt-4" onSubmit={submit}
               data-testid={`method-form-${openAction.action.action_type}`}>
           <h4 className="font-semibold">{openAction.action.label}</h4>

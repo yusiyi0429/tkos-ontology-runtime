@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { ApiError, errorLabel, isAccessDenial, isAbort } from "@/lib/errors"
+import { ApiError, errorLabel, isAccessDenial, isAbort, isNotFound } from "@/lib/errors"
 
 describe("dashboard error mapping", () => {
   it("maps known dashboard codes to business Chinese text", () => {
@@ -16,10 +16,12 @@ describe("dashboard error mapping", () => {
     expect(label).not.toMatch(/[A-Za-z]{6,}/)
   })
 
-  it("treats revoked authority (403/404) and unavailable viewer as access denial", () => {
+  it("treats revoked authority (401/403) and unavailable viewer as access denial, a 404 as one item", () => {
     expect(isAccessDenial(new ApiError(401, "UNAUTHENTICATED", ""))).toBe(true)
     expect(isAccessDenial(new ApiError(403, "FORBIDDEN", ""))).toBe(true)
-    expect(isAccessDenial(new ApiError(404, "NOT_FOUND", ""))).toBe(true)
+    expect(isAccessDenial(new ApiError(404, "NOT_FOUND", ""))).toBe(false)
+    expect(isNotFound(new ApiError(404, "NOT_FOUND", ""))).toBe(true)
+    expect(isNotFound(new ApiError(403, "FORBIDDEN", ""))).toBe(false)
     expect(isAccessDenial(new ApiError(503, "DASHBOARD_VIEWER_UNAVAILABLE", ""))).toBe(true)
     expect(isAccessDenial(new ApiError(503, "EVIDENCE_UNAVAILABLE", ""))).toBe(false)
     expect(isAccessDenial(new Error("network"))).toBe(false)

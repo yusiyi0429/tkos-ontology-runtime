@@ -10,7 +10,7 @@ Runtime 提供 Clark 现有月度核对、周进展和会议工作面的 Runtime
 
 已合并的 `tkos.method/0.4` 把 CEO Agent 立项、Agreement 全体精确确认与多 PCO 候选整组激活纳入正式链，并新增 `tkos.workspace/0.2` 独立来源场景（无业务锚点的会议／文档／本人选定对话、来源版本与更正、精确分享、默认私有）。同期新增本机**治理工作台**：有权本人以个人会话办理白名单动作，Runtime 只负责权限、版本、正式效力与回执。该增量纳入 v0.4.0，迁移头到 0028；0.1/0.2/0.3 对象保留原协议绑定与原生效规则。
 
-已合并的 `tkos.world/0.1`（[PR #30](https://github.com/yusiyi0429/tkos-ontology-runtime/pull/30)）是独立的业务世界模型协议，按 CEO《企业业务世界建模框架》把公司表达为九类一级对象、内容块、少量关系，以及所有对象共有的状态快照与事件；同时提供按主干组装上下文的 Context Runtime 和给 Agent 的 MCP 入口。它与 `tkos.method` 并存，语义互不改写。迁移头到 0036。该协议尚未进入任何 Release，也没有部署。
+已合并的 `tkos.world/0.1`（[PR #30](https://github.com/yusiyi0429/tkos-ontology-runtime/pull/30)）是独立的业务世界模型协议，按 CEO《企业业务世界建模框架》把公司表达为九类一级对象、内容块、少量关系，以及所有对象共有的状态快照与事件；同时提供按主干组装上下文的 Context Runtime 和给 Agent 的 MCP 入口。它与 `tkos.method` 并存，语义互不改写。迁移头到 0036；0037 是随后追加的授权修复，收回只读角色在三张只增表上的写权。该协议尚未进入任何 Release，也没有部署。
 
 ## 当前交付状态
 
@@ -21,7 +21,7 @@ Runtime 提供 Clark 现有月度核对、周进展和会议工作面的 Runtime
 | 验证范围 | 结果 |
 | --- | --- |
 | Method 0.4 ＋ workspace 0.2 本地受控链 | 浏览器人类链与受控 Co-agent HTTP/DB 均由 root 独立执行，见[交付报告](docs/method-04-delivery-report.md)、[合并前复核](docs/acceptance/method04-premerge.md) |
-| 治理工作台真实 HTTP／数据库 | **23/23**：三个独立会话、跨身份日志隐藏、CAS、关窗竞争、本人核对不生效、DRI 不能确认、CEO 整组确认；另真实浏览器三 profile 与重启复核，见[验收](docs/acceptance/runtime-governance-workbench.md) |
+| 治理工作台真实 HTTP／数据库 | **23/23**（基于 Method 0.3 的 `acea4d4`，不覆盖 0.4/0.5 的办理页）：三个独立会话、跨身份日志隐藏、CAS、关窗竞争、本人核对不生效、DRI 不能确认、CEO 整组确认；另真实浏览器三 profile 与重启复核，见[验收](docs/acceptance/runtime-governance-workbench.md) |
 | Method 0.3 实际 HTTP／PostgreSQL／MinIO 增量 | **35/35**：Architecture、State、Problem、Agent 立项、原子移交、权限与恢复、M1B 回归 |
 | Method 0.2 独立回归 | **22/22**：生命周期、关窗竞争、候选原子性与旧版共存 |
 | Python 回归 | 主回归 **941 passed、2 skipped**（应用角色）；旧叙述集成另 **14 passed**（owner 角色） |
@@ -60,11 +60,24 @@ Runtime 提供 Clark 现有月度核对、周进展和会议工作面的 Runtime
 | 验证范围 | 结果 |
 | --- | --- |
 | 独立验收矩阵 `acceptance/world_v01/` | **248/248** 项、12/12 组、4/4 环境门槛，钉在提交 `0a6736a` 上运行，`world_api_accepted: true`。见 [验收报告](docs/world-v01-acceptance-report.md)、[冻结检查点](docs/world-v01-freeze-checkpoint.md) |
-| Python 回归 | **1358 passed、2 skipped**（应用角色），owner 角色 **15 passed** |
-| E&O 九月回放静态截面实验（不作为验收门） | 用 gpt-6-sol 跑：召回 0.95、可追溯 100%、确定性 1.00、八类反例 0 次；预算不达标，A 组约为全量塞入的 1.37 倍。另有两个问题：Agent 几乎只用取上下文，回答真正引用的标准引用只占 0.49。见 [实验报告](docs/world-v01-experiment-report.md) 与 [播种与标准答案审阅稿](docs/world-v01-eo-september-review.md) |
+| 冻结后差异复验（#32） | 在 `d261eb9` 上重跑同一矩阵：**248/248**、12/12、4/4。覆盖冻结后的 MCP 与取上下文调整、迁移 0037 与 0038 及 #32 各批次的内核改动，见 [复验检查点](docs/world-v01-recheck-checkpoint.md) |
+| Python 回归 | 验收时（`0a6736a`）应用角色 **1329 passed、2 skipped**，迁移所有者 **15 passed**，见验收报告。此后每个提交由 [CI](.github/workflows/ci.yml) 按[同一组命令](#测试)执行 |
+| E&O 九月回放静态截面实验（不作为验收门） | 第二轮（#32，gpt-6-sol）四组对照：F（固定上下文作答）召回 1.00、回答引用的覆盖 0.67，每次 1.3 万字符，是全量塞入的 0.16 倍；A（遍历 + 取上下文）召回 1.00、覆盖 0.57，每次 2.9 万字符（第一轮 11.8 万）；A0（纯遍历）召回只有 0.56；B（固定取上下文，不作答）经 MCP 的返回由 5.6 万字符降到 1.3 万。各组可追溯 100%、反例 0。「A 不高于 B」按现有定义谁都过不了，口径待定；Why 各组仍弱。见 [第二轮报告](docs/world-v01-experiment-round2.md)、[第一轮报告](docs/world-v01-experiment-report.md) 与 [播种与标准答案审阅稿](docs/world-v01-eo-september-review.md) |
 | Clark 接线、真实部署 | **尚未进行** |
 
-实验报告里的调整建议（取上下文经 MCP 只给 Markdown、Why 沿 `goal_ref` 多取一跳、Markdown 按问题组织、事件行写出人名）尚未实施。播种、实验跑器与指标在 `experiments/world_v01/`。逐票提交见 PR #30。
+实验报告里的调整建议 1–4 与 6 已在 #32 批次 D 落到代码并重跑：取上下文经 MCP 只给包 id、Markdown、覆盖与预算摘要，Why 沿 `goal_ref` 多取一跳，Markdown 开头按问题给出处，事件行写出人名，跑器分 B、A、A0 三组。关键回答的内容对不对，由 E&O DRI 人工核验，结果另补。播种、实验跑器与指标在 `experiments/world_v01/`。main 上是压缩合并的 `7e42004`；文档里引用的逐票提交（`0a6736a`、`d5b158e`、`3fdbe83`、`2d2dca7`、`fdaeeab`）在标签 `world-v0.1-tickets`，也就是 PR #30 的分支头。
+
+## 评估整改（#32）
+
+2026-09-24 的两份外部评估（外部专家、Codex）逐条核实后，按批次 A–E 整改，追踪票 [#32](https://github.com/yusiyi0429/tkos-ontology-runtime/issues/32)。版本号改为 `0.5.0.dev0`；未发布、未部署。
+
+| 验证范围 | 结果 |
+| --- | --- |
+| 试点链 Method 0.5 × 治理工作台（`acceptance/pilot_workbench_v05/`） | **29/29**（`206b7de`）：登录、待办、0.5 门动作的正式回执、业务拒绝、CSRF、幂等与响应丢失、API 重启恢复、会话面边界。它找出的三处缺陷都已修。登录后的浏览器复核尚未进行，见[摘要](docs/acceptance/pilot-workbench-v05-summary.json) |
+| 运行与恢复基线（`acceptance/runtime_baseline/`） | 阈值 T1–T8 先定后测，改动后 **8/8**，见[容量基线](docs/runtime-capacity-baseline.md) |
+| 交付候选的干净环境安装（`acceptance/delivery_candidate/`） | **10/10**（`cf5edb6`）。从干净检出构建 wheel 与镜像；全新离线栈空库迁移到 0038；只用镜像里的材料经控制面装好 Method 0.4、0.5 与 world 0.1，并经 HTTP 办真实动作；v0.4.0 的迁移文件逐字节未变，旧库升级到迁移头。见[交付清单](docs/acceptance/delivery-candidate-cf5edb6.json) |
+| 独立验收重跑 | Method 0.5 **27/27**、Method 0.4 **68/68**、world 复验 **248/248**（`d261eb9`）；v0.2 运行时 **20/20**（`a6d1efa`） |
+| 尚待人或目标环境完成 | 登录后的浏览器复核；第二轮实验关键回答的人工核验；企业身份与正式 profile 的裁决（[ADR-0008](docs/adr/0008-enterprise-identity-and-formal-profile-path.md)）；目标环境的部署与恢复演练 |
 
 ## Runtime 经营看板：`tkos.dashboard/0.1`
 
@@ -181,6 +194,9 @@ WorkItem 固定承诺版本、指定 DRI、指定验收人及标准。Deliverabl
 | `acceptance/method_independent/` | M1A＋M1B 完整 API、权限、并发、恢复与历史兼容验收 |
 | `acceptance/composition_a2_independent/`、`acceptance/execution_a3_independent/` | A2 公司组合与 A3 执行交接独立验收 |
 | `acceptance/runtime/` | 既有 v0.2 HTTP、数据库、S3、故障和恢复验收 |
+| `acceptance/pilot_workbench_v05/` | 试点链 Method 0.5 × 治理工作台的 HTTP／数据库验收 |
+| `acceptance/runtime_baseline/` | 容量与恢复基线（阈值 T1–T8） |
+| `acceptance/delivery_candidate/` | 交付候选的干净环境安装验收与交付清单 |
 | `docs/contracts/` | Method 与 World 的冻结规则、登记与 Profile |
 | `tests/` | Method、旧协议、叙述与 Worker 回归测试 |
 
@@ -191,6 +207,26 @@ Python 包名 `tkos-memory-service`、模块名和 CLI 保持兼容。Clark 应�
 新增 `POST /v1/context-graph/narrative`，保持 Clark 默认 NarrativeClient 的请求、Bearer 鉴权与返回字段。启用 `TKOS_NARRATIVE_ENABLED=1` 后，读取当前权限下的精确版本及历史交付、Outcome、MF 状态，返回带来源的确定性叙述；不创建业务记录、ActionReceipt 或 Context 快照。
 
 历史语义记忆可在单独的 `read_legacy_context` 授权下参与检索，模型只压缩历史背景，三项治理结论独立保留。详见 [叙述接口契约](docs/narrative-convergence-contract.md)、[本轮验收记录](docs/narrative-convergence-acceptance.md)、[可复跑验收](acceptance/narrative/README.md) 和 [迁移工具](deploy/convergence/README.md)。代码接入、真实数据迁移演练及生产切换分别记录，不因兼容接口存在就宣称旧服务已替换。
+
+## 测试
+
+[CI](.github/workflows/ci.yml) 在每次推送 main 与每个 PR 上跑下面这组检查，本地命令相同：
+
+```bash
+uv sync --frozen --extra s3
+uv run pytest tests -q -m "not db"          # 无库测试，不需要 DATABASE_URL
+uvx ruff@0.16.7 check --select E9,F63,F7,F82 src tests acceptance scripts deploy experiments hatch_build.py
+python3 acceptance/runtime/infra.py up       # 本机隔离 PostgreSQL＋MinIO；CI 用 attach 接一次性服务容器
+python3 acceptance/runtime/infra.py run -- .venv/bin/python -m pytest tests -q -m "db and not owner"
+python3 acceptance/runtime/infra.py run --migration -- .venv/bin/python -m pytest tests -q -m owner
+(cd workbench/dashboard && npm ci && npm run typecheck && npm test) && python3 scripts/verify_dashboard_assets.py
+node --test tests/workbench-ui/*.test.mjs
+uv build
+```
+
+- 要数据库的测试都标了 `db`。没有 `DATABASE_URL` 时它们直接失败，不会退回本机默认库。
+- 应用角色那一轮，在 RLS 生效下跑全部数据库测试。迁移所有者那一轮，只跑标了 `owner` 的测试：它们要建临时库或角色，或经 bootstrap 播种。
+- 这些测试不代替各协议的独立验收矩阵。
 
 ## 本地独立验收
 

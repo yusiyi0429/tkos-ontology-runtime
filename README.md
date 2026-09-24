@@ -10,6 +10,8 @@ Runtime 提供 Clark 现有月度核对、周进展和会议工作面的 Runtime
 
 已合并的 `tkos.method/0.4` 把 CEO Agent 立项、Agreement 全体精确确认与多 PCO 候选整组激活纳入正式链，并新增 `tkos.workspace/0.2` 独立来源场景（无业务锚点的会议／文档／本人选定对话、来源版本与更正、精确分享、默认私有）。同期新增本机**治理工作台**：有权本人以个人会话办理白名单动作，Runtime 只负责权限、版本、正式效力与回执。该增量纳入 v0.4.0，迁移头到 0028；0.1/0.2/0.3 对象保留原协议绑定与原生效规则。
 
+已合并的 `tkos.world/0.1`（[PR #30](https://github.com/yusiyi0429/tkos-ontology-runtime/pull/30)）是独立的业务世界模型协议，按 CEO《企业业务世界建模框架》把公司表达为九类一级对象、内容块、少量关系，以及所有对象共有的状态快照与事件；同时提供按主干组装上下文的 Context Runtime 和给 Agent 的 MCP 入口。它与 `tkos.method` 并存，语义互不改写。迁移头到 0036。该协议尚未进入任何 Release，也没有部署。
+
 ## 当前交付状态
 
 当前功能 Release 为 **[v0.4.0](https://github.com/yusiyi0429/tkos-ontology-runtime/releases/tag/v0.4.0)**，在 v0.3.0 之上新增 Method 0.4 正式链、`tkos.workspace/0.2` 独立来源场景、本机治理工作台，以及本体地图内的实际记录入口。
@@ -32,6 +34,37 @@ Runtime 提供 Clark 现有月度核对、周进展和会议工作面的 Runtime
 验收使用隔离数据库、独立合成身份和受控 Agent 输入。详见 [0.3 验收报告](docs/runtime-anchors-v03-acceptance.md)、[机器检查清单](docs/acceptance/anchors-v03-summary.json) 和 [复跑入口](acceptance/anchors_v03/README.md)。企业身份、历史对象跨版本接续、生产迁移与部署另行安排。
 
 原 Method 0.1 的 [PR #3](https://github.com/yusiyi0429/tkos-ontology-runtime/pull/3) 验收作为历史基线保留：98/98 项、8/8 环境门槛及旧协议兼容，见 [原验收报告](docs/runtime-method-acceptance-report.md)。历史验收结果不计作本轮重新执行。
+
+## World 0.1：业务世界模型与 Context Runtime
+
+`tkos.world/0.1` 在 main 上，未发布、未部署；Clark 尚未接线。
+
+- **对象**：九类一级对象。
+  - 公司、战略、责任单元、长期目标、周期目标、Mission、Task、Activity、状态快照。
+  - 每类固定「定义类块 + 约束 + 状态快照 + 关系引用」。块值是文字、引用与文档链接三件；空块存空，读时渲染标准句。
+  - 引用一律钉到对象的某个版本、某个块。
+- **动作**：13 个，经 prepare 与 commit 提交。记外部事件按 scope 判权，其余由激活策略判权。
+  - 建对象、修订对象、建立跨链关系、指派。
+  - 写状态快照、记外部事件。
+  - 承诺与确认的门：承诺周期目标或 Mission；确认长期目标、周期目标或 Mission；标记核心战役，以及 CEO 确认核心战役立项。
+  - 生命周期由事件推导，每类一张状态机写在契约里。
+- **读投影**：scope 内任一生效指派都可读。
+  - 取对象：`GET /v1/world/objects/{id}`，可带 `?version=`。
+  - 取状态：`…/state?as_of=`。
+  - 取事件：`…/events?since=`。
+  - 取上下文：`POST …/context`。沿主干组装分层上下文包，同时给出检索计划、覆盖与预算裁剪记录，并落表留存。
+- **MCP**：`tkos-world-mcp` 是 stdio MCP server，作为 HTTP 面的薄壳，四读三写，先接 Codex CLI。它在可选依赖组 `mcp` 里，基础安装不带。配置与运行日志见 [Codex 接入说明](docs/world-mcp-codex.md)。
+
+契约见 [tkos-world-0.1.md](docs/contracts/tkos-world-0.1.md)，登记与 profile 钉定见 [world 登记](docs/contracts/world-registry-0.1.json) 与 [world profile](docs/contracts/world-profile-0.1.json)，支持登记见 [runtime-world-support-0.1.json](docs/runtime-world-support-0.1.json)。契约、登记或 profile 以后再改，都要追加重钉迁移。
+
+| 验证范围 | 结果 |
+| --- | --- |
+| 独立验收矩阵 `acceptance/world_v01/` | **248/248** 项、12/12 组、4/4 环境门槛，钉在提交 `0a6736a` 上运行，`world_api_accepted: true`。见 [验收报告](docs/world-v01-acceptance-report.md)、[冻结检查点](docs/world-v01-freeze-checkpoint.md) |
+| Python 回归 | **1358 passed、2 skipped**（应用角色），owner 角色 **15 passed** |
+| E&O 九月回放静态截面实验（不作为验收门） | 用 gpt-6-sol 跑：召回 0.95、可追溯 100%、确定性 1.00、八类反例 0 次；预算不达标，A 组约为全量塞入的 1.37 倍。另有两个问题：Agent 几乎只用取上下文，回答真正引用的标准引用只占 0.49。见 [实验报告](docs/world-v01-experiment-report.md) 与 [播种与标准答案审阅稿](docs/world-v01-eo-september-review.md) |
+| Clark 接线、真实部署 | **尚未进行** |
+
+实验报告里的调整建议（取上下文经 MCP 只给 Markdown、Why 沿 `goal_ref` 多取一跳、Markdown 按问题组织、事件行写出人名）尚未实施。播种、实验跑器与指标在 `experiments/world_v01/`。逐票提交见 PR #30。
 
 ## Runtime 经营看板：`tkos.dashboard/0.1`
 
@@ -141,11 +174,14 @@ WorkItem 固定承诺版本、指定 DRI、指定验收人及标准。Deliverabl
 | `acceptance/anchors_v03/`、`acceptance/lifecycle_v02/`、`acceptance/workspace_scenes/` | 0.3 Anchor、0.2 生命周期和 Clark 场景接口隔离验收 |
 | `acceptance/method_v04/`、`acceptance/workspace_v02/` | Method 0.4 正式链与 workspace 0.2 独立来源隔离验收 |
 | `acceptance/method_v05/` | Method 0.5 本体对齐链隔离验收 |
+| `acceptance/world_v01/` | World 0.1 独立验收矩阵与冻结检查点 |
+| `src/tkos_world_mcp/` | World 0.1 的 stdio MCP server（`tkos-world-mcp`） |
+| `experiments/world_v01/` | E&O 九月回放的播种、标准答案与静态截面实验 |
 | `acceptance/governance_workbench/` | 本机治理工作台会话、权限与真实 HTTP/数据库验收 |
 | `acceptance/method_independent/` | M1A＋M1B 完整 API、权限、并发、恢复与历史兼容验收 |
 | `acceptance/composition_a2_independent/`、`acceptance/execution_a3_independent/` | A2 公司组合与 A3 执行交接独立验收 |
 | `acceptance/runtime/` | 既有 v0.2 HTTP、数据库、S3、故障和恢复验收 |
-| `docs/contracts/` | Method 冻结规则与实验 Profile |
+| `docs/contracts/` | Method 与 World 的冻结规则、登记与 Profile |
 | `tests/` | Method、旧协议、叙述与 Worker 回归测试 |
 
 Python 包名 `tkos-memory-service`、模块名和 CLI 保持兼容。Clark 应用由伙伴维护，不在本仓库中；当前兼容读取接口不能代替新的 Clark 联调验收。长任务续租不属于当前实现。WorkItem/Deliverable 的 API 与 Clark 独立交付入口已完成本地联调。

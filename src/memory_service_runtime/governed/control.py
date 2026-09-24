@@ -17,6 +17,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import sys
 from typing import Any
 from uuid import uuid4
@@ -111,7 +112,9 @@ def install_profile(conn: psycopg.Connection, args: argparse.Namespace) -> dict[
         _fail("PROFILE_CONTENT_CONFLICT",
               "action_contract_ref.content_sha256 does not match the supplied contract file bytes.")
     from . import method_profile, method_v02_profile, method_v03_profile, method_v04_profile, method_v05_profile
-    pinned_sha = (method_v05_profile.CONTRACT_SHA256 if core.profile_core_schema_version == method_v05_profile.SCHEMA_VERSION
+    from . import world_v01_profile
+    pinned_sha = (world_v01_profile.CONTRACT_SHA256 if core.profile_core_schema_version == world_v01_profile.SCHEMA_VERSION
+                  else method_v05_profile.CONTRACT_SHA256 if core.profile_core_schema_version == method_v05_profile.SCHEMA_VERSION
                   else method_v04_profile.CONTRACT_SHA256 if core.profile_core_schema_version == method_v04_profile.SCHEMA_VERSION
                   else method_v03_profile.CONTRACT_SHA256 if core.profile_core_schema_version == method_v03_profile.SCHEMA_VERSION
                   else method_v02_profile.CONTRACT_SHA256 if core.profile_core_schema_version == method_v02_profile.SCHEMA_VERSION
@@ -121,6 +124,14 @@ def install_profile(conn: psycopg.Connection, args: argparse.Namespace) -> dict[
         _fail("PROFILE_CONTENT_CONFLICT",
               "The compiled tkos.contract-a/0.1 support is bound to the pinned main-contract "
               "SHA256; changed contract bytes require a new contract revision.")
+    if core.profile_core_schema_version == world_v01_profile.SCHEMA_VERSION:
+        if not args.world_registry_file:
+            _fail("PROFILE_CONTENT_CONFLICT",
+                  "World 0.1 profiles require --world-registry-file to verify world_registry_ref.")
+        registry_sha = hashlib.sha256(Path(args.world_registry_file).read_bytes()).hexdigest()
+        if registry_sha != core.world_registry_ref.content_sha256 or registry_sha != world_v01_profile.REGISTRY_SHA256:
+            _fail("PROFILE_CONTENT_CONFLICT",
+                  "world_registry_ref.content_sha256 does not match the supplied registry bytes or the compiled pin.")
     if core.profile_core_schema_version == method_v05_profile.SCHEMA_VERSION:
         if not args.ontology_registry_file:
             _fail("PROFILE_CONTENT_CONFLICT",
@@ -225,6 +236,52 @@ def install_policy(conn: psycopg.Connection, args: argparse.Namespace) -> dict[s
         "reason": args.reason,
     }, args.actor)
     return {"installed": True, "scope_id": scope_id, "domain_id": args.domain_id, "policy_seq": seq}
+
+
+def install_activation_policy(conn: psycopg.Connection, args: argparse.Namespace) -> dict[str, Any]:
+    """Install a domain's activation policy (action type -> allowed roles) as a new policy revision.
+
+    The whole content is replaced, as every policy revision is.  Advancing the scope's
+    auth_epoch before the insert locks the scope row, so the change serializes
+    with in-flight authorized transactions exactly like a revocation; any failure,
+    including one raised by the database after the epoch moved, rolls all of it back.
+    """
+    content = _load_strict_json(args.content_json)
+    action_roles = content.get("action_roles") if isinstance(content, dict) else None
+    if not isinstance(action_roles, dict) or not action_roles:
+        _fail("INVALID_REQUEST", "activation policy content needs a non-empty action_roles object.")
+    scope_id = args.scope_id
+    _begin(conn, scope_id)
+    _require_scope(conn, scope_id)
+    if conn.execute("SELECT 1 FROM gov_domains WHERE scope_id=%s AND domain_id=%s",
+                    (scope_id, args.domain_id)).fetchone() is None:
+        _fail("DOMAIN_NOT_FOUND", "The named domain does not exist in this scope.")
+    # The roles an assignment may carry are the database's own role constraint.
+    definition = conn.execute(
+        "SELECT pg_get_constraintdef(oid) AS d FROM pg_constraint"
+        " WHERE conrelid='gov_role_assignments'::regclass AND conname='ck_gov_assignment_role'").fetchone()["d"]
+    known = set(re.findall(r"'([A-Z_]+)'", definition))
+    for action, roles in action_roles.items():
+        if (not action or not isinstance(roles, list) or not roles
+                or any(not isinstance(role, str) or role not in known for role in roles)
+                or len(set(roles)) != len(roles)):
+            _fail("INVALID_REQUEST", f"action {action!r} needs a non-empty list of distinct known roles.")
+    epoch = conn.execute("UPDATE gov_scopes SET auth_epoch=auth_epoch+1 WHERE scope_id=%s RETURNING auth_epoch",
+                         (scope_id,)).fetchone()["auth_epoch"]
+    current = conn.execute(
+        "SELECT policy_id, policy_seq FROM gov_activation_policies WHERE scope_id=%s AND domain_id=%s"
+        " ORDER BY policy_seq DESC LIMIT 1", (scope_id, args.domain_id)).fetchone()
+    policy_id = current["policy_id"] if current else uuid4()
+    seq = current["policy_seq"] + 1 if current else 1
+    conn.execute(
+        "INSERT INTO gov_activation_policies (scope_id, domain_id, policy_id, policy_seq, content)"
+        " VALUES (%s,%s,%s,%s,%s)", (scope_id, args.domain_id, policy_id, seq, Jsonb(content)))
+    _audit(conn, scope_id, "install_activation_policy", {
+        "domain_id": args.domain_id, "policy_id": str(policy_id), "policy_seq": seq, "auth_epoch": epoch,
+        "content_sha256": canon.digest(content), "actions": sorted(action_roles), "reason": args.reason,
+    }, args.actor)
+    return {"installed": True, "scope_id": scope_id, "domain_id": args.domain_id, "policy_id": policy_id,
+            "policy_seq": seq, "auth_epoch": epoch}
 
 
 def set_registry(conn: psycopg.Connection, args: argparse.Namespace) -> dict[str, Any]:
@@ -492,11 +549,19 @@ def main() -> None:
                         "defaults to the bundled pinned contract artifact.")
     p.add_argument("--ontology-registry-file", default=None,
                    help="Path to the exact ontology registry JSON bytes named by ontology_registry_ref (Method 0.5).")
+    p.add_argument("--world-registry-file", default=None,
+                   help="Path to the exact world registry JSON bytes named by world_registry_ref (World 0.1).")
     p.add_argument("--reason", required=True)
 
     p = base("install-policy")
     p.add_argument("--scope-id", required=True)
     p.add_argument("--domain-id", default=None)
+    p.add_argument("--content-json", required=True)
+    p.add_argument("--reason", required=True)
+
+    p = base("install-activation-policy")
+    p.add_argument("--scope-id", required=True)
+    p.add_argument("--domain-id", required=True)
     p.add_argument("--content-json", required=True)
     p.add_argument("--reason", required=True)
 
@@ -532,6 +597,7 @@ def main() -> None:
     handler = {
         "install-profile": install_profile,
         "install-policy": install_policy,
+        "install-activation-policy": install_activation_policy,
         "set-registry": set_registry,
         "freeze-writes": freeze_writes,
         "register-sentinel": register_sentinel,

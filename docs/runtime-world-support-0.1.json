@@ -1,0 +1,12 @@
+{
+  "can_read": true,
+  "can_create": true,
+  "can_write": true,
+  "evidence_upload": false,
+  "actions": ["world_create_object", "world_revise_object", "world_relate", "world_refresh_state", "world_record_event", "world_assign",
+              "world_commit_period_goal", "world_commit_mission", "world_confirm_long_term_goal", "world_confirm_period_goal",
+              "world_confirm_mission", "world_confirm_mission_core_battle", "world_mark_core_battle"],
+  "object_types": ["Company", "Strategy", "ResponsibilityUnit", "LongTermGoal", "PeriodGoal", "Mission", "Task", "Activity", "StateSnapshot"],
+  "readonly_compat": ["tkos.world/0.1"],
+  "notes": "World 0.1 support registry content; lists only the actions and object types implemented so far."
+}

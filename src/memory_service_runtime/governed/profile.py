@@ -294,6 +294,9 @@ def check_profile_refs(core: ProfileCore) -> None:
 
 def validate_profile_core(data: object) -> ProfileCore:
     """严格解析并核验自声明 canonical_hash 与引用完整性；任何偏差都抛异常。"""
+    if isinstance(data, dict) and data.get("profile_core_schema_version") == "tkos.world-profile/0.1":
+        from .world_v01_profile import validate
+        return validate(data)
     if isinstance(data, dict) and data.get("profile_core_schema_version") == "tkos.method-profile/0.5":
         from .method_v05_profile import validate
         return validate(data)
@@ -331,6 +334,13 @@ def implied_protocol(schema_version: str, content: object) -> tuple[str, str] | 
     belongs to Contract-A only through its action_contract_ref.  Rows matching
     no implemented mapping return None and every consumer must reject them.
     """
+    if schema_version == "tkos.world-profile/0.1":
+        from . import world_v01_profile
+        try:
+            world_v01_profile.validate(content)
+        except (ValueError, TypeError):
+            return None
+        return (world_v01_profile.PROTOCOL_ID, world_v01_profile.CONTRACT_VERSION)
     if schema_version == "tkos.method-profile/0.5":
         from . import method_v05_profile
         try:

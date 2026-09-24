@@ -464,12 +464,15 @@ from .method_v02_models import ACTION_PARAMS as METHOD_V02_PARAMS, ACTION_TARGET
 from .method_v03_models import ACTION_PARAMS as METHOD_V03_PARAMS, ACTION_TARGETS as METHOD_V03_TARGETS
 from .method_v04_models import ACTION_PARAMS as METHOD_V04_PARAMS, ACTION_TARGETS as METHOD_V04_TARGETS
 from .method_v05_models import ACTION_PARAMS as METHOD_V05_PARAMS, ACTION_TARGETS as METHOD_V05_TARGETS
+from .world_v01_models import (ACTION_PARAMS as WORLD_V01_PARAMS, ACTION_TARGETS as WORLD_V01_TARGETS,
+                               CONTRACT_VERSION as WORLD_V01_CONTRACT)
 ACTION_PARAMS.update(METHOD_ACTION_PARAMS)
 ActionType = Union[ActionType, MethodActionType, Literal[tuple(METHOD_V02_PARAMS)], Literal[tuple(METHOD_V03_PARAMS)],
-                   Literal[tuple(METHOD_V04_PARAMS)], Literal[tuple(METHOD_V05_PARAMS)]]
+                   Literal[tuple(METHOD_V04_PARAMS)], Literal[tuple(METHOD_V05_PARAMS)],
+                   Literal[tuple(WORLD_V01_PARAMS)]]
 ActionParams = Union[ActionParams, MethodActionParams, Union[tuple(METHOD_V02_PARAMS.values())],
                      Union[tuple(METHOD_V03_PARAMS.values())], Union[tuple(METHOD_V04_PARAMS.values())],
-                     Union[tuple(METHOD_V05_PARAMS.values())]]
+                     Union[tuple(METHOD_V05_PARAMS.values())], Union[tuple(WORLD_V01_PARAMS.values())]]
 
 _PARAM_ADAPTERS: dict[str, "TypeAdapter[Any]"] = {}
 
@@ -511,7 +514,10 @@ class ActionRequest(StrictModel):
     def select_params(cls, data: Any) -> Any:
         if isinstance(data, dict) and isinstance(data.get("action_type"), str):
             action_type = data["action_type"]
-            if data.get("contract_version") == "tkos.method/0.5" and action_type in METHOD_V05_PARAMS:
+            if data.get("contract_version") == WORLD_V01_CONTRACT and action_type in WORLD_V01_PARAMS:
+                data = dict(data)
+                data["params"] = WORLD_V01_PARAMS[action_type].model_validate(data.get("params"))
+            elif data.get("contract_version") == "tkos.method/0.5" and action_type in METHOD_V05_PARAMS:
                 data = dict(data)
                 data["params"] = METHOD_V05_PARAMS[action_type].model_validate(data.get("params"))
             elif data.get("contract_version") == "tkos.method/0.4" and action_type in METHOD_V04_PARAMS:
@@ -533,7 +539,13 @@ class ActionRequest(StrictModel):
         # A2 actions: open_formation_round has target=None; the other five
         # A2 action names target an A2-bound object. None of them support
         # the legacy create_object / revoke_assignment null-target exception.
-        if self.contract_version == "tkos.method/0.5":
+        if self.contract_version == WORLD_V01_CONTRACT or self.action_type in WORLD_V01_TARGETS:
+            # world 动作只属于 tkos.world/0.1，world 契约下也只有 world 动作。
+            if self.contract_version != WORLD_V01_CONTRACT or self.action_type not in WORLD_V01_TARGETS:
+                raise ValueError("world actions require tkos.world/0.1 and nothing else")
+            if bool(WORLD_V01_TARGETS[self.action_type]) != (self.target is not None):
+                raise ValueError("world action target does not match its typed contract")
+        elif self.contract_version == "tkos.method/0.5":
             if self.action_type not in METHOD_V05_TARGETS:
                 raise ValueError("action is not supported by Method 0.5")
             if bool(METHOD_V05_TARGETS[self.action_type]) != (self.target is not None):

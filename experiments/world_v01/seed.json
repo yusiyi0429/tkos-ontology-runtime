@@ -1,0 +1,1064 @@
+{
+  "format": "tkos-world-seed/0.1",
+  "title": "E&O 九月回放",
+  "scopes": {
+    "main": {
+      "domains": {
+        "company": "公司",
+        "eo": "E&O",
+        "agents": "Agents",
+        "method": "Method"
+      }
+    },
+    "outside": {
+      "domains": {
+        "company": "另一家公司",
+        "eo": "另一家公司的 E&O"
+      }
+    }
+  },
+  "identities": {
+    "ceo": {
+      "scope": "main",
+      "type": "human",
+      "display_name": "CEO",
+      "roles": {
+        "company": [
+          "CEO"
+        ],
+        "eo": [
+          "CEO"
+        ],
+        "agents": [
+          "CEO"
+        ],
+        "method": [
+          "CEO"
+        ]
+      }
+    },
+    "eo_dri": {
+      "scope": "main",
+      "type": "human",
+      "display_name": "E&O DRI",
+      "roles": {
+        "eo": [
+          "DOMAIN_DRI"
+        ]
+      }
+    },
+    "owner": {
+      "scope": "main",
+      "type": "human",
+      "display_name": "E&O Mission Owner",
+      "roles": {
+        "eo": [
+          "OWNER",
+          "IC"
+        ]
+      }
+    },
+    "design_ic": {
+      "scope": "main",
+      "type": "human",
+      "display_name": "方案 Task 责任人",
+      "roles": {
+        "eo": [
+          "IC"
+        ]
+      }
+    },
+    "data_ic": {
+      "scope": "main",
+      "type": "human",
+      "display_name": "数据 Task 责任人",
+      "roles": {
+        "eo": [
+          "IC"
+        ]
+      }
+    },
+    "eo_agent": {
+      "scope": "main",
+      "type": "agent",
+      "display_name": "E&O Agent",
+      "roles": {
+        "eo": [
+          "AGENT"
+        ]
+      }
+    },
+    "method_dri": {
+      "scope": "main",
+      "type": "human",
+      "display_name": "Method DRI",
+      "roles": {
+        "method": [
+          "DOMAIN_DRI"
+        ],
+        "eo": [
+          "IC"
+        ]
+      }
+    },
+    "agents_dri": {
+      "scope": "main",
+      "type": "human",
+      "display_name": "Agents DRI",
+      "roles": {
+        "agents": [
+          "DOMAIN_DRI"
+        ],
+        "eo": [
+          "IC"
+        ]
+      }
+    },
+    "outside_ceo": {
+      "scope": "outside",
+      "type": "human",
+      "display_name": "另一家公司 CEO",
+      "roles": {
+        "company": [
+          "CEO"
+        ],
+        "eo": [
+          "CEO"
+        ]
+      }
+    },
+    "outside_dri": {
+      "scope": "outside",
+      "type": "human",
+      "display_name": "另一家公司 E&O DRI",
+      "roles": {
+        "eo": [
+          "DOMAIN_DRI"
+        ]
+      }
+    }
+  },
+  "steps": [
+    {
+      "key": "company",
+      "do": "create",
+      "by": "ceo",
+      "type": "Company",
+      "domain": "company",
+      "payload": {
+        "title": "词元云集（TokenKing）",
+        "blocks": {
+          "identity": {
+            "text": "长期愿景是建设系统性 Token 工厂；拟定的长期身份是「企业经营范式重构与 Token 运营中枢」（七月稿中待管理层确认的六个问题之一）。",
+            "artifacts": [
+              "https://feishu.example/docx/strategy-positioning-2026-07"
+            ]
+          },
+          "constraint": {
+            "text": "创业公司，不追求 Token 用量最大化：研发按需用模型。"
+          }
+        }
+      },
+      "note": "来源：七月总体战略定位稿 p1、p2、p10（确）；约束出自 9/23 会 02:03（确）。"
+    },
+    {
+      "key": "strategy",
+      "do": "create",
+      "by": "ceo",
+      "type": "Strategy",
+      "domain": "company",
+      "payload": {
+        "title": "词元云集总体战略（存根）",
+        "parent_ref": "@company",
+        "blocks": {
+          "choices": {
+            "text": "主线是 AI 企业智能决策网络；辅线 TokenOps 只做轻量验证。",
+            "artifacts": [
+              "https://feishu.example/docx/strategy-positioning-2026-07"
+            ]
+          },
+          "path": {
+            "text": "到 8 月 31 日做内部灯塔；8 月 31 日到春节前做内部验证加少量外部试点；下一轮注资后扩张。"
+          },
+          "assumptions": {
+            "text": "不能把 Token 消纳设为唯一牵引。"
+          },
+          "capabilities": {
+            "text": "Foundry / Ontology、引擎与 TokenHub 是两条业务的共同底座。"
+          },
+          "responsibility_structure": {
+            "text": "3 个战场：01 灯塔项目、02 Token Ops、03 002 客户。7 个能力域：02 Re-architecture、03 Method、04 Agents、05 E&O、07 TokenHub、08 Talent & Organization、09 Finance, Compliance & Operations。",
+            "artifacts": [
+              "https://feishu.example/docx/battlefield-map-v1"
+            ]
+          }
+        }
+      },
+      "note": "来源：七月战略稿 p5–p10、战场图 V1（确；assumptions 为推断）。战略约束材料里没有，留空。"
+    },
+    {
+      "key": "unit_eo",
+      "do": "create",
+      "by": "ceo",
+      "type": "ResponsibilityUnit",
+      "domain": "eo",
+      "payload": {
+        "title": "E&O",
+        "unit_kind": "domain",
+        "architecture_ref": "@strategy#responsibility_structure",
+        "blocks": {
+          "definition": {
+            "text": "Engine & Ontology，战场图编号 05 的能力域：主导语义模型（本体）与 Context Runtime，主要支撑灯塔项目的 Mission 01-2、01-3、01-4。",
+            "artifacts": [
+              "https://feishu.example/docx/battlefield-map-v1"
+            ]
+          },
+          "boundary": {
+            "text": "业务建模不归 E&O：由 CEO 与 Method 锁定业务语义，E&O 忠实翻译成语义模型、数据承载与运行时。Activity 要不要成为对象由 E&O 自己定。",
+            "artifacts": [
+              "https://feishu.example/docx/tkos-business-world-framework-v01"
+            ]
+          },
+          "constraint": {
+            "text": "tkos.method/0.4、0.5 冻结不改；当前量级用 PostgreSQL 加 pgvector，不引入图数据库。"
+          }
+        }
+      },
+      "note": "来源：战场图 V1、框架稿 p4/p14/p15、方案 v0.1（确）；pgvector 一句出自 9/22 17:37 会的讨论（推）。"
+    },
+    {
+      "key": "unit_agents",
+      "do": "create",
+      "by": "ceo",
+      "type": "ResponsibilityUnit",
+      "domain": "agents",
+      "payload": {
+        "title": "Agents",
+        "unit_kind": "domain",
+        "architecture_ref": "@strategy#responsibility_structure",
+        "blocks": {
+          "definition": {
+            "text": "战场图编号 04 的能力域：CEO Agent、DRI Agent 与经营协同 Agent。"
+          }
+        }
+      },
+      "note": "诱饵所需的别的责任单元。来源：战场图 V1（确）。"
+    },
+    {
+      "key": "assign_eo_dri",
+      "do": "assign",
+      "by": "ceo",
+      "target": "unit_eo",
+      "to": "eo_dri",
+      "note": "真实指派时间与会议材料里没有（请你确认）；这里记播种时刻。"
+    },
+    {
+      "key": "assign_agents_dri",
+      "do": "assign",
+      "by": "ceo",
+      "target": "unit_agents",
+      "to": "agents_dri"
+    },
+    {
+      "key": "company_goal",
+      "do": "create",
+      "by": "ceo",
+      "type": "LongTermGoal",
+      "domain": "company",
+      "payload": {
+        "title": "春节前核心业务第一次被真实证明",
+        "scope": "company",
+        "horizon": "2027 年春节前",
+        "parent_ref": "@company",
+        "blocks": {
+          "outcome": {
+            "text": "跑通「Re-architecture 进入客户 → TKOS 持续经营」这条主线，形成可复制的产品、交付与商业模式；同时跑通 TokenHub / TokenOps 的商业闭环。",
+            "artifacts": [
+              "https://feishu.example/docx/battlefield-map-v1"
+            ]
+          }
+        }
+      },
+      "note": "来源：战场图 V1 顶栏（确）；衡量材料里没有，留空。"
+    },
+    {
+      "key": "eo_goal",
+      "do": "create",
+      "by": "eo_dri",
+      "type": "LongTermGoal",
+      "domain": "eo",
+      "payload": {
+        "title": "E&O 六个月目标",
+        "scope": "unit",
+        "horizon": "六个月",
+        "parent_ref": "@unit_eo",
+        "goal_ref": "@company_goal",
+        "blocks": {
+          "outcome": {
+            "text": "建立支撑 TKOS 长期运行的 Enterprise Context 与 Agent Infrastructure，让真实经营数据能持续进入、调用、回写和复用。",
+            "artifacts": [
+              "https://feishu.example/docx/battlefield-map-v1"
+            ]
+          }
+        }
+      },
+      "note": "来源：战场图 V1 的 05 栏（确）；衡量材料里没有，留空；指向公司级目标为推断。"
+    },
+    {
+      "key": "confirm_company_goal",
+      "do": "gate",
+      "by": "ceo",
+      "action": "world_confirm_long_term_goal",
+      "target": "company_goal",
+      "params": {
+        "outcome": "accepted"
+      },
+      "note": "确认记录材料里没有：按战场图已发布视为 CEO 已确认（请你确认）。"
+    },
+    {
+      "key": "confirm_eo_goal",
+      "do": "gate",
+      "by": "ceo",
+      "action": "world_confirm_long_term_goal",
+      "target": "eo_goal",
+      "params": {
+        "outcome": "accepted"
+      }
+    },
+    {
+      "key": "eo_period",
+      "do": "create",
+      "by": "eo_dri",
+      "type": "PeriodGoal",
+      "domain": "eo",
+      "payload": {
+        "title": "E&O 9 月",
+        "period": "2026-09",
+        "goal_ref": "@eo_goal",
+        "blocks": {
+          "outcome": {
+            "text": "战略与经营核心本体逐步稳定；真实数据真正进入；Agent 开始共同消费 Context。",
+            "artifacts": [
+              "https://feishu.example/docx/battlefield-map-v1"
+            ]
+          }
+        }
+      },
+      "note": "来源：战场图 V1 的 05「9 月 PCO」（确）；验收标准材料里没有，留空（空块诱饵）。"
+    },
+    {
+      "key": "commit_eo_period",
+      "do": "gate",
+      "by": "eo_dri",
+      "action": "world_commit_period_goal",
+      "target": "eo_period",
+      "params": {}
+    },
+    {
+      "key": "confirm_eo_period",
+      "do": "gate",
+      "by": "ceo",
+      "action": "world_confirm_period_goal",
+      "target": "eo_period",
+      "params": {
+        "outcome": "accepted"
+      },
+      "note": "承诺与确认的时间材料里没有（请你确认）。"
+    },
+    {
+      "key": "mission",
+      "do": "create",
+      "by": "eo_dri",
+      "type": "Mission",
+      "domain": "eo",
+      "payload": {
+        "title": "9 月底 CU Agent、DRI Agent 与 M1、M1B 真实可用",
+        "goal_ref": "@eo_period",
+        "blocks": {
+          "definition": {
+            "text": "由 E&O 为 CEO Agent、DRI Agent 与 M1-A、M1-B 在 9 月底真实可用，提供本体、上下文与数据读写的底座。"
+          },
+          "play": {
+            "text": "本体建模分几步走：业务建模 → 数据建模与数据环境准备（两者可并行，责任人不同）→ 执行方案；9/23 之后分成语义模型、数据承载、Context Runtime、质量验证四块。打法只写路径、里程碑与质量标准。",
+            "artifacts": [
+              "https://feishu.example/docx/tkos-business-world-framework-v01"
+            ]
+          },
+          "constraint": {
+            "text": "写入先限得死一点：每次写入声明场景、触发事件、是否人工验收；先做静态截面实验，不以「大家都能用」为指标。"
+          }
+        }
+      },
+      "note": "标题按规格原文；9/23 会原话是「CU agent 和 DR agent」，CU 可能是 CEO 的误转（请你确认）。定义为推断；打法与约束出自 9/23 会 01:13–01:15、01:29、01:59–02:00（确）；验收标准材料里没有，留空（空块诱饵）。"
+    },
+    {
+      "key": "assign_owner",
+      "do": "assign",
+      "by": "eo_dri",
+      "target": "mission",
+      "to": "owner",
+      "note": "Mission Owner 是谁、何时指派，材料里没有（请你确认）。"
+    },
+    {
+      "key": "commit_mission",
+      "do": "gate",
+      "by": "owner",
+      "action": "world_commit_mission",
+      "target": "mission",
+      "params": {
+        "phase": "initiation"
+      }
+    },
+    {
+      "key": "confirm_mission",
+      "do": "gate",
+      "by": "eo_dri",
+      "action": "world_confirm_mission",
+      "target": "mission",
+      "params": {
+        "phase": "initiation",
+        "outcome": "accepted"
+      },
+      "note": "立项的承诺与确认材料里没有记录（请你确认）；是否核心战役材料里没有，不标。"
+    },
+    {
+      "key": "task_design",
+      "do": "create",
+      "by": "owner",
+      "type": "Task",
+      "domain": "eo",
+      "payload": {
+        "title": "TKOS 业务建模方案设计",
+        "parent_ref": "@mission",
+        "blocks": {
+          "definition": {
+            "text": "按 CEO 对齐稿的口径设计本体：4 个责任范围 × 7 类经营语义、约 20 个一级对象。",
+            "artifacts": [
+              "https://feishu.example/docx/tkos-ontology-v07-ceo-alignment"
+            ]
+          },
+          "acceptance": {
+            "text": "9/24 给 CEO 对一版计划方案，节前再对齐。"
+          }
+        }
+      },
+      "note": "第 1 版是 9/22 的口径（旧版本诱饵），见下面的修订。名称原话是「TKOS 业务实验建模方案设计」（确 9/23 会 01:06）。"
+    },
+    {
+      "key": "task_data",
+      "do": "create",
+      "by": "owner",
+      "type": "Task",
+      "domain": "eo",
+      "payload": {
+        "title": "数据环境准备",
+        "parent_ref": "@mission",
+        "blocks": {
+          "definition": {
+            "text": "与业务建模并行，准备并搭建数据环境：数据库随一二级分类重构，出计划；对应方案里的「数据承载」。",
+            "artifacts": [
+              "https://feishu.example/docx/tkos-world-plan-v01"
+            ]
+          },
+          "constraint": {
+            "text": "method 0.4、0.5 冻结，不迁移、不建桥；迁移只追加；播种经治理路径且可清。",
+            "artifacts": [
+              "https://repo.example/tkos-ontology-runtime/blob/d5b158e/docs/contracts/tkos-world-0.1.md"
+            ]
+          }
+        }
+      },
+      "note": "来源：9/23 会 01:14、01:56–01:58（确）；正式验收标准材料里没有，留空。"
+    },
+    {
+      "key": "assign_design",
+      "do": "assign",
+      "by": "owner",
+      "target": "task_design",
+      "to": "design_ic",
+      "note": "9/23 会上 CEO 举例的方案 Task 责任人是两个人；契约一个 Task 只有一名责任人，这里先写一名（请你确认）。"
+    },
+    {
+      "key": "assign_data",
+      "do": "assign",
+      "by": "owner",
+      "target": "task_data",
+      "to": "data_ic"
+    },
+    {
+      "do": "revise",
+      "by": "owner",
+      "target": "task_design",
+      "payload": {
+        "blocks": {
+          "definition": {
+            "text": "节前完成业务建模与数据架构重构的整体方案输出与对齐：9 类一级对象、内容块、所有对象共有的状态快照与事件机制；四块分别是语义模型、数据承载、Context Runtime、质量验证。",
+            "artifacts": [
+              "https://feishu.example/docx/tkos-business-world-framework-v01"
+            ]
+          },
+          "plan": {
+            "text": "下设三条 Activity：改建模材料、写内容块标准、Agent 分解测试。"
+          }
+        }
+      },
+      "note": "9/23 会后的新口径（确 9/23 会 AI 总结、方案长版 5.1）；让第 1 版成为旧版本。"
+    },
+    {
+      "key": "activity_rework",
+      "do": "create",
+      "by": "owner",
+      "type": "Activity",
+      "domain": "eo",
+      "payload": {
+        "title": "改建模材料",
+        "parent_ref": "@task_design",
+        "blocks": {
+          "instruction": {
+            "text": "会后把结论与上下文交给执行者改材料：给背景、目的与质量标准，先改一版，读后再调第二版，中间处于进行中。",
+            "refs": [
+              "@task_design#definition"
+            ]
+          }
+        }
+      },
+      "note": "来源：9/23 会 01:38（确）。执行者是 AI（确 01:17）；改的具体是哪份材料为推断（CEO 对齐稿 v0.8 草稿，实际产出为方案 v0.1）。约束留空（空块诱饵）。"
+    },
+    {
+      "key": "activity_blocks",
+      "do": "create",
+      "by": "owner",
+      "type": "Activity",
+      "domain": "eo",
+      "payload": {
+        "title": "写内容块标准",
+        "parent_ref": "@task_design",
+        "blocks": {
+          "instruction": {
+            "text": "确定每类一级对象有哪些块、每块讲什么、质量标准；先由 Method DRI 定，再与 CEO 对。形式（原则、规格或 good case）未定。"
+          }
+        }
+      },
+      "note": "来源：9/23 会 00:58、01:02（确）。跨单元：Method DRI 在 E&O 域持 IC 角色（请你确认）。"
+    },
+    {
+      "key": "activity_decompose",
+      "do": "create",
+      "by": "owner",
+      "type": "Activity",
+      "domain": "eo",
+      "payload": {
+        "title": "Agent 分解测试",
+        "parent_ref": "@task_design",
+        "blocks": {
+          "instruction": {
+            "text": "用 Markdown 输入输出做小范围验证，看内容块标准能否支撑 Agent 分解与流转；Agents DRI 负责分解能力与 Agent 选型，Method DRI 配合。"
+          }
+        }
+      },
+      "note": "来源：9/23 会 00:59–01:02（确）。跨单元：Agents DRI 在 E&O 域持 IC 角色（请你确认）。"
+    },
+    {
+      "key": "activity_isolated_db",
+      "do": "create",
+      "by": "owner",
+      "type": "Activity",
+      "domain": "eo",
+      "payload": {
+        "title": "隔离库迁移与播种",
+        "parent_ref": "@task_data",
+        "blocks": {
+          "instruction": {
+            "text": "在隔离库上按追加迁移升级到 world 0.1 并跑通独立验收；再把 E&O 九月回放经治理路径播种到可清的实验 scope。",
+            "artifacts": [
+              "https://repo.example/tkos-ontology-runtime/blob/d5b158e/docs/world-v01-acceptance-report.md"
+            ]
+          }
+        }
+      },
+      "note": "来源：仓库提交记录（确）。"
+    },
+    {
+      "key": "assign_rework",
+      "do": "assign",
+      "by": "owner",
+      "target": "activity_rework",
+      "to": "eo_agent",
+      "note": "9/23 会上定：改材料由 AI 执行（确 01:17）；方案长版 5.1 把它分给一名 E&O 成员（请你确认责任人是 Agent 还是人）。"
+    },
+    {
+      "key": "assign_blocks",
+      "do": "assign",
+      "by": "owner",
+      "target": "activity_blocks",
+      "to": "method_dri"
+    },
+    {
+      "key": "assign_decompose",
+      "do": "assign",
+      "by": "owner",
+      "target": "activity_decompose",
+      "to": "agents_dri"
+    },
+    {
+      "key": "assign_isolated_db",
+      "do": "assign",
+      "by": "owner",
+      "target": "activity_isolated_db",
+      "to": "eo_agent"
+    },
+    {
+      "key": "agents_goal",
+      "do": "create",
+      "by": "agents_dri",
+      "type": "LongTermGoal",
+      "domain": "agents",
+      "payload": {
+        "title": "Agents 六个月目标",
+        "scope": "unit",
+        "horizon": "六个月",
+        "parent_ref": "@unit_agents",
+        "blocks": {
+          "outcome": {
+            "text": "CEO Agent 与 DRI / Manager Agent 常态化使用。"
+          }
+        }
+      },
+      "note": "诱饵的主干。来源：战场图 V1（推）。"
+    },
+    {
+      "key": "agents_period",
+      "do": "create",
+      "by": "agents_dri",
+      "type": "PeriodGoal",
+      "domain": "agents",
+      "payload": {
+        "title": "Agents 9 月",
+        "period": "2026-09",
+        "goal_ref": "@agents_goal",
+        "blocks": {
+          "outcome": {
+            "text": "CEO 与 DRI 进入真实协同实践。"
+          }
+        }
+      }
+    },
+    {
+      "key": "agents_mission",
+      "do": "create",
+      "by": "agents_dri",
+      "type": "Mission",
+      "domain": "agents",
+      "payload": {
+        "title": "M1-B 经营协同 MVP 与真实实践",
+        "goal_ref": "@agents_period",
+        "blocks": {
+          "definition": {
+            "text": "M1-B 经营协同的最小可用版本上线，并在真实经营里用起来。"
+          },
+          "constraint": {
+            "text": "允许人工兜底，不要求完整自动化。"
+          }
+        }
+      },
+      "note": "别的责任单元的约束与无关 Mission 的状态的诱饵。来源：Agents DRI 的 9 月 Mission 卡（确）。"
+    },
+    {
+      "do": "relate",
+      "by": "agents_dri",
+      "target": "agents_mission",
+      "field": "depends_on",
+      "refs": [
+        "@mission"
+      ],
+      "note": "来源：Agents DRI 的 9 月 Mission 卡依赖栏写「E&O/本体：真实信息、变化更新与读写能力」（确）。有了这条，从 E&O 的 Mission 取对象时 referenced_by 会列出它，诱饵才引得到。"
+    },
+    {
+      "key": "snap_design_0922",
+      "do": "refresh",
+      "by": "design_ic",
+      "payload": {
+        "title": "方案 Task 9/22 状态",
+        "subject_ref": "@task_design",
+        "as_of": "2026-09-22T18:05:00+08:00",
+        "blocks": {
+          "progress": {
+            "text": "v0.7 已过 CEO 首评，未被接受；要按消费与存储方式重新设计。"
+          },
+          "issue": {
+            "text": "团队与 CEO 对「业务建模」没有共识，CEO 次日回顾称是黄灯或红灯。"
+          },
+          "artifacts": {
+            "text": "CEO 对齐稿 v0.7",
+            "artifacts": [
+              "https://feishu.example/docx/tkos-ontology-v07-ceo-alignment"
+            ]
+          }
+        }
+      },
+      "note": "来源：9/22 17:37 会、9/23 会 00:14（确）。问题在 9/23 会上已处置（已处置 issue 诱饵）；链接后来被替换（过期 artifact 诱饵）。"
+    },
+    {
+      "key": "snap_design_0923",
+      "do": "refresh",
+      "by": "design_ic",
+      "payload": {
+        "title": "方案 Task 9/23 状态",
+        "subject_ref": "@task_design",
+        "as_of": "2026-09-23T12:30:00+08:00",
+        "blocks": {
+          "progress": {
+            "text": "9 类一级对象、内容块与状态快照、事件框架在 9/23 会上达成共识，分工已定。"
+          },
+          "issue": {
+            "text": "内容块清单与质量标准要等方法侧；核心战役由谁标记仍待定。"
+          },
+          "artifacts": {
+            "text": "CEO 对齐稿 v0.8 草稿（此后停止迭代）",
+            "artifacts": [
+              "https://feishu.example/docx/tkos-ontology-v08-draft"
+            ]
+          }
+        }
+      },
+      "note": "来源：9/23 会、方案长版七（确；v0.8 停止迭代为推断）。v0.8 链接后来被方案 v0.1 取代（过期 artifact 诱饵）；框架稿记在 9/23 会的事件里。"
+    },
+    {
+      "key": "snap_rework_0923",
+      "do": "refresh",
+      "by": "eo_agent",
+      "payload": {
+        "title": "改建模材料 9/23 状态",
+        "subject_ref": "@activity_rework",
+        "as_of": "2026-09-23T21:00:00+08:00",
+        "blocks": {
+          "progress": {
+            "text": "按 9/23 会的结论改出方案第一版，精简版删去全部时间安排。"
+          },
+          "artifacts": {
+            "text": "方案 v0.1 初稿",
+            "artifacts": [
+              "https://feishu.example/docx/tkos-world-plan-v01"
+            ]
+          }
+        }
+      },
+      "declaration": {
+        "scene": "@task_design",
+        "trigger": "9/23 会后改建模材料",
+        "human_acceptance": {
+          "required": true,
+          "acceptor": "$design_ic"
+        }
+      },
+      "note": "来源：9/23 晚方案成稿与精简（确）；时点 21:00 为推断（请你确认）。"
+    },
+    {
+      "key": "snap_data_0924",
+      "do": "refresh",
+      "by": "data_ic",
+      "payload": {
+        "title": "数据 Task 9/24 状态",
+        "subject_ref": "@task_data",
+        "as_of": "2026-09-24T12:00:00+08:00",
+        "blocks": {
+          "progress": {
+            "text": "契约、登记与迁移 0030 起在隔离库跑通，按票推进实现。"
+          }
+        }
+      },
+      "note": "来源：仓库提交记录（确；时点为推断）。"
+    },
+    {
+      "key": "snap_agents",
+      "do": "refresh",
+      "by": "agents_dri",
+      "payload": {
+        "title": "M1-B 经营协同 MVP 9/22 状态",
+        "subject_ref": "@agents_mission",
+        "as_of": "2026-09-22T12:00:00+08:00",
+        "blocks": {
+          "progress": {
+            "text": "M1B V1 版本上线进行中（计划 9/22 到 9/28）。"
+          },
+          "issue": {
+            "text": "状态列多数未回填。"
+          }
+        }
+      },
+      "note": "无关 Mission 的状态诱饵。来源：九月经营 Agent Pod 任务表（确；表的更新日期未知，时点为推断）。"
+    },
+    {
+      "key": "ev_0922",
+      "do": "record",
+      "by": "design_ic",
+      "params": {
+        "category": "review",
+        "subject_refs": [
+          "@mission",
+          "@task_design"
+        ],
+        "occurred_at": "2026-09-22T17:37:00+08:00",
+        "content": {
+          "text": "CEO 首次看本体结构 v0.7：「跨层」不是业务责任范围，七列的来历没讲清，要求按消费与存储方式重新设计；决定拆回公司、责任域、Mission 三层，业务建模只关心表头，现有框架暂缓，先对齐业务建模的标准。本次没有指派。",
+          "artifacts": [
+            "https://feishu.example/docx/tkos-ontology-v07-ceo-alignment"
+          ]
+        }
+      },
+      "note": "来源：9/22 17:37 妙记 00:05–00:24 与 AI 总结（确）。"
+    },
+    {
+      "key": "ev_0923",
+      "do": "record",
+      "by": "design_ic",
+      "params": {
+        "category": "meeting",
+        "subject_refs": [
+          "@mission",
+          "@task_design",
+          "@task_data"
+        ],
+        "occurred_at": "2026-09-23T10:23:00+08:00",
+        "content": {
+          "text": "业务对象架构与落地规划：一级对象 9 类；constraint 作为块、不继承；issue 放在状态块里；事件是唯一触发源；空块用标准句；目标改为长期目标与周期目标；Activity 成为对象。分工：Method DRI 定内容块标准并与 CEO 对；Method DRI 与 Agents DRI 做 Agent 分解测试；方案 Task 责任人 9/24 交计划方案；改材料由 AI 执行；数据库重构与 MCP 由 E&O 推进。会尾确认达成共识。",
+          "artifacts": [
+            "https://feishu.example/docx/tkos-business-world-framework-v01"
+          ]
+        }
+      },
+      "note": "来源：9/23 妙记各时间戳与 AI 总结（确）。真实的指派发生在这场会上。"
+    },
+    {
+      "key": "ev_plan_submitted",
+      "do": "record",
+      "by": "design_ic",
+      "params": {
+        "category": "delivery",
+        "subject_refs": [
+          "@task_design",
+          "@activity_rework"
+        ],
+        "occurred_at": "2026-09-24T10:00:00+08:00",
+        "content": {
+          "text": "方案 v0.1 提交给 CEO 对齐。",
+          "artifacts": [
+            "https://feishu.example/docx/tkos-world-plan-v01"
+          ]
+        }
+      },
+      "note": "材料里没有提交的时间、方式与 CEO 回应，时刻是占位（请你确认）。"
+    },
+    {
+      "key": "snap_data_0924b",
+      "do": "refresh",
+      "by": "data_ic",
+      "payload": {
+        "title": "数据 Task 9/24 晚状态",
+        "subject_ref": "@task_data",
+        "as_of": "2026-09-24T17:40:00+08:00",
+        "blocks": {
+          "progress": {
+            "text": "tkos.world/0.1 冻结验收通过：12/12 组、248/248 项、4/4 个环境门槛。"
+          },
+          "artifacts": {
+            "text": "world 0.1 验收报告",
+            "artifacts": [
+              "https://repo.example/tkos-ontology-runtime/blob/d5b158e/docs/world-v01-acceptance-report.md"
+            ]
+          }
+        }
+      },
+      "note": "来源：仓库提交 d5b158e（确）。"
+    },
+    {
+      "key": "ev_acceptance",
+      "do": "record",
+      "by": "data_ic",
+      "params": {
+        "category": "delivery",
+        "subject_refs": [
+          "@task_data",
+          "@mission"
+        ],
+        "occurred_at": "2026-09-24T17:35:00+08:00",
+        "content": {
+          "text": "world 0.1 在隔离库冻结验收通过，world_api_accepted 为 true。",
+          "artifacts": [
+            "https://repo.example/tkos-ontology-runtime/blob/d5b158e/docs/world-v01-acceptance-report.md"
+          ]
+        }
+      },
+      "note": "来源：仓库提交 0a6736a、d5b158e（确）。"
+    },
+    {
+      "key": "ev_cleanup",
+      "do": "record",
+      "by": "eo_dri",
+      "params": {
+        "category": "other",
+        "subject_refs": [
+          "@unit_eo"
+        ],
+        "occurred_at": "2026-09-24T10:04:00+08:00",
+        "content": {
+          "text": "清理旧 Memory 核心的零引用模块（PR #16）。"
+        }
+      },
+      "note": "无关事件诱饵：E&O 自己的事，但与本 Mission 无关。来源：仓库提交记录（确）。"
+    },
+    {
+      "key": "ev_agents_practice",
+      "do": "record",
+      "by": "agents_dri",
+      "params": {
+        "category": "other",
+        "subject_refs": [
+          "@agents_mission"
+        ],
+        "occurred_at": "2026-09-23T18:00:00+08:00",
+        "content": {
+          "text": "CEO 与 DRI 进入 M1-B 经营协同的真实协同实践。"
+        }
+      },
+      "note": "无关事件诱饵。来源：Agents DRI 的 9 月 Mission 卡里程碑（推：是否按时发生未知）。"
+    },
+    {
+      "key": "snap_mission_0924",
+      "do": "refresh",
+      "by": "owner",
+      "payload": {
+        "title": "Mission 9/24 状态",
+        "subject_ref": "@mission",
+        "as_of": "2026-09-24T18:00:00+08:00",
+        "blocks": {
+          "progress": {
+            "text": "方案 v0.1 已成稿并提交对齐；契约定稿，world 0.1 实现与冻结验收完成。"
+          },
+          "issue": {
+            "text": "方案还没有 CEO 反馈记录；内容块正式清单未到。"
+          },
+          "artifacts": {
+            "text": "方案 v0.1；world 0.1 契约；验收报告",
+            "artifacts": [
+              "https://feishu.example/docx/tkos-world-plan-v01",
+              "https://repo.example/tkos-ontology-runtime/blob/d5b158e/docs/contracts/tkos-world-0.1.md",
+              "https://repo.example/tkos-ontology-runtime/blob/d5b158e/docs/world-v01-acceptance-report.md"
+            ]
+          }
+        }
+      },
+      "note": "「方案对齐中」。来源：仓库提交记录、契约第 13 节（确）；「没有 CEO 反馈」依据文档无评论（推）。"
+    },
+    {
+      "key": "snap_design_0924",
+      "do": "refresh",
+      "by": "design_ic",
+      "payload": {
+        "title": "方案 Task 9/24 状态：方案对齐中",
+        "subject_ref": "@task_design",
+        "as_of": "2026-09-24T18:00:00+08:00",
+        "blocks": {
+          "progress": {
+            "text": "方案 v0.1 已成稿并提交，等 CEO 对齐。"
+          },
+          "issue": {
+            "text": "方案还没有 CEO 反馈记录；内容块正式清单要等方法侧。"
+          },
+          "artifacts": {
+            "text": "方案 v0.1",
+            "artifacts": [
+              "https://feishu.example/docx/tkos-world-plan-v01"
+            ]
+          }
+        }
+      },
+      "note": "来源同上。"
+    },
+    {
+      "key": "outside_company",
+      "do": "create",
+      "by": "outside_ceo",
+      "type": "Company",
+      "domain": "company",
+      "payload": {
+        "title": "另一家公司（合成）",
+        "blocks": {
+          "identity": {
+            "text": "scope 外的合成公司，只作诱饵。"
+          }
+        }
+      }
+    },
+    {
+      "key": "outside_strategy",
+      "do": "create",
+      "by": "outside_ceo",
+      "type": "Strategy",
+      "domain": "company",
+      "payload": {
+        "title": "另一家公司的战略（合成）",
+        "parent_ref": "@outside_company",
+        "blocks": {
+          "responsibility_structure": {
+            "text": "只有一个能力域 E&O。"
+          }
+        }
+      }
+    },
+    {
+      "key": "outside_unit",
+      "do": "create",
+      "by": "outside_ceo",
+      "type": "ResponsibilityUnit",
+      "domain": "eo",
+      "payload": {
+        "title": "E&O",
+        "unit_kind": "domain",
+        "architecture_ref": "@outside_strategy#responsibility_structure"
+      }
+    },
+    {
+      "key": "outside_goal",
+      "do": "create",
+      "by": "outside_dri",
+      "type": "LongTermGoal",
+      "domain": "eo",
+      "payload": {
+        "title": "E&O 六个月目标（合成）",
+        "scope": "unit",
+        "horizon": "六个月",
+        "parent_ref": "@outside_unit"
+      }
+    },
+    {
+      "key": "outside_period",
+      "do": "create",
+      "by": "outside_dri",
+      "type": "PeriodGoal",
+      "domain": "eo",
+      "payload": {
+        "title": "E&O 9 月（合成）",
+        "period": "2026-09",
+        "goal_ref": "@outside_goal"
+      }
+    },
+    {
+      "key": "outside_mission",
+      "do": "create",
+      "by": "outside_dri",
+      "type": "Mission",
+      "domain": "eo",
+      "payload": {
+        "title": "9 月底 CU Agent、DRI Agent 与 M1、M1B 真实可用",
+        "goal_ref": "@outside_period",
+        "blocks": {
+          "acceptance": {
+            "text": "（另一家公司）CEO Agent 每天被使用。"
+          }
+        }
+      },
+      "note": "scope 外的对象诱饵：与本 scope 的 Mission 同名，但属于另一家公司。"
+    }
+  ]
+}

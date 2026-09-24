@@ -1,0 +1,29 @@
+{
+  "objects": {
+    "act": {
+      "object_id": "aaaaaaaa-0000-4000-8000-000000000001",
+      "version": 2
+    },
+    "task": {
+      "object_id": "bbbbbbbb-0000-4000-8000-000000000002",
+      "version": 3
+    },
+    "mission": {
+      "object_id": "cccccccc-0000-4000-8000-000000000003",
+      "version": 3
+    },
+    "snap_act": {
+      "object_id": "dddddddd-0000-4000-8000-000000000004",
+      "version": 1
+    },
+    "agents_mission": {
+      "object_id": "eeeeeeee-0000-4000-8000-000000000005",
+      "version": 1
+    }
+  },
+  "events": {
+    "ev_meet": "11111111-0000-4000-8000-000000000011",
+    "ev_assign": "22222222-0000-4000-8000-000000000022",
+    "ev_cleanup": "33333333-0000-4000-8000-000000000033"
+  }
+}

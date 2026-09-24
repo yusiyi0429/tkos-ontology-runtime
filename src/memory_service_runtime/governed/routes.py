@@ -19,6 +19,7 @@ from memory_service_runtime.governed import db, evidence, protocol, readers, ser
 from memory_service_runtime.governed.errors import GovernedError
 from memory_service_runtime.governed.models import ActionRequest
 from .a2_models import ObjectRef
+from .world_v01_models import WorldContextRequest
 
 
 router = APIRouter(prefix="/v1", tags=["governed-runtime"])
@@ -88,6 +89,48 @@ def prepare(body: ActionRequest, token: Annotated[str, Depends(bearer)]):
 def object_get(object_id: uuid.UUID, token: Annotated[str, Depends(bearer)]):
     with db.transaction(token) as (conn, ctx):
         return readers.object_state(conn, ctx, str(object_id))
+
+
+@router.get("/world/objects/{object_id}")
+def world_object_get(object_id: uuid.UUID, token: Annotated[str, Depends(bearer)],
+                     version: Annotated[int | None, Query(ge=1)] = None):
+    from . import world_v01_readers
+    with db.transaction(token) as (conn, ctx):
+        return world_v01_readers.read_object(conn, ctx, str(object_id), version)
+
+
+@router.get("/world/objects/{object_id}/state")
+def world_object_state(object_id: uuid.UUID, token: Annotated[str, Depends(bearer)],
+                       as_of: Annotated[AwareDatetime | None, Query()] = None):
+    from . import world_v01_readers
+    with db.transaction(token) as (conn, ctx):
+        return world_v01_readers.state(conn, ctx, str(object_id), as_of)
+
+
+@router.get("/world/objects/{object_id}/events")
+def world_object_events(object_id: uuid.UUID, token: Annotated[str, Depends(bearer)],
+                        since: Annotated[AwareDatetime | None, Query()] = None):
+    from . import world_v01_readers
+    with db.transaction(token) as (conn, ctx):
+        return world_v01_readers.events(conn, ctx, str(object_id), since)
+
+
+@router.post("/world/objects/{object_id}/context")
+def world_object_context(object_id: uuid.UUID, body: WorldContextRequest, response: Response,
+                         token: Annotated[str, Depends(bearer)]):
+    """取上下文（票 #25）：每次调用在同一事务里落一行上下文包。"""
+    from . import world_v01_context
+    with db.transaction(token) as (conn, ctx):
+        result = world_v01_context.build(conn, ctx, str(object_id), body)
+    response.headers["Cache-Control"] = "no-store"
+    return result
+
+
+@router.get("/world/objects/{object_id}/children")
+def world_object_children(object_id: uuid.UUID, token: Annotated[str, Depends(bearer)]):
+    from . import world_v01_readers
+    with db.transaction(token) as (conn, ctx):
+        return world_v01_readers.children(conn, ctx, str(object_id))
 
 
 @router.get("/objects/{object_id}/revisions/{revision_id}")
@@ -354,7 +397,7 @@ def install_errors(app):
     # Keep compatibility routes' existing validation format unchanged.
     @app.exception_handler(RequestValidationError)
     async def validation_error(request: Request, exc: RequestValidationError):
-        if request.url.path.startswith(("/v1/actions", "/v1/objects", "/v1/action-receipts", "/v1/evidence-assets", "/v1/context-packs", "/v1/object-types", "/v1/domains", "/v1/method", "/v1/context-graph/narrative", "/v1/identity", "/v1/workspaces", "/v1/workspace-scenes", "/v1/workspace-sources", "/v1/dashboard", "/v1/governance", "/dashboard/api")):
+        if request.url.path.startswith(("/v1/actions", "/v1/objects", "/v1/action-receipts", "/v1/evidence-assets", "/v1/context-packs", "/v1/object-types", "/v1/domains", "/v1/method", "/v1/world", "/v1/context-graph/narrative", "/v1/identity", "/v1/workspaces", "/v1/workspace-scenes", "/v1/workspace-sources", "/v1/dashboard", "/v1/governance", "/dashboard/api")):
             return JSONResponse(status_code=422, content={"error": {"code": "INVALID_REQUEST", "message": "Request does not match the governed API schema"}}, headers={"Cache-Control": "no-store"})
         from fastapi.exception_handlers import request_validation_exception_handler
         return await request_validation_exception_handler(request, exc)

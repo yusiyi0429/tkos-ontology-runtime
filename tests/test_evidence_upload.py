@@ -190,8 +190,9 @@ def test_an_upload_replayed_with_its_idempotency_key_returns_the_original_withou
 
 @pytest.mark.db
 @pytest.mark.owner
-def test_the_orphan_report_lists_stored_versions_that_no_revision_references(api, seeded, store):
+def test_the_orphan_report_lists_stored_versions_that_no_revision_references(api, seeded, store, monkeypatch):
     from memory_service_runtime.governed import control
+    monkeypatch.setenv("MIGRATION_DATABASE_URL", os.environ["DATABASE_URL"])
     uploaded = _upload(api, seeded, b"referenced bytes").json()
     orphan = evidence.store_bytes(seeded["scope_id"], seeded["domain_id"], "second stage rejected",
                                   b"orphaned bytes", "text/plain")

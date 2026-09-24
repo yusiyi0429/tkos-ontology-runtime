@@ -10,6 +10,7 @@ import argparse
 from contextlib import closing
 from datetime import datetime, timezone
 import hashlib
+import hmac
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 import os
@@ -188,6 +189,11 @@ class ReceiverHandler(BaseHTTPRequestHandler):
         if urlsplit(self.path).path != "/effects":
             self.send_json(404, {"error": {"code": "NOT_FOUND"}})
             return
+        expected = self.server.token
+        if expected is not None and not hmac.compare_digest(
+                self.headers.get("Authorization", ""), f"Bearer {expected}"):
+            self.send_json(401, {"error": {"code": "UNAUTHENTICATED"}})
+            return
         try:
             length = int(self.headers.get("Content-Length", "-1"))
         except ValueError:
@@ -217,10 +223,12 @@ def main() -> None:
     parser.add_argument("--ledger", type=Path, required=True)
     parser.add_argument("--events", type=Path)
     parser.add_argument("--ready-file", type=Path)
+    parser.add_argument("--token-file", type=Path, help="要求 Authorization: Bearer <文件内容>，与派发端的 GOVERNED_EFFECT_TOKEN 一致")
     args = parser.parse_args()
     server = ThreadingHTTPServer((args.host, args.port), ReceiverHandler)
     server.daemon_threads = True
     server.ledger = Ledger(args.ledger, args.events)
+    server.token = args.token_file.read_text(encoding="utf-8").strip() if args.token_file else None
     ready = {"kind": "receiver", "pid": os.getpid(), "host": args.host,
              "port": server.server_port, "url": f"http://{args.host}:{server.server_port}",
              "ledger": str(args.ledger.resolve())}

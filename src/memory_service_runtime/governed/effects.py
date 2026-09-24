@@ -14,13 +14,25 @@ from memory_service_runtime.governed.errors import GovernedError
 from memory_service_runtime.handlers import TaskExecutionError
 
 
+LOOPBACK = {"localhost", "127.0.0.1", "::1"}
+
+
+def dispatch_headers(effect_key: str) -> dict[str, str]:
+    """接收端按 Idempotency-Key 持久去重；配置了 GOVERNED_EFFECT_TOKEN(_FILE) 时带 Bearer 凭证。"""
+    token = env_value("GOVERNED_EFFECT_TOKEN")
+    return {"Idempotency-Key": effect_key, **({"Authorization": f"Bearer {token}"} if token else {})}
+
+
 def governance_dispatch(task) -> dict:
     endpoint = os.environ.get("GOVERNED_EFFECT_URL", "").strip()
     parsed = urlsplit(endpoint)
     if (not parsed.hostname or parsed.username or parsed.password or parsed.fragment
             or parsed.scheme not in {"http", "https"}
-            or (parsed.scheme == "http" and parsed.hostname not in {"localhost", "127.0.0.1", "::1"})):
+            or (parsed.scheme == "http" and parsed.hostname not in LOOPBACK)):
         raise TaskExecutionError("governance_effect_destination_invalid", retryable=False)
+    # 本机以外的接收端必须认证：没配凭证就不派发，按配置错误失败，不重试。
+    if parsed.hostname not in LOOPBACK and not env_value("GOVERNED_EFFECT_TOKEN"):
+        raise TaskExecutionError("governance_effect_credential_missing", retryable=False)
     payload = task.payload
     try:
         scope_id, receipt_id = str(payload["scope_id"]), str(payload["receipt_id"])
@@ -80,9 +92,11 @@ def governance_dispatch(task) -> dict:
             body = {"effect_key": effect_key, "scope_id": scope_id, "receipt_id": receipt_id,
                     "action_type": receipt["action_type"], "object_versions": receipt["object_versions"]}
             with httpx.Client(trust_env=False, timeout=httpx.Timeout(5, connect=3), follow_redirects=False) as client:
-                response = client.post(endpoint, json=body, headers={"Idempotency-Key": effect_key})
+                response = client.post(endpoint, json=body, headers=dispatch_headers(effect_key))
             if response.status_code == 409:
                 raise TaskExecutionError("governance_effect_idempotency_conflict", retryable=False)
+            if response.status_code in (401, 403):
+                raise TaskExecutionError("governance_effect_unauthorized", retryable=False)
             if response.status_code < 200 or response.status_code >= 300:
                 raise TaskExecutionError("governance_effect_unavailable", retryable=response.status_code >= 500)
             if len(response.content) > 65536:

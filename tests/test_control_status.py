@@ -14,7 +14,9 @@ from memory_service_runtime.governed import bootstrap, control
 pytestmark = [pytest.mark.db, pytest.mark.owner]
 
 
-def test_control_status_reports_how_much_the_context_pack_trail_holds():
+def test_control_status_reports_how_much_the_context_pack_trail_holds(monkeypatch):
+    # 迁移所有者这一轮里 DATABASE_URL 就是 owner；控制面按自己的变量名取同一个地址。
+    monkeypatch.setenv("MIGRATION_DATABASE_URL", os.environ["DATABASE_URL"])
     label = uuid4().hex[:12]
     with psycopg.connect(os.environ["DATABASE_URL"], row_factory=dict_row) as conn:
         seeded = bootstrap.seed_scope(conn, f"runtime-acceptance-status-{label}",

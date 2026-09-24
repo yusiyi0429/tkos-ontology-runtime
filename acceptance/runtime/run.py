@@ -38,11 +38,17 @@ class Scenario:
         self.receipts = []
         self.evidence_bytes = b"Synthetic verification: delivery measured 72, independently checked against source.\n"
         self.ledger = self.h.private / "receiver.sqlite"
+        # 接收端要求 Bearer 凭证，派发端经 GOVERNED_EFFECT_TOKEN 带上；凭证只在私有目录。
+        token_file = self.h.private / "effect-receiver-token"
+        token_file.write_text(uuid.uuid4().hex + uuid.uuid4().hex, encoding="utf-8")
+        token_file.chmod(0o600)
         self.receiver = self.h.spawn("receiver", "receiver.py", "--port", 0, "--ledger", self.ledger,
-                                     "--ready-file", self.h.private / "receiver-ready.json")
+                                     "--ready-file", self.h.private / "receiver-ready.json",
+                                     "--token-file", token_file)
         receiver = wait_until(lambda: self.ready("receiver-ready.json"), message="receiver start")
         self.receiver_url = receiver["url"]
         self.h.env["GOVERNED_EFFECT_URL"] = self.receiver_url + "/effects"
+        self.h.env["GOVERNED_EFFECT_TOKEN_FILE"] = str(token_file)
         self.start_api()
         self.clients = {
             name: Client(self.api_url, actor["token"], name, self.h.log)

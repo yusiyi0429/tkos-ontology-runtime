@@ -227,6 +227,7 @@ def restore_backup() -> dict:
     privileges = infra.child_python(infra.GRANTS, {
         "migration_url": restored_env["MIGRATION_DATABASE_URL"], "app_url": restored_env["APP_DATABASE_URL"],
         "app": infra.APP, "mutable_gov_tables": sorted(infra.GOV_MUTABLE_TABLES),
+        "control_plane_tables": sorted(infra.GOV_CONTROL_PLANE_TABLES),
     })
     restored_counts = infra.child_python(DB_COUNTS, {"database_url": restore_admin})
     restored_s3 = infra.child_python(S3_MANIFEST, {**s3_params, "endpoint": restored_endpoint})

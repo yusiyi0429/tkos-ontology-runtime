@@ -68,8 +68,11 @@ def migration_upgrade(book, h, source, database_evidence, upgrade_evidence):
     check('repeating_either_migration_applies_nothing', created['repeat_applied'] == [] and upgraded['repeat_applied'] == [])
     with h.app_connection() as conn:
         applied = [row['name'] for row in conn.execute('SELECT name FROM schema_migrations ORDER BY name')]
+    # 冻结之后追加过一个与 world 语义无关的授权修复（#32），它排在 world 迁移之后。
+    repairs = {'0037_append_only_grant_repair.sql'}
     check('the_world_migration_is_the_newest_applied_migration',
-          applied[-len(expected):] == list(expected) and all('_world_' in name for name in expected))
+          applied[-len(expected):] == list(expected) and any('_world_' in name for name in expected)
+          and all('_world_' in name or name in repairs for name in expected))
 
 
 def control_plane(book, h, source, f):

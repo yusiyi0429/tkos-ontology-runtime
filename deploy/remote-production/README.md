@@ -95,7 +95,8 @@ tables. The nginx `client_max_body_size` in front stays at 4m.
 **Run records.** The API writes one JSON line per request (`http_request`:
 method, route template, status, duration) and one per governed transaction
 (`governed_transaction`: pool wait, scope-lock wait, hold time, outcome, and for
-a committed action its receipt id, action type and effect task ids) to stderr.
+an action committed through `/v1/actions` or the workbench, or an evidence upload,
+its receipt id, action type and effect task ids) to stderr.
 Responses carry `X-Request-ID`; a well-formed incoming value is kept. Lines hold
 identifiers and timings only, never bodies, query strings, credentials or SQL.
 

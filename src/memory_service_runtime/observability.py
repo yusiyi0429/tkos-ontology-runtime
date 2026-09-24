@@ -2,7 +2,8 @@
 
 - 每个 HTTP 请求一行 ``http_request``：方法、路由模板、状态与耗时，响应头带回 ``X-Request-ID``。
 - 每个治理事务一行 ``governed_transaction``：取连接与等 scope 锁的耗时、持有时长、结果；
-  事务里提交了动作的，另带回执 id、动作类型与效果任务 id。Worker 的任务日志按 task_id 对上。
+  经 /v1/actions 或工作台提交的动作、证据上传，另带回执 id、动作类型与效果任务 id。
+  Worker 的任务日志按 task_id 对上。
 
 日志只写标识符、路由模板与耗时，不写请求体、查询串、凭证、SQL 或业务内容。
 """

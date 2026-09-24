@@ -3,6 +3,9 @@
 The per-scope FOR UPDATE fence deliberately serializes authorized transactions.
 Callers must not commit midway through an authenticated operation or retain an
 AuthContext for a later transaction. Historical reads still use current rights.
+The one sanctioned split is evidence bytes (ADR-0006): upload and download are
+two separately authenticated transactions with object-store I/O between them,
+and only the second transaction's commit counts.
 """
 from __future__ import annotations
 
@@ -127,16 +130,7 @@ def authenticate(conn: psycopg.Connection, token: str) -> AuthContext:
     scope_id = str(credential["scope_id"])
     principal_id = str(credential["principal_id"])
     _set_scope(conn, scope_id)
-    # lock_timeout 按每次取锁计：排在别人后面时要先等元组锁、再等持锁事务，最多两倍。
-    # 取栅栏这一条语句整体再受同一上限约束，然后恢复平常的语句上限。
-    lock, statement = _timeouts()
-    if lock:
-        conn.execute("SELECT set_config('statement_timeout', %s, true)", (f"{lock}ms",))
-    waited = time.perf_counter()
-    scope = conn.execute("SELECT * FROM gov_scopes WHERE scope_id=%s FOR UPDATE", (scope_id,)).fetchone()
-    LOCK_WAIT_MS.set(round((time.perf_counter() - waited) * 1000, 1))
-    if lock:
-        conn.execute("SELECT set_config('statement_timeout', %s, true)", (f"{statement}ms",))
+    scope = acquire_fence(conn, "SELECT * FROM gov_scopes WHERE scope_id=%s FOR UPDATE", (scope_id,))
     if scope is None:
         raise GovernedError("UNAUTHENTICATED")
     checkpoints.checkpoint("auth_fence_acquired", {
@@ -290,6 +284,30 @@ def _timeouts() -> tuple[int, int]:
     except ValueError:
         lock, statement = 5000, 30000
     return max(lock, 0), max(statement, 0)
+
+
+def acquire_fence(conn: psycopg.Connection, query: str, params: tuple) -> dict[str, Any] | None:
+    """取 scope 栅栏（FOR UPDATE 那一条语句），整体受 GOVERNED_LOCK_TIMEOUT_MS 约束。
+
+    lock_timeout 按每次取锁计：排在别人后面时要先等元组锁、再等持锁事务，最多两倍。
+    这条语句另用 statement_timeout 限在同一上限内，之后恢复平常的语句上限；等锁耗时记入运行记录。
+    """
+    lock, statement = _timeouts()
+    if lock:
+        conn.execute("SELECT set_config('statement_timeout', %s, true)", (f"{lock}ms",))
+    waited = time.perf_counter()
+    row = conn.execute(query, params).fetchone()
+    LOCK_WAIT_MS.set(round((time.perf_counter() - waited) * 1000, 1))
+    if lock:
+        conn.execute("SELECT set_config('statement_timeout', %s, true)", (f"{statement}ms",))
+    return row
+
+
+def record_action(receipt: dict[str, Any], *, replayed: bool) -> dict[str, Any]:
+    """记下本事务提交的动作（类型、回执、效果任务），事务提交后随运行记录写出；不含请求内容。"""
+    ACTION.set({"action_type": receipt["action_type"], "receipt_id": receipt["receipt_id"],
+                "effect_task_ids": receipt.get("effect_task_ids") or [], "replayed": replayed})
+    return receipt
 
 
 def set_timeouts(conn: psycopg.Connection) -> None:

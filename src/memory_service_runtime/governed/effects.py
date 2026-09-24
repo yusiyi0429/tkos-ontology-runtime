@@ -43,10 +43,9 @@ def governance_dispatch(task) -> dict:
             db.set_write_capability(conn)
             db.set_timeouts(conn)
             conn.execute("SELECT set_config('app.governed_scope_id', %s, true)", (scope_id,))
-            scope = conn.execute(
-                "SELECT * FROM gov_scopes WHERE scope_id=%s AND tenant_id=%s AND company_id=%s FOR UPDATE",
-                (scope_id, task.tenant_id, task.organization_id),
-            ).fetchone()
+            scope = db.acquire_fence(
+                conn, "SELECT * FROM gov_scopes WHERE scope_id=%s AND tenant_id=%s AND company_id=%s FOR UPDATE",
+                (scope_id, task.tenant_id, task.organization_id))
             if scope is None:
                 raise TaskExecutionError("governance_effect_scope_invalid", retryable=False)
             receipt = conn.execute("SELECT * FROM gov_action_receipts WHERE scope_id=%s AND receipt_id=%s",

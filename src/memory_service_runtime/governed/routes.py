@@ -10,7 +10,7 @@ import uuid
 from fastapi import APIRouter, Depends, Header, Query, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, Response
-from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, StrictBool, field_validator, model_validator
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, StrictBool, StrictStr, field_validator, model_validator
 from typing import Literal
 from psycopg.types.json import Jsonb
 
@@ -71,7 +71,7 @@ class EvidenceRequest(BaseModel):
     media_type: str = Field(default="application/octet-stream", min_length=3, max_length=120,
                            pattern=r"^[A-Za-z0-9!#$&^_.+-]+/[A-Za-z0-9!#$&^_.+-]+$")
     # 可选：同一主体用同一个键重放，返回原结果而不再写存储；不给则每次都是新上传。
-    idempotency_key: str | None = Field(default=None, min_length=16, max_length=128)
+    idempotency_key: Annotated[StrictStr, Field(min_length=16, max_length=128)] | None = None
 
     @field_validator("idempotency_key")
     @classmethod
@@ -316,8 +316,8 @@ def snapshot_get(snapshot_id: uuid.UUID, token: Annotated[str, Depends(bearer)])
         return readers.context_snapshot(conn, ctx, str(snapshot_id))
 
 
-def _evidence_replay(conn, ctx, key: str | None, request_hash: str, domain_id: str) -> dict | None:
-    """同一主体用同一幂等键重放：命令相同就按当前权限返回原结果，不同就是冲突。"""
+def _evidence_replay(conn, ctx, key: str | None, request_hash: str) -> dict | None:
+    """同一主体用同一幂等键重放：与动作重放一样，先按当前读取权限复核原结果，再比对命令，不同就是冲突。"""
     if key is None:
         return None
     row = conn.execute(
@@ -326,11 +326,14 @@ def _evidence_replay(conn, ctx, key: str | None, request_hash: str, domain_id: s
     ).fetchone()
     if row is None:
         return None
+    if row["action_type"] == "upload_evidence":
+        db.object_row(conn, ctx, row["result"]["object_id"])
     if row["action_type"] != "upload_evidence" or row["request_hash"] != request_hash:
         raise GovernedError("IDEMPOTENCY_CONFLICT")
-    db.authorize_domain(conn, ctx, domain_id, "upload_evidence")
     revision = conn.execute("SELECT recorded_at FROM gov_object_revisions WHERE scope_id=%s AND revision_id=%s",
                             (ctx.scope_id, row["result"]["revision_id"])).fetchone()
+    receipt = {**row["result"], "action_type": "upload_evidence", "receipt_id": str(row["receipt_id"])}
+    db.record_action(receipt, replayed=True)
     return {**row["result"], "receipt_id": str(row["receipt_id"]), "recorded_at": db.jsonable(revision["recorded_at"])}
 
 
@@ -346,7 +349,7 @@ def evidence_create(body: EvidenceRequest, token: Annotated[str, Depends(bearer)
                                  "sha256": hashlib.sha256(content).hexdigest(), "length": len(content)})
     # 第一段：认证、判权与登记检查。被拒的上传不碰对象存储；重放直接返回原结果。
     with db.transaction(token) as (conn, ctx):
-        replayed = _evidence_replay(conn, ctx, body.idempotency_key, request_hash, domain)
+        replayed = _evidence_replay(conn, ctx, body.idempotency_key, request_hash)
         if replayed is not None:
             return replayed
         db.authorize_domain(conn, ctx, domain, "upload_evidence")
@@ -359,7 +362,7 @@ def evidence_create(body: EvidenceRequest, token: Annotated[str, Depends(bearer)
     with db.transaction(token) as (conn, ctx):
         if ctx.scope_id != scope_id:
             raise GovernedError("UNAUTHENTICATED")
-        replayed = _evidence_replay(conn, ctx, body.idempotency_key, request_hash, domain)
+        replayed = _evidence_replay(conn, ctx, body.idempotency_key, request_hash)
         if replayed is not None:
             return replayed
         db.authorize_domain(conn, ctx, domain, "upload_evidence")
@@ -388,6 +391,7 @@ def evidence_create(body: EvidenceRequest, token: Annotated[str, Depends(bearer)
             (receipt_id, ctx.scope_id, ctx.principal_id, body.idempotency_key or f"evidence-upload-{uuid.uuid4()}",
              request_hash, ctx.auth_epoch, Jsonb(result), Jsonb([{"object_id": oid, "object_version": 1}]), oid),
         )
+        db.record_action({"action_type": "upload_evidence", "receipt_id": receipt_id}, replayed=False)
         return {**result, "receipt_id": receipt_id, "recorded_at": db.jsonable(revision["recorded_at"])}
 
 

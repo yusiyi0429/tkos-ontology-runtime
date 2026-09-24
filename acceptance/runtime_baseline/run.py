@@ -6,8 +6,8 @@
 - 它能在拿到 scope 栅栏之后挂起一个事务，用来模拟慢事务；
 - 客户端逐场景计时，另从 API 的运行记录（governed_transaction）读取等锁耗时。
 
-凭证只在私有目录。输出只有耗时、计数与通过与否，写到 artifacts/ 下本次运行的目录；
-加 --summary 时另写一份可提交的脱敏摘要。
+凭证只在私有目录。结果只有耗时、计数、状态码与通过与否，写到 artifacts/ 下本次运行的目录；
+加 --summary 时把同一份结果另写到给定路径，便于入库。
 """
 from __future__ import annotations
 
@@ -428,7 +428,7 @@ class Baseline:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--variant", action="append", choices=sorted(VARIANTS))
-    parser.add_argument("--summary", type=Path, help="也写一份可提交的摘要（只有数字与通过与否）")
+    parser.add_argument("--summary", type=Path, help="把同一份结果另写到这里（只有数字、状态码与通过与否）")
     args = parser.parse_args()
     report = Baseline().run(args.variant or sorted(VARIANTS))
     if args.summary:

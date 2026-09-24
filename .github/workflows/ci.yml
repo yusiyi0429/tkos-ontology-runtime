@@ -1,5 +1,5 @@
 # 基础质量门：每次推送 main 与每个 PR 都跑同一组检查。
-# 数据库测试走 acceptance/runtime/infra.py 的 attach：在一次性的 PostgreSQL 服务容器上
+# 数据库测试走 acceptance/runtime/infra.py 的 attach：在本次运行起的一次性 PostgreSQL 上
 # 建迁移所有者与应用两个角色，迁移、授权与本地 `infra.py up` 相同。
 name: ci
 
@@ -33,26 +33,25 @@ jobs:
     name: Python 数据库测试（应用角色与迁移所有者）
     runs-on: ubuntu-24.04
     timeout-minutes: 30
-    services:
-      postgres:
-        image: pgvector/pgvector@sha256:7ae6051efd0e60444282c27c7e141af07f322ce033300e727a49c3dd11075e38
-        env:
-          POSTGRES_USER: tkos_acceptance_admin
-          # 只存在于本次运行的一次性容器，只绑定在 runner 的回环地址。
-          POSTGRES_PASSWORD: ci-disposable-admin
-          POSTGRES_DB: tkos_runtime_acceptance
-        ports:
-          - 127.0.0.1:5432:5432
-        options: >-
-          --health-cmd "pg_isready -U tkos_acceptance_admin -d tkos_runtime_acceptance"
-          --health-interval 2s --health-timeout 3s --health-retries 30
-    env:
-      TKOS_ACCEPTANCE_ADMIN_PASSWORD: ci-disposable-admin
-      TKOS_ACCEPTANCE_POSTGRES_PORT: "5432"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
       - run: uv sync --frozen --extra s3
+      - name: 起一次性的 PostgreSQL（管理员口令每次随机生成，只绑回环地址）
+        run: |
+          password="$(openssl rand -hex 24)"
+          echo "::add-mask::$password"
+          echo "TKOS_ACCEPTANCE_ADMIN_PASSWORD=$password" >> "$GITHUB_ENV"
+          echo "TKOS_ACCEPTANCE_POSTGRES_PORT=5432" >> "$GITHUB_ENV"
+          docker run -d --name tkos-ci-postgres -p 127.0.0.1:5432:5432 \
+            -e POSTGRES_USER=tkos_acceptance_admin -e POSTGRES_PASSWORD="$password" \
+            -e POSTGRES_DB=tkos_runtime_acceptance \
+            pgvector/pgvector@sha256:7ae6051efd0e60444282c27c7e141af07f322ce033300e727a49c3dd11075e38
+          for attempt in $(seq 1 60); do
+            docker exec tkos-ci-postgres pg_isready -U tkos_acceptance_admin -d tkos_runtime_acceptance && exit 0
+            sleep 1
+          done
+          exit 1
       - name: 建角色、迁移、授权
         run: python3 acceptance/runtime/infra.py attach
       - name: 应用角色（RLS 生效）

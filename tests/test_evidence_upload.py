@@ -107,7 +107,7 @@ def test_objects_are_keyed_by_content_and_a_retry_reuses_the_stored_version(stor
 def seeded():
     db._close_pool()
     label = uuid4().hex[:12]
-    with psycopg.connect(os.environ.get("DATABASE_URL", ""), row_factory=dict_row) as conn:
+    with psycopg.connect(os.environ["DATABASE_URL"], row_factory=dict_row) as conn:
         from memory_service_runtime.governed import bootstrap
         fixture = bootstrap.seed_scope(conn, f"runtime-acceptance-evidence-{label}",
                                        f"runtime-acceptance-evidence-company-{label}")

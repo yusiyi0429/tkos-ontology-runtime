@@ -31,8 +31,24 @@ export type MethodTask = { object_id: string; object_type: string; title: string
                            payload?: Record<string, unknown>; method_state?: Record<string, unknown>
                            members?: MethodCandidateMember[]; commitments?: MethodCommitment[] }
 export type MethodSession = { identity: { principal_id: string; display_name: string }; csrf: string }
+/** The governance review-window read for a Method-bound window (no 0.3 monthly view). */
+type MethodWindowView = { object: { object_id: string; object_type: string; method_state?: Record<string, unknown>;
+                                    latest_revision?: { payload?: Record<string, unknown> } | null;
+                                    protocol: { contract_version: string } };
+                          actions?: MethodAction[] }
 
 const BASE = '/dashboard/api/v1'
+/** Review windows bound to these contracts are handled here, never by the 0.3 window page. */
+export const METHOD_WINDOW_VERSIONS: readonly string[] = ['tkos.method/0.4', 'tkos.method/0.5']
+
+function windowTask(view: MethodWindowView): MethodTask {
+  const payload = view.object.latest_revision?.payload ?? {}
+  const state = view.object.method_state ?? {}
+  return { object_id: view.object.object_id, object_type: view.object.object_type,
+           title: String(payload.title ?? view.object.object_type), phase: String(state.phase ?? 'unknown'),
+           contract_version: view.object.protocol.contract_version, actions: view.actions ?? [],
+           payload, method_state: state }
+}
 const STATUS: Record<string, string> = { issue_confirmed: '议题已确认', draft: '草稿', awaiting_confirmation: '等待全体确认',
   formal: 'Agreement 已正式', proposed: '待最终确认', reviewed: '已复核', returned: '已退回',
   open: '开放', closed: '已关窗', pending: '待承诺', under_review: '核对中', resolved: '候选待激活',
@@ -572,11 +588,16 @@ export function MethodContentPreview({ task }: { task: MethodTask }) {
   )
 }
 
-export function MethodActions({ session, prepare, onError, onExplore }: {
+export function MethodActions({ session, prepare, onError, onExplore, windowId, onBack, onVersion }: {
   session: MethodSession
   prepare: (body: Record<string, unknown>) => Promise<void>
   onError: (error: unknown) => void
   onExplore: (objectId: string) => void
+  /** Handle this one review window (opened from 我的待办) instead of listing Method tasks. */
+  windowId?: string
+  onBack?: () => void
+  /** The window turned out to be bound to another contract: route it to that contract's page. */
+  onVersion?: (contractVersion: string) => void
 }) {
   const [tasks, setTasks] = useState<MethodTask[]>([])
   const [nextAfter, setNextAfter] = useState<string | null>(null)
@@ -588,6 +609,8 @@ export function MethodActions({ session, prepare, onError, onExplore }: {
   const mounted = useRef(true)
   const epoch = useRef(0)
   const controller = useRef<AbortController | null>(null)
+  const versionRef = useRef(onVersion)
+  versionRef.current = onVersion
 
   const load = useCallback(async () => {
     const generation = ++epoch.current
@@ -595,14 +618,27 @@ export function MethodActions({ session, prepare, onError, onExplore }: {
     const current = new AbortController()
     controller.current = current
     try {
-      const response = await fetch(`${BASE}/governance/method/tasks`, {
+      const response = await fetch(windowId
+        ? `${BASE}/governance/review-windows/${encodeURIComponent(windowId)}`
+        : `${BASE}/governance/method/tasks`, {
         credentials: 'same-origin', cache: 'no-store', signal: current.signal,
         headers: { Accept: 'application/json' } })
       if (!response.ok) {
         const data = await response.json().catch(() => ({}))
         throw new ApiError(response.status, data.error?.code ?? 'UNAVAILABLE', '')
       }
-      const page = await response.json() as { items: MethodTask[]; next_after: string | null }
+      let page: { items: MethodTask[]; next_after: string | null }
+      if (windowId) {
+        const view = await response.json() as MethodWindowView
+        const version = view.object.protocol.contract_version
+        if (!METHOD_WINDOW_VERSIONS.includes(version)) {
+          if (mounted.current && generation === epoch.current) versionRef.current?.(version)
+          return
+        }
+        page = { items: [windowTask(view)], next_after: null }
+      } else {
+        page = await response.json() as { items: MethodTask[]; next_after: string | null }
+      }
       if (mounted.current && generation === epoch.current) {
         setTasks(page.items.map((task) => ({ ...task,
           actions: (task.actions ?? []).filter((action) => BROWSER_ACTIONS.has(action.action_type)) })))
@@ -613,7 +649,7 @@ export function MethodActions({ session, prepare, onError, onExplore }: {
       if (error instanceof DOMException && error.name === 'AbortError') return
       onError(error); setLoading(false); setFailed(true)
     }
-  }, [onError])
+  }, [onError, windowId])
 
   useEffect(() => {
     mounted.current = true
@@ -812,10 +848,13 @@ export function MethodActions({ session, prepare, onError, onExplore }: {
 
   return (
     <div className="space-y-4" data-testid="method-actions">
+      {windowId && onBack && <Button variant="ghost" className="self-start" onClick={onBack}>← 返回我的待办</Button>}
       <div className="flex items-center justify-between">
         <div>
-          <p className="gov-eyebrow">Agreement · 承诺 · 状态 / METHOD 0.4</p>
-          <h2 className="text-xl font-semibold">需要本人确认或承诺的事项</h2>
+          <p className="gov-eyebrow">{windowId
+            ? `复核窗口 · 按绑定规则 ${tasks[0]?.contract_version ?? ''} 办理`
+            : 'Agreement · 承诺 · 状态 / METHOD 0.4'}</p>
+          <h2 className="text-xl font-semibold">{windowId ? '办理本人参与的复核窗口' : '需要本人确认或承诺的事项'}</h2>
           <p className="text-sm text-muted-foreground">
             只显示当前身份被列为必要参与人、且属于本人责任的事项；确切引用一律从本人可读对象中派生，
             不接受手工 ID/hash；提交前一律预览，核心在校验时重新检查当前任职。

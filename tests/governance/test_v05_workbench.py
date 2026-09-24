@@ -238,3 +238,34 @@ def test_window_tasks_name_the_objects_own_rule_version(monkeypatch):
         monkeypatch.setattr(governance, 'window', lambda *_a, value=value: value)
         labels[version] = governance.tasks(_WindowConn([{'object_id': window_id}]), _human())['items'][0]['label']
     assert labels == {V04: '0.4 人工确认事项', V05: '0.5 人工确认事项'}
+
+
+def test_each_todo_carries_the_windows_bound_contract_version(monkeypatch):
+    """工作台按对象当前绑定的规则版本分派办理页，所以每条待办都要带出这个版本。"""
+    views = {}
+    for version, phase in (('tkos.method/0.3', 'open'), (V04, 'pending'), (V05, 'pending')):
+        window_id = str(uuid4())
+        views[window_id] = {
+            'object': {'object_id': window_id, 'object_type': 'ReviewWindow',
+                       'method_state': {'phase': phase},
+                       'latest_revision': {'payload': {'title': f'{version} window'}},
+                       'protocol': {'contract_version': version}},
+            'monthly': ({'my_reviews': [], 'candidate': {'status': 'unavailable'}}
+                        if version == 'tkos.method/0.3' else None),
+            'actions': [{'action_type': 'm1b_comment', 'allowed': True}], 'scenes': []}
+    monkeypatch.setattr(governance, 'window', lambda _conn, _ctx, window_id: views[window_id])
+    items = governance.tasks(_WindowConn([{'object_id': oid} for oid in sorted(views)]), _human())['items']
+    assert {item['object_id']: item['contract_version'] for item in items} == {
+        oid: view['object']['protocol']['contract_version'] for oid, view in views.items()}
+
+
+@pytest.mark.parametrize('version', [V04, V05])
+def test_a_method_window_read_has_no_03_monthly_view_but_names_its_binding(monkeypatch, version):
+    obj = _object(str(uuid4()), 'ReviewWindow', version, 'open')
+    _serve(monkeypatch, {obj['object_id']: obj})
+    monkeypatch.setattr(governance.workspace_readers, 'identity', lambda *_: {'principal_id': 'p1'})
+    monkeypatch.setattr(governance, 'method_object_actions', lambda *_: {'items': []})
+    monkeypatch.setattr(governance.method_readers, 'recovery', lambda *_: {})
+    value = governance.window(None, _human(), obj['object_id'])
+    assert value['monthly'] is None
+    assert value['object']['protocol']['contract_version'] == version

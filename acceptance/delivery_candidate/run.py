@@ -274,8 +274,8 @@ class Candidate:
             self.teardown()
             self.manifest["finished_at"] = datetime.now(timezone.utc).isoformat()
             text = json.dumps(self.manifest, ensure_ascii=False, indent=2) + "\n"
-            for secret in getattr(self, "values", {}).values():
-                if len(secret) >= 16:
+            for key, secret in getattr(self, "values", {}).items():
+                if any(part in key for part in ("PASSWORD", "SECRET", "ROOT_USER")):
                     text = text.replace(secret, "[REDACTED]")
             (self.output / "delivery-manifest.json").write_text(text, encoding="utf-8")
         return self.manifest

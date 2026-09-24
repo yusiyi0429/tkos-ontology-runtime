@@ -77,6 +77,31 @@ it("narrows the PCO lane to the selected LTCO's exact revision", async () => {
   expect(within(board).getByText("已按长期目标「LTCO l1」的精确版本筛选")).toBeInTheDocument()
 })
 
+it("a failed edge read shows an error with a retry instead of reading forever", async () => {
+  lanes({
+    strategy: [], ltco: [item("l1", "LTCO", { basis_revision_id: "l1-r2" })],
+    pco: [item("keep", "PCO", { basis_revision_id: "keep-r1" }),
+          item("other", "PCO", { basis_revision_id: "other-r1" })],
+    mission: [],
+  })
+  render(<BusinessMainline onOpen={onOpen} onAuthLost={onAuthLost} />)
+  const board = lane("阶段目标 PCO")
+  expect(await within(board).findByText("PCO other")).toBeInTheDocument()
+  down.mockRejectedValueOnce(new TypeError("network"))
+  fireEvent.click(screen.getByTestId("lane-ltco-l1"))
+  expect(await within(board).findByTestId("lane-pco-edge-error")).toBeInTheDocument()
+  expect(within(board).queryByText("正在读取…")).not.toBeInTheDocument()
+  // Without the edges the lane cannot be narrowed exactly, so it shows no cards.
+  expect(within(board).queryByText("PCO other")).not.toBeInTheDocument()
+  down.mockResolvedValue({ items: [edge("keep", "keep-r1", "PCO")],
+                           next_cursor: null, has_more: false, limit: 25, bounded: 0 })
+  fireEvent.click(within(board).getByRole("button", { name: "重试" }))
+  expect(await within(board).findByText("PCO keep")).toBeInTheDocument()
+  expect(within(board).queryByText("PCO other")).not.toBeInTheDocument()
+  expect(within(board).queryByTestId("lane-pco-edge-error")).not.toBeInTheDocument()
+  expect(onAuthLost).not.toHaveBeenCalled()
+})
+
 it("reselecting an upstream card releases its downstream filter", async () => {
   lanes({ strategy: [], ltco: [item("l1", "LTCO")],
           pco: [item("keep", "PCO", { basis_revision_id: "keep-r1" }), item("other", "PCO")], mission: [] })

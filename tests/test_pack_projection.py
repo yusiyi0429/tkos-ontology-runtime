@@ -5,6 +5,7 @@ from memory_service.context_graph.query_contracts import (
     EntityPayload,
     GenerationRef,
     HitCandidate,
+    LateralNode,
     OwnerResolution,
     PackAudit,
     RelationPayload,

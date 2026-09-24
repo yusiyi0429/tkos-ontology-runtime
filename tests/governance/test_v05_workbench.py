@@ -125,6 +125,7 @@ def test_a_0_4_scope_task_scan_is_unchanged(monkeypatch):
     assert page['next_after'] is None
 
 
+@pytest.mark.db
 def test_the_method_task_scan_runs_on_real_postgres():
     """扫描 SQL（含按当前绑定选 0.5 类型的子查询）以应用角色在真实 PostgreSQL 上执行：随机 scope，
     不写任何行，只证明语句、列名与权限成立。"""

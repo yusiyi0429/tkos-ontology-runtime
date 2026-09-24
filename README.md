@@ -192,6 +192,26 @@ Python 包名 `tkos-memory-service`、模块名和 CLI 保持兼容。Clark 应�
 
 历史语义记忆可在单独的 `read_legacy_context` 授权下参与检索，模型只压缩历史背景，三项治理结论独立保留。详见 [叙述接口契约](docs/narrative-convergence-contract.md)、[本轮验收记录](docs/narrative-convergence-acceptance.md)、[可复跑验收](acceptance/narrative/README.md) 和 [迁移工具](deploy/convergence/README.md)。代码接入、真实数据迁移演练及生产切换分别记录，不因兼容接口存在就宣称旧服务已替换。
 
+## 测试
+
+[CI](.github/workflows/ci.yml) 在每次推送 main 与每个 PR 上跑下面这组检查，本地命令相同：
+
+```bash
+uv sync --frozen --extra s3
+uv run pytest tests -q -m "not db"          # 无库测试，不需要 DATABASE_URL
+uvx ruff@0.16.7 check --select E9,F63,F7,F82 src tests acceptance scripts deploy experiments hatch_build.py
+python3 acceptance/runtime/infra.py up       # 本机隔离 PostgreSQL＋MinIO；CI 用 attach 接一次性服务容器
+python3 acceptance/runtime/infra.py run -- .venv/bin/python -m pytest tests -q -m db --ignore=tests/test_migrations.py --ignore=tests/test_narrative_legacy.py
+python3 acceptance/runtime/infra.py run --migration -- .venv/bin/python -m pytest tests/test_migrations.py tests/test_narrative_legacy.py -q
+(cd workbench/dashboard && npm ci && npm run typecheck && npm test) && python3 scripts/verify_dashboard_assets.py
+node --test tests/workbench-ui/*.test.mjs
+uv build
+```
+
+- 要数据库的测试都标了 `db`。没有 `DATABASE_URL` 时它们直接失败，不会退回本机默认库。
+- 应用角色那一轮，在 RLS 生效下跑全部数据库测试。迁移所有者那一轮，只跑需要建临时库与角色的两组。
+- 这些测试不代替各协议的独立验收矩阵。
+
 ## 本地独立验收
 
 需要 Python 3.12+、uv、Docker Engine 与 Compose。当前 0.3 增量先按 [Anchor 隔离验收说明](acceptance/anchors_v03/README.md) 创建新库并运行当前源码 API；若进入容器联调，须重新构建镜像并记录源码、镜像和契约版本。

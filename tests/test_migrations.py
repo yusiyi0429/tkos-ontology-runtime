@@ -13,6 +13,8 @@ from memory_service_app import migrate as migrate_module
 from memory_service_app.migrate import MIGRATIONS_DIR, migrate
 from tests.conftest import DATABASE_URL
 
+pytestmark = pytest.mark.db
+
 
 def test_packaged_migrations_replay_from_empty_database() -> None:
     database = f"tkos_memory_test_{uuid.uuid4().hex[:12]}"

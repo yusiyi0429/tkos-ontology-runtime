@@ -33,6 +33,7 @@ def _settings(
     )
 
 
+@pytest.mark.db
 def test_healthz_reports_db_and_scope_chains(scope: Scope) -> None:
     with connect() as conn, conn.transaction():
         viewer = scope.ensure_human(conn)
@@ -54,6 +55,7 @@ def test_healthz_reports_db_and_scope_chains(scope: Scope) -> None:
     assert any("MEMORY_EMBEDDING_" in warning for warning in body["warnings"])
 
 
+@pytest.mark.db
 def test_native_health_uses_service_contract_without_clark_auth_warning(scope: Scope) -> None:
     app.dependency_overrides.clear()
     app.dependency_overrides[get_settings] = lambda: _settings(scope)
@@ -68,6 +70,7 @@ def test_native_health_uses_service_contract_without_clark_auth_warning(scope: S
     assert not any("ADAPTER_AUTH" in warning for warning in body["warnings"])
 
 
+@pytest.mark.db
 def test_healthz_reports_embedding_when_configured(scope: Scope) -> None:
     app.dependency_overrides.clear()
     app.dependency_overrides[get_settings] = lambda: _settings(scope, embedding=True)
@@ -145,6 +148,7 @@ def test_settings_forbid_extra_fields() -> None:
         )
 
 
+@pytest.mark.db
 def test_request_connection_registers_pgvector_and_closes(scope: Scope) -> None:
     dependency = get_conn(_settings(scope))
     conn = next(dependency)
@@ -157,6 +161,7 @@ def test_request_connection_registers_pgvector_and_closes(scope: Scope) -> None:
     assert conn.closed is True
 
 
+@pytest.mark.db
 def test_viewer_resolves_in_scope_human(scope: Scope) -> None:
     with connect() as conn, conn.transaction():
         user_id = scope.ensure_human(conn)
@@ -169,6 +174,7 @@ def test_viewer_resolves_in_scope_human(scope: Scope) -> None:
     assert second == first
 
 
+@pytest.mark.db
 def test_viewer_must_be_configured(scope: Scope) -> None:
     with connect() as conn:
         with pytest.raises(HTTPException) as raised:
@@ -177,6 +183,7 @@ def test_viewer_must_be_configured(scope: Scope) -> None:
     assert "VIEWER_USER_ID" in str(raised.value.detail)
 
 
+@pytest.mark.db
 def test_viewer_rejects_non_human(scope: Scope) -> None:
     # The schema intentionally permits only one agent_service user globally;
     # reuse that fixture row and verify it cannot cross into this human scope.

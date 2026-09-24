@@ -11,6 +11,8 @@ from adapter.settings import Settings, get_settings
 from tests.conftest import DATABASE_URL, Scope
 from tests.asgi_client import get_json as _request
 
+pytestmark = pytest.mark.db
+
 
 def _settings(scope: Scope, *, embedding: bool) -> Settings:
     return Settings(

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+import pytest
 
 from adapter.codes import slug_of
 from adapter.contracts import GkEntity, GkVersion
@@ -33,6 +34,7 @@ def _configure_for(scope: Scope) -> None:
     app.dependency_overrides[get_settings] = lambda: settings
 
 
+@pytest.mark.db
 def test_entity_projection_matches_gk_shapes_and_relations():
     s = Scope()
     try:
@@ -96,6 +98,7 @@ def test_entity_projection_matches_gk_shapes_and_relations():
         s.cleanup()
 
 
+@pytest.mark.db
 def test_latest_vs_chain_and_unconfirmed_history_status():
     s = Scope()
     try:
@@ -144,6 +147,7 @@ def test_latest_vs_chain_and_unconfirmed_history_status():
         s.cleanup()
 
 
+@pytest.mark.db
 def test_codes_are_global_and_collision_suffix_is_stable():
     s = Scope()
     try:
@@ -170,6 +174,7 @@ def test_codes_are_global_and_collision_suffix_is_stable():
         s.cleanup()
 
 
+@pytest.mark.db
 def test_scope_index_does_not_leak_other_scope_and_route_contracts():
     first_scope = Scope()
     other_scope = Scope()
@@ -208,6 +213,7 @@ def test_scope_index_does_not_leak_other_scope_and_route_contracts():
         other_scope.cleanup()
 
 
+@pytest.mark.db
 def test_issue_directory_is_scoped_deterministic_and_prefix_gated():
     scope = Scope()
     other_scope = Scope()
@@ -245,6 +251,7 @@ def test_issue_directory_is_scoped_deterministic_and_prefix_gated():
         other_scope.cleanup()
 
 
+@pytest.mark.db
 def test_pre_issue_chain_uses_chain_label_without_fabricating_issue_data():
     s = Scope()
     try:
@@ -292,6 +299,7 @@ def test_route_db_errors_are_not_mapped_to_404():
     assert status_for_exception(OperationalError("down")) == 503
 
 
+@pytest.mark.db
 def test_confirmed_agreement_projects_as_resolved_by_and_agr():
     """resolvedBy 只收 confirmed Agreement；未确认的提案仍可 P1 读但不进共识段。"""
     s = Scope()

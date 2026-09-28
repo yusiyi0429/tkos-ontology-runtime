@@ -4,8 +4,8 @@
 对象修订、恰好一条 world 事件与回执（契约第 8.1 节）；0.2 的事件行写明契约版本，回执结果也写明，
 重放与读回执据此分派。授权先于协议错误：先按激活策略判权，Agent 不在建对象的 Agent 面上，再过协议
 闸门；然后校验载荷，按主干判断调用者是不是有权的责任人（从新对象的主干上一级找起，同 0.1），之后才
-钉定其余引用、核对对象放在哪个域与挂在谁下面、写入声明。本票接通八类业务对象的建对象；修订、快照、
-事件读取与生命周期随各自的票接入。
+钉定其余引用、核对对象放在哪个域与挂在谁下面、写入声明。已接通八类业务对象的建对象、合并修订与建关系；
+快照、事件读取与生命周期随各自的票接入。
 """
 from __future__ import annotations
 
@@ -41,7 +41,12 @@ class WorldExecution(ActionExecution):
         self.referenced: dict[str, dict[str, Any]] = {}
         # 调用者经哪个对象的 responsible 属性成为责任人；重放时复核该属性仍指向他（契约第 3.3 节）。
         self.responsible_through: str | None = None
-        self.authorize_create()
+        # 事件 subject_refs 里除新修订外还要钉的对象：建关系的列表。
+        self.event_subjects: list[dict[str, Any]] = []
+        if self.kind == "world_create_object":
+            self.authorize_create()
+        else:
+            self.authorize_target()
 
     def authorize_create(self) -> None:
         """建对象（契约第 3、9 节）：权限与域放置同 0.1，Company 只由 CEO 本人建；授权之后才暴露协议错误。"""
@@ -82,6 +87,91 @@ class WorldExecution(ActionExecution):
         self.check_components(object_type)
         self.payload = models.stored_payload(object_type, self.written, self.pins, version=1)
         self.declaration = self.pinned_declaration()
+
+    # ------------------------------------------------------------ revise and relate
+    def authorize_target(self) -> None:
+        """修订与建关系（契约第 6、9、12 节）：目标须是本 scope 的 world 对象（否则 404），按激活策略判权，
+        不在 Agent 面上的动作 Agent 不能做，再过目标动作闸门；然后校验补丁与写入声明，最后判调用者是不是
+        该对象或其主干上某一级的责任人（同 0.1）。有门对象按状态与块类别的修订规则随票 #54。"""
+        self.target, _ = head_and_binding(self.conn, self.ctx, self.request.target.object_id)
+        self.domain_id = self.target["domain_id"]
+        self.action_assignments = db.authorize_domain(self.conn, self.ctx, self.domain_id, self.kind)
+        if self.ctx.principal_type != "human" and self.kind not in world_registry.registry()["agent_face"]["writes"]:
+            _fail("FORBIDDEN", "This action is not on the Agent face.")
+        self.protocol_context = protocol.gate_target_action(
+            self.conn, self.ctx.scope_id, self.target["object_id"], self.kind, self.request.contract_version)
+        object_type = self.target["object_type"]
+        latest = self.target_revision_row()
+        self.next_version = latest["object_version"] + 1
+        current = latest["payload"]
+        if self.kind == "world_revise_object":
+            try:
+                self.written = models.merge_revision(object_type, current, self.params["payload"])
+            except ValueError as exc:
+                _invalid(f"The revision does not satisfy this world 0.2 object type: {exc}.")
+        self.require_declaration(object_type)
+        used = self.responsible_up_the_spine(self.target["object_id"])
+        self.required_assignments.add(used["assignment_id"])
+        if self.kind == "world_revise_object":
+            self.revise(object_type, current)
+        else:
+            self.relate(object_type, current)
+        self.declaration = self.pinned_declaration()
+
+    def require_declaration(self, object_type: str) -> None:
+        """写入声明只对 Agent 强制（契约第 9.3 节）；Agent 的修订触及正式块、正式属性时必须要求人工验收，
+        只触及活动块与活动属性时可以不要求（补 18）。"""
+        if self.ctx.principal_type == "human":
+            return
+        given = self.params.get("declaration")
+        if given is None:
+            _invalid("An Agent write must declare its scene, trigger and human acceptance.")
+        if (self.kind == "world_revise_object" and models.touches_formal(object_type, self.params["payload"])
+                and not given["human_acceptance"]["required"]):
+            _invalid("An Agent revision that touches formal blocks or attributes needs human acceptance and an acceptor.")
+
+    def revise(self, object_type: str, current: dict[str, Any]) -> None:
+        """合并修订（契约第 12 节）：建对象时写的关系引用只能改钉到同一对象的另一版本（同 0.1）；
+        组件台账记下这一版的新增与删除，只由服务写的字段沿用当前版本。"""
+        before = models.written_form(object_type, current)
+        for relation in world_registry.object_spec(object_type)["relation_fields"]:
+            field = relation["field"]
+            if field in before and ([models.parse_ref(text)["object_id"] for text in models.listed(before[field])]
+                                    != [models.parse_ref(text)["object_id"] for text in models.listed(self.written[field])]):
+                _invalid(f"{field} can only be re-pinned to another version of the object it was created with; "
+                         "create a new object to hang it elsewhere.")
+        for text in models.ref_texts(object_type, self.written):
+            self.pin(text)
+        self.check_placement(object_type)
+        self.check_components(object_type)
+        self.payload = models.stored_payload(object_type, self.written, self.pins, version=self.next_version,
+                                             ledger=current["component_ledger"],
+                                             server=models.server_fields(object_type, current))
+
+    def relate(self, object_type: str, current: dict[str, Any]) -> None:
+        """整体替换一个跨链关系列表（契约第 6 节）：类型按登记，不指向自己；contributes_to 指向另一责任单元的
+        周期目标或单元级长期目标（同 0.1）。周期目标的 depends_on 可以指向周期目标或 Mission（补 8）。"""
+        field = self.params["field"]
+        relation = next((item for item in world_registry.object_spec(object_type)["relation_fields"]
+                         if item["field"] == field), None)
+        if relation is None:
+            _invalid(f"{object_type} has no {field}.")
+        for text in self.params["refs"]:
+            self.event_subjects.append(self.pin(text))
+            target = self.referenced[text]
+            if target["object_type"] not in relation["targets"]:
+                _invalid(f"{field} must point to one of {', '.join(relation['targets'])}.")
+            if target["object_id"] == self.target["object_id"]:
+                _invalid("An object cannot relate to itself.")
+            company_goal = target["object_type"] == "LongTermGoal" and target["payload"]["scope"] == "company"
+            if field == "contributes_to" and (target["domain_id"] == self.domain_id or company_goal):
+                _invalid("A contribution goes to a period goal or unit-level goal of another unit.")
+        self.payload = models.stored(object_type, {**current, field: self.event_subjects})
+
+    def target_revision_row(self) -> dict[str, Any]:
+        return db.jsonable(self.conn.execute(
+            "SELECT * FROM gov_object_revisions WHERE scope_id=%s AND revision_id=%s",
+            (self.ctx.scope_id, self.target["latest_revision_id"])).fetchone())
 
     # ------------------------------------------------------------ references
     def pin(self, text: str) -> dict[str, Any]:
@@ -223,11 +313,13 @@ class WorldExecution(ActionExecution):
                     self.responsible_through = node["object_id"]
                 return used
             object_id = self.spine_parent(node)
-        _fail("FORBIDDEN", "Only a responsible person up the spine creates this object.")
+        _fail("FORBIDDEN", "Only a responsible person up the spine writes this object.")
 
     def check_versions(self) -> None:
         """锁定并核对期望版本。world 读按 scope（契约第 15.1 节），不走内核 object_row 的域级读策略。"""
         expected = {item.object_id: item.expected_version for item in self.request.expected_versions}
+        if self.request.target:
+            expected[self.request.target.object_id] = self.request.target.expected_version
         for object_id in sorted(expected):
             head_and_binding(self.conn, self.ctx, object_id)
             self.heads[object_id] = db.jsonable(self.conn.execute(
@@ -235,6 +327,10 @@ class WorldExecution(ActionExecution):
                 (self.ctx.scope_id, object_id)).fetchone())
             if self.heads[object_id]["object_version"] != expected[object_id]:
                 _fail("VERSION_CONFLICT", "An object changed after the request was prepared.")
+        if self.request.target:
+            self.target = self.heads[self.request.target.object_id]
+            if self.target["latest_revision_id"] != self.request.target.revision_id:
+                _fail("STALE_DEPENDENCY", "Target must identify the current latest revision.")
 
     def recheck_final_barrier(self) -> None:
         # 让调用者成为责任人的指派可以在上一级对象的域（例如公司域的 CEO），不必在本动作的域。
@@ -248,7 +344,9 @@ class WorldExecution(ActionExecution):
         """引用钉在不可变的修订上，不随被引用对象更新而漂移，所以不是需要期望版本的可变依赖。"""
 
     def run_action(self) -> dict[str, Any]:
-        return self.create_world_object(self.object_type)
+        if self.kind == "world_create_object":
+            return self.create_world_object(self.object_type)
+        return self.new_revision()
 
     def create_world_object(self, object_type: str) -> dict[str, Any]:
         if object_type == "Company" and self.conn.execute(
@@ -277,6 +375,15 @@ class WorldExecution(ActionExecution):
         self.event(obj, None, self.kind)
         return self.written_result(obj, revision)
 
+    def new_revision(self) -> dict[str, Any]:
+        """修订与建关系各出一个新修订；生效指针原先等于最新修订的随之移动，否则不动（同 0.1）。"""
+        obj = self.target
+        revision = self.insert_revision(obj, self.payload, version=self.next_version)
+        moves = obj["effective_revision_id"] == obj["latest_revision_id"]
+        obj = self.bump(obj, latest=revision["revision_id"],
+                        effective=revision["revision_id"] if moves else obj["effective_revision_id"])
+        return self.written_result(obj, revision)
+
     def world_event(self, kind: str, subject_refs: list[dict[str, Any]]) -> str:
         """写恰好一条 0.2 的 world 事件；门事件与生命周期事件的发生时刻就是记录时刻（契约第 11 节）。"""
         return str(self.conn.execute(
@@ -287,11 +394,11 @@ class WorldExecution(ActionExecution):
              self.action_id)).fetchone()["event_id"])
 
     def written_result(self, obj: dict[str, Any], revision: dict[str, Any]) -> dict[str, Any]:
-        """写恰好一条钉到新修订的事件，返回回执结果；结果写明契约版本。"""
+        """写恰好一条钉到新修订的事件（建关系时再加列表里的对象），返回回执结果；结果写明契约版本。"""
         version = revision["object_version"]
         pinned = {"object_id": obj["object_id"], "object_version": version, "revision_id": revision["revision_id"],
                   "block": None, "component": None}
-        event_id = self.world_event(world_registry.action_spec(self.kind)["event_kind"], [pinned])
+        event_id = self.world_event(world_registry.action_spec(self.kind)["event_kind"], [pinned, *self.event_subjects])
         result = {"contract_version": models.CONTRACT_VERSION, "object_id": obj["object_id"],
                   "revision_id": revision["revision_id"], "version": version,
                   "ref": models.citation(obj["object_id"], version), "event_id": event_id}

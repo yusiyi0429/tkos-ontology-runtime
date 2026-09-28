@@ -29,7 +29,7 @@ from .fixture import (CONTRACT, PROFILE, REGISTRY, SUPPORT, action_roles, instal
 V01, V02 = 'tkos.world/0.1', 'tkos.world/0.2'
 MIGRATION = '0039_world_v02.sql'
 SCENARIOS = ['migration', 'control_plane', 'company', 'objects', 'rejections', 'coexistence', 'references',
-             'revocation']
+             'revise_relate', 'revocation']
 EVENT_KINDS = {item['kind']: item for item in json.loads(REGISTRY.read_text())['event_kinds']}
 OBJECTS = {item['type']: item for item in json.loads(REGISTRY.read_text())['objects']}
 TYPES = ['Company', 'Strategy', 'ResponsibilityUnit', 'LongTermGoal', 'PeriodGoal', 'Mission', 'Task', 'Activity']
@@ -71,6 +71,11 @@ class Flow(V01Flow):
         body = Client.command(kind, deepcopy(params), expected_versions=expected_versions, key=key)
         body['contract_version'] = contract
         return body
+
+    def target(self, oid):
+        """当前最新修订作为目标：0.2 的读投影把修订 id 与对象行的并发版本放在 business 组里。"""
+        business = self.read('outsider', oid)['business']
+        return {'object_id': oid, 'revision_id': business['revision_id'], 'expected_version': business['object_version']}
 
     def scoped_snapshot(self, scope_id):
         return self.h.sql({'scope_id': scope_id}, """
@@ -143,7 +148,7 @@ def control_plane(book, h, source, f):
     registered = rows("SELECT * FROM gov_protocol_support_registry WHERE scope_id=%s AND protocol_id='tkos.world'")
     check('the_0_2_support_registry_lists_only_the_implemented_actions_and_types',
           [(r['contract_version'], r['content']['actions'], r['content']['object_types']) for r in registered]
-          == [(V02, ['world_create_object'], sorted(TYPES))] and registered[0]['content'] == support)
+          == [(V02, support['actions'], sorted(TYPES))] and registered[0]['content'] == support)
     activation = rows('SELECT DISTINCT ON (domain_id) content FROM gov_activation_policies WHERE scope_id=%s '
                       'ORDER BY domain_id, policy_seq DESC')
     check('every_domain_has_an_activation_policy_granting_the_implemented_0_2_actions',
@@ -483,9 +488,8 @@ def rejections(book, h, f, flow, made):
                          expected_versions=[{'object_id': made['object_id'], 'expected_version': 99}])
     flow.deny('ceo', stale, codes={'VERSION_CONFLICT'}, prepare=False)
     check('a_wrong_expected_version_is_refused')
-    flow.deny('ceo', flow.command('world_revise_object', {'payload': {'title': 'x'}}) | {
-        'target': {'object_id': made['object_id'], 'revision_id': made['revision_id'], 'expected_version': 1}},
-        codes={'INVALID_REQUEST'})
+    flow.deny('ceo', flow.command('world_grant_delegation', {'delegate_principal_id': f['actors']['a']['principal_id']}),
+              codes={'INVALID_REQUEST'})
     check('an_action_not_yet_implemented_under_0_2_is_refused_by_the_envelope')
 
     # 0.1 默认的 scope：0.2 请求在授权之后返回协议错误，那个 scope 里什么都不留。
@@ -522,6 +526,179 @@ def coexistence(book, h, f, flow):
     return {'object': made, 'event_id': str(h.sql({'scope_id': f['foreign_scope_id']},
                                                   'SELECT event_id FROM gov_world_events WHERE scope_id=%s',
                                                   (f['foreign_scope_id'],))[0]['event_id'])}
+
+
+def revise_relate(book, h, f, flow, trunk):
+    """#51：合并修订按 id 合并组件、台账记删除、删除后 id 不复用、组件不换块，旧版本的组件引用钉在旧修订；
+    周期目标的 depends_on 指向周期目标与 Mission；Agent 修订的声明按触及的块类别；每次修订恰好一条事件一张回执。"""
+    check = book.check
+    made = trunk['made']
+    mission, task, goal = made['Mission'], made['Task'], made['PeriodGoal']
+    scope = f['scope_id']
+
+    def one_event_one_receipt(receipt, kind, subjects):
+        events = flow.rows('SELECT * FROM gov_world_events WHERE scope_id=%s AND action_id=%s',
+                           (scope, receipt['receipt_id']))
+        receipts = flow.rows('SELECT 1 FROM gov_action_receipts WHERE scope_id=%s AND receipt_id=%s',
+                             (scope, receipt['receipt_id']))
+        result = receipt['result']
+        return (len(events) == 1 and len(receipts) == 1 and events[0]['kind'] == kind
+                and events[0]['contract_version'] == V02 and str(events[0]['event_id']) == result['event_id']
+                and events[0]['subject_refs'] == [{'object_id': result['object_id'], 'object_version': result['version'],
+                                                   'revision_id': result['revision_id'], 'block': None,
+                                                   'component': None}, *subjects])
+
+    def deny_revise(actor, oid, patch, codes, says=None, declaration=None, target=None):
+        params = {'payload': patch, **({'declaration': declaration} if declaration else {})}
+        # 期望版本与目标修订在提交时才核对，prepare 不碰它们。
+        flow.deny(actor, flow.targeted('world_revise_object', oid, params, target), codes=codes, says=says,
+                  prepare=target is None)
+
+    def deny_relate(actor, oid, field, refs, codes, says=None):
+        flow.deny(actor, flow.targeted('world_relate', oid, {'field': field, 'refs': refs}), codes=codes, says=says)
+
+    # 版本 2：改写验收条件与计划条目（id 不换），追加一条带 id 的计划条目。
+    v1 = flow.read('a', mission['object_id'])
+    criterion = blocks_of(v1)['acceptance']['components'][0]['id']
+    revised = flow.revise('a', mission['object_id'], {'blocks': {
+        'acceptance': {'components': [{'id': criterion, 'type': 'acceptance_criterion', 'text': '客户书面签字'}]},
+        'execution_plan': {'components': [{'id': 'plan-1', 'type': 'plan_item', 'text': '搭环境（已完成）'},
+                                          {'id': 'plan-2', 'type': 'plan_item', 'text': '联调'}]}}})
+    check('each_revision_writes_exactly_one_object_revised_event_and_one_receipt',
+          revised['result']['version'] == 2 and revised['result']['contract_version'] == V02
+          and one_event_one_receipt(revised, 'object.revised', []))
+    v2 = flow.read('a', mission['object_id'])
+    acceptance, plan = blocks_of(v2)['acceptance'], blocks_of(v2)['execution_plan']
+    check('a_rewritten_component_keeps_its_id_and_untouched_fields_and_blocks_stay',
+          [c['id'] for c in acceptance['components']] == [criterion] and acceptance['components'][0]['text'] == '客户书面签字'
+          and acceptance['components'][0]['scope'] is None
+          and [(c['id'], c['text']) for c in plan['components']] == [('plan-1', '搭环境（已完成）'), ('plan-2', '联调')]
+          and v2['business']['title'] == v1['business']['title']
+          and v2['business']['relations'][0]['value'] == v1['business']['relations'][0]['value'])
+    check('an_older_version_still_reads_back_as_it_was',
+          [c['text'] for c in blocks_of(flow.read('a', mission['object_id'], version=1))['execution_plan']['components']]
+          == ['搭环境'])
+    check('a_gated_draft_keeps_no_effective_revision',
+          v2['business']['formal'] == {'lifecycle_status': 'draft', 'effective_revision_id': None})
+
+    # 旧版本的组件引用钉在旧修订；新版本里同一 id 可找到。
+    task_view = flow.read('a', task['object_id'])
+    old_ref = blocks_of(task_view)['acceptance']['components'][0]['refs'][0]
+    check('a_component_reference_to_the_older_version_stays_pinned_to_that_revision',
+          old_ref['ref'] == f"{mission['ref']}#acceptance/{criterion}" and old_ref['revision_id'] == mission['revision_id'])
+    new_ref = f"{mission['object_id']}@2#acceptance/{criterion}"
+    task_revised = flow.revise('a', task['object_id'], {'blocks': {'acceptance': {'components': [
+        {'type': 'acceptance_criterion', 'text': '演示通过（按新验收）', 'refs': [new_ref]}]}}})
+    task_view = flow.read('a', task['object_id'])
+    components = blocks_of(task_view)['acceptance']['components']
+    check('the_same_component_id_is_found_in_the_newer_version',
+          [c['refs'][0]['revision_id'] for c in components] == [mission['revision_id'], revised['result']['revision_id']]
+          and components[1]['refs'][0]['ref'] == new_ref)
+    check('an_ungated_object_moves_its_effective_revision_with_the_revision',
+          task_view['business']['formal']['effective_revision_id'] == task_revised['result']['revision_id'])
+
+    # 版本 3：删除一条计划条目，台账记删除版本号。
+    flow.revise('a', mission['object_id'], {'blocks': {'execution_plan': {'components': [{'id': 'plan-2', 'removed': True}]}}})
+    ledger = {e['id']: e for e in flow.read('a', mission['object_id'])['business']['component_ledger']}
+    check('a_removed_component_is_recorded_in_the_ledger_with_its_removal_version',
+          ledger['plan-2'] == {'id': 'plan-2', 'type': 'plan_item', 'block': 'execution_plan', 'added_in_version': 2,
+                               'removed_in_version': 3}
+          and ledger['plan-1']['removed_in_version'] is None and ledger[criterion]['removed_in_version'] is None)
+    deny_revise('a', mission['object_id'], {'blocks': {'execution_plan': {'components': [
+        {'id': 'plan-2', 'type': 'plan_item', 'text': '联调'}]}}}, {'INVALID_REQUEST'}, 'not reused')
+    check('reusing_a_removed_component_id_is_refused')
+    deny_revise('a', mission['object_id'], {'blocks': {'acceptance': {'components': [
+        {'id': 'plan-1', 'type': 'acceptance_criterion', 'text': '搬过来'}]}}}, {'INVALID_REQUEST'}, 'move between blocks')
+    deny_revise('a', mission['object_id'], {'blocks': {
+        'execution_plan': {'components': [{'id': 'plan-1', 'removed': True}]},
+        'acceptance': {'components': [{'id': 'plan-1', 'type': 'acceptance_criterion', 'text': '搬过来'}]}}},
+        {'INVALID_REQUEST'}, 'move between blocks')
+    check('moving_a_component_to_another_block_is_refused_even_when_removed_in_the_same_revision')
+    deny_revise('a', mission['object_id'], {'blocks': {'execution_plan': {'components': [
+        {'id': 'plan-9', 'removed': True}]}}}, {'INVALID_REQUEST'}, 'present in that block')
+    check('removing_a_component_not_present_in_that_block_is_refused')
+
+    # 版本 4：块给 null 清空，其中的组件在台账记删除。
+    cleared = flow.revise('a', mission['object_id'], {'blocks': {'execution_plan': None}})
+    v4 = flow.read('a', mission['object_id'])
+    ledger = {e['id']: e for e in v4['business']['component_ledger']}
+    check('a_null_block_clears_it_and_records_its_components_as_removed',
+          cleared['result']['version'] == 4 and blocks_of(v4)['execution_plan']['empty']
+          and ledger['plan-1']['removed_in_version'] == 4 and ledger['plan-2']['removed_in_version'] == 3)
+
+    # 拒绝：非责任人、持 DRI 角色的 Agent、改挂关系、只由服务写的字段、错期望版本、非最新修订。
+    deny_revise('ic_a', mission['object_id'], {'title': 'x'}, {'FORBIDDEN'}, 'responsible person up the spine')
+    check('only_a_responsible_person_up_the_spine_revises')
+    other_goal = flow.create('a', 'PeriodGoal', 'a', {'title': '11 月目标', 'period': '2026-11',
+                                                     'goal_ref': made['LongTermGoal.unit']['ref']})['result']
+    deny_revise('a', mission['object_id'], {'goal_ref': other_goal['ref']}, {'INVALID_REQUEST'}, 're-pinned')
+    check('a_creation_relation_cannot_be_hung_on_another_object')
+    deny_revise('a', mission['object_id'], {'responsible': f['actors']['owner_a']['principal_id']}, {'INVALID_REQUEST'})
+    check('a_field_written_only_by_the_service_cannot_be_revised')
+    current = flow.target(mission['object_id'])
+    deny_revise('a', mission['object_id'], {'title': 'x'}, {'VERSION_CONFLICT'},
+                target={**current, 'expected_version': current['expected_version'] + 5})
+    check('a_wrong_expected_version_is_refused_for_a_revision')
+    deny_revise('a', mission['object_id'], {'title': 'x'}, {'STALE_DEPENDENCY'},
+                target={**current, 'revision_id': mission['revision_id']})
+    check('a_target_that_is_not_the_latest_revision_is_refused')
+
+    # Agent：声明必带；触及正式块而不要求人工验收在判责任人之前就被拒；只触及活动块的声明可以不要求人工验收，
+    # 但仍须是责任人（Agent 只经指派成为 Activity 的责任人，指派随票 #53，成功路径在那之后补验）。
+    unattended = {'scene': goal['ref'], 'trigger': '周会同步', 'human_acceptance': {'required': False}}
+    deny_revise('agent_a', task['object_id'], {'blocks': {'plan': {'text': '改计划'}}}, {'INVALID_REQUEST'},
+                'must declare')
+    check('an_agent_revision_without_a_declaration_is_refused')
+    deny_revise('agent_a', task['object_id'], {'title': '改标题'}, {'INVALID_REQUEST'}, 'needs human acceptance',
+                unattended)
+    deny_revise('agent_a', task['object_id'], {'blocks': {'definition': {'text': '改定义'}}}, {'INVALID_REQUEST'},
+                'needs human acceptance', unattended)
+    check('an_agent_revision_touching_formal_content_without_human_acceptance_is_refused')
+    deny_revise('agent_a', task['object_id'], {'blocks': {'plan': {'text': '改计划'}},
+                                               'external_refs': [{'system': 'tianshu', 'id': 'todo-1'}]},
+                {'FORBIDDEN'}, 'responsible person up the spine', unattended)
+    check('an_agent_revision_touching_only_activity_content_passes_the_declaration_rule_and_still_needs_responsibility')
+    deny_revise('agent', goal['object_id'], {'title': 'x'}, {'FORBIDDEN'}, 'responsible person up the spine',
+                {**unattended, 'human_acceptance': {'required': True, 'acceptor': f['actors']['ceo']['principal_id']}})
+    check('an_agent_holding_the_dri_role_is_not_the_period_goals_responsible')
+
+    # 建关系：周期目标的 depends_on 指向周期目标与 Mission。
+    related = flow.relate('a', goal['object_id'], 'depends_on', [other_goal['ref'], mission['ref']])
+    subjects = [{'object_id': other_goal['object_id'], 'object_version': 1, 'revision_id': other_goal['revision_id'],
+                 'block': None, 'component': None},
+                {'object_id': mission['object_id'], 'object_version': 1, 'revision_id': mission['revision_id'],
+                 'block': None, 'component': None}]
+    check('a_relation_writes_one_relate_event_pinning_the_new_revision_and_each_related_object',
+          one_event_one_receipt(related, 'relate', subjects))
+    relations = {r['field']: r['value'] for r in flow.read('a', goal['object_id'])['business']['relations']}
+    check('a_period_goal_depends_on_a_period_goal_and_a_mission',
+          [item['ref'] for item in relations['depends_on']] == [other_goal['ref'], mission['ref']]
+          and relations['goal_ref']['ref'] == made['LongTermGoal.unit']['ref'])
+    revised_goal = flow.revise('a', goal['object_id'], {'title': '10 月目标（改）'})
+    relations = {r['field']: r['value'] for r in flow.read('a', goal['object_id'])['business']['relations']}
+    check('a_revision_keeps_the_relations_written_by_relate',
+          revised_goal['result']['version'] == 3 and [item['ref'] for item in relations['depends_on']]
+          == [other_goal['ref'], mission['ref']])
+    deny_relate('a', goal['object_id'], 'depends_on', [goal['ref']], {'INVALID_REQUEST'}, 'itself')
+    check('a_period_goal_cannot_depend_on_itself')
+    deny_relate('a', goal['object_id'], 'depends_on', [other_goal['ref'], other_goal['object_id'] + '@1'],
+                {'INVALID_REQUEST'})
+    check('a_relation_list_naming_an_object_twice_is_refused')
+    deny_relate('a', goal['object_id'], 'depends_on', [task['ref']], {'INVALID_REQUEST'}, 'must point to one of')
+    check('a_period_goal_depends_only_on_period_goals_and_missions')
+    deny_relate('a', goal['object_id'], 'contributes_to', [other_goal['ref']], {'INVALID_REQUEST'}, 'has no contributes_to')
+    check('a_period_goal_has_no_contributes_to')
+    deny_relate('ic_a', goal['object_id'], 'depends_on', [other_goal['ref']], {'FORBIDDEN'})
+    check('only_a_responsible_person_up_the_spine_relates')
+    deny_relate('agent', goal['object_id'], 'depends_on', [other_goal['ref']], {'FORBIDDEN'}, 'Agent face')
+    check('relating_is_not_on_the_agent_face')
+
+    body = flow.prepare('a', flow.targeted('world_revise_object', task['object_id'], {'payload': {
+        'blocks': {'plan': {'text': '按新验收排期'}}}}))
+    receipt = flow.commit('a', body)
+    replay = flow.commit('a', deepcopy(body))
+    check('replaying_a_revision_returns_the_original_receipt_and_writes_nothing_more',
+          replay['receipt_id'] == receipt['receipt_id'] and one_event_one_receipt(receipt, 'object.revised', []))
 
 
 def revocation(book, h, f, flow, command):
@@ -562,6 +739,8 @@ def run(book, h, source, upgrade_evidence):
             foreign = coexistence(book, h, f, flow)
         with scenario('references'):
             references(book, h, f, flow, trunk, foreign)
+        with scenario('revise_relate'):
+            revise_relate(book, h, f, flow, trunk)
         with scenario('revocation'):
             revocation(book, h, f, flow, made['command'])
     finally:

@@ -289,8 +289,9 @@ def ledger_after(ledger: list[dict[str, Any]], blocks: dict[str, Any], version: 
 
 
 def stored_payload(object_type: str, payload: dict[str, Any], pins: dict[str, dict[str, Any]], *, version: int,
-                   ledger: list[dict[str, Any]] | None = None) -> dict[str, Any]:
-    """把写入载荷里的引用换成钉定结果，给没有 id 的组件生成 id，更新组件台账，按存储模型校验后返回。"""
+                   ledger: list[dict[str, Any]] | None = None, server: dict[str, Any] | None = None) -> dict[str, Any]:
+    """把写入载荷里的引用换成钉定结果，给没有 id 的组件生成 id，更新组件台账，只由服务写的字段取 server
+    （修订时沿用当前版本）或默认值，按存储模型校验后返回。"""
     spec = world_registry.object_spec(object_type)
     value = dict(payload)
     for relation in spec["relation_fields"]:
@@ -307,7 +308,132 @@ def stored_payload(object_type: str, payload: dict[str, Any], pins: dict[str, di
                                             "refs": [pins[text] for text in block["refs"]]}
                        for block_id, block in payload["blocks"].items()}
     value["component_ledger"] = ledger_after(ledger or [], value["blocks"], version)
+    value.update(server or {})
+    return stored(object_type, value)
+
+
+def stored(object_type: str, value: dict[str, Any]) -> dict[str, Any]:
+    """按存储模型校验一份存储载荷。"""
     return _model(object_type, True).model_validate(value).model_dump(mode="json")
+
+
+# ------------------------------------------------------------------ revision (契约第 12 节)
+def server_owned(object_type: str) -> list[str]:
+    """只由服务写的字段：由事件写的属性，与客户端不写的关系字段（只经 world_relate 写的、票 #60 之前的依据复盘）。"""
+    spec = world_registry.object_spec(object_type)
+    return ([attribute["id"] for attribute in spec["attributes"] if attribute["set_by"] is not None]
+            + [relation["field"] for relation in spec["relation_fields"] if not _written_by_client(relation)])
+
+
+def server_fields(object_type: str, value: dict[str, Any]) -> dict[str, Any]:
+    return {field: value[field] for field in server_owned(object_type)}
+
+
+def written_form(object_type: str, value: dict[str, Any]) -> dict[str, Any]:
+    """存储载荷中客户端可写的部分，钉定引用还原成业务形式；合并修订从它出发。"""
+    spec = world_registry.object_spec(object_type)
+    owned = {*server_owned(object_type), "component_ledger"}
+    written = {key: item for key, item in value.items() if key not in owned}
+    for relation in spec["relation_fields"]:
+        field = relation["field"]
+        if isinstance(written.get(field), list):
+            written[field] = [cite(pin) for pin in written[field]]
+        elif written.get(field):
+            written[field] = cite(written[field])
+
+    def component(item: dict[str, Any]) -> dict[str, Any]:
+        return {**item, "scope": item["scope"] and cite(item["scope"]), "refs": [cite(pin) for pin in item["refs"]]}
+    written["blocks"] = {block_id: block and {**block, "components": [component(item) for item in block["components"]],
+                                              "refs": [cite(pin) for pin in block["refs"]]}
+                         for block_id, block in value["blocks"].items()}
+    return written
+
+
+_EMPTY_BLOCK = {"text": "", "components": [], "refs": [], "artifacts": []}
+
+
+def _merged_components(current: list[dict[str, Any]], given: Any) -> list[dict[str, Any]]:
+    """组件按 id 合并：给出的 id 改写（整条替换、位置不变），{"id": …, "removed": true} 删除，
+    新组件追加在后，未提到的保留。"""
+    if not isinstance(given, list):
+        raise ValueError("the components of a block patch are a list")
+    merged, positions = list(current), {item["id"]: index for index, item in enumerate(current)}
+    seen: set[str] = set()
+    removed: set[str] = set()
+    for item in given:
+        if not isinstance(item, dict):
+            raise ValueError("a component in a block patch is an object")
+        cid = item.get("id")
+        if cid is not None:
+            if not isinstance(cid, str) or cid in seen:
+                raise ValueError("a revision names a component id once, as text")
+            seen.add(cid)
+        if "removed" in item:
+            if set(item) != {"id", "removed"} or item["removed"] is not True:
+                raise ValueError('a removal is exactly {"id": <component id>, "removed": true}')
+            if cid not in positions:
+                raise ValueError("a removal names a component present in that block")
+            removed.add(cid)
+        elif cid in positions:
+            merged[positions[cid]] = item
+        else:
+            merged.append(item)
+    return [item for item in merged if item.get("id") not in removed]
+
+
+def _merged_block(current: dict[str, Any] | None, given: Any) -> dict[str, Any] | None:
+    """块补丁按字段合并：text、refs、artifacts 给出即整体替换，components 按 id 合并；null 清空；
+    合并后什么都没有的块存 null（契约第 4 节）。"""
+    if given is None:
+        return None
+    if not isinstance(given, dict):
+        raise ValueError("a block patch is an object or null")
+    block = {**(current or _EMPTY_BLOCK), **{key: item for key, item in given.items() if key != "components"}}
+    if "components" in given:
+        block["components"] = _merged_components(block["components"], given["components"])
+    if (set(block) == set(_EMPTY_BLOCK) and isinstance(block["text"], str) and not block["text"].strip()
+            and block["components"] == block["refs"] == block["artifacts"] == []):
+        return None
+    return block
+
+
+def _check_ledger(ledger: list[dict[str, Any]], blocks: dict[str, Any]) -> None:
+    """对着组件台账：删除后 id 不复用，组件不跨块移动（换块即删除再新增），同一 id 不换类型（契约第 4 节）。"""
+    entries = {entry["id"]: entry for entry in ledger}
+    for block_id, block in blocks.items():
+        for item in (block["components"] if isinstance(block, dict) else []):
+            entry = entries.get(item.get("id"))
+            if entry is None:
+                continue
+            if entry["removed_in_version"] is not None:
+                raise ValueError("a removed component id is not reused")
+            if entry["block"] != block_id:
+                raise ValueError("a component does not move between blocks; remove it and add a new one")
+            if entry["type"] != item.get("type"):
+                raise ValueError("a component keeps its type")
+
+
+def merge_revision(object_type: str, value: dict[str, Any], patch: Any) -> dict[str, Any]:
+    """合并修订（契约第 12 节）：只改给出的字段与块，块内按字段合并、组件按 id 合并，对着台账核对组件 id；
+    合并结果按写入模型校验，违反契约抛 ValueError。"""
+    if not isinstance(patch, dict) or not isinstance(patch.get("blocks", {}), dict):
+        raise ValueError("a revision patch is an object, and its blocks, if given, an object")
+    current = written_form(object_type, value)
+    blocks = {**current["blocks"], **{block_id: _merged_block(current["blocks"].get(block_id), given)
+                                      for block_id, given in patch.get("blocks", {}).items()}}
+    _check_ledger(value["component_ledger"], blocks)
+    return validate_input(object_type, {**current, **{key: item for key, item in patch.items() if key != "blocks"},
+                                        "blocks": blocks})
+
+
+def touches_formal(object_type: str, patch: dict[str, Any]) -> bool:
+    """补丁里出现了正式块、正式属性或建对象时写的关系字段（契约第 3.2、3.3、9.3 节），不论值变没变。"""
+    spec = world_registry.object_spec(object_type)
+    formal = {attribute["id"] for attribute in spec["attributes"] if attribute["class"] == "formal"}
+    formal |= {relation["field"] for relation in spec["relation_fields"]}
+    formal_blocks = {block["id"] for block in spec["blocks"] if block["class"] == "formal"}
+    return (any(key in formal for key in patch if key != "blocks")
+            or any(block_id in formal_blocks for block_id in patch.get("blocks", {})))
 
 
 class HumanAcceptance(StrictModel):
@@ -343,9 +469,31 @@ class WorldV02CreateObjectParams(StrictModel):
         return value
 
 
+class WorldV02ReviseObjectParams(StrictModel):
+    """合并修订的补丁：按类型的校验在服务里对合并结果做（契约第 12 节）。"""
+    payload: dict[str, Any]
+    declaration: Optional[Declaration] = None
+
+
+class WorldV02RelateParams(StrictModel):
+    """整体替换一个跨链关系字段的列表（契约第 6 节）；列表里的引用指向对象本身，同一对象只出现一次。"""
+    field: Literal["depends_on", "contributes_to"]
+    refs: list[ObjectRefText]
+    declaration: Optional[Declaration] = None
+
+    @field_validator("refs")
+    @classmethod
+    def distinct_objects(cls, refs: list[str]) -> list[str]:
+        if len({parse_ref(text)["object_id"] for text in refs}) != len(refs):
+            raise ValueError("a relation list names each object once")
+        return refs
+
+
 # 本进程已实现的 0.2 动作与可建类型。支持登记只能在这之内收窄，不能扩大（与协议支持集合同理）。
-ACTION_PARAMS = {"world_create_object": WorldV02CreateObjectParams}
-# 动作 -> 允许的目标类型；空集表示该动作不带 target。
-ACTION_TARGETS: dict[str, frozenset[str]] = {"world_create_object": frozenset()}
+ACTION_PARAMS = {"world_create_object": WorldV02CreateObjectParams, "world_revise_object": WorldV02ReviseObjectParams,
+                 "world_relate": WorldV02RelateParams}
 CREATABLE = frozenset({"Company", "Strategy", "ResponsibilityUnit", "LongTermGoal", "PeriodGoal", "Mission", "Task",
                        "Activity"})
+# 动作 -> 允许的目标类型；空集表示该动作不带 target。状态快照不修订，只有带跨链关系字段的类型能建关系。
+ACTION_TARGETS: dict[str, frozenset[str]] = {"world_create_object": frozenset(), "world_revise_object": CREATABLE,
+                                             "world_relate": frozenset({"PeriodGoal", "Mission", "Task"})}

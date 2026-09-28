@@ -122,14 +122,14 @@ def test_each_world_binding_is_interpreted_under_its_own_version():
 
 
 @pytest.mark.parametrize("declared, action, code", [
-    ("tkos.world/0.1", "world_revise_object", "PROTOCOL_BINDING_CONFLICT"),
-    ("tkos.world/0.2", "world_revise_object", "ACTION_NOT_SUPPORTED_FOR_PROTOCOL"),
+    ("tkos.world/0.1", "world_relate", "PROTOCOL_BINDING_CONFLICT"),
+    ("tkos.world/0.2", "world_relate", "ACTION_NOT_SUPPORTED_FOR_PROTOCOL"),  # Company 不能建关系
 ])
 def test_a_world_0_2_bound_target_takes_its_targets_from_the_0_2_table(declared, action, code, monkeypatch):
     from memory_service_runtime.governed import protocol
     from memory_service_runtime.governed.errors import GovernedError
     _, registry_row, binding = _binding_rows()
-    registry_row["content"]["actions"].append("world_revise_object")
+    registry_row["content"]["actions"].append("world_relate")
     monkeypatch.setattr(protocol, "current_binding", lambda conn, scope, oid: binding)
     monkeypatch.setattr(protocol, "_check_registry",
                         lambda conn, scope, pid, cv: protocol.RegistryContent.model_validate(registry_row["content"]))
@@ -199,9 +199,9 @@ def test_the_same_action_name_parses_under_the_version_it_declares():
 
 
 @pytest.mark.parametrize("overrides", [
-    {"action_type": "world_revise_object",                       # 0.2 还没有实现修订
-     "target": {"object_id": DOMAIN, "revision_id": DOMAIN, "expected_version": 1},
-     "params": {"payload": {"title": "x"}}},
+    {"action_type": "world_grant_delegation",                    # 0.2 还没有实现代记
+     "params": {"delegate_principal_id": DOMAIN}},
+    {"action_type": "world_revise_object", "params": {"payload": {"title": "x"}}},  # 修订要带目标
     {"target": {"object_id": DOMAIN, "revision_id": DOMAIN, "expected_version": 1}},
     {"params": {"domain_id": DOMAIN, "object_type": "Company", "payload": {"title": "x"}, "extra": 1}},
     {"params": {"domain_id": DOMAIN, "object_type": "Constraint", "payload": {"title": "x"}}},

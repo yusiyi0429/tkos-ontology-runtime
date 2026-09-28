@@ -54,11 +54,12 @@ HTTP 面的返回（包括拒绝）原样打到标准输出，JSON 缩进打印�
 | `get <id>`、`state <id>`、`events <id>`、`context <id>` | 端点与选项不变，HTTP 面按对象绑定的契约版本出形状：0.2 对象分 `business`、`identity`、`records` 三组，引用细到组件（`<id>@<版本>#<块>/<组件>`），事件写成 `event:<事件 id>` |
 | `children <id>` | 没有：取子对象不在 0.2 的 Agent 面上，HTTP 面对 0.2 对象也不支持 |
 | `list` | 新增，列对象（`GET /v1/world/objects`，契约第 15.2 节）：`--unit-id`（责任单元的对象 id，即它所在的域）或 `--domain-id`、`--type`、`--period`（`YYYY-MM`；Mission 按其周期目标，Task、Activity 按其 Mission）、`--external-system` 与 `--external-id`（按外部引用查找，两者都给时至多一项），`--limit`（默认 50，最多 100）、`--cursor`（上一页的 `next_cursor`）；给了的原样作查询参数，返回 `{"items": [对象头…], "next_cursor"}`，字段见《接口变化清单》第十项 |
-| `act <动作>` | 动作是 `world_record_event`、`world_refresh_state`、`world_revise_object`、`world_start`、`world_deliver`；`contract_version` 为 `tkos.world/0.2` |
+| `act <动作>` | 动作是 `world_record_event`、`world_refresh_state`、`world_revise_object`、`world_start`、`world_deliver`、`world_raise_issue`、`world_route_issue`、`world_return_issue`；`contract_version` 为 `tkos.world/0.2` |
 
 - 修订、开始、交付要 `--target`，取 `get` 返回的 `business` 组里的 `object_id`、`revision_id` 与 `object_version`（作 `expected_version`）。开始的目标是已成立的 Mission（Agent 作为 Owner 的 Agent，须在它所在的域持 AGENT）或指派给自己的 Activity；交付的目标是自己负责的 Activity。撤回自己记的开始或交付，`--params` 带 `{"outcome": "withdrawn", "supersedes_event_id": …}`。
 - 写入声明的 `scene` 可以是任一业务对象；写状态快照的 `payload` 是 0.2 的外壳（`payload_type`、`source_event_refs` 等，见契约第 7 节）。
-- 门、指派、建关系、建对象、关注标记不在 `act` 的动作里；代记只走 HTTP，`--params` 带 `on_behalf_of` 在发请求之前以用法错误拒绝。提出问题、路由问题、退回形成随 #61 加进 `act`。
+- 提出问题、路由问题、退回形成（#61，契约第 13 节）不带 `--target`：`--params` 里以 `issue_ref`（问题组件的组件引用 `<快照 id>@<版本>#issues/<组件 id>`）指明问题，路由另带 `to_principal_id`（承接人，须是在主受影响对象所在域持角色的人），可选 `content` 写进事件。Agent 作为 MF（在主受影响对象所在域持 AGENT）记这三个动作。
+- 门、指派、建关系、建对象、关注标记、问题的承接与处置不在 `act` 的动作里；代记只走 HTTP，`--params` 带 `on_behalf_of` 在发请求之前以用法错误拒绝。
 
 ```sh
 export TKOS_WORLD_CONTRACT_VERSION=tkos.world/0.2

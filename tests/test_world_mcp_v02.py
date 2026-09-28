@@ -1,8 +1,8 @@
 """tkos-world-mcp 的 0.2 Agent 面（票 #57、#63）：TKOS_WORLD_CONTRACT_VERSION 选 tkos.world/0.2 时，用 mcp 客户端经
 stdio 拉起 server 子进程，让它打一个假的 HTTP 面。
 
-断言工具清单等于契约第 9.3 节 Agent 面里已实现的部分（登记 agent_face 去掉三个 Issue 动作），面外的工具与
-代记在发请求之前就拒绝；每个工具的请求形状、契约版本与 prepare 再 commit；运行日志按 0.2 的四种引用形式记下组件
+断言工具清单等于契约第 9.3 节的 Agent 面（登记 agent_face：五读八写，Issue 的提出、路由、退回形成随 #61 加入），
+面外的工具与代记在发请求之前就拒绝；每个工具的请求形状、契约版本与 prepare 再 commit；运行日志按 0.2 的四种引用形式记下组件
 与事件引用、不含凭证；取上下文仍只交出包 id、Markdown、覆盖与预算摘要；版本取值不认识时启动即退出。默认 0.1 的
 行为由 test_world_mcp.py 原样覆盖。不连数据库，也不启动真 API；真 API 上的 0.2 Agent 面在 acceptance/world_v02 里跑。
 """
@@ -46,9 +46,8 @@ REFUSAL = {"error": {"code": "INVALID_REQUEST",
                      "message": "An Agent write must declare its scene, trigger and human acceptance."}}
 FORBIDDEN = {"error": {"code": "FORBIDDEN", "message": "not the responsible"}}
 READS = {"world_get_object", "world_get_context", "world_get_events", "world_get_state", "world_list_objects"}
-WRITES = {"world_record_event", "world_refresh_state", "world_revise_object", "world_start", "world_deliver"}
-# 登记里在 Agent 面上、但 HTTP 面还没实现的：Issue 的提出、路由、退回形成（#61）。
-NOT_YET = {"world_raise_issue", "world_route_issue", "world_return_issue"}
+ISSUES = {"world_raise_issue", "world_route_issue", "world_return_issue"}
+WRITES = {"world_record_event", "world_refresh_state", "world_revise_object", "world_start", "world_deliver", *ISSUES}
 
 
 # ------------------------------------------------------------ 0.2 读投影的形状（world_v02_readers、world_v02_context）
@@ -199,11 +198,11 @@ def log_lines(log_dir: Path) -> list[dict]:
 
 def test_the_0_2_server_offers_exactly_the_implemented_agent_face(api, tmp_path):
     tools, _ = run_session(api, tmp_path, [])
-    assert set(tools) == READS | WRITES and len(tools) == 10
+    assert set(tools) == READS | WRITES and len(tools) == 13
     face = REGISTRY["agent_face"]
-    # 与登记一致：读是登记的读（加 world_ 前缀），写是登记的写，都去掉 HTTP 面还没实现的。
-    assert {f"world_{name}" for name in face["reads"] if name not in NOT_YET} == READS
-    assert set(face["writes"]) - NOT_YET == WRITES
+    # 与登记一致：读是登记的读（加 world_ 前缀），写是登记的写。
+    assert {f"world_{name}" for name in face["reads"]} == READS
+    assert set(face["writes"]) == WRITES
     outside = {item["action"] for item in REGISTRY["actions"] if not item["agent_face"]}
     assert not outside & set(tools) and {"world_assign", "world_relate", "world_create_object",
                                          "world_mark_core_battle", "world_grant_delegation"} <= outside
@@ -217,7 +216,7 @@ def test_the_0_2_server_offers_exactly_the_implemented_agent_face(api, tmp_path)
 
 def test_tools_outside_the_0_2_agent_face_and_on_behalf_writes_are_refused_before_any_http_call(api, tmp_path):
     outside = sorted({item["action"] for item in REGISTRY["actions"] if not item["agent_face"]}
-                     | NOT_YET | {"world_get_children"})
+                     | {"world_get_children"})
     calls = [(name, {"target": TARGET}) for name in outside]
     calls += [("world_start", {"target": TARGET, "on_behalf_of": {"principal_id": AGENT}}),
               ("world_deliver", {"target": TARGET, "declaration": DECLARATION,
@@ -316,6 +315,46 @@ def test_each_0_2_write_prepares_then_commits_the_same_command_under_contract_0_
     assert results[3].structured_content["result"]["contract_version"] == V02
     lines = log_lines(tmp_path)
     assert [line["idempotency_key"] for line in lines] == [r["body"]["idempotency_key"] for r in api.requests[::2]]
+
+
+def test_the_three_issue_tools_prepare_then_commit_without_a_target_under_contract_0_2(api, tmp_path):
+    """提出问题、路由问题、退回形成（#61）：名即动作名、参数即动作参数，以 issue_ref（问题组件的组件引用）指明问题、
+    不带目标；路由另带承接人。承接与处置只由人记、不在 Agent 面上，代记也不在。"""
+    issue_ref = f"{SNAPSHOT}@1#issues/iss-1"
+    calls = [
+        ("world_raise_issue", {"issue_ref": issue_ref, "content": {"text": "排期冲突要人判断",
+                                                                   "refs": [f"event:{EVENT}"]},
+                               "declaration": DECLARATION, "idempotency_key": "mcp-v02-raise-00001"}),
+        ("world_route_issue", {"issue_ref": issue_ref, "to_principal_id": AGENT, "declaration": DECLARATION}),
+        ("world_return_issue", {"issue_ref": issue_ref, "content": {"text": "缺核心判断问题，退回补齐"},
+                                "declaration": DECLARATION}),
+    ]
+    tools, results = run_session(api, tmp_path, calls + [
+        ("world_route_issue", {"issue_ref": issue_ref, "declaration": DECLARATION}),              # 缺承接人
+        ("world_raise_issue", {"target": TARGET, "issue_ref": issue_ref, "declaration": DECLARATION}),
+        ("world_return_issue", {"issue_ref": issue_ref, "declaration": DECLARATION,
+                                "on_behalf_of": {"principal_id": AGENT, "external_record_id": "x",
+                                                 "external_confirmed_at": "2026-09-28T00:00:00Z"}})])
+    for name in ("world_raise_issue", "world_route_issue", "world_return_issue"):
+        schema = tools[name].input_schema
+        assert "issue_ref" in schema["required"] and "target" not in schema["properties"]
+        assert "组件引用" in tools[name].description
+    assert tools["world_route_issue"].input_schema["required"] == ["issue_ref", "to_principal_id"]
+    assert [result.is_error for result in results] == [False] * 3 + [True] * 3
+    assert [(r["method"], r["path"]) for r in api.requests] == [
+        ("POST", "/v1/actions/prepare"), ("POST", "/v1/actions")] * len(calls)
+    for (name, arguments), prepare, commit in zip(calls, api.requests[::2], api.requests[1::2]):
+        key = prepare["body"]["idempotency_key"]
+        assert prepare["body"] == {
+            "action_type": name, "contract_version": V02, "target": None, "expected_versions": [],
+            "idempotency_key": arguments.get("idempotency_key", key), "reason": REASON,
+            "params": {k: v for k, v in arguments.items() if k != "idempotency_key"}}
+        assert commit["body"] == {**prepare["body"], "expected_versions": [{"object_id": TASK, "expected_version": 4}]}
+    lines = log_lines(tmp_path)
+    assert [(line["tool"], line["status"], line["error_code"]) for line in lines] == [
+        (name, 200, None) for name, _ in calls] + [(name, None, "INVALID_ARGUMENTS") for name in (
+            "world_route_issue", "world_raise_issue", "world_return_issue")]
+    assert [line["idempotency_key"] for line in lines[:3]] == [r["body"]["idempotency_key"] for r in api.requests[::2]]
 
 
 def test_a_0_2_http_refusal_is_returned_verbatim_and_nothing_is_committed(api, tmp_path):

@@ -7,7 +7,12 @@
 钉定其余引用、核对对象放在哪个域与挂在谁下面、写入声明。已接通八类业务对象的建对象、合并修订与建关系，
 写状态快照与记外部事件，指派与 Task、Activity 的六个生命周期动作（#53），周期目标、长期目标与 Mission 立项的
 承诺与确认（#54），Mission 的六个生命周期动作与关注标记（#55），委托的登记与撤销与代记（#62），外部引用在 scope
-内唯一（#63）；其余门随各自的票接入。
+内唯一（#63），Issue 的提出、路由、承接、处置与退回形成（#61）；其余门随各自的票接入。
+
+Issue（契约第 13 节）：问题是主受影响对象快照里的问题组件，身份是（主受影响对象，组件 id）。动作不带目标，以 issue_ref
+指明问题；判权在主受影响对象所在的域按激活策略判，承接与处置只由人记，然后按登记 issue.lifecycle 的状态表与记录者
+（raiser、router、route_target、owner、router_or_owner）判这条事件现在能不能记。Issue 事件只推动 Issue 自己的状态，
+不出修订、不动任何对象行（补 13、35）。
 
 指派、生命周期动作与门的判权（契约第 9.2 节）：激活策略列角色（门按目标类型拆名，ADR-0005），之后由服务算出
 调用者对目标满足的记录者类别（self、self_or_agent、parent、gate_role）与守卫事实，连同目标的事件交给生命周期引擎
@@ -41,8 +46,8 @@ from . import world_v02_registry as world_registry
 from .errors import GovernedError
 from .service import ActionExecution
 from .world_v01_readers import holds_role
-from .world_v02_readers import (cited, delegations_in_force, head_and_binding, judged_context, lifecycle,
-                                lifecycle_events)
+from .world_v02_readers import (cited, delegations_in_force, head_and_binding, issue_events, issue_holders,
+                                judged_context, lifecycle, lifecycle_events)
 
 
 def _fail(code: str, message: str = "", status: int | None = None) -> None:
@@ -84,6 +89,8 @@ class WorldExecution(ActionExecution):
             self.authorize_record_event()
         elif self.kind in models.DELEGATION_ACTIONS:
             self.authorize_delegation()
+        elif self.kind in models.ISSUE_ACTIONS:
+            self.authorize_issue()
         elif self.kind in {"world_revise_object", "world_relate"}:
             self.authorize_target()
         elif self.kind in models.GATE_ACTIONS:
@@ -443,6 +450,92 @@ class WorldExecution(ActionExecution):
             yield
         finally:
             self.ctx = caller
+
+    # ------------------------------------------------------------ issues
+    def authorize_issue(self) -> None:
+        """Issue 的五个动作（契约第 9、13 节，补 36、37）。issue_ref 所在的对象须是本 scope 的 world 对象（否则 404）；
+        快照与主体同域，判权在这个域按激活策略判，承接与处置只由人记——Agent 持角色也不能记（不在 Agent 面上）；再过
+        协议闸门。然后校验载荷（422）：Agent 的写入声明、issue_ref 钉到某条状态快照 issues 块里现存的问题组件、内容里
+        的引用、路由的承接人。最后按登记 issue.lifecycle 的状态表判：状态不允许是 INVALID_STATE（正在处理与已处置的
+        问题不再提出），记录者不符是 FORBIDDEN。"""
+        carrier = head_and_binding(self.conn, self.ctx, models.parse_ref(self.params["issue_ref"])["object_id"])[0]
+        self.domain_id = carrier["domain_id"]
+        self.action_assignments = db.authorize_domain(self.conn, self.ctx, self.domain_id, self.kind)
+        if self.ctx.principal_type != "human" and self.kind not in world_registry.registry()["agent_face"]["writes"]:
+            _fail("FORBIDDEN", "An issue is owned and disposed by a person; an Agent does not record it even with "
+                               "the role.")
+        self.protocol_context = protocol.gate_world_action(self.conn, self.ctx.scope_id, self.kind,
+                                                           models.CONTRACT_VERSION)
+        self.require_declaration()
+        self.declaration = self.pinned_declaration()
+        component = self.pin(self.params["issue_ref"])
+        issue = self.referenced[self.params["issue_ref"]]
+        if issue["object_type"] != "StateSnapshot" or issue["component"]["type"] != "issue":
+            _invalid("issue_ref points to an issue component in the issues block of a state snapshot.")
+        primary_id = issue["payload"]["subject_ref"]["object_id"]
+        self.event_subjects = [component, self.pin(models.citation(primary_id, self.current_version(primary_id)))]
+        self.issue = {"primary_affected_object_id": primary_id, "component_id": component["component"]}
+        content = self.params.get("content")
+        self.content = content and {**content, "refs": [self.pin(text) for text in content["refs"]]}
+        if self.kind == "world_route_issue":
+            self.check_route_target()
+        events = issue_events(self.conn, self.ctx, primary_id, component["component"])
+        recorders = self.issue_recorders(primary_id, events)
+        event = {"event_id": "pending", "action": self.kind, "outcome": None,
+                 "disposition": self.params.get("disposition"), "supersedes_event_id": None, "candidate": False,
+                 "guards": {}, "recorders": set(recorders)}
+        try:
+            self.effect = world_lifecycle.admit(world_registry.registry(), "Issue", events, event)
+        except world_lifecycle.Refused as exc:
+            _fail("FORBIDDEN" if exc.reason == "recorder" else "INVALID_STATE", str(exc))
+        used, through = recorders[self.effect["by"]]
+        self.required_assignments.add(used["assignment_id"])
+        self.responsible_through = through
+
+    def current_version(self, object_id: str) -> int:
+        return self.conn.execute(
+            """SELECT r.object_version FROM gov_objects o JOIN gov_object_revisions r
+                 ON r.scope_id=o.scope_id AND r.revision_id=o.latest_revision_id
+                WHERE o.scope_id=%s AND o.object_id=%s""", (self.ctx.scope_id, object_id)).fetchone()["object_version"]
+
+    def issue_recorders(self, primary_id: str,
+                        events: list[dict[str, Any]]) -> dict[str, tuple[dict[str, Any], str | None]]:
+        """调用者对这个问题满足的记录者类别（登记 recorders，补 36）→（让他满足的那条角色指派，经哪个对象的 responsible
+        属性成立）：raiser 与 router 是在主受影响对象所在域持 AGENT 的 Agent（MF），或主受影响对象主干上的责任人；
+        route_target 是当前路由指定的承接人本人，owner 是已承接的承接人本人，两者都只能是人，用到的是他在该域经激活
+        策略判权的那条指派；router_or_owner 是 router 或 owner。"""
+        current = db._assignments(self.conn, self.ctx)
+        agent = next((row for row in current if self.ctx.principal_type == "agent" and row["role"] == "AGENT"
+                      and row["domain_id"] == self.domain_id), None)
+        self.responsible_through = None
+        spine = self.responsible_up_the_spine(primary_id, required=False)
+        router = (agent, None) if agent is not None else (spine, self.responsible_through) if spine else None
+        self.responsible_through = None
+        found: dict[str, tuple[dict[str, Any], str | None]] = {}
+        if router is not None:
+            found["raiser"] = found["router"] = found["router_or_owner"] = router
+        route_target, owner = issue_holders(events)
+        policy = (sorted(self.action_assignments, key=lambda row: row["assignment_id"])[0], None)
+        if self.ctx.principal_type == "human":
+            if route_target == self.ctx.principal_id:
+                found["route_target"] = policy
+            if owner == self.ctx.principal_id:
+                found["owner"] = policy
+                found.setdefault("router_or_owner", policy)
+        return found
+
+    def check_route_target(self) -> None:
+        """路由指定一名承接人（契约第 13 节）：本 scope 启用的人，且当前在主受影响对象所在的域持角色——承接与处置在
+        这个域按激活策略判权。不是则 INVALID_REQUEST（同被指派者不持角色）。"""
+        if self.conn.execute(
+                """SELECT 1 FROM gov_principals p
+                    WHERE p.scope_id=%s AND p.principal_id=%s AND p.active AND p.principal_type='human'
+                      AND EXISTS (SELECT 1 FROM gov_role_assignments a
+                                   WHERE a.scope_id=p.scope_id AND a.principal_id=p.principal_id AND a.domain_id=%s
+                                     AND a.active AND a.valid_from<=clock_timestamp()
+                                     AND (a.valid_to IS NULL OR clock_timestamp()<a.valid_to))""",
+                (self.ctx.scope_id, self.params["to_principal_id"], self.domain_id)).fetchone() is None:
+            _invalid("An issue is routed to a person holding a role in the domain of its primary affected object.")
 
     # ------------------------------------------------------------ assign and lifecycle
     def authorize_responsibility(self) -> None:
@@ -825,6 +918,8 @@ class WorldExecution(ActionExecution):
             _fail("FORBIDDEN", "A required assignment is not currently valid.")
         if self.kind == "world_assign":  # 责任关系一并复核：被指派者此刻仍持对应角色
             self.check_assignee()
+        if self.kind == "world_route_issue":  # 承接人此刻仍是在该域持角色的人
+            self.check_route_target()
 
     # ------------------------------------------------------------ writing
     def collect_dependencies(self) -> None:
@@ -837,6 +932,8 @@ class WorldExecution(ActionExecution):
             return self.record_event()
         if self.kind in models.DELEGATION_ACTIONS:
             return self.record_delegation()
+        if self.kind in models.ISSUE_ACTIONS:
+            return self.record_issue()
         if self.kind == "world_assign":
             return self.assign()
         if self.kind in models.LIFECYCLE_ACTIONS:
@@ -863,6 +960,27 @@ class WorldExecution(ActionExecution):
                                     detail=self.detail)
         return {"contract_version": models.CONTRACT_VERSION, "event_id": event_id,
                 "subject_refs": cited(self.event_subjects), "detail": self.detail}
+
+    def record_issue(self) -> dict[str, Any]:
+        """一条 Issue 记录事件（契约第 8、13 节）：subject_refs 是问题组件的组件引用与主受影响对象的对象引用；路由的
+        detail 写承接人，处置另写 disposition，内容里的引用已钉定。不出修订、不动任何对象行，只推动 Issue 自己的状态
+        （补 13、35）；回执给出记下之后的 Issue 状态。"""
+        detail = {"to_principal_id": self.params["to_principal_id"]} if self.kind == "world_route_issue" else None
+        disposition = self.params.get("disposition")
+        event_id = self.world_event(world_registry.action_spec(self.kind)["event_kind"], self.event_subjects,
+                                    content=self.content, detail=detail, disposition=disposition)
+        result = {"contract_version": models.CONTRACT_VERSION, "event_id": event_id,
+                  "subject_refs": cited(self.event_subjects),
+                  "issue": {**self.issue, "status": self.effect["status"], "display_name": self.effect["display_name"]}}
+        if detail is not None:
+            result["detail"] = detail
+        if disposition is not None:
+            result["disposition"] = disposition
+        if self.responsible_through is not None:
+            result["responsible_through"] = self.responsible_through
+        if self.declaration is not None:
+            result["declaration"] = self.declaration
+        return result
 
     def assign(self) -> dict[str, Any]:
         """指派只记业务责任、不授予权限（契约第 9.2 节）。Mission、Task、Activity 出新修订写 responsible，
@@ -964,20 +1082,21 @@ class WorldExecution(ActionExecution):
     def world_event(self, kind: str, subject_refs: list[dict[str, Any]], *, category: str | None = None,
                     occurred_at: str | None = None, outcome: str | None = None, content: dict[str, Any] | None = None,
                     detail: dict[str, Any] | None = None, supersedes_event_id: str | None = None,
-                    on_behalf_of: dict[str, Any] | None = None) -> str:
+                    on_behalf_of: dict[str, Any] | None = None, disposition: str | None = None) -> str:
         """写恰好一条 0.2 的 world 事件（契约第 11 节）：只读一次时钟，记录时刻与不补记的发生时刻取同一个值；
         只有外部事件与状态刷新给 occurred_at，迁移 0039 同样这样约束。记录者是调用者；代记时另写被代记的人、
-        外部记录 id 与外部确认时刻（契约第 8.1、14 节）。"""
+        外部记录 id 与外部确认时刻（契约第 8.1、14 节）；处置问题另写 disposition（0039 只许它带）。"""
         if occurred_at is not None and kind not in models.BACKDATED_KINDS:
             raise ValueError(f"{kind} happens at the moment it is recorded")
         on_behalf_of = on_behalf_of or {}
         return str(self.conn.execute(
-            """INSERT INTO gov_world_events (scope_id, contract_version, kind, category, outcome, subject_refs,
-                                             principal_id, on_behalf_of, external_record_id, external_confirmed_at,
-                                             occurred_at, recorded_at, content, detail, action_id, supersedes_event_id)
-               SELECT %s,%s,%s,%s,%s,%s,%s,%s,%s,%s,COALESCE(%s::timestamptz, now.t),now.t,%s,%s,%s,%s
+            """INSERT INTO gov_world_events (scope_id, contract_version, kind, category, outcome, disposition,
+                                             subject_refs, principal_id, on_behalf_of, external_record_id,
+                                             external_confirmed_at, occurred_at, recorded_at, content, detail,
+                                             action_id, supersedes_event_id)
+               SELECT %s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,COALESCE(%s::timestamptz, now.t),now.t,%s,%s,%s,%s
                  FROM (SELECT clock_timestamp() AS t) now RETURNING event_id""",
-            (self.ctx.scope_id, models.CONTRACT_VERSION, kind, category, outcome, Jsonb(subject_refs),
+            (self.ctx.scope_id, models.CONTRACT_VERSION, kind, category, outcome, disposition, Jsonb(subject_refs),
              self.ctx.principal_id, on_behalf_of.get("principal_id"), on_behalf_of.get("external_record_id"),
              on_behalf_of.get("external_confirmed_at"), occurred_at, Jsonb(content) if content is not None else None,
              Jsonb(detail) if detail is not None else None, self.action_id, supersedes_event_id)).fetchone()["event_id"])

@@ -18,7 +18,7 @@ CEO 确认）→ Mission（指派 Owner、Owner 承诺、DRI 确认、Owner 开�
 每步断言回执、生命周期与读回；任一步不成立即 FAIL 并以 1 退出。
 
 --mcp-cli：链跑完后再以执行 Agent 的凭证、TKOS_WORLD_CONTRACT_VERSION=tkos.world/0.2 走命令行与 MCP：tkos-world
-读 Activity、取上下文、写一条外部事件；经 stdio 起 tkos-world-mcp，工具清单是 0.2 的十个，读 Activity、写一条外部
+读 Activity、取上下文、写一条外部事件；经 stdio 起 tkos-world-mcp，工具清单是 0.2 的十三个，读 Activity、写一条外部
 事件；两条事件经 HTTP 读回。tkos-world、tkos-world-mcp 与 MCP 客户端要在装了本包的环境里（仓库检出里
 uv run python deploy/world-02/smoke.py …）。
 """
@@ -45,7 +45,8 @@ DOMAINS = ("company", "eo", "agents")
 UNITS = {"eo": ("eo-dri", "E&O"), "agents": ("agents-dri", "Agents")}
 SPINE = ["Activity", "Task", "Mission", "PeriodGoal", "LongTermGoal", "ResponsibilityUnit", "Strategy", "Company"]
 MCP_TOOLS = ["world_deliver", "world_get_context", "world_get_events", "world_get_object", "world_get_state",
-             "world_list_objects", "world_record_event", "world_refresh_state", "world_revise_object", "world_start"]
+             "world_list_objects", "world_raise_issue", "world_record_event", "world_refresh_state",
+             "world_return_issue", "world_revise_object", "world_route_issue", "world_start"]
 
 
 def check(name, ok, detail="", quiet=False):
@@ -377,7 +378,7 @@ class Smoke:
 
     def mcp_cli(self, activity_id):
         """命令行与 MCP 都选 0.2，以执行 Agent 的凭证：CLI 读对象、取上下文、写一条外部事件；MCP 经 stdio 起服务，
-        工具清单是 0.2 的十个，读对象、写一条外部事件（做法同 acceptance/world_v02/agent_face.py）；两条事件经 HTTP 读回。"""
+        工具清单是 0.2 的十三个，读对象、写一条外部事件（做法同 acceptance/world_v02/agent_face.py）；两条事件经 HTTP 读回。"""
         ref, token = self.ref(activity_id), self.tokens["exec-agent"]
         declared = {"scene": ref, "trigger": "冒烟：命令行与 MCP", "human_acceptance": {"required": False}}
 
@@ -434,7 +435,7 @@ class Smoke:
         with tempfile.TemporaryDirectory(prefix="world-02-mcp-") as logs:
             names, (read_failed, view), (write_failed, receipt) = anyio.run(session_run, logs)
             log = "".join(path.read_text(encoding="utf-8") for path in Path(logs).iterdir())
-        check("mcp lists the ten 0.2 agent-face tools", names == MCP_TOOLS, str(names))
+        check("mcp lists the thirteen 0.2 agent-face tools", names == MCP_TOOLS, str(names))
         check("mcp reads the activity in the 0.2 groups",
               not read_failed and view["business"]["object_id"] == activity_id, str(view)[:300])
         check("mcp records an external event under 0.2",

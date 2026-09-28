@@ -1,8 +1,8 @@
 """tkos.world/0.2 独立验收的 MCP 端到端场景（票 #57）：tkos-world-mcp 子进程选 0.2，以 Agent 凭证打真 API。
 
 照 0.1 验收里 MCP 那几项的做法（acceptance/world_v01/run.py 的 mcp_end_to_end）：经安装后的命令入口启动，源码与
-API 进程同一份。工具清单是 0.2 Agent 面里已实现的五读五写（列对象随 #63 加入，它在真 API 上的行为由 listing 场景直接
-打 HTTP 驱动）；四读到真 API，取对象分三组，取上下文只交出四项；五写
+API 进程同一份。工具清单是 0.2 Agent 面的五读八写（列对象随 #63 加入，它在真 API 上的行为由 listing 场景直接
+打 HTTP 驱动；提出问题、路由问题、退回形成随 #61 加入，它们在真 API 上的行为由 issues 场景直接打 HTTP 驱动）；四读到真 API，取对象分三组，取上下文只交出四项；五写
 经 prepare 再 commit，记录者是 Agent，事件与回执都是 0.2；Activity 由 Agent 开始、交付，Mission 由 Owner 的 Agent
 开始。缺声明的写入由 HTTP 面拒绝，错误体与直接打 HTTP 的逐字相同；面外的工具与代记在发请求之前就拒绝；拒绝都不改
 库。运行日志记下组件与事件引用、不含凭证。对象都新建，不动前面场景的主干。
@@ -19,7 +19,8 @@ from acceptance.world_v01.fixture import ROOT
 
 V02 = 'tkos.world/0.2'
 TOOLS = ['world_deliver', 'world_get_context', 'world_get_events', 'world_get_object', 'world_get_state',
-         'world_list_objects', 'world_record_event', 'world_refresh_state', 'world_revise_object', 'world_start']
+         'world_list_objects', 'world_raise_issue', 'world_record_event', 'world_refresh_state', 'world_return_issue',
+         'world_revise_object', 'world_route_issue', 'world_start']
 
 
 def mcp_end_to_end(book, h, f, flow, trunk, url, source):
@@ -126,7 +127,7 @@ def mcp_end_to_end(book, h, f, flow, trunk, url, source):
 
     names, done, refused, outside, unchanged = anyio.run(session_run)
     source_event = f"event:{done['record'][1]['result']['event_id']}"
-    check('the_0_2_mcp_server_lists_the_implemented_agent_face_five_reads_and_five_writes', names == TOOLS)
+    check('the_0_2_mcp_server_lists_the_agent_face_five_reads_and_eight_writes', names == TOOLS)
 
     packs = flow.rows('SELECT context_pack_id, principal_id, pack FROM gov_world_context_packs WHERE scope_id=%s '
                       'ORDER BY created_at, context_pack_id', (f['scope_id'],))

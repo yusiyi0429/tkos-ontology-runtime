@@ -1,6 +1,6 @@
 """tkos-world 的 0.2 Agent 面（票 #57、#63）：TKOS_WORLD_CONTRACT_VERSION 选 tkos.world/0.2 时打一个假的 HTTP 面。
 
-断言子命令与 act 的动作清单等于契约第 9.3 节 Agent 面里已实现的部分（登记 agent_face 去掉三个 Issue 动作），
+断言子命令与 act 的动作清单等于契约第 9.3 节的 Agent 面（登记 agent_face：Issue 的提出、路由、退回形成随 #61 加入），
 面外的动作、取子对象与代记（--params 带 on_behalf_of）在发请求之前就以用法错误拒绝；每个读与写的请求形状、契约
 版本与 prepare 再 commit；版本取值不认识时退出码 2、什么都不发。默认 0.1 的行为由 test_world_cli.py 原样覆盖。
 不连数据库，也不启动真 API。
@@ -25,9 +25,9 @@ EVENT = "2c5a7e2c-7d4f-4c1e-9a55-3a4f1c2d9e06"
 TARGET = {"object_id": OBJ, "revision_id": REV, "expected_version": 5}
 DECLARATION = {"scene": f"{OBJ}@1", "trigger": "会后整理", "human_acceptance": {"required": False}}
 COMMANDS = ["get", "state", "events", "list", "context", "act"]
-ACTIONS = ["world_record_event", "world_refresh_state", "world_revise_object", "world_start", "world_deliver"]
-# 登记里在 Agent 面上、但 HTTP 面还没实现的：Issue 的提出、路由、退回形成（#61）。
-NOT_YET = {"world_raise_issue", "world_route_issue", "world_return_issue"}
+ACTIONS = ["world_record_event", "world_refresh_state", "world_revise_object", "world_start", "world_deliver",
+           "world_raise_issue", "world_route_issue", "world_return_issue"]
+ISSUE_REF = f"{OBJ}@1#issues/iss-1"
 LISTED = {"items": [{"object_id": OBJ, "object_type": "Mission", "version": 3}], "next_cursor": "c2"}
 
 
@@ -64,9 +64,8 @@ def test_the_0_2_cli_offers_exactly_the_implemented_agent_face(api, capsys):
     assert exit_.value.code == 2 and choices(capsys.readouterr().err) == ACTIONS
     assert api.requests == []
     face = REGISTRY["agent_face"]
-    assert set(face["writes"]) - NOT_YET == set(ACTIONS)
-    assert {name for name in face["reads"] if name not in NOT_YET} == {"get_object", "get_context", "get_events",
-                                                                        "get_state", "list_objects"}
+    assert set(face["writes"]) == set(ACTIONS)
+    assert set(face["reads"]) == {"get_object", "get_context", "get_events", "get_state", "list_objects"}
 
 
 def test_0_2_reads_forward_to_the_http_endpoints_with_the_token(api, capsys):
@@ -113,6 +112,10 @@ def test_0_2_list_forwards_each_filter_and_the_cursor_as_query_parameters(api, c
     ("world_start", TARGET, {"declaration": DECLARATION}),
     ("world_deliver", TARGET, {"content": {"text": "交付说明"}, "declaration": DECLARATION}),
     ("world_start", TARGET, {"outcome": "withdrawn", "supersedes_event_id": EVENT, "declaration": DECLARATION}),
+    # Issue（#61）：以 issue_ref 指明问题、不带目标；路由另带承接人。
+    ("world_raise_issue", None, {"issue_ref": ISSUE_REF, "content": {"text": "排期冲突"}, "declaration": DECLARATION}),
+    ("world_route_issue", None, {"issue_ref": ISSUE_REF, "to_principal_id": REV, "declaration": DECLARATION}),
+    ("world_return_issue", None, {"issue_ref": ISSUE_REF, "content": {"text": "退回补齐"}, "declaration": DECLARATION}),
 ])
 def test_each_0_2_action_prepares_then_commits_the_same_command_under_contract_0_2(api, capsys, action, target, params):
     argv = ["act", action, "--params", json.dumps(params, ensure_ascii=False), "--reason", "Agent 面 0.2"]
@@ -133,8 +136,7 @@ def test_prepare_only_under_0_2_does_not_commit(api, capsys):
     assert api.requests[0]["body"]["contract_version"] == V02
 
 
-@pytest.mark.parametrize("action", sorted({item["action"] for item in REGISTRY["actions"] if not item["agent_face"]}
-                                          | NOT_YET))
+@pytest.mark.parametrize("action", sorted({item["action"] for item in REGISTRY["actions"] if not item["agent_face"]}))
 def test_actions_outside_the_0_2_agent_face_are_refused_before_any_http_call(api, capsys, action):
     with pytest.raises(SystemExit) as exit_:
         main(["act", action, "--target", json.dumps(TARGET), "--params", "{}", "--reason", "不在白名单"])
@@ -142,7 +144,7 @@ def test_actions_outside_the_0_2_agent_face_are_refused_before_any_http_call(api
     assert api.requests == []
 
 
-@pytest.mark.parametrize("action", ["world_start", "world_deliver"])
+@pytest.mark.parametrize("action", ["world_start", "world_deliver", "world_raise_issue"])
 def test_on_behalf_recording_is_refused_before_any_http_call(api, capsys, action):
     """代记只走 HTTP、不属于 Agent 面（契约第 9.3、14 节）：开始、交付虽可代记，经 CLI 带 on_behalf_of 也不发请求。"""
     on_behalf = {"principal_id": REV, "external_record_id": "tianshu-1", "external_confirmed_at": "2026-09-28T00:00:00Z"}

@@ -1,12 +1,12 @@
 """tkos-world-mcp 的 tkos.world/0.2 Agent 面（票 #57，契约第 9.3 节、登记 agent_face）。
 
 TKOS_WORLD_CONTRACT_VERSION=tkos.world/0.2 时启用。读与 0.1 是同样四个端点：HTTP 面按对象绑定的契约版本出形状，
-0.2 对象分 business、identity、records 三组，读请求本身不带契约版本。写是契约第 9.3 节 Agent 面里已实现的五个动作：
+0.2 对象分 business、identity、records 三组，读请求本身不带契约版本。写是契约第 9.3 节 Agent 面的八个动作：
 记外部事件（含更正）、写状态快照、修订、开始（Mission 作为 Owner 的 Agent，Activity 作为其责任人）、交付（Activity
-作为其责任人）。另有第五读列对象（#63，GET /v1/world/objects，按单元或域、类型、周期与外部引用筛选，分页）。门、指派、
-建关系、建对象、关注标记不在 Agent 面上；代记只走 HTTP（契约第 14 节），所以开始、交付的参数里没有 on_behalf_of。
-提出问题、路由问题、退回形成（#61）还没有 HTTP 实现，随自己的票加一个工具：写工具在 TOOLS 里加一项，读工具另在
-READS 里给它的端点。
+作为其责任人），以及提出问题、路由问题、退回形成（#61，作为 MF 即在主受影响对象所在域持 AGENT 的 Agent；以 issue_ref
+指明问题，不带目标）。另有第五读列对象（#63，GET /v1/world/objects，按单元或域、类型、周期与外部引用筛选，分页）。
+门、指派、建关系、建对象、关注标记、承接与处置问题不在 Agent 面上；代记只走 HTTP（契约第 14 节），所以写工具的参数里
+没有 on_behalf_of。加一个写工具在 TOOLS 里加一项（名即动作名、参数即动作参数），读工具另在 READS 里给它的端点。
 
 列对象返回的是对象头（id、类型、类别、标题、版本、生命周期、域、外部引用），不带块与组件，运行日志里不算读到内容：
 它的 read_refs 为空，推出生命周期的事件只进 event_ids。
@@ -34,6 +34,11 @@ _TARGET = {**_schema({"object_id": _OBJECT_ID, "revision_id": _OBJECT_ID,
            "description": "目标对象的最新修订：取对象返回的 business 组里的 object_id、revision_id 与 object_version"
                           "（作 expected_version）"}
 _CONTENT = {"type": "object", "description": "块值形状 {text, refs, artifacts}：text 为 Markdown，refs 为引用，artifacts 为文档链接"}
+_ISSUE_REF = {"type": "string", "description": "问题组件的组件引用 <快照 id>@<版本>#issues/<组件 id>：主受影响对象某条"
+              "状态快照 issues 块里的问题组件，取自取对象 records.open_issues 的 issue_ref.ref 或取状态返回的快照；"
+              "同一问题在后续快照里带同一个 id，引用哪一条都指同一个问题"}
+_ISSUE = {"issue_ref": _ISSUE_REF, "content": {**_CONTENT, "description": "写进事件的内容，" + _CONTENT["description"]},
+          "declaration": _DECLARATION, "idempotency_key": _KEY}
 _LIFECYCLE = {"target": _TARGET, "content": {**_CONTENT, "description": "写进事件的内容，" + _CONTENT["description"]},
               "outcome": {"type": "string", "description": "撤回自己记的这条事件时为 withdrawn，另带 supersedes_event_id"},
               "supersedes_event_id": {"type": "string", "description": "撤回时，被撤回的那条事件的 id"},
@@ -44,7 +49,8 @@ TOOLS: dict[str, tuple[str, dict[str, Any]]] = {
     "world_get_object": (
         "取对象（GET /v1/world/objects/{object_id}）：0.2 对象分三组——business（类型、版本与修订 id、object_version、"
         "属性、关系、块与组件、组件台账、正式内容指针、进行中的一轮）、identity（责任人、当前有效的委托）、records"
-        "（生命周期与推出它的事件、最新状态快照）；状态快照读回快照视图。version 取指定修订。写入的 target 取 business "
+        "（生命周期与推出它的事件、最新状态快照、open_issues 即主受影响对象是它且还没处置的问题，各带 issue_ref 与"
+        "状态）；状态快照读回快照视图。version 取指定修订。写入的 target 取 business "
         "组里的 object_id、revision_id 与 object_version（作 expected_version）。",
         TOOLS_V01["world_get_object"][1]),
     "world_get_context": (
@@ -104,11 +110,25 @@ TOOLS: dict[str, tuple[str, dict[str, Any]]] = {
         "写进事件（例如交付说明与文档链接）。Agent 记的交付由 Task 的责任人验收。撤回自己记的交付带 outcome withdrawn 与 "
         "supersedes_event_id。",
         _schema(_LIFECYCLE, ["target"])),
+    "world_raise_issue": (
+        "提出问题（动作 world_raise_issue）：issue_ref 是问题组件的组件引用（先写一条带该问题组件的状态快照），作为 MF"
+        "（在主受影响对象所在域持 AGENT）提出，问题进入待路由；可选 content 写进事件。未提出与形成中的问题可以提出，"
+        "正在处理的不能重复提出；已处置的不再提出，复发用新的组件 id，在 content 里引用原问题。",
+        _schema(_ISSUE, ["issue_ref"])),
+    "world_route_issue": (
+        "路由问题（动作 world_route_issue）：issue_ref 是问题组件的组件引用，to_principal_id 是承接人——须是人，且在主受"
+        "影响对象所在的域持角色；待路由的问题进入已路由，已路由的可以改路由。承接与处置由承接人本人经 HTTP 记。",
+        _schema({**_ISSUE, "to_principal_id": {**_OBJECT_ID, "description": "承接人（人）的 principal id"}},
+                ["issue_ref", "to_principal_id"])),
+    "world_return_issue": (
+        "退回形成（动作 world_return_issue）：issue_ref 是问题组件的组件引用；作为路由者把已路由或已承接的问题退回形成中，"
+        "在 content 里写要补齐什么。补齐后再提出。",
+        _schema(_ISSUE, ["issue_ref"])),
 }
 # 读工具 -> (方法, 路径, 查询参数)：0.1 的四读加列对象；列对象的路径里没有对象 id，筛选与分页都是查询参数。
 READS = {**_READS, "world_list_objects": ("GET", "/v1/world/objects", (
     "unit_id", "domain_id", "type", "period", "external_system", "external_id", "limit", "cursor"))}
 
 FACE = Face(CONTRACT_VERSION, TOOLS, READS, REF, COMPONENT,
-            "tkos.world/0.2 业务世界：五读（取对象、取上下文、取事件、取状态、列对象）五写（记外部事件、写状态快照、修订、"
-            "开始、交付），写入须带三项声明。")
+            "tkos.world/0.2 业务世界：五读（取对象、取上下文、取事件、取状态、列对象）八写（记外部事件、写状态快照、修订、"
+            "开始、交付、提出问题、路由问题、退回形成），写入须带三项声明。")

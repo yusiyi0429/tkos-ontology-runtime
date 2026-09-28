@@ -71,7 +71,7 @@ TKOS_WORLD_MCP_LOG_DIR = "artifacts/world-mcp-runs"
 
 ## 选 0.2
 
-`TKOS_WORLD_CONTRACT_VERSION=tkos.world/0.2` 时，工具是契约第 9.3 节 Agent 面里已实现的部分，五读五写：
+`TKOS_WORLD_CONTRACT_VERSION=tkos.world/0.2` 时，工具是契约第 9.3 节的 Agent 面，五读八写：
 
 | 工具 | HTTP | 参数 |
 |-|-|-|
@@ -85,13 +85,17 @@ TKOS_WORLD_MCP_LOG_DIR = "artifacts/world-mcp-runs"
 | `world_revise_object` | 动作 `world_revise_object` | `target`、`payload`（合并补丁，组件按 id 合并）、`declaration`，可选 `idempotency_key` |
 | `world_start` | 动作 `world_start` | `target`（已成立的 Mission，作为 Owner 的 Agent；或指派给自己的 Activity），可选 `content`；撤回带 `outcome: "withdrawn"` 与 `supersedes_event_id`；`declaration`，可选 `idempotency_key` |
 | `world_deliver` | 动作 `world_deliver` | `target`（自己负责的 Activity），其余同 `world_start` |
+| `world_raise_issue` | 动作 `world_raise_issue` | `issue_ref`（问题组件的组件引用 `<快照 id>@<版本>#issues/<组件 id>`），可选 `content`；`declaration`，可选 `idempotency_key` |
+| `world_route_issue` | 动作 `world_route_issue` | `issue_ref`、`to_principal_id`（承接人，须是在主受影响对象所在域持角色的人），其余同 `world_raise_issue` |
+| `world_return_issue` | 动作 `world_return_issue` | 同 `world_raise_issue`（作为路由者退回形成，`content` 写要补齐什么） |
 
 与 0.1 的差别：
 
-- 读的端点不变，HTTP 面按对象绑定的契约版本出形状。0.2 对象分三组：`business`（类型、版本与修订 id、`object_version`、属性、关系、块与组件、组件台账、正式内容指针、进行中的一轮）、`identity`（责任人、当前有效的委托）、`records`（生命周期与推出它的事件、最新状态快照）。修订、开始、交付的 `target` 取 `business` 组里的 `object_id`、`revision_id` 与 `object_version`（作 `expected_version`）。
-- 写入的 `contract_version` 是 `tkos.world/0.2`；多了开始与交付。`declaration` 的 `scene` 可以是任一业务对象（0.1 只认 Mission 或 Task）。Agent 修订有门对象只能改活动块与活动属性；触及正式块或正式属性时，声明必须要求人工验收并给出验收人。Agent 记的 Activity 交付由 Task 的责任人验收。
-- 门、指派、建关系、建对象、关注标记、代记一律不暴露：调用这些工具，或给开始、交付带 `on_behalf_of`，在发请求之前就返回 `INVALID_ARGUMENTS`。代记只走 HTTP（契约第 14 节）。
-- 多了列对象（#63）：返回 `{"items": [对象头…], "next_cursor"}`，对象头是 id、类型、类别、标题、版本（`version`、`revision_id`、`object_version`）、生命周期、域、外部引用与契约版本，不带块与组件；要内容时再取对象。周期口径、外部引用查找与分页见《接口变化清单》第十项。提出问题、路由问题、退回形成（#61）还没有 HTTP 实现，随自己的票加进来。
+- 读的端点不变，HTTP 面按对象绑定的契约版本出形状。0.2 对象分三组：`business`（类型、版本与修订 id、`object_version`、属性、关系、块与组件、组件台账、正式内容指针、进行中的一轮）、`identity`（责任人、当前有效的委托）、`records`（生命周期与推出它的事件、最新状态快照、主受影响对象是它且还没处置的问题 `open_issues`）。修订、开始、交付的 `target` 取 `business` 组里的 `object_id`、`revision_id` 与 `object_version`（作 `expected_version`）。
+- 写入的 `contract_version` 是 `tkos.world/0.2`；多了开始、交付与问题的提出、路由、退回形成。`declaration` 的 `scene` 可以是任一业务对象（0.1 只认 Mission 或 Task）。Agent 修订有门对象只能改活动块与活动属性；触及正式块或正式属性时，声明必须要求人工验收并给出验收人。Agent 记的 Activity 交付由 Task 的责任人验收。
+- 门、指派、建关系、建对象、关注标记、问题的承接与处置、代记一律不暴露：调用这些工具，或给写工具带 `on_behalf_of`，在发请求之前就返回 `INVALID_ARGUMENTS`。代记只走 HTTP（契约第 14 节）。
+- 问题（#61，契约第 13 节）：问题是主受影响对象某条状态快照 `issues` 块里的问题组件，身份是（主受影响对象，组件 id），后续快照带同一个 id 是同一个问题。三个问题工具不带 `target`，以 `issue_ref` 指明问题；Agent 作为 MF（在主受影响对象所在域持 AGENT）提出、路由与退回形成。正在处理的问题不能重复提出，已处置的不再提出（复发用新 id 并在 `content` 里引用原问题）；承接与处置由承接人本人经 HTTP 记。
+- 多了列对象（#63）：返回 `{"items": [对象头…], "next_cursor"}`，对象头是 id、类型、类别、标题、版本（`version`、`revision_id`、`object_version`）、生命周期、域、外部引用与契约版本，不带块与组件；要内容时再取对象。周期口径、外部引用查找与分页见《接口变化清单》第十项。
 - 取上下文照旧只交出 `context_pack_id`、`markdown`、`coverage`、`budget` 四项；Markdown 里的引用细到组件，事件写成 `event:<事件 id>`。
 - 运行日志字段不变，引用多识别组件与事件两种形式（见下节）。
 

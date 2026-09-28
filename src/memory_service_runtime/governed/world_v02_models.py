@@ -761,6 +761,53 @@ class WorldV02RevokeDelegationParams(StrictModel):
     delegation_event_id: CanonicalUUID
 
 
+# Issue 的五个动作与六类处置（契约第 9.1、13 节）。请求模型在导入时就要，由测试与登记逐条对齐。
+ISSUE_ACTIONS = ("world_raise_issue", "world_route_issue", "world_own_issue", "world_dispose_issue",
+                 "world_return_issue")
+DISPOSITIONS = ("no_action_close", "current_layer_action", "roll_forward", "immediate_reopen", "route_escalate",
+                "pushback")
+IssueRefText = _ref_text("component")
+
+
+class _IssueParams(StrictModel):
+    """Issue 动作（契约第 9.1、13 节）：不带目标，以 issue_ref（状态快照 issues 块里问题组件的组件引用）指明问题；
+    可选 content 写进事件。Issue 事件是记录事件，不撤回；第一版不可代记，不带 on_behalf_of。"""
+    issue_ref: IssueRefText
+    content: Optional[_block_model((), False)] = None
+
+
+class WorldV02RaiseIssueParams(_IssueParams):
+    """提出问题：在 Agent 面上，Agent 带写入声明（人带了按同样规则校验）。"""
+    declaration: Optional[Declaration] = None
+
+
+class WorldV02RouteIssueParams(_IssueParams):
+    """路由问题：指定一名承接人（人，在服务里判）；已路由时可以改路由。在 Agent 面上。"""
+    to_principal_id: CanonicalUUID
+    declaration: Optional[Declaration] = None
+
+
+class WorldV02OwnIssueParams(_IssueParams):
+    """承接问题：路由指定的承接人本人记，只由人记、不在 Agent 面上，不带写入声明（同指派）。"""
+
+
+class WorldV02DisposeIssueParams(_IssueParams):
+    """处置问题：六类之一，content 必带，最低理由写在它的文字里（补 35）；只由已承接的承接人本人记，不带写入声明。"""
+    disposition: Literal[DISPOSITIONS]
+    content: _block_model((), False)
+
+    @model_validator(mode="after")
+    def states_its_reason(self) -> "WorldV02DisposeIssueParams":
+        if not self.content.text.strip():
+            raise ValueError("a disposition states its minimal reason in content.text")
+        return self
+
+
+class WorldV02ReturnIssueParams(_IssueParams):
+    """退回形成：路由者或承接人记；在 Agent 面上（作为路由者）。"""
+    declaration: Optional[Declaration] = None
+
+
 # 已接入的门动作 -> 目标类型（门按目标类型拆名，ADR-0005）；再确认、复盘确认与 Strategy 随各自的票。关注标记
 # 是记录事件，但和门一样由持策略角色（CEO）的人记，按目标类型拆名，所以也列在这里（#55）。
 GATE_ACTIONS = {"world_commit_period_goal": "PeriodGoal", "world_confirm_period_goal": "PeriodGoal",
@@ -777,7 +824,10 @@ ACTION_PARAMS = {"world_create_object": WorldV02CreateObjectParams, "world_revis
                  "world_confirm_long_term_goal": WorldV02ConfirmCandidateParams,
                  "world_mark_core_battle": WorldV02MarkCoreBattleParams,
                  "world_grant_delegation": WorldV02GrantDelegationParams,
-                 "world_revoke_delegation": WorldV02RevokeDelegationParams}
+                 "world_revoke_delegation": WorldV02RevokeDelegationParams,
+                 "world_raise_issue": WorldV02RaiseIssueParams, "world_route_issue": WorldV02RouteIssueParams,
+                 "world_own_issue": WorldV02OwnIssueParams, "world_dispose_issue": WorldV02DisposeIssueParams,
+                 "world_return_issue": WorldV02ReturnIssueParams}
 BUSINESS_TYPES = frozenset({"Company", "Strategy", "ResponsibilityUnit", "LongTermGoal", "PeriodGoal", "Mission",
                             "Task", "Activity"})
 # 状态快照只经 world_refresh_state 写入，建对象在服务里先拒绝它。
@@ -789,6 +839,7 @@ ACTION_TARGETS: dict[str, frozenset[str]] = {
     "world_relate": frozenset({"PeriodGoal", "Mission", "Task"}),
     "world_refresh_state": frozenset(), "world_record_event": frozenset(),
     **{action: frozenset() for action in DELEGATION_ACTIONS},
+    **{action: frozenset() for action in ISSUE_ACTIONS},  # Issue 以 issue_ref 指明问题，不带目标
     "world_assign": frozenset({"ResponsibilityUnit", "Mission", "Task", "Activity"}),
     **{action: frozenset({"Mission", "Task", "Activity"}) for action in LIFECYCLE_ACTIONS},
     **{action: frozenset({target}) for action, target in GATE_ACTIONS.items()},

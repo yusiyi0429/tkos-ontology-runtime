@@ -2,8 +2,9 @@
 
 持一枚凭证，把子命令转发到现有 HTTP 面，返回原样打到标准输出；不连数据库、不判权、不补目标、不重试。
 只做 Agent 面，与 MCP 选同一契约版本时暴露的操作相同，TKOS_WORLD_CONTRACT_VERSION 选版本，默认 tkos.world/0.1。
-0.1 是四读加三写（记外部事件、写状态快照、修订无门对象）；0.2 的写另有开始与交付（契约第 9.3 节）。门动作、
-指派、建关系与建对象不暴露，在发请求之前就拒绝（契约第 9 节，人经工作台或 HTTP 记）；0.2 的代记只走 HTTP，
+0.1 是四读加三写（记外部事件、写状态快照、修订无门对象）；0.2 的写另有开始、交付与提出问题、路由问题、退回形成
+（契约第 9.3 节）。门动作、指派、建关系、建对象与问题的承接、处置不暴露，在发请求之前就拒绝（契约第 9 节，人经工作台
+或 HTTP 记）；0.2 的代记只走 HTTP，
 --params 带 on_behalf_of 也在发请求之前拒绝。允许的动作之内能做什么仍由凭证的身份决定，由 HTTP 面判权；这里只把
 对象 id 校验成 UUID（要拼进路径），其余交给 HTTP 面校验。
 
@@ -33,8 +34,9 @@ CONTRACT_VERSION = "tkos.world/0.1"
 CONTRACT_V02 = "tkos.world/0.2"
 # Agent 面的三个写动作，与 tkos-world-mcp 一致；其余动作不暴露。
 AGENT_ACTIONS = ("world_record_event", "world_refresh_state", "world_revise_object")
-# 0.2 Agent 面里已实现的写动作，与 tkos-world-mcp 选 0.2 时一致；提出问题、路由问题、退回形成随 #61 加在这里。
-AGENT_ACTIONS_V02 = AGENT_ACTIONS + ("world_start", "world_deliver")
+# 0.2 Agent 面的写动作，与 tkos-world-mcp 选 0.2 时一致；提出问题、路由问题、退回形成随 #61 加入。
+AGENT_ACTIONS_V02 = AGENT_ACTIONS + ("world_start", "world_deliver", "world_raise_issue", "world_route_issue",
+                                     "world_return_issue")
 # 子命令 -> (路径后缀, 查询参数)。
 _READS = {"get": ("", "version"), "state": ("/state", "as_of"), "events": ("/events", "since"),
           "children": ("/children", None)}
@@ -103,8 +105,9 @@ def _parser(version: str = CONTRACT_VERSION) -> argparse.ArgumentParser:
                      help="动作名，只接受 " + "、".join(actions) + "；门动作、指派、建关系与建对象不经此命令")
     act.add_argument("--params", type=_json, required=True, help="动作参数 JSON：字面量、@文件或 -（标准输入）")
     act.add_argument("--target", type=_json, help="目标 JSON {object_id, revision_id, expected_version}，"
-                     + ("修订对象时给" if version == CONTRACT_VERSION else "修订、开始、交付时给（取自 get 的 business 组）")
-                     + "；写快照与记外部事件不给")
+                     + ("修订对象时给；写快照与记外部事件不给" if version == CONTRACT_VERSION else
+                        "修订、开始、交付时给（取自 get 的 business 组）；写快照、记外部事件与问题动作不给"
+                        "（问题以 --params 里的 issue_ref 指明）"))
     act.add_argument("--reason", required=True, help="写入理由，进审计")
     act.add_argument("--idempotency-key", help="幂等键，不给则生成；重放同一条命令时带上原来的键")
     act.add_argument("--prepare-only", action="store_true", help="只做 prepare，不提交")

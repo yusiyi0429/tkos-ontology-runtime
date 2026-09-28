@@ -4,9 +4,9 @@
 world 对象，不走域级 read 策略；非 world 对象一律 NOT_FOUND，授权先于任何协议错误。
 读投影按三层分组：``business``、``identity``、``records``。``business`` 给块、组件、组件台账与关系，
 引用同时给钉定结构与业务形式，另给正式内容指针与进行中的一轮（票 #54）；``identity`` 给责任人与委托范围覆盖
-对象所在域的当前有效委托（票 #62）；``records`` 给生命周期与推出它的事件（按登记的状态表推导，ADR-0002）与最新
-状态快照（标明未经确认）。复盘与问题随各自的票接入，在此之前给空值。状态快照是时间记录，按 id 读回的是快照视图，
-不分三组。
+对象所在域的当前有效委托（票 #62）；``records`` 给生命周期与推出它的事件（按登记的状态表推导，ADR-0002）、最新
+状态快照（标明未经确认）与主受影响对象是它、还没处置的问题（票 #61）。复盘随票 #60 接入，在此之前给空值。状态快照
+是时间记录，按 id 读回的是快照视图，不分三组。
 """
 from __future__ import annotations
 
@@ -128,7 +128,8 @@ def round_view(conn: Any, ctx: Any, head: dict[str, Any], current: dict[str, Any
 def object_view(head: dict[str, Any], revision: dict[str, Any], metadata: dict[str, Any], *,
                 responsible: list[dict[str, Any]], latest_state: dict[str, Any] | None = None,
                 lifecycle: dict[str, Any] | None = None, current_round: dict[str, Any] | None = None,
-                delegations: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+                delegations: list[dict[str, Any]] | None = None,
+                open_issues: list[dict[str, Any]] | None = None) -> dict[str, Any]:
     spec = world_registry.object_spec(head["object_type"])
     payload, version = revision["payload"], revision["object_version"]
     category = world_registry.category(spec["category"])
@@ -150,7 +151,7 @@ def object_view(head: dict[str, Any], revision: dict[str, Any], metadata: dict[s
     }
     identity = {"responsible": {**spec["responsible"], "principals": responsible}, "delegations": delegations or []}
     records = {"lifecycle": lifecycle and {key: lifecycle[key] for key in ("status", "display_name", "event_id")},
-               "latest_state": latest_state, "confirmed_review": None, "open_issues": []}
+               "latest_state": latest_state, "confirmed_review": None, "open_issues": open_issues or []}
     return {"object_id": head["object_id"], "business": business, "identity": identity, "records": records,
             "protocol": metadata}
 
@@ -175,7 +176,77 @@ def read_object(conn: Any, ctx: Any, object_id: str, version: int | None = None)
                        latest_state=latest_snapshot(conn, ctx, head["object_id"]), lifecycle=derived,
                        current_round=round_view(conn, ctx, head, derived and derived["round"]),
                        delegations=[delegation_view(conn, ctx, row) for row in
-                                    delegations_in_force(conn, ctx, domain_id=head["domain_id"])])
+                                    delegations_in_force(conn, ctx, domain_id=head["domain_id"])],
+                       open_issues=open_issues(conn, ctx, head["object_id"]))
+
+
+# ------------------------------------------------------------ issues
+ISSUE_KINDS = ["issue.raised", "issue.routed", "issue.owned", "issue.disposed", "issue.returned"]
+
+
+def issue_events(conn: Any, ctx: Any, primary_id: str, component_id: str | None = None) -> list[dict[str, Any]]:
+    """Issue 事件（契约第 13 节）：subject_refs 的第一项是问题组件的组件引用，第二项是主受影响对象。给组件 id 时取这一
+    个问题（身份是主受影响对象与组件 id，跨快照延续），不给时取主受影响对象的全部问题；按记录顺序，带产生它的动作
+    （推导 Issue 状态的输入）、记录者与 detail。"""
+    return [db.jsonable(row) for row in conn.execute(
+        """SELECT e.event_id, r.action_type AS action, e.outcome, e.disposition, e.supersedes_event_id,
+                  e.principal_id, e.detail, e.subject_refs->0->>'component' AS component_id
+             FROM gov_world_events e JOIN gov_action_receipts r ON r.scope_id=e.scope_id AND r.receipt_id=e.action_id
+            WHERE e.scope_id=%s AND e.contract_version=%s AND e.kind = ANY(%s)
+              AND e.subject_refs->1->>'object_id'=%s
+              AND (%s::text IS NULL OR e.subject_refs->0->>'component'=%s::text)
+            ORDER BY e.recorded_at, e.event_id""",
+        (ctx.scope_id, CONTRACT_VERSION, ISSUE_KINDS, primary_id, component_id, component_id)).fetchall()]
+
+
+def issue_holders(events: list[dict[str, Any]]) -> tuple[str | None, str | None]:
+    """当前路由指定的承接人（最近一条路由事件的 to_principal_id）与已承接的承接人（这次路由之后承接事件的记录者）：
+    每次路由都换一轮，此前的承接人不再算。只在状态表允许的段里有意义——承接只从已路由起，处置只从已承接起，由状态表
+    先判。"""
+    route_target = owner = None
+    for event in events:
+        if event["action"] == "world_route_issue":
+            route_target, owner = event["detail"]["to_principal_id"], None
+        elif event["action"] == "world_own_issue":
+            owner = str(event["principal_id"])
+    return route_target, owner
+
+
+def open_issues(conn: Any, ctx: Any, object_id: str) -> list[dict[str, Any]]:
+    """主受影响对象是它、还没处置的问题（契约第 15.1 节）：提出过（有 Issue 事件）且当前不在已处置的问题，按第一条
+    Issue 事件的记录顺序。每条给问题组件在最新一条带它的快照里的样子（组件引用两种形式都给）、Issue 的状态与推出它的
+    事件；已路由、已承接时给当前路由的承接人，已承接时另给承接人。只记在快照里、从没提出的问题组件不在其中。"""
+    grouped: dict[str, list[dict[str, Any]]] = {}
+    for event in issue_events(conn, ctx, object_id):
+        grouped.setdefault(event["component_id"], []).append(event)
+    registry = world_registry.registry()
+    found = []
+    for component_id, events in grouped.items():
+        derived = world_lifecycle.derive(registry, "Issue", events)
+        if derived["status"] in registry["issue"]["lifecycle"]["terminal"]:
+            continue
+        row = db.jsonable(conn.execute(
+            """SELECT r.object_id, r.object_version, r.revision_id, r.payload->>'as_of' AS as_of, c.value AS component
+                 FROM gov_object_revisions r JOIN gov_objects o ON o.scope_id=r.scope_id AND o.object_id=r.object_id
+                 CROSS JOIN LATERAL jsonb_array_elements(
+                     CASE jsonb_typeof(r.payload->'blocks'->'issues') WHEN 'object'
+                          THEN r.payload->'blocks'->'issues'->'components' ELSE '[]'::jsonb END) c
+                WHERE """ + SNAPSHOTS_OF_SUBJECT + """ AND c.value->>'id'=%s
+                ORDER BY (r.payload->>'as_of')::timestamptz DESC LIMIT 1""",
+            (ctx.scope_id, object_id, component_id)).fetchone())
+        component = row["component"]
+        route_target, owner = issue_holders(events)
+        status = derived["status"]
+        found.append({
+            "component_id": component_id,
+            "issue_ref": cited({"object_id": row["object_id"], "object_version": row["object_version"],
+                                "revision_id": row["revision_id"], "block": "issues", "component": component_id}),
+            "text": component["text"], "core_question": component["attributes"]["core_question"],
+            "responsible_hint": component["attributes"].get("responsible_hint"), "as_of": row["as_of"],
+            "lifecycle": {key: derived[key] for key in ("status", "display_name", "event_id")},
+            "route_target": principal(conn, ctx, route_target) if status in {"routed", "owned"} else None,
+            "owner": principal(conn, ctx, owner) if status == "owned" else None})
+    return found
 
 
 # ------------------------------------------------------------ delegations

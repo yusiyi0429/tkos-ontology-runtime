@@ -140,7 +140,7 @@ python3 $SRC/deploy/world-02/smoke.py http://127.0.0.1:8050 $LAB/out-smoke      
 
 建好的 id 记在 `out-smoke/smoke-world-02.json`：骨架在 `skeleton`（一个 scope 只有一个 Company、一个域只有一个责任单元），重跑沿用；每次的对象在 `runs`。骨架用确定的幂等键建，即使这个文件丢了，重跑也会拿回同一套骨架（前提是骨架没被改过）。冒烟 scope 里的对象随时可以连同实验 scope 一起按第 9 节清掉。
 
-`--mcp-cli`：链跑完后再以执行 Agent 的凭证、`TKOS_WORLD_CONTRACT_VERSION=tkos.world/0.2` 走命令行与 MCP：`tkos-world` 读 Activity、取上下文、`act world_record_event` 写一条外部事件；经 stdio 起 `tkos-world-mcp`，工具清单是 0.2 Agent 面的十个（五读五写，#63 加了列对象），读 Activity、写一条外部事件（做法同 `acceptance/world_v02/agent_face.py`），运行日志不含凭证；两条事件经 HTTP 读回，记录者是执行 Agent。它要 `tkos-world`、`tkos-world-mcp` 与 MCP 客户端，主机上没有，在本机仓库检出里跑：`uv run python deploy/world-02/smoke.py https://world-02.tokenkingos.com <out-smoke> --mcp-cli`，`<out-smoke>` 是第 10 节归档里冒烟 scope 的那份（`ids.json`、凭证与 `smoke-world-02.json`）。
+`--mcp-cli`：链跑完后再以执行 Agent 的凭证、`TKOS_WORLD_CONTRACT_VERSION=tkos.world/0.2` 走命令行与 MCP：`tkos-world` 读 Activity、取上下文、`act world_record_event` 写一条外部事件；经 stdio 起 `tkos-world-mcp`，工具清单是 0.2 Agent 面的十三个（五读八写，#63 加了列对象，#61 加了提出问题、路由问题、退回形成），读 Activity、写一条外部事件（做法同 `acceptance/world_v02/agent_face.py`），运行日志不含凭证；两条事件经 HTTP 读回，记录者是执行 Agent。它要 `tkos-world`、`tkos-world-mcp` 与 MCP 客户端，主机上没有，在本机仓库检出里跑：`uv run python deploy/world-02/smoke.py https://world-02.tokenkingos.com <out-smoke> --mcp-cli`，`<out-smoke>` 是第 10 节归档里冒烟 scope 的那份（`ids.json`、凭证与 `smoke-world-02.json`）。
 
 ## 8. 交付
 

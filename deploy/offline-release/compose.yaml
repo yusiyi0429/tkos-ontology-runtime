@@ -7,7 +7,6 @@ x-runtime-environment: &runtime-environment
   MEMORY_ORG: ${MEMORY_ORG}
   TKOS_OBJECT_STORE_ENDPOINT: http://minio:9000
   TKOS_OBJECT_STORE_BUCKET: ${MINIO_SNAPSHOT_BUCKET:-tkos-runtime-snapshots}
-  TKOS_OBJECT_STORE_ARTIFACT_BUCKET: ${MINIO_ARTIFACT_BUCKET:-tkos-runtime-artifacts}
   TKOS_OBJECT_STORE_ACCESS_KEY_FILE: /run/secrets/minio-app-access-key
   TKOS_OBJECT_STORE_SECRET_KEY_FILE: /run/secrets/minio-app-secret-key
   TKOS_OBJECT_STORE_REGION: us-east-1
@@ -72,17 +71,14 @@ services:
         app_secret="$$(cat /run/secrets/minio-app-secret-key)"
         mc alias set local http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD" >/dev/null
         mc ready local >/dev/null
-        mc mb --ignore-existing "local/$$MINIO_ARTIFACT_BUCKET" >/dev/null
-        mc version enable "local/$$MINIO_ARTIFACT_BUCKET" >/dev/null
         mc mb --ignore-existing --with-lock "local/$$MINIO_SNAPSHOT_BUCKET" >/dev/null
         mc version enable "local/$$MINIO_SNAPSHOT_BUCKET" >/dev/null
         mc retention set --default GOVERNANCE "$${MINIO_RETENTION_DAYS}d" "local/$$MINIO_SNAPSHOT_BUCKET" >/dev/null
         policy=/tmp/runtime-policy.json
         printf '%s\n' \
           '{"Version":"2012-10-17","Statement":[' \
-          '{"Effect":"Allow","Action":["s3:GetBucketLocation","s3:ListBucket","s3:GetBucketVersioning","s3:GetBucketObjectLockConfiguration"],"Resource":["arn:aws:s3:::'"$$MINIO_ARTIFACT_BUCKET"'","arn:aws:s3:::'"$$MINIO_SNAPSHOT_BUCKET"'"]},' \
-          '{"Effect":"Allow","Action":["s3:GetObject","s3:GetObjectVersion","s3:PutObject"],"Resource":["arn:aws:s3:::'"$$MINIO_ARTIFACT_BUCKET"'/*","arn:aws:s3:::'"$$MINIO_SNAPSHOT_BUCKET"'/*"]},' \
-          '{"Effect":"Allow","Action":["s3:DeleteObject"],"Resource":["arn:aws:s3:::'"$$MINIO_ARTIFACT_BUCKET"'/*"]}' \
+          '{"Effect":"Allow","Action":["s3:GetBucketLocation","s3:ListBucket","s3:GetBucketVersioning","s3:GetBucketObjectLockConfiguration"],"Resource":["arn:aws:s3:::'"$$MINIO_SNAPSHOT_BUCKET"'"]},' \
+          '{"Effect":"Allow","Action":["s3:GetObject","s3:GetObjectVersion","s3:PutObject"],"Resource":["arn:aws:s3:::'"$$MINIO_SNAPSHOT_BUCKET"'/*"]}' \
           ']}' > "$$policy"
         mc admin user add local "$$app_access" "$$app_secret" >/dev/null
         if ! mc admin policy info local "$$MINIO_APP_POLICY" >/dev/null 2>&1; then
@@ -95,7 +91,6 @@ services:
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
       MINIO_APP_POLICY: ${MINIO_APP_POLICY:-tkos-runtime-v1}
       MINIO_RETENTION_DAYS: ${MINIO_RETENTION_DAYS:-30}
-      MINIO_ARTIFACT_BUCKET: ${MINIO_ARTIFACT_BUCKET:-tkos-runtime-artifacts}
       MINIO_SNAPSHOT_BUCKET: ${MINIO_SNAPSHOT_BUCKET:-tkos-runtime-snapshots}
     secrets: [minio-app-access-key, minio-app-secret-key]
     depends_on:

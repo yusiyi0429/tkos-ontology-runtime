@@ -14,7 +14,6 @@ x-runtime-environment: &runtime-environment
   MEMORY_ORG: ${MEMORY_ORG}
   TKOS_OBJECT_STORE_ENDPOINT: http://minio:9000
   TKOS_OBJECT_STORE_BUCKET: ${MINIO_SNAPSHOT_BUCKET}
-  TKOS_OBJECT_STORE_ARTIFACT_BUCKET: ${MINIO_ARTIFACT_BUCKET}
   TKOS_OBJECT_STORE_ACCESS_KEY_FILE: /run/secrets/minio-app-access-key
   TKOS_OBJECT_STORE_SECRET_KEY_FILE: /run/secrets/minio-app-secret-key
   TKOS_OBJECT_STORE_REGION: us-east-1
@@ -85,24 +84,20 @@ services:
       - |
         mc alias set local http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD" >/dev/null
         mc ready local >/dev/null
-        mc mb --ignore-existing "local/$$MINIO_ARTIFACT_BUCKET" >/dev/null
-        mc version enable "local/$$MINIO_ARTIFACT_BUCKET" >/dev/null
         mc mb --ignore-existing --with-lock "local/$$MINIO_SNAPSHOT_BUCKET" >/dev/null
         mc version enable "local/$$MINIO_SNAPSHOT_BUCKET" >/dev/null
         mc retention set --default GOVERNANCE "$$MINIO_SNAPSHOT_RETENTION" "local/$$MINIO_SNAPSHOT_BUCKET" >/dev/null
         policy=/tmp/runtime-policy.json
         printf '%s\n' \
           '{"Version":"2012-10-17","Statement":[' \
-          '{"Effect":"Allow","Action":["s3:GetBucketLocation","s3:ListBucket","s3:GetBucketVersioning","s3:GetBucketObjectLockConfiguration"],"Resource":["arn:aws:s3:::'"$$MINIO_ARTIFACT_BUCKET"'","arn:aws:s3:::'"$$MINIO_SNAPSHOT_BUCKET"'"]},' \
-          '{"Effect":"Allow","Action":["s3:GetObject","s3:GetObjectVersion","s3:PutObject"],"Resource":["arn:aws:s3:::'"$$MINIO_ARTIFACT_BUCKET"'/*","arn:aws:s3:::'"$$MINIO_SNAPSHOT_BUCKET"'/*"]},' \
-          '{"Effect":"Allow","Action":["s3:DeleteObject"],"Resource":["arn:aws:s3:::'"$$MINIO_ARTIFACT_BUCKET"'/*"]}' \
+          '{"Effect":"Allow","Action":["s3:GetBucketLocation","s3:ListBucket","s3:GetBucketVersioning","s3:GetBucketObjectLockConfiguration"],"Resource":["arn:aws:s3:::'"$$MINIO_SNAPSHOT_BUCKET"'"]},' \
+          '{"Effect":"Allow","Action":["s3:GetObject","s3:GetObjectVersion","s3:PutObject"],"Resource":["arn:aws:s3:::'"$$MINIO_SNAPSHOT_BUCKET"'/*"]}' \
           ']}' > "$$policy"
         mc admin user add local "$$MINIO_APP_ACCESS_KEY" "$$MINIO_APP_SECRET_KEY" >/dev/null
         if ! mc admin policy info local "$$MINIO_APP_POLICY" >/dev/null 2>&1; then
           mc admin policy create local "$$MINIO_APP_POLICY" "$$policy" >/dev/null
         fi
         mc admin policy attach local "$$MINIO_APP_POLICY" --user "$$MINIO_APP_ACCESS_KEY" >/dev/null
-        mc stat "local/$$MINIO_ARTIFACT_BUCKET" >/dev/null
         mc stat "local/$$MINIO_SNAPSHOT_BUCKET" >/dev/null
     environment:
       MC_CONFIG_DIR: /tmp/.mc
@@ -111,7 +106,6 @@ services:
       MINIO_APP_ACCESS_KEY: ${MINIO_APP_ACCESS_KEY}
       MINIO_APP_SECRET_KEY: ${MINIO_APP_SECRET_KEY}
       MINIO_APP_POLICY: ${MINIO_APP_POLICY}
-      MINIO_ARTIFACT_BUCKET: ${MINIO_ARTIFACT_BUCKET}
       MINIO_SNAPSHOT_BUCKET: ${MINIO_SNAPSHOT_BUCKET}
       MINIO_SNAPSHOT_RETENTION: ${MINIO_SNAPSHOT_RETENTION:-30d}
     depends_on:
@@ -266,7 +260,7 @@ services:
         mc alias set local http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD" >/dev/null
         mc ready local >/dev/null
         stamp=$$(date -u +%Y%m%dT%H%M%SZ)
-        for bucket in "$$MINIO_ARTIFACT_BUCKET" "$$MINIO_SNAPSHOT_BUCKET"; do
+        for bucket in "$$MINIO_SNAPSHOT_BUCKET"; do
           mc mirror --quiet --overwrite "local/$$bucket" "/backups/objects/$$stamp/$$bucket"
         done
         echo "{\"ok\":true,\"operation\":\"backup-objects\",\"stamp\":\"$$stamp\"}"
@@ -274,7 +268,6 @@ services:
       MC_CONFIG_DIR: /tmp/.mc
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
-      MINIO_ARTIFACT_BUCKET: ${MINIO_ARTIFACT_BUCKET}
       MINIO_SNAPSHOT_BUCKET: ${MINIO_SNAPSHOT_BUCKET}
     volumes:
       - ./backups:/backups

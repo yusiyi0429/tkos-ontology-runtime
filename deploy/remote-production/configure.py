@@ -144,7 +144,6 @@ def create(args: argparse.Namespace) -> dict:
         "MINIO_APP_ACCESS_KEY": minio_access,
         "MINIO_APP_SECRET_KEY": minio_secret,
         "MINIO_APP_POLICY": "tkos-runtime-prod-v1",
-        "MINIO_ARTIFACT_BUCKET": "tkos-runtime-artifacts",
         "MINIO_SNAPSHOT_BUCKET": "tkos-runtime-snapshots",
         "MINIO_SNAPSHOT_RETENTION": "30d",
         "DB_CONNECT_TIMEOUT": "5",

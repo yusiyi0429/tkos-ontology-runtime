@@ -171,7 +171,6 @@ def write_environment(data: dict[str, str], pg_port: str, s3_port: str | None) -
         env.update({
             "TKOS_OBJECT_STORE_ENDPOINT": f"http://127.0.0.1:{s3_port}",
             "TKOS_OBJECT_STORE_BUCKET": SNAPSHOT_BUCKET,
-            "TKOS_OBJECT_STORE_ARTIFACT_BUCKET": "runtime-acceptance-artifacts",
             "TKOS_OBJECT_STORE_ACCESS_KEY": data["MINIO_APP_ACCESS_KEY"],
             "TKOS_OBJECT_STORE_SECRET_KEY": data["MINIO_APP_SECRET_KEY"],
             "TKOS_OBJECT_STORE_REGION": "us-east-1",

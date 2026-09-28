@@ -3814,7 +3814,8 @@
     "reconfirm",
     "agreement_not_producing_state",
     "review_confirmed_on_company",
-    "round_events"
+    "round_events",
+    "formal_confirm_after_write_back"
    ],
    "only": "event_that_produced_current_state",
    "outcome": "withdrawn",

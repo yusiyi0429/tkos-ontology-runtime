@@ -12,7 +12,8 @@ recorders：记录者对这个对象满足的记录者类别（登记 ``recorder
   ``round_complete``。准入则严格判：守卫事实为真、记录者类别符合转移的 ``by``，否则拒绝。
 - 撤回（契约第 11 节）：只撤推出当前状态的那条门事件或生命周期事件，同一动作、按原转移的 ``by`` 记；
   状态回到它之前，这一段改由撤回事件推出。撤回事件、再确认、没推出状态的 Agreement、一轮重走中的
-  事件因此都不能撤回。
+  事件因此都不能撤回。一轮写回过之后，让对象成为正式的那条事件也不能再撤回（登记
+  ``rules.withdrawal.never`` 的 ``formal_confirm_after_write_back``）。
 - 正式内容（契约第 12 节）：第一次进入 ``formal_on`` 的事件让对象有了正式内容，形成中带候选的事件
   （``rounds.candidate_carried_by``）的候选随之写回；撤回这条事件收回正式内容。
 - 一轮重走：有正式内容以后，``rounds`` 里的动作从初始段起按同一张表虚走，不改变生命周期段，只在
@@ -50,6 +51,7 @@ class _Replay:
         self.spec = spec
         self.actions = {item["action"]: item for item in registry["actions"]}
         self.withdrawable = set(registry["rules"]["withdrawal"]["classes"])
+        self.keeps_rewritten = "formal_confirm_after_write_back" in registry["rules"]["withdrawal"]["never"]
         self.rounds = spec.get("rounds") or {}
         self.round_actions = {self.rounds[key] for key in ("opened_by", "agreed_by", "closed_by", "candidate_carried_by")
                               if self.rounds.get(key)}
@@ -60,6 +62,7 @@ class _Replay:
                                               "candidate": None}]
         self.seen: dict[str, dict[str, Any]] = {}
         self.formal_by: str | None = None
+        self.written_back = False  # 一轮重走写回过
         self.round: dict[str, Any] | None = None  # {"opened_by", "stage", "candidate"}
         for event in events:
             try:
@@ -132,6 +135,9 @@ class _Replay:
                 or self.actions[event["action"]]["class"] not in self.withdrawable):
             raise Refused("state", "Only the gate or lifecycle event that produced the current state is withdrawn, "
                                    "by the same action.")
+        if self.formal_by == original["event_id"] and self.written_back and self.keeps_rewritten:
+            raise Refused("state", "A re-run has rewritten the formal content; the event that made it formal "
+                                   "is no longer withdrawn. Open another re-run instead.")
         if admitting and producing["by"] not in event["recorders"]:
             raise Refused("recorder", f"The withdrawal is recorded by {producing['by']}, like the original.")
         self.stages.pop()  # 上一段连同它的候选原样回来，只是改由撤回事件推出
@@ -170,6 +176,7 @@ class _Replay:
             if candidate is None:
                 raise Refused("state", "A re-run without a candidate ends with a reconfirmation.")
             self.round = None
+            self.written_back = True
             effect.update(writes_back=True, candidate_event_id=candidate)
         elif found["to"] == initial and found["from"] != initial:
             self.round = None  # 退回：候选作废

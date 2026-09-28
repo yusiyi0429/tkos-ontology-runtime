@@ -458,6 +458,28 @@ def test_a_round_cannot_open_while_one_is_unfinished():
     assert caught.value.reason == "state"
 
 
+def test_the_formal_confirmation_is_kept_once_a_round_has_written_back():
+    events, _, _ = open_period_goal_round()
+    formal = events[-2]
+    confirm = ev("world_confirm_period_goal", "accepted", guards={"formation_anchors": True}, by={"gate_role"})
+    assert admit(REGISTRY, "PeriodGoal", events, confirm)["writes_back"] is True
+    events.append(confirm)
+    assert derive(REGISTRY, "PeriodGoal", events)["event_id"] == formal["event_id"]
+    with pytest.raises(Refused) as caught:
+        admit(REGISTRY, "PeriodGoal", events, withdraw(formal, by={"gate_role"}))
+    assert caught.value.reason == "state"
+
+
+def test_a_long_term_goal_keeps_its_formal_confirmation_after_a_one_step_rewrite():
+    formal = ev("world_confirm_long_term_goal", "accepted", by={"gate_role"})
+    rewrite = ev("world_confirm_long_term_goal", "accepted", candidate=True, by={"gate_role"})
+    events = [created(), formal]
+    assert admit(REGISTRY, "LongTermGoal", events, withdraw(formal, by={"gate_role"}))["unmakes_formal"] is True
+    events.append(rewrite)
+    with pytest.raises(Refused):
+        admit(REGISTRY, "LongTermGoal", events, withdraw(formal, by={"gate_role"}))
+
+
 def test_round_events_cannot_be_withdrawn():
     events, commit, _ = open_period_goal_round()
     with pytest.raises(Refused):

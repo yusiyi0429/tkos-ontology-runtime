@@ -982,6 +982,10 @@ def _execution_factory(conn: Any, ctx: Any, request: ActionRequest) -> ActionExe
     ActionExecution.  The a2_service module is imported lazily so this module's
     import graph does not depend on Contract-A support being installed.
     """
+    # world 0.2 按请求声明的契约版本先认领；0.1 只认动作名，同名动作轮到它时已排除了 0.2。
+    from . import world_v02
+    if world_v02.WorldExecution.handles_request(conn, ctx, request):
+        return world_v02.WorldExecution(conn, ctx, request)
     from .world_v01 import WorldExecution
     if WorldExecution.handles_request(conn, ctx, request):
         return WorldExecution(conn, ctx, request)
@@ -1050,8 +1054,10 @@ def _replay(conn: Any, ctx: Any, request: ActionRequest, digest: str) -> dict[st
     # A2 source create/propose receipts are also A2, so replay must dispatch
     # based on real target/object IDs + binding, not only the six action names.
     from . import a3_readers
-    from . import method_readers, world_v01_readers
-    if world_v01_readers.is_receipt(row):
+    from . import method_readers, world_v01_readers, world_v02_readers
+    if world_v02_readers.is_receipt(row):
+        world_v02_readers.authorize_receipt(conn, ctx, row, replay=True)
+    elif world_v01_readers.is_receipt(row):
         world_v01_readers.authorize_receipt(conn, ctx, row, replay=True)
     elif method_readers.is_receipt(row):
         method_readers.authorize_receipt(conn, ctx, row, replay=True)

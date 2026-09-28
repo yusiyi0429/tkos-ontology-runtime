@@ -103,8 +103,11 @@ def object_get(object_id: uuid.UUID, token: Annotated[str, Depends(bearer)]):
 @router.get("/world/objects/{object_id}")
 def world_object_get(object_id: uuid.UUID, token: Annotated[str, Depends(bearer)],
                      version: Annotated[int | None, Query(ge=1)] = None):
-    from . import world_v01_readers
+    """取对象：按对象绑定的契约版本出形状，0.1 对象仍是 0.1 形状。"""
+    from . import world_v01_readers, world_v02_readers
     with db.transaction(token) as (conn, ctx):
+        if world_v02_readers.bound_contract(conn, ctx, str(object_id)) == world_v02_readers.CONTRACT_VERSION:
+            return world_v02_readers.read_object(conn, ctx, str(object_id), version)
         return world_v01_readers.read_object(conn, ctx, str(object_id), version)
 
 

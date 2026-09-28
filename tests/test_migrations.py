@@ -68,6 +68,7 @@ def test_packaged_migrations_replay_from_empty_database() -> None:
             "0036_world_v01_context_packs.sql",
             "0037_append_only_grant_repair.sql",
             "0038_credential_lifecycle.sql",
+            "0039_world_v02.sql",
         ]
         assert migrate(test_url) == expected
         assert migrate(test_url) == []

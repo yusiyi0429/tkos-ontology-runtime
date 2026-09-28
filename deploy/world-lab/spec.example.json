@@ -1,0 +1,17 @@
+{
+  "tenant_id": "tokenking-world-lab",
+  "domains": {
+    "company": "词元云集（公司域）",
+    "eo": "E&O（责任单元）",
+    "agents": "Agents（责任单元）"
+  },
+  "principals": {
+    "ceo": {"type": "human", "display_name": "CEO", "roles": {"company": ["CEO"], "eo": ["CEO"], "agents": ["CEO"]}},
+    "eo-dri": {"type": "human", "display_name": "E&O DRI", "roles": {"eo": ["DOMAIN_DRI"]}},
+    "eo-owner": {"type": "human", "display_name": "E&O Mission Owner", "roles": {"eo": ["OWNER", "IC"]}},
+    "eo-ic": {"type": "human", "display_name": "E&O 执行者", "roles": {"eo": ["IC"]}},
+    "agents-dri": {"type": "human", "display_name": "Agents DRI", "roles": {"agents": ["DOMAIN_DRI"]}},
+    "tianshu-coagent": {"type": "agent", "display_name": "天枢 Co-Agent", "roles": {"company": ["AGENT"], "eo": ["AGENT"], "agents": ["AGENT"]}}
+  },
+  "notes": "world-lab 联调 scope；对象与快照数据可整体清空重建"
+}

@@ -26,17 +26,19 @@
   现在怎样——逐层的生命周期与正式内容，然后是各层的最新状态快照；发生了什么——各层的近期事件；
   凭什么——各层的约束类块。同一层的跨链关系、一跳、块与快照在文档里的先后同 0.1 的分层写法，所以裁剪顺序不变。
 - 事件行写出记录者；代记的同时写出被代记的人，指派另写被指派者（#64，同 0.1 批次 D 写人名）。
-
-形成时带入（#64 第二段，依赖 #60 的复盘确认与 #61 的 Issue 事件）只留了挂接点，见 _carried_in。
+- 形成时带入（#64 第二段，契约第 15.3 节与补 43）：出发对象是有门类型时，带入待带入的问题（_carried_in），放在
+  六问指引之后自成一节，计入「凭什么」的覆盖，预算裁剪不裁。带入已确认的公司复盘与有效的长期目标等 #60。
 """
 from __future__ import annotations
 
+from datetime import datetime
 import math
 from typing import Any
 
 from psycopg.types.json import Jsonb
 
 from . import db
+from . import world_v02_lifecycle as world_lifecycle
 from . import world_v02_readers as readers
 from . import world_v02_registry as world_registry
 from .world_v01_context import trim
@@ -51,6 +53,9 @@ CHARS_PER_TOKEN_ESTIMATE = 2
 _EXECUTION_TYPES = frozenset({"Activity", "Task", "Mission"})
 # 主干之外多取的一跳（契约第 15.3 节）：类型 -> (字段, 显示名)。单元长期目标的 goal_ref 只能指向公司级长期目标。
 _HOPS = {"LongTermGoal": ("goal_ref", "公司级长期目标")}
+# 形成周期目标时，「本单元」的对象（补 43）：同一个域里的责任单元、长期目标与周期目标。
+_UNIT_TYPES = ["ResponsibilityUnit", "LongTermGoal", "PeriodGoal"]
+_CARRIED_NOTE = "处置为带入下次形成或立即重开、此后主受影响对象还没记过门事件的问题：必须看到，不必须采用。"
 QUESTIONS = {"why": "为什么", "what": "做什么", "who": "谁负责", "now": "现在怎样", "happened": "发生了什么",
              "basis": "凭什么"}
 _GAPS = {"why": "主干上层没有取到非空的定义类块", "what": "当前对象的定义类块都是空的",
@@ -76,15 +81,17 @@ def _cites(block: dict[str, Any]) -> list[dict[str, str]]:
     return ([{"ref": block["ref"]}] if own else []) + [{"ref": item["ref"]} for item in block["components"]]
 
 
-def cover(layers: list[dict[str, Any]]) -> dict[str, Any]:
+def cover(layers: list[dict[str, Any]], carried: list[dict[str, Any]] = ()) -> dict[str, Any]:
     """六问各自答没答（按上下文包里留下的内容判），依据哪些引用，答不了的缺口。第 0 层是当前对象；上溯各层与多取的
-    一跳都算上层。判法同 0.1，依据细到组件、事件给事件引用；「凭什么」的上层正式内容只算已正式对象的正式块。"""
+    一跳都算上层。判法同 0.1，依据细到组件、事件给事件引用；「凭什么」的上层正式内容只算已正式对象的正式块，形成时
+    带入的问题也算「凭什么」，依据是问题组件与处置事件。"""
     current, upper = layers[0], _reach(layers)
 
     def cites(chosen: list[dict[str, Any]], test) -> list[dict[str, str]]:
         return [item for layer in chosen for block in layer["blocks"] if test(block) for item in _cites(block)]
     basis = (cites([layer for layer in upper if layer["object"]["formal"]], lambda block: block["class"] == "formal")
-             + cites(layers, lambda block: block["id"] in {"acceptance", "constraint"}))
+             + cites(layers, lambda block: block["id"] in {"acceptance", "constraint"})
+             + [{"ref": ref} for item in carried for ref in (item["issue_ref"]["ref"], item["disposed_by"]["ref"])])
     evidence = {
         "why": cites(upper, lambda block: block["kind"] == "definition"),
         "what": cites([current], lambda block: block["kind"] == "definition"),
@@ -97,14 +104,14 @@ def cover(layers: list[dict[str, Any]]) -> dict[str, Any]:
                    "gap": None if found else _GAPS[name]} for name, found in evidence.items()}
 
 
-def guide(layers: list[dict[str, Any]]) -> str:
+def guide(layers: list[dict[str, Any]], carried: list[dict[str, Any]] = ()) -> str:
     """六问指引（同 0.1 批次 D）：Markdown 开头按问题给出处，内容在下文各节；只指向包里留下的内容，没有就写缺口。
 
     - 为什么：当前对象之上的各层与多取的一跳，由近及远直到 Company，各给非空的定义类块，没有就给对象。
     - 做什么：当前对象的非空定义类块，与各层非空的计划类块。
     - 谁负责：执行链（当前对象向上直到 Mission）各层的责任人，与当前对象最近一条指派事件。
     - 现在怎样：当前对象的生命周期与各层的最新状态快照。发生了什么：外部事件，其余事件只计条数。
-    - 凭什么：非空的验收标准与约束、上层已确认正式内容的对象、执行链上带文档链接的块、快照与事件。
+    - 凭什么：形成时带入的问题、非空的验收标准与约束、上层已确认正式内容的对象、执行链上带文档链接的块、快照与事件。
 
     口径与 cover() 不同（同 0.1）：cover() 是契约的六问判定，这里是给模型的阅读出处。"""
     current, reach = layers[0], _reach(layers)
@@ -149,7 +156,8 @@ def guide(layers: list[dict[str, Any]]) -> str:
               ("快照", [block["ref"] for layer in executing if layer["state"] for block in layer["state"]["blocks"]
                        if block["value"] and block["value"]["artifacts"]]),
               ("事件", [event["ref"] for event in events if event["content"] and event["content"]["artifacts"]])]
-    basis = ([f"验收标准与约束 {code(standards)}"] if standards else []) \
+    basis = ([f"形成时带入的问题 {code([item['issue_ref']['ref'] for item in carried])}"] if carried else []) \
+        + ([f"验收标准与约束 {code(standards)}"] if standards else []) \
         + (["上层已确认 " + "、".join(formal)] if formal else []) \
         + (["文档链接在" + "，".join(f"{kind} {code(values)}" for kind, values in linked if values)]
            if any(values for _, values in linked) else [])
@@ -265,16 +273,78 @@ def _hop(conn: Any, ctx: Any, head: dict[str, Any], revision: dict[str, Any], fi
             "blocks": [block for block in _blocks(head, revision) if block["kind"] == "definition"]}
 
 
-def _carried_in(conn: Any, ctx: Any, layer: dict[str, Any]) -> list[dict[str, Any]]:
-    """形成时带入的挂接点（契约第 15.3 节与补 43；票 #64 第二段，依赖 #60、#61）：按出发对象（layer 是第 0 层）的
-    类型，带入形成它时必须看到、不必须采用的内容。
-    - 周期目标：已确认的公司复盘（#60 的复盘确认；同一主体有多条时取 as_of 最新的）、有效的长期目标，以及主受影响
-      对象是本单元（责任单元、本单元的长期目标或此前的周期目标）的待带入问题；
-    - Strategy、长期目标、Mission：主受影响对象是它本身的待带入问题。
-    待带入的问题：处置（#61 的处置事件）为带入下次形成或立即重开，此后主受影响对象还没记过门事件。
-    每一项给 {"ref", "object_id", "text"}：出处引用、所属对象与渲染好的 Markdown；Markdown 里放在六问指引之后、
-    「为什么」之前自成一节，预算裁剪不裁（trim 只裁事件、跨链关系、一跳、块与快照）。第一段不接通，一律为空。"""
-    return []
+def _carried_in(conn: Any, ctx: Any, head: dict[str, Any]) -> list[dict[str, Any]]:
+    """形成时带入的待带入问题（契约第 15.3 节与补 43；票 #64 第二段）：必须被看到、不必须采用。
+
+    什么时候算「形成」：出发对象（head 是它的对象行）是登记里有门的类型，就按下面的规则带入，不看它当前在哪个生命
+    周期段。「此后还没记过门事件」已经让问题自然失效；若只在草稿或进行中的一轮里才带，立即重开的问题在对象还没重开时
+    就看不到了，违背「必须被看到」。
+    - 从周期目标出发：主受影响对象是本单元的问题，本单元是与它同一个域里的责任单元、长期目标与周期目标；
+    - 从其他有门对象（Strategy、长期目标、Mission）出发：主受影响对象是它本身的问题。
+    待带入的问题：它的 Issue 事件（#61）推出的状态是已处置，推出它的处置是登记 issue.carried_into_next_formation 里的
+    带入下次形成或立即重开，且处置之后主受影响对象没记过门事件（登记里 class 为 gate 的种类）。按处置事件的发生时刻
+    与 id 排序。已确认的公司复盘与有效的长期目标（形成周期目标时）等 #60。"""
+    if not world_registry.object_spec(head["object_type"])["gated"]:
+        return []
+    if head["object_type"] == "PeriodGoal":
+        primaries = [str(row["object_id"]) for row in conn.execute(
+            """SELECT object_id FROM gov_objects WHERE scope_id=%s AND domain_id=%s AND object_type = ANY(%s)
+                ORDER BY created_at, object_id""", (ctx.scope_id, head["domain_id"], _UNIT_TYPES)).fetchall()]
+    else:
+        primaries = [head["object_id"]]
+    registry = world_registry.registry()
+    carried = []
+    for primary in primaries:
+        grouped: dict[str, list[dict[str, Any]]] = {}
+        for event in readers.issue_events(conn, ctx, primary):
+            grouped.setdefault(event["component_id"], []).append(event)
+        for events in grouped.values():
+            derived = world_lifecycle.derive(registry, "Issue", events)
+            if derived["status"] not in registry["issue"]["lifecycle"]["terminal"]:
+                continue
+            disposal = next(event for event in events if event["event_id"] == derived["event_id"])
+            if disposal["disposition"] in registry["issue"]["carried_into_next_formation"]:
+                item = _carried_issue(conn, ctx, disposal["event_id"], disposal["disposition"])
+                if item is not None:
+                    carried.append(item)
+    return sorted(carried, key=lambda item: (datetime.fromisoformat(item["disposed_by"]["occurred_at"].replace(
+        "Z", "+00:00")), item["disposed_by"]["event_id"]))
+
+
+def _carried_issue(conn: Any, ctx: Any, event_id: str, disposition: str) -> dict[str, Any] | None:
+    """一条待带入的问题：问题组件（钉到处置事件引用的那条快照）、主受影响对象、核心判断问题、处置与处置事件、理由；
+    处置之后主受影响对象记过门事件的为 None。"""
+    gates = [item["kind"] for item in world_registry.registry()["event_kinds"] if item["class"] == "gate"]
+    row = db.jsonable(conn.execute(
+        """SELECT e.event_id, e.occurred_at, e.content, e.subject_refs, e.principal_id,
+                  EXISTS (SELECT 1 FROM gov_world_events g
+                           WHERE g.scope_id=e.scope_id AND g.contract_version=e.contract_version AND g.kind = ANY(%s)
+                             AND g.subject_refs->0->>'object_id' = e.subject_refs->1->>'object_id'
+                             AND g.recorded_at > e.recorded_at) AS gated_since
+             FROM gov_world_events e WHERE e.scope_id=%s AND e.event_id=%s""",
+        (gates, ctx.scope_id, event_id)).fetchone())
+    if row["gated_since"]:
+        return None
+    issue_ref, primary = readers.cited(row["subject_refs"][0]), readers.cited(row["subject_refs"][1])
+
+    def revision(revision_id: str) -> dict[str, Any]:
+        return conn.execute("""SELECT o.object_type, r.payload FROM gov_object_revisions r JOIN gov_objects o
+                                 ON o.scope_id=r.scope_id AND o.object_id=r.object_id
+                                WHERE r.scope_id=%s AND r.revision_id=%s""", (ctx.scope_id, revision_id)).fetchone()
+    component = next(item for item in revision(issue_ref["revision_id"])["payload"]["blocks"]["issues"]["components"]
+                     if item["id"] == issue_ref["component"])
+    target = revision(primary["revision_id"])
+    dispositions = {item["id"]: item["display_name"] for item in world_registry.registry()["issue"]["dispositions"]}
+    return {"kind": "issue", "issue_ref": issue_ref,
+            "primary": {**primary, "object_type": target["object_type"],
+                        "type_display_name": world_registry.object_spec(target["object_type"])["display_name"],
+                        "title": target["payload"]["title"]},
+            "text": component["text"], "core_question": component["attributes"]["core_question"],
+            "disposition": {"id": disposition, "display_name": dispositions[disposition]},
+            "disposed_by": {"event_id": row["event_id"], "ref": f"event:{row['event_id']}",
+                            "occurred_at": utc_text(row["occurred_at"]),
+                            "principal": readers.principal(conn, ctx, row["principal_id"])},
+            "reason": row["content"]["text"]}
 
 
 # ------------------------------------------------------------ Markdown
@@ -375,6 +445,18 @@ def _hop_text(hop: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+def _carried_text(item: dict[str, Any]) -> str:
+    """一条带入的问题：问题组件引用与正文、主受影响对象、核心判断问题、处置（处置事件、记录者、时刻）与理由。"""
+    primary, disposed = item["primary"], item["disposed_by"]
+    return "\n".join([
+        f"### 问题 `{item['issue_ref']['ref']}`" + (f"：{item['text']}" if item["text"] else ""),
+        f"主受影响对象：{primary['type_display_name']}《{primary['title']}》 `{primary['ref']}`",
+        f"核心判断问题：{item['core_question']}",
+        f"处置：{item['disposition']['display_name']}（事件 `{disposed['ref']}`，{disposed['principal']['display_name']} 记，"
+        f"{disposed['occurred_at']}）",
+        f"理由：{item['reason']}"])
+
+
 def _where(layer: dict[str, Any]) -> str:
     return "当前对象" if layer["level"] == 0 else f"上溯第 {layer['level']} 层"
 
@@ -441,8 +523,9 @@ def _items(question: str, start: str, layers: list[dict[str, Any]],
                                     event["occurred_at"]) for event in layer["events"]]
     items = [entry("title", "title", -1, None, f"# 上下文\n\n问题：{question}\n\n出发对象：`{start}`")]
     if carried:
-        items.append(entry("section:carried", "section", -1, None, "## 形成时带入"))
-        items += [entry(f"carried:{item['ref']}", "carried", 0, item["object_id"], item["text"]) for item in carried]
+        items.append(entry("section:carried", "section", -1, None, f"## 形成时带入\n{_CARRIED_NOTE}"))
+        items += [entry(f"carried:{item['disposed_by']['ref']}", "carried", 0, item["primary"]["object_id"],
+                        _carried_text(item)) for item in carried]
     for name, display in QUESTIONS.items():
         # 取的时候就没有内容的节，节名下写出缺口；被裁空的节只留节名，缺口见六问指引。
         items.append(entry(f"section:{name}", "section", -1, None,
@@ -484,6 +567,7 @@ def build(conn: Any, ctx: Any, object_id: str, request: WorldContextRequest) -> 
         start = citation(head["object_id"], revision["object_version"])
         state = readers.latest_snapshot(conn, ctx, subject, revision["payload"]["as_of"])
         head, _ = readers.readable(conn, ctx, subject)
+    carried = _carried_in(conn, ctx, head)
     layers: list[dict[str, Any]] = []
     walked: list[tuple[str, dict[str, Any]]] = []  # 沿主干走过的每一步：(引用字段, 钉定的引用)
     hops: list[dict[str, Any]] = []  # 主干之外多取的一跳
@@ -506,9 +590,9 @@ def build(conn: Any, ctx: Any, object_id: str, request: WorldContextRequest) -> 
         walked.append((parent_field, revision["payload"][parent_field]))
         head, _ = readers.readable(conn, ctx, revision["payload"][parent_field]["object_id"])
     start = start or layers[0]["object"]["ref"]
-    carried = _carried_in(conn, ctx, layers[0])
     result = trim(_items(request.question, start, layers, carried), max_chars=budget["max_chars"],
-                  max_events_per_object=budget["max_events_per_object"], lead=lambda kept: guide(_keep(layers, kept)))
+                  max_events_per_object=budget["max_events_per_object"],
+                  lead=lambda kept: guide(_keep(layers, kept), carried))
     packed = _keep(layers, {item["key"] for item in result["kept"]})
     plan = {
         # 沿主干读的是上一级的最新修订，引用字段钉定的版本（责任单元的是责任单元条目）只作出处。
@@ -520,7 +604,7 @@ def build(conn: Any, ctx: Any, object_id: str, request: WorldContextRequest) -> 
         + [{"from": item["source"]["ref"], "field": item["field"], "to": layer["object"]["ref"]}
            for layer in packed for item in layer["referenced_by"]],
         "taken": [{"kind": item["kind"], "level": item["level"], "key": item["key"]} for item in result["kept"]
-                  if item["kind"] in {"relations", "block", "hop", "snapshot", "event"}],
+                  if item["kind"] in {"relations", "block", "hop", "snapshot", "event", "carried"}],
         "trimmed": [{"kind": entry["kind"], "level": entry["level"], "key": entry["key"], "reason": entry["reason"]}
                     for entry in result["trimmed"]],
         "state_and_events_from_levels": [layer["level"] for layer in packed
@@ -531,8 +615,8 @@ def build(conn: Any, ctx: Any, object_id: str, request: WorldContextRequest) -> 
              "estimated_tokens": math.ceil(result["chars"] / CHARS_PER_TOKEN_ESTIMATE),
              "over_budget": result["over_budget"]}
     context_pack = {"contract_version": CONTRACT_VERSION, "question": request.question, "start": start,
-                    "layers": packed, "markdown": result["markdown"]}
-    coverage = cover(packed)
+                    "layers": packed, "carried": carried, "markdown": result["markdown"]}
+    coverage = cover(packed, carried)
     row = conn.execute(
         """INSERT INTO gov_world_context_packs (scope_id, principal_id, object_id, question, pack, plan, coverage, budget)
            VALUES (%s,%s,%s,%s,%s,%s,%s,%s) RETURNING context_pack_id, created_at""",

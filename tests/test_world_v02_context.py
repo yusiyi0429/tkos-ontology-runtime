@@ -257,6 +257,55 @@ LIFECYCLE = {
     STRATEGY: [(uid(60), "world_create_object")],
 }
 
+# 问题（#61 的 Issue 事件，#64 第二段带入）：单元长期目标快照里三条已处置、一条还在路由；Mission 快照里一条立即重开。
+# 待带入：处置为带入下次形成或立即重开，且此后主受影响对象没记过门事件（g-old 之后长期目标又记了一条再确认）。
+SNAP_GOAL, SNAP_MISSION_ISSUES = uid(24), uid(25)
+G_ISS, G_EARLY, G_OLD, G_CLOSED, G_OPEN, M_ISS = (uid(n) for n in range(71, 77))
+
+
+def issue_part(cid: str, text: str, question: str) -> dict:
+    return part(cid, "issue", text, attributes={"core_question": question})
+
+
+ISSUE_SNAPSHOTS = {  # 修订 id -> (对象类型, 修订载荷)
+    rev(SNAP_GOAL, 3): ("StateSnapshot", {"title": "目标状态", "blocks": {"issues": value(components=[
+        issue_part("g-iss", "试点客户流失", "下个周期要不要换客户群？"),
+        issue_part("g-early", "衡量口径不一", "收入按签约还是按回款算？"),
+        issue_part("g-old", "旧问题", "已经在再确认里处理了吗？"),
+        issue_part("g-closed", "不处理的问题", "要不要处理？"), issue_part("g-open", "还在路由的问题", "谁来接？")])}}),
+    rev(SNAP_MISSION_ISSUES, 1): ("StateSnapshot", {"title": "执行状态", "blocks": {"issues": value(components=[
+        issue_part("m-iss", "打法不成立", "要不要立即重开立项？")])}}),
+}
+ISSUE_EVENTS = {  # 主受影响对象 -> issue_events 给出的事件（按记录顺序）
+    GOAL: [{"event_id": event_id, "action": action, "outcome": None, "disposition": disposition,
+            "supersedes_event_id": None, "principal_id": DRI, "detail": None, "component_id": cid}
+           for cid, events in (("g-iss", [(uid(80), "world_raise_issue", None), (uid(81), "world_route_issue", None),
+                                          (uid(82), "world_own_issue", None), (G_ISS, "world_dispose_issue", "roll_forward")]),
+                               ("g-early", [(uid(83), "world_raise_issue", None), (uid(84), "world_route_issue", None),
+                                            (uid(85), "world_own_issue", None),
+                                            (G_EARLY, "world_dispose_issue", "roll_forward")]),
+                               ("g-old", [(uid(86), "world_raise_issue", None), (uid(87), "world_route_issue", None),
+                                          (uid(88), "world_own_issue", None), (G_OLD, "world_dispose_issue", "roll_forward")]),
+                               ("g-closed", [(uid(89), "world_raise_issue", None), (uid(90), "world_route_issue", None),
+                                             (uid(91), "world_own_issue", None),
+                                             (G_CLOSED, "world_dispose_issue", "no_action_close")]),
+                               ("g-open", [(G_OPEN, "world_raise_issue", None)]))
+           for event_id, action, disposition in events],
+    MISSION: [{"event_id": event_id, "action": action, "outcome": None, "disposition": disposition,
+               "supersedes_event_id": None, "principal_id": OWNER, "detail": None, "component_id": "m-iss"}
+              for event_id, action, disposition in ((uid(92), "world_raise_issue", None),
+                                                    (uid(93), "world_route_issue", None),
+                                                    (uid(94), "world_own_issue", None),
+                                                    (M_ISS, "world_dispose_issue", "immediate_reopen"))],
+}
+# 处置事件：发生时刻、理由、subject_refs（问题组件、主受影响对象）、记录者，此后主受影响对象是否记过门事件。
+DISPOSALS = {
+    G_ISS: ("2026-09-23T08:00:00Z", "客户流失原因要在下个周期回答", SNAP_GOAL, 3, "g-iss", GOAL, 1, DRI, False),
+    G_EARLY: ("2026-09-23T06:00:00Z", "口径在形成时统一", SNAP_GOAL, 3, "g-early", GOAL, 1, DRI, False),
+    G_OLD: ("2026-09-20T06:00:00Z", "旧的", SNAP_GOAL, 3, "g-old", GOAL, 1, DRI, True),
+    M_ISS: ("2026-09-24T09:00:00Z", "打法前提不成立", SNAP_MISSION_ISSUES, 1, "m-iss", MISSION, 2, OWNER, False),
+}
+
 
 class Conn:
     """按语句应答的假连接：修订、生命周期的事件、责任人、跨链关系的反查、窗口起点，落表的那一行记在 inserted。"""
@@ -271,6 +320,19 @@ class Conn:
     def answer(self, sql, params):
         if "make_interval" in sql:
             return [{"start": datetime(2026, 8, 25, tzinfo=timezone.utc)}]
+        if sql.startswith("SELECT object_id FROM gov_objects WHERE scope_id=%s AND domain_id=%s"):
+            return [{"object_id": oid} for oid, spec in OBJECTS.items() if spec[1] == params[1] and spec[0] in params[2]]
+        if sql.startswith("SELECT e.event_id, e.occurred_at, e.content, e.subject_refs"):
+            at, reason, snap, snap_version, cid, primary, version, who, gated = DISPOSALS[params[-1]]
+            return [{"event_id": params[-1], "occurred_at": datetime.fromisoformat(at.replace("Z", "+00:00")),
+                     "content": value(reason), "principal_id": who, "gated_since": gated,
+                     "subject_refs": [pin(snap, snap_version, "issues", cid), pin(primary, version)]}]
+        if sql.startswith("SELECT o.object_type, r.payload FROM gov_object_revisions"):
+            if params[1] in ISSUE_SNAPSHOTS:
+                object_type, payload = ISSUE_SNAPSHOTS[params[1]]
+                return [{"object_type": object_type, "payload": payload}]
+            oid = next(oid for oid in OBJECTS if revision(oid)["revision_id"] == params[1])
+            return [{"object_type": OBJECTS[oid][0], "payload": revision(oid)["payload"]}]
         if sql.startswith("SELECT * FROM gov_object_revisions"):
             rows = [revision(oid) for oid in OBJECTS] + [row for row, _ in SNAPSHOTS.values()]
             return [row for row in rows if row["revision_id"] == params[1]]
@@ -314,6 +376,8 @@ def world(monkeypatch):
     monkeypatch.setattr(readers, "readable", readable)
     monkeypatch.setattr(readers, "latest_snapshot", latest_snapshot)
     monkeypatch.setattr(readers, "events", events)
+    monkeypatch.setattr(readers, "issue_events", lambda conn, ctx, primary_id, component_id=None: ISSUE_EVENTS.get(
+        primary_id, []))
     return Conn()
 
 
@@ -740,16 +804,76 @@ def test_starting_from_the_company_the_empty_sections_and_the_guide_name_their_g
         "- 发生了什么：（缺口）窗口内没有取到事件", f"- 凭什么：文档链接在块 `{COMPANY}@1#identity`"]
 
 
-def test_formation_carry_ins_have_their_own_section_after_the_guide_and_are_never_trimmed(world, monkeypatch):
-    """形成时带入的挂接点（第二段接通）：第一段一律不带入；带入的每一项自成一条，放在六问指引之后、「为什么」
-    之前，预算再紧也不裁。"""
-    assert "## 形成时带入" not in build(world)["context_pack"]["markdown"]
-    monkeypatch.setattr(context, "_carried_in", lambda conn, ctx, layer: [
-        {"ref": f"{SNAP_MISSION}@1", "object_id": SNAP_MISSION, "text": f"### 带入的内容 `{SNAP_MISSION}@1`"}])
-    markdown = build(world, budget={"max_chars": 10})["context_pack"]["markdown"]
-    assert [line for line in markdown.splitlines() if line.startswith("## ")][:3] == [
-        "## 六问指引", "## 形成时带入", "## 为什么"]
-    assert sections(markdown)["形成时带入"] == f"### 带入的内容 `{SNAP_MISSION}@1`"
+# ------------------------------------------------------------ #64 第二段：形成时带入待带入的问题
+def carried_markdown(result) -> list[str]:
+    return sections(result["context_pack"]["markdown"])["形成时带入"].split("\n\n")
+
+
+def test_a_period_goal_carries_the_pending_issues_of_its_unit_in_their_own_section_after_the_guide(world):
+    """从周期目标出发：带入主受影响对象是本单元（同域的责任单元、长期目标、周期目标）、处置为带入下次形成或立即重开、
+    此后没记过门事件的问题，按处置事件的时刻与 id 排序；Mission 上的问题不带。"""
+    result = build(world, start=PERIOD, question="形成这个周期目标要看什么？")
+    carried = result["context_pack"]["carried"]
+    assert [(item["issue_ref"]["ref"], item["disposed_by"]["ref"]) for item in carried] == [
+        (f"{SNAP_GOAL}@3#issues/g-early", f"event:{G_EARLY}"), (f"{SNAP_GOAL}@3#issues/g-iss", f"event:{G_ISS}")]
+    assert carried[1] == {
+        "kind": "issue", "issue_ref": cited(SNAP_GOAL, 3, "issues", "g-iss"),
+        "primary": {**cited(GOAL), "object_type": "LongTermGoal", "type_display_name": "长期目标",
+                    "title": "E&O 六个月目标"},
+        "text": "试点客户流失", "core_question": "下个周期要不要换客户群？",
+        "disposition": {"id": "roll_forward", "display_name": "带入下次形成"},
+        "disposed_by": {"event_id": G_ISS, "ref": f"event:{G_ISS}", "occurred_at": "2026-09-23T08:00:00Z",
+                        "principal": {"principal_id": DRI, "principal_type": "human", "display_name": "E&O DRI"}},
+        "reason": "客户流失原因要在下个周期回答"}
+    markdown = result["context_pack"]["markdown"]
+    assert [line for line in markdown.splitlines() if line.startswith("## ")] == [
+        "## 六问指引", "## 形成时带入", "## 为什么", "## 做什么", "## 谁负责", "## 现在怎样", "## 发生了什么", "## 凭什么"]
+    assert carried_markdown(result) == [
+        "处置为带入下次形成或立即重开、此后主受影响对象还没记过门事件的问题：必须看到，不必须采用。",
+        "\n".join([f"### 问题 `{SNAP_GOAL}@3#issues/g-early`：衡量口径不一",
+                   f"主受影响对象：长期目标《E&O 六个月目标》 `{GOAL}@1`", "核心判断问题：收入按签约还是按回款算？",
+                   f"处置：带入下次形成（事件 `event:{G_EARLY}`，E&O DRI 记，2026-09-23T06:00:00Z）",
+                   "理由：口径在形成时统一"]),
+        "\n".join([f"### 问题 `{SNAP_GOAL}@3#issues/g-iss`：试点客户流失",
+                   f"主受影响对象：长期目标《E&O 六个月目标》 `{GOAL}@1`", "核心判断问题：下个周期要不要换客户群？",
+                   f"处置：带入下次形成（事件 `event:{G_ISS}`，E&O DRI 记，2026-09-23T08:00:00Z）",
+                   "理由：客户流失原因要在下个周期回答"])]
+    # 计入覆盖（凭什么）与六问指引；检索计划记下取过它们。
+    basis = result["coverage"]["basis"]["evidence"]
+    assert [{"ref": f"{SNAP_GOAL}@3#issues/g-iss"}, {"ref": f"event:{G_ISS}"}] == [
+        item for item in basis if item["ref"] in {f"{SNAP_GOAL}@3#issues/g-iss", f"event:{G_ISS}"}]
+    assert sections(markdown)["六问指引"].splitlines()[-1].startswith(
+        f"- 凭什么：形成时带入的问题 `{SNAP_GOAL}@3#issues/g-early`、`{SNAP_GOAL}@3#issues/g-iss`；")
+    assert [entry["key"] for entry in result["plan"]["taken"] if entry["kind"] == "carried"] == [
+        f"carried:event:{G_EARLY}", f"carried:event:{G_ISS}"]
+
+
+def test_another_gated_object_carries_only_the_pending_issues_it_is_the_primary_affected_object_of(world):
+    """从其他有门对象出发：只带主受影响对象是它本身的问题；立即重开的同样带入。已关闭、还在处理与处置之后又记过门
+    事件的不带。"""
+    mission = build(world, start=MISSION, question="Mission 要重开吗？")["context_pack"]
+    assert [(item["issue_ref"]["ref"], item["disposition"]["id"]) for item in mission["carried"]] == [
+        (f"{SNAP_MISSION_ISSUES}@1#issues/m-iss", "immediate_reopen")]
+    assert (f"处置：立即重开（事件 `event:{M_ISS}`，Mission Owner 记，2026-09-24T09:00:00Z）"
+            in mission["markdown"].splitlines())
+    goal = build(world, start=GOAL, question="长期目标要再确认吗？")["context_pack"]
+    assert [item["disposed_by"]["event_id"] for item in goal["carried"]] == [G_EARLY, G_ISS]
+
+
+def test_objects_without_a_gate_carry_nothing(world):
+    for start in (ACTIVITY, TASK, UNIT, COMPANY):
+        result = build(world, start=start)
+        assert result["context_pack"]["carried"] == [] and "## 形成时带入" not in result["context_pack"]["markdown"]
+
+
+def test_carried_issues_are_never_trimmed_and_the_same_world_gives_the_same_carry_in(world):
+    whole, again = build(world, start=PERIOD), build(world, start=PERIOD)
+    tiny = build(world, start=PERIOD, budget={"max_chars": 10})
+    assert tiny["budget"]["over_budget"] is True and carried_markdown(tiny) == carried_markdown(whole)
+    assert tiny["context_pack"]["carried"] == whole["context_pack"]["carried"]
+    assert not [entry for entry in tiny["plan"]["trimmed"] if entry["kind"] == "carried"]
+    assert {key: whole[key] for key in ("context_pack", "plan", "coverage", "budget")} == {
+        key: again[key] for key in ("context_pack", "plan", "coverage", "budget")}
 
 
 # ------------------------------------------------------------ HTTP：按对象绑定的契约版本分派

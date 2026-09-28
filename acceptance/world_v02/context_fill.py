@@ -1,11 +1,17 @@
-"""tkos.world/0.2 独立验收的取上下文补齐（票 #64 第一段，契约第 15.3 节）。
+"""tkos.world/0.2 独立验收的取上下文补齐（票 #64，契约第 15.3 节与补 43）。
 
-放在列对象之后、撤销 CEO 指派之前跑（要用 CEO 登记委托），对象都新建，不动前面场景的主干。单元 a 的 DRI 在主干的
+放在 Issue 之后、撤销 CEO 指派之前跑（要用 CEO 登记委托），对象都新建，不动前面场景的主干。单元 a 的 DRI 在主干的
 单元长期目标下建一条周期目标并承诺，CEO 给天枢登记门的委托，天枢代 CEO 确认；再在它下面建一条 Mission，DRI 指派
 Owner。从周期目标与 Mission 出发经 HTTP 取上下文，核对：Why 沿单元长期目标多取一跳到公司级长期目标，覆盖追到
 公司级长期目标、Strategy 与 Company 的块或组件；Markdown 开头是六问指引、以六问为节；代记的事件行写出记录者与
 被代记的人，指派的写出被指派者；同一世界状态两次调用结果相同；收紧预算时裁剪顺序同 0.1。MCP 取上下文只交四项
 由前面的 mcp_end_to_end 场景在同一个 API 进程上核对。
+
+第二段（形成时带入待带入的问题）：出发对象是有门类型就带入，不看它当前在哪个生命周期段——「此后主受影响对象还没记过
+门事件」已经让问题自然失效，只在草稿或一轮里才带的话，立即重开的问题在对象重开之前就看不到了。在周期目标下另建一条
+Mission，Co-Agent 写带问题组件的快照、提出并路由给 Owner，Owner 承接后处置为带入下次形成：从这条 Mission 取上下文
+看到「形成时带入」（计入覆盖、预算再紧也不裁）；Owner 记承诺（门事件）之后不再带入。再给单元长期目标写带问题的
+快照，DRI 处置为立即重开：从本单元的周期目标取上下文带入它。
 """
 from __future__ import annotations
 
@@ -176,3 +182,81 @@ def context_fill(book, h, f, flow, trunk):
           and tiny['budget']['over_budget'] is True
           and f"hop:{targets[company_goal]}" in [entry['key'] for entry in tiny['plan']['trimmed']]
           and tiny['context_pack']['layers'][1]['hop'] is None)
+
+    # ---------------------------------------------------------------- 第二段：形成时带入待带入的问题（补 43）
+    # 出发对象是有门类型就带入，不看它在哪个生命周期段：处置之后主受影响对象记了门事件，问题自然不再带入。
+    def issue_action(actor, kind, issue_ref, params=None):
+        params = {'issue_ref': issue_ref, **(params or {})}
+        if actor == 'agent_a':
+            params['declaration'] = scene
+        return flow.commit(actor, flow.prepare(actor, flow.command(kind, params)))['result']
+
+    def dispose(issue_ref, owner, disposition, reason):
+        """MF（agent_a）提出并路由给 owner，owner 本人承接后处置；返回处置的回执结果。"""
+        issue_action('agent_a', 'world_raise_issue', issue_ref)
+        issue_action('agent_a', 'world_route_issue', issue_ref, {'to_principal_id': actor_id[owner]})
+        issue_action(owner, 'world_own_issue', issue_ref)
+        return issue_action(owner, 'world_dispose_issue', issue_ref,
+                            {'disposition': disposition, 'content': {'text': reason}})
+
+    def snapshot_with_issue(subject_ref, payload_type, cid, question_text):
+        as_of = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+        return flow.refresh('agent_a', {
+            'title': f'{payload_type}（#64 带入）', 'subject_ref': subject_ref, 'as_of': as_of,
+            'payload_type': payload_type, 'source_event_refs': [f"event:{confirmed['event_id']}"],
+            'blocks': {'issues': {'components': [{'id': cid, 'type': 'issue', 'text': question_text,
+                                                  'attributes': {'core_question': question_text}}]}}}, scene)['result']
+
+    carried_mission = flow.create('a', 'Mission', 'a', {'title': '带入 Mission', 'goal_ref': latest(pid)})['result']
+    cmid = carried_mission['object_id']
+    flow.assign('a', cmid, actor_id['owner_a'])
+    scene = {'scene': latest(cmid), 'trigger': 'Co-Agent 周检（#64）', 'human_acceptance': {'required': False}}
+    mission_snapshot = snapshot_with_issue(latest(cmid), 'execution_state', 'fill-m-iss', '试点要不要换打法？')
+    mission_issue = f"{mission_snapshot['ref']}#issues/fill-m-iss"
+    rolled = dispose(mission_issue, 'owner_a', 'roll_forward', '换打法的判断放到下次形成')
+    rolled_event = {event['event_id']: event for event in flow.events('outsider', cmid)['events']}[rolled['event_id']]
+    before_gate = flow.context('agent_a', cmid, question)
+    carried = before_gate['context_pack']['carried']
+    carried_md = sections(before_gate['context_pack']['markdown']).get('形成时带入', '')
+    check('after_a_roll_forward_the_affected_gated_object_carries_the_issue_into_its_formation',
+          [item['issue_ref']['ref'] for item in carried] == [mission_issue]
+          and carried[0]['issue_ref']['revision_id'] == mission_snapshot['revision_id']
+          and carried[0]['primary']['object_id'] == cmid and carried[0]['core_question'] == '试点要不要换打法？'
+          and carried[0]['disposition'] == {'id': 'roll_forward', 'display_name': '带入下次形成'}
+          and carried[0]['disposed_by']['ref'] == f"event:{rolled['event_id']}"
+          and carried[0]['disposed_by']['occurred_at'] == rolled_event['occurred_at']
+          and carried[0]['reason'] == '换打法的判断放到下次形成'
+          and [line for line in before_gate['context_pack']['markdown'].splitlines() if line.startswith('## ')][:3]
+          == ['## 六问指引', '## 形成时带入', '## 为什么']
+          and f"### 问题 `{mission_issue}`：试点要不要换打法？" in carried_md
+          and f"处置：带入下次形成（事件 `event:{rolled['event_id']}`" in carried_md
+          and {'ref': mission_issue} in before_gate['coverage']['basis']['evidence']
+          and {'ref': f"event:{rolled['event_id']}"} in before_gate['coverage']['basis']['evidence'])
+    tiny_carry = flow.context('agent_a', cmid, {**question, 'budget': {'max_chars': 10}})
+    check('carried_issues_are_never_trimmed',
+          tiny_carry['budget']['over_budget'] is True and tiny_carry['context_pack']['carried'] == carried
+          and sections(tiny_carry['context_pack']['markdown'])['形成时带入'] == carried_md
+          and not [entry for entry in tiny_carry['plan']['trimmed'] if entry['kind'] == 'carried'])
+
+    gate = flow.gate('owner_a', 'world_commit_mission', cmid, {})['result']
+    after_gate = flow.context('agent_a', cmid, question)
+    check('once_the_affected_object_records_a_gate_event_the_issue_is_no_longer_carried',
+          flow.read('outsider', cmid)['records']['lifecycle']['event_id'] == gate['event_id']
+          and after_gate['context_pack']['carried'] == []
+          and '## 形成时带入' not in after_gate['context_pack']['markdown']
+          and {'ref': mission_issue} not in after_gate['coverage']['basis']['evidence'])
+
+    scene = {'scene': latest(unit_goal), 'trigger': 'Co-Agent 周检（#64）', 'human_acceptance': {'required': False}}
+    goal_snapshot = snapshot_with_issue(latest(unit_goal), 'goal_state', 'fill-g-iss', '长期目标的衡量要不要改？')
+    goal_issue = f"{goal_snapshot['ref']}#issues/fill-g-iss"
+    reopened = dispose(goal_issue, 'a', 'immediate_reopen', '衡量口径不对，立即重开')
+    from_goal = flow.context('agent_a', pid, question)
+    goal_carried = from_goal['context_pack']['carried']
+    check('forming_a_period_goal_carries_a_pending_issue_on_its_units_long_term_goal',
+          [item['issue_ref']['ref'] for item in goal_carried] == [goal_issue]
+          and goal_carried[0]['primary']['object_id'] == unit_goal
+          and goal_carried[0]['primary']['object_type'] == 'LongTermGoal'
+          and goal_carried[0]['disposition']['id'] == 'immediate_reopen'
+          and goal_carried[0]['disposed_by']['event_id'] == reopened['event_id']
+          and f"### 问题 `{goal_issue}`：长期目标的衡量要不要改？" in sections(from_goal['context_pack']['markdown'])['形成时带入']
+          and flow.context('outsider', pid, question)['context_pack'] == from_goal['context_pack'])

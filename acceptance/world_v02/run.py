@@ -1,8 +1,10 @@
-"""tkos.world/0.2 独立 API 验收的骨架（票 #49 起逐票追加，票 #65 汇总成矩阵，不冻结）：真 API 进程、隔离库、
+"""tkos.world/0.2 独立 API 验收（票 #49 起逐票追加，票 #65 汇总成矩阵，不冻结）：真 API 进程、隔离库、
 真 HTTP 与 PostgreSQL。
 
 业务成功只来自 /v1/actions/prepare 与 /v1/actions；SQL 只用于播种身份与独立核对。每个拒绝用例都在它能到达的
-入口上核对 scope 的库快照不变。骨架不写「验收通过」：报告只列每条检查与场景是否跑完，全部通过退出码为 0。
+入口上核对 scope 的库快照不变。每条检查记下所在的场景，按矩阵（matrix.py）判覆盖：检查全过、场景全跑完、矩阵
+没有未覆盖的格、没有矩阵外的检查、源码运行中不变时 passed 为 true、退出码为 0；锁版前不冻结，不写「验收通过」
+（world_v02_accepted 恒为 false）。报告同目录另写中文的 report.md。
 库可以是 method_v05 工具新建的，也可以是刚跑完 0.1 独立验收的同一个库（同库回归，0.1 先跑）。
 """
 from __future__ import annotations
@@ -31,6 +33,8 @@ from .context_fill import context_fill
 from .goal_closure import goal_closure
 from .issues import issues
 from .listing import list_objects
+from .matrix import evaluate, render_markdown
+from .state_cells import state_cells
 from .strategy import strategy_gates
 from .fixture import (CONTRACT, PROFILE, REGISTRY, SUPPORT, action_roles, install_activation_policies,
                       owner, owner_rows, probe_binding_gate, probe_event_row, register_world_v02)
@@ -40,22 +44,23 @@ MIGRATION = '0039_world_v02.sql'
 SCENARIOS = ['migration', 'control_plane', 'company', 'objects', 'rejections', 'coexistence', 'references',
              'revise_relate', 'state_events', 'assign_lifecycle', 'gates', 'context_packs', 'mission_lifecycle',
              'delegation', 'mcp_end_to_end', 'list_objects', 'issues', 'goal_closure', 'strategy_gates',
-             'context_fill', 'revocation']
+             'context_fill', 'state_cells', 'revocation']
 EVENT_KINDS = {item['kind']: item for item in json.loads(REGISTRY.read_text())['event_kinds']}
 OBJECTS = {item['type']: item for item in json.loads(REGISTRY.read_text())['objects']}
 TYPES = ['Company', 'Strategy', 'ResponsibilityUnit', 'LongTermGoal', 'PeriodGoal', 'Mission', 'Task', 'Activity']
 
 
 class Book:
-    """骨架的记账：检查按名字记一次，不成立即记为失败并中止这次运行。"""
+    """记账：检查按名字记一次、记下它所在的场景，不成立即记为失败并中止这次运行；报告带上矩阵的判定。"""
 
     def __init__(self, output: Path):
-        self.output, self.checks, self.metadata, self.started_at = output, {}, {}, now()
+        self.output, self.checks, self.where, self.metadata, self.started_at = output, {}, {}, {}, now()
 
     def check(self, name, value=True):
         if name in self.checks:
             raise ValueError('a check cannot be silently replaced')
-        self.checks[name] = bool(value)
+        running = [scenario for scenario, row in self.metadata.get('scenarios', {}).items() if row['status'] == 'running']
+        self.checks[name], self.where[name] = bool(value), running[0] if running else None
         self.save()
         print(('PASS ' if value else 'FAIL ') + name, flush=True)
         if not value:
@@ -65,11 +70,14 @@ class Book:
         self.metadata.update(extra)
         scenarios = self.metadata.get('scenarios', {})
         complete = all(scenarios.get(name, {}).get('status') == 'completed' for name in SCENARIOS)
-        result = {**self.metadata, 'scope': 'tkos.world/0.2 APIs (skeleton, not frozen)',
+        matrix = evaluate(self.checks, self.where, scenarios)
+        result = {**self.metadata, 'scope': 'tkos.world/0.2 APIs (acceptance matrix, not frozen)',
                   'started_at': self.started_at, 'updated_at': now(), 'checks': self.checks,
+                  'check_scenarios': self.where,
                   'checks_passed': sum(self.checks.values()), 'checks_failed': len(self.checks) - sum(self.checks.values()),
-                  'all_scenarios_completed': complete,
-                  'passed': complete and all(self.checks.values()) and not self.metadata.get('run_error'),
+                  'all_scenarios_completed': complete, **matrix,
+                  'passed': (complete and all(self.checks.values()) and not self.metadata.get('run_error')
+                             and matrix['matrix_passed'] and self.metadata.get('source_unchanged', True) is True),
                   'world_v02_accepted': False, 'released': False, 'deployed': False}
         public_json(self.output / 'report.json', result)
         return result
@@ -2513,6 +2521,8 @@ def run(book, h, source, upgrade_evidence):
             strategy_gates(book, h, f, flow, trunk)
         with scenario('context_fill'):
             context_fill(book, h, f, flow, trunk)
+        with scenario('state_cells'):
+            state_cells(book, h, f, flow, trunk)
         with scenario('revocation'):
             revocation(book, h, f, flow, made['command'])
     finally:
@@ -2553,8 +2563,12 @@ def main():
         finally:
             unchanged = source_manifest(source) == initial
             result = book.save(source_unchanged=unchanged)
+            (h.output / 'report.md').write_text(render_markdown(result), encoding='utf-8')
             print(json.dumps({key: result[key] for key in ('passed', 'checks_passed', 'checks_failed',
-                                                           'all_scenarios_completed')}))
+                                                           'all_scenarios_completed', 'matrix_passed')}
+                             | {'cells': result['matrix']['cells'], 'covered': result['matrix']['covered'],
+                                'not_applicable': result['matrix']['not_applicable'],
+                                'uncovered': len(result['matrix']['uncovered'])}))
             if not unchanged and error is None:
                 error = RuntimeError('source changed during the acceptance run; rerun on a stable checkout')
     if error is not None:

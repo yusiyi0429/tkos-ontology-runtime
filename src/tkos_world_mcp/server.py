@@ -1,8 +1,10 @@
-"""tkos-world-mcp：Agent 经 stdio 的 MCP 读写业务世界（票 #26、ADR-0004）。
+"""tkos-world-mcp：Agent 经 stdio 的 MCP 读写业务世界（票 #26、#57，ADR-0004）。
 
 薄壳：持一个 Agent 身份的凭证，把工具调用转发到现有 HTTP 面；不连数据库、不判权、不做事务。
-工具是四读（取对象、取上下文、取事件、取状态）加三写（world_revise_object、world_refresh_state、
-world_record_event），名称与参数和 HTTP 面一一对应；门动作、指派与建关系不暴露（契约第 9 节）。
+工具即所选契约版本的 Agent 面（Face），TKOS_WORLD_CONTRACT_VERSION 选版本，默认 tkos.world/0.1，取值不认识时
+启动即退出（退出码 2）。0.1 是四读（取对象、取上下文、取事件、取状态）加三写（world_revise_object、
+world_refresh_state、world_record_event）；0.2 另加开始与交付两写，见 tools_v02。名称与参数和 HTTP 面一一对应；
+门动作、指派、建关系与建对象不暴露（契约第 9 节），面外的工具在发请求之前就拒绝。
 这里只校验工具参数的形状（未知参数、缺少的定位字段），写入内容与三项声明由 HTTP 面校验，
 HTTP 的拒绝原样返回。写入先 prepare 再 commit，同一条命令、同一个幂等键；不替调用方补目标、不重试。
 取上下文成功时只把上下文包 id、渲染后的 Markdown、六问覆盖与预算裁剪摘要交给调用方（实验报告建议 1）；
@@ -12,13 +14,16 @@ HTTP 的拒绝原样返回。写入先 prepare 再 commit，同一条命令、�
 与错误码、返回里的引用与事件 id、交给调用方的字符数；读工具另记带着内容回来的引用与事件 id（read_refs、
 read_event_ids，只以引用形式出现的不算）；写入另记幂等键，取上下文另记上下文包 id 与渲染后 Markdown 的
 字符数，且引用与读到的内容按 HTTP 面返回的上下文包本身算：交出去的 Markdown 就是这个包渲染的，检索计划里
-裁掉的条目与主干上钉定的旧版本不计入。凭证不进日志；日志写不进去只在 stderr 提示，不影响已完成的调用。
+裁掉的条目与主干上钉定的旧版本不计入。引用按所选版本的业务形式识别：0.1 是对象与块，0.2 另有组件与事件两种。
+凭证不进日志；日志写不进去只在 stderr 提示，不影响已完成的调用。
 
 环境变量：TKOS_WORLD_API_URL（HTTP 面的地址）、TKOS_WORLD_AGENT_TOKEN（Agent 身份的凭证）、
+TKOS_WORLD_CONTRACT_VERSION（契约版本，tkos.world/0.1 或 tkos.world/0.2，默认 0.1）、
 TKOS_WORLD_MCP_LOG_DIR（运行日志目录，默认 artifacts/world-mcp-runs）。
 """
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import datetime, timezone
 import json
 import os
@@ -36,6 +41,7 @@ from mcp.server import Server, ServerRequestContext
 from mcp.server.stdio import stdio_server
 
 CONTRACT_VERSION = "tkos.world/0.1"
+CONTRACT_VERSIONS = (CONTRACT_VERSION, "tkos.world/0.2")
 REASON = "Agent write through tkos-world-mcp"
 _UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
 # 引用的业务形式 `<对象 id>@<版本号>#<块路径>`（契约第 5 节）：运行日志按它从返回里取引用集合。
@@ -91,8 +97,36 @@ TOOLS: dict[str, tuple[str, dict[str, Any]]] = {
                  "supersedes_event_id": {"type": "string"}, "declaration": _DECLARATION, "idempotency_key": _KEY},
                 ["category", "subject_refs", "occurred_at", "content"])),
 }
-_READS = {"world_get_object": ("GET", "", "version"), "world_get_context": ("POST", "/context", None),
-          "world_get_events": ("GET", "/events", "since"), "world_get_state": ("GET", "/state", "as_of")}
+# 读工具 -> (方法, 路径, 查询参数)：路径里的 {object_id} 取自参数；POST 的其余参数作请求体。
+_READS = {"world_get_object": ("GET", "/v1/world/objects/{object_id}", ("version",)),
+          "world_get_context": ("POST", "/v1/world/objects/{object_id}/context", ()),
+          "world_get_events": ("GET", "/v1/world/objects/{object_id}/events", ("since",)),
+          "world_get_state": ("GET", "/v1/world/objects/{object_id}/state", ("as_of",))}
+
+
+@dataclass(frozen=True)
+class Face:
+    """一个契约版本的 Agent 面：工具、读工具的 HTTP 端点、运行日志识别引用的业务形式。
+    加一个写工具只在 tools 里加一项（名即动作名、参数即动作参数）；加一个读工具另在 reads 里给它的端点。"""
+    contract_version: str
+    tools: dict[str, tuple[str, dict[str, Any]]]
+    reads: dict[str, tuple[str, str, tuple[str, ...]]]
+    ref: re.Pattern[str]  # 引用的业务形式：运行日志按它从返回里取引用集合
+    component: re.Pattern[str] | None  # 组件形式的引用：块里带着内容回来的组件算读到（0.2）
+    instructions: str
+
+
+FACE = Face(CONTRACT_VERSION, TOOLS, _READS, _REF, None, "tkos.world/0.1 业务世界：四读三写，写入须带三项声明。")
+
+
+def face_for(version: str) -> Face | None:
+    """按契约版本取 Agent 面：0.1 在本模块，0.2 在 tools_v02；不认识的版本为 None。"""
+    if version == CONTRACT_VERSION:
+        return FACE
+    if version == "tkos.world/0.2":
+        from .tools_v02 import FACE as v02
+        return v02
+    return None
 
 
 def _is_object(response: httpx.Response) -> bool:
@@ -115,9 +149,10 @@ def _event_ids(value: Any) -> set[str]:
     return set()
 
 
-def _content(value: Any) -> tuple[set[str], set[str]]:
+def _content(value: Any, face: Face) -> tuple[set[str], set[str]]:
     """返回里带着内容回来的引用与事件：对象视图（带块的对象、取对象顺带的最新快照、上下文包里一层的对象与状态）、
-    块视图、事件视图。块内引用、关系、referenced_by、supersedes、生命周期里钉的事件只以引用形式出现，不算读到。"""
+    块视图、块里的组件视图（0.2）、事件视图。块内引用、关系、referenced_by、supersedes、生命周期里钉的事件只以引用
+    形式出现，不算读到。"""
     refs: set[str] = set()
     events: set[str] = set()
 
@@ -134,8 +169,10 @@ def _content(value: Any) -> tuple[set[str], set[str]]:
             refs.add(f"{item['object_id']}@{item['version']}")
         elif isinstance(item.get("blocks"), list) and "ref" in item or {"title", "ref"} <= item.keys():
             refs.add(str(item["ref"]))
-        if {"empty", "text", "ref"} <= item.keys() and _REF.fullmatch(str(item["ref"])):  # 块视图（空块读到的是标准句）
+        if {"empty", "text", "ref"} <= item.keys() and face.ref.fullmatch(str(item["ref"])):  # 块视图（空块读到的是标准句）
             refs.add(item["ref"])
+        if face.component and {"id", "type", "ref"} <= item.keys() and face.component.fullmatch(str(item["ref"])):
+            refs.add(item["ref"])  # 组件视图：随所在的块带着内容回来
         if isinstance(item.get("event_id"), str) and "occurred_at" in item:  # 事件视图
             events.add(item["event_id"])
         for entry in item.values():
@@ -148,7 +185,8 @@ def _content(value: Any) -> tuple[set[str], set[str]]:
 class RunLog:
     """运行日志：每个进程一个 JSONL 文件，每次工具调用一行。"""
 
-    def __init__(self, directory: Path) -> None:
+    def __init__(self, directory: Path, face: Face = FACE) -> None:
+        self.face = face
         self.session = str(uuid4())
         self.path = directory / f"{_utc_now()[:19].replace(':', '')}-{self.session[:8]}.jsonl"
         self.seq = 0
@@ -161,10 +199,11 @@ class RunLog:
             and isinstance(body.get("context_pack"), dict) else None
         line = {"at": _utc_now(), "session": self.session, "seq": self.seq, "tool": tool, "arguments": arguments,
                 "status": status, "error_code": error_code,
-                "refs": sorted(set(_REF.findall(json.dumps(taken, ensure_ascii=False) if taken else text))),
+                "refs": sorted(set(self.face.ref.findall(json.dumps(taken, ensure_ascii=False) if taken else text))),
                 "event_ids": sorted(_event_ids(taken or body)), "chars": len(text)}
-        if tool in _READS:
-            read_refs, read_event_ids = _content(taken or body) if status is not None and status < 400 else (set(), set())
+        if tool in self.face.reads:
+            read_refs, read_event_ids = _content(taken or body, self.face) if status is not None and status < 400 \
+                else (set(), set())
             line["read_refs"], line["read_event_ids"] = sorted(read_refs), sorted(read_event_ids)
         if idempotency_key is not None:
             line["idempotency_key"] = idempotency_key
@@ -179,10 +218,10 @@ class RunLog:
             print(f"tkos-world-mcp: run log not written ({exc.__class__.__name__})", file=sys.stderr)
 
 
-def _envelope(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
+def _envelope(name: str, arguments: dict[str, Any], contract_version: str) -> dict[str, Any]:
     """写工具的参数即动作参数；目标与幂等键由调用方给（幂等键不给则生成）。"""
     params = {key: value for key, value in arguments.items() if key not in {"target", "idempotency_key"}}
-    return {"action_type": name, "contract_version": CONTRACT_VERSION, "target": arguments.get("target"),
+    return {"action_type": name, "contract_version": contract_version, "target": arguments.get("target"),
             "expected_versions": [], "idempotency_key": arguments.get("idempotency_key") or f"world-mcp-{uuid4()}",
             "reason": REASON, "params": params}
 
@@ -206,21 +245,21 @@ def _shown(name: str, body: Any) -> dict[str, Any] | None:
 
 
 class WorldTools:
-    def __init__(self, http: httpx.AsyncClient, log: RunLog) -> None:
-        self.http, self.log = http, log
+    def __init__(self, http: httpx.AsyncClient, log: RunLog, face: Face = FACE) -> None:
+        self.http, self.log, self.face = http, log, face
 
     async def list_tools(self, ctx: ServerRequestContext, params: types.PaginatedRequestParams | None) -> types.ListToolsResult:
         return types.ListToolsResult(tools=[types.Tool(name=name, description=description, input_schema=schema)
-                                            for name, (description, schema) in TOOLS.items()])
+                                            for name, (description, schema) in self.face.tools.items()])
 
     async def call_tool(self, ctx: ServerRequestContext, params: types.CallToolRequestParams) -> types.CallToolResult:
         name, arguments = params.name, dict(params.arguments or {})
         try:
-            jsonschema.validate(arguments, TOOLS[name][1])
+            jsonschema.validate(arguments, self.face.tools[name][1])
         except (KeyError, jsonschema.ValidationError) as exc:
             message = f"unknown tool {name}" if isinstance(exc, KeyError) else exc.message
             return self.finish(name, arguments, None, _error("INVALID_ARGUMENTS", message))
-        body = None if name in _READS else _envelope(name, arguments)
+        body = None if name in self.face.reads else _envelope(name, arguments, self.face.contract_version)
         key = body and body["idempotency_key"]
         try:
             if body is None:
@@ -240,11 +279,11 @@ class WorldTools:
         return self.finish(name, arguments, response.status_code, response.text, key)
 
     async def read(self, name: str, arguments: dict[str, Any]) -> httpx.Response:
-        method, suffix, query = _READS[name]
-        path = f"/v1/world/objects/{arguments['object_id']}{suffix}"
+        method, path, queries = self.face.reads[name]
+        path = path.format(**arguments)
         if method == "POST":
             return await self.http.post(path, json={key: value for key, value in arguments.items() if key != "object_id"})
-        return await self.http.get(path, params={query: arguments[query]} if query in arguments else None)
+        return await self.http.get(path, params={key: arguments[key] for key in queries if key in arguments} or None)
 
     def finish(self, name: str, arguments: dict[str, Any], status: int | None, text: str,
                idempotency_key: str | None = None) -> types.CallToolResult:
@@ -266,10 +305,10 @@ class WorldTools:
                                     structured_content=structured, is_error=failed)
 
 
-async def _serve(url: str, token: str, log_dir: Path) -> None:
+async def _serve(url: str, token: str, log_dir: Path, face: Face) -> None:
     async with httpx.AsyncClient(base_url=url, headers={"Authorization": f"Bearer {token}"}, timeout=60) as http:
-        tools = WorldTools(http, RunLog(log_dir))
-        server = Server("tkos-world", instructions="tkos.world/0.1 业务世界：四读三写，写入须带三项声明。",
+        tools = WorldTools(http, RunLog(log_dir, face), face)
+        server = Server("tkos-world", instructions=face.instructions,
                         on_list_tools=tools.list_tools, on_call_tool=tools.call_tool)
         async with stdio_server() as (read, write):
             await server.run(read, write, server.create_initialization_options())
@@ -280,12 +319,18 @@ def main() -> None:
     if not url or not token:
         print("tkos-world-mcp needs TKOS_WORLD_API_URL and TKOS_WORLD_AGENT_TOKEN.", file=sys.stderr)
         raise SystemExit(2)
+    version = os.environ.get("TKOS_WORLD_CONTRACT_VERSION", "").strip() or CONTRACT_VERSION
+    selected = face_for(version)
+    if selected is None:
+        print(f"tkos-world-mcp: TKOS_WORLD_CONTRACT_VERSION must be {' or '.join(CONTRACT_VERSIONS)}, "
+              f"not {version[:40]!r}.", file=sys.stderr)
+        raise SystemExit(2)
     log_dir = Path(os.environ.get("TKOS_WORLD_MCP_LOG_DIR") or "artifacts/world-mcp-runs")
     try:
         log_dir.mkdir(parents=True, exist_ok=True)
     except OSError as exc:  # 启动时就提示；之后每次调用仍照常，只是不记日志
         print(f"tkos-world-mcp: run log directory unavailable ({exc.__class__.__name__})", file=sys.stderr)
-    anyio.run(_serve, url.rstrip("/"), token, log_dir)
+    anyio.run(_serve, url.rstrip("/"), token, log_dir, selected)
 
 
 if __name__ == "__main__":

@@ -192,7 +192,7 @@ BEGIN
         IF (prow.schema_version = 'tkos.world-profile/0.2'
             AND prow.content->'action_contract_ref'->>'contract_id' = 'tkos.world'
             AND prow.content->'action_contract_ref'->>'revision' = '0.2'
-            AND prow.content->'action_contract_ref'->>'content_sha256' = 'a829af8c17a6a9d3dafa5b7fa14ad47e81b11ebc4c6845646edba1e2c855805b'
+            AND prow.content->'action_contract_ref'->>'content_sha256' = 'c4a67c25007fe4e65fc591536ff68b5ccf8ed01b3fbfa5c8522f1cc2ca04b2e7'
             AND prow.content->'world_registry_ref'->>'registry_id' = 'tkos.world-registry'
             AND prow.content->'world_registry_ref'->>'revision' = '0.2.0'
             AND prow.content->'world_registry_ref'->>'content_sha256' = '9ff5fd31092d9b3ff5fc7f8d56f37c3b21c57cbfce6c81f6b07793f5408e09da') IS NOT TRUE THEN

@@ -192,7 +192,6 @@ def check_upstream_currency(ex: Any, baseline: dict[str, Any]) -> None:
     dependencies and never echoed.  Every failure is STALE_DEPENDENCY.
     """
     definition = baseline["definition"]
-    manifest = baseline["manifest"]
     shared = {str(definition["company_domain_id"])}
     shared.update(str(m["domain_id"]) for m in definition.get("members", []))
 
@@ -505,7 +504,7 @@ def propose_commitment_revision(ex: Any) -> dict[str, Any]:
 
 def accept_commitment(ex: Any) -> dict[str, Any]:
     context = collect_accept_commitment(ex)
-    payload, parties = context["payload"], context["parties"]
+    parties = context["parties"]
     revision = ex.target_revision
     requested = str(ex.params["party_assignment_id"])
     party = next((parties[key] for key in ("dri", "ic")

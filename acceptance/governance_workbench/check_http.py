@@ -1,6 +1,5 @@
 """Independent HTTP/SQL acceptance against a running local workbench."""
 import argparse
-from copy import deepcopy
 import json
 from pathlib import Path
 from uuid import uuid4
@@ -11,7 +10,7 @@ import psycopg
 
 from acceptance.anchors_v03.run import Flow
 from acceptance.method_independent.harness import MethodHarness
-from acceptance.protocol_a1_independent.support import private_json, public_json
+from acceptance.protocol_a1_independent.support import public_json
 
 
 def run(url, env_file, private):
@@ -88,7 +87,7 @@ def run(url, env_file, private):
         flow.close_window(targets)
         rejected=commit('dri-a',race)
         check('close_wins_comment_race',rejected['status']=='rejected')
-        context=flow.clients['co_agent'].json('POST','/v1/context-packs',{'contract_version':'tkos.method/0.3','object_ids':[wid,targets['pco']['object_id'],targets['mission']['object_id']],'valid_at':__import__('datetime').datetime.now(__import__('datetime').timezone.utc).isoformat(),'known_at':__import__('datetime').datetime.now(__import__('datetime').timezone.utc).isoformat(),'stage':'review','purpose':'analysis','include_drafts':True})
+        flow.clients['co_agent'].json('POST','/v1/context-packs',{'contract_version':'tkos.method/0.3','object_ids':[wid,targets['pco']['object_id'],targets['mission']['object_id']],'valid_at':__import__('datetime').datetime.now(__import__('datetime').timezone.utc).isoformat(),'known_at':__import__('datetime').datetime.now(__import__('datetime').timezone.utc).isoformat(),'stage':'review','purpose':'analysis','include_drafts':True})
         flow.resolve(targets)
         w=call('ceo','/governance/review-windows/'+wid)
         check('complete_candidate_projection',w['monthly']['candidate']['status']=='available' and len(w['monthly']['candidate_targets'])==2)

@@ -249,35 +249,6 @@ def claim_task(
     return None if row is None else RuntimeTask.from_row(row)
 
 
-def renew_task_lease(
-    conn: psycopg.Connection,
-    task: RuntimeTask,
-    *,
-    lease_seconds: int,
-) -> bool:
-    """Extend only the currently fenced lease; stale owners cannot revive it."""
-    if task.lease_owner is None or task.lease_token is None:
-        return False
-    updated = conn.execute(
-        """UPDATE runtime_tasks
-              SET lease_expires_at=clock_timestamp() + make_interval(secs => %s),
-                  updated_at=clock_timestamp()
-            WHERE task_id=%s AND tenant_id=%s AND organization_id=%s
-              AND state='in_progress'
-              AND lease_owner=%s AND lease_token=%s
-              AND lease_expires_at > clock_timestamp()""",
-        (
-            lease_seconds,
-            task.task_id,
-            task.tenant_id,
-            task.organization_id,
-            task.lease_owner,
-            task.lease_token,
-        ),
-    ).rowcount
-    return updated == 1
-
-
 def succeed_task(
     conn: psycopg.Connection,
     task: RuntimeTask,

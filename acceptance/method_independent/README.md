@@ -7,20 +7,19 @@
 ## 本地前提
 
 - 从仓库根目录执行，使用现有 `.venv/bin/python`。
-- 当前 Docker context 为 `desktop-linux`，已运行的隔离 PostgreSQL 容器为 `tkos-ontology-runtime-acceptance-postgres-1`，数据库端口 54350；原始证据 MinIO 端口 54351。
+- 当前 Docker context 为 `desktop-linux`，已运行的隔离 PostgreSQL 容器为 `tkos-ontology-runtime-acceptance-postgres-1`（端口由 `acceptance/runtime/infra.py` 随机分配，不要连 54350/54351 的 Clark 联动栈）。
 - 环境配置由操作者放在仅本人可读的 `.runtime-acceptance/*/env.json`。应用与迁移角色必须不同。不要打印文件或把数据库 URL／运行密钥写进命令行、报告或 Git。
 - 本工具不会启动、停止、重建容器；不会删除数据库或修改旧数据库。失败保留新建数据供核查；重新执行必须选新输出目录。
 
 ## 保留环境和创建基线
 
+注意：本矩阵固定在 2026-09-11 那次运行，升级只应用 0021，`gates.py` 也按此断言，所以在 HEAD 上不能原样复跑。原来的 `acceptance.method_independent.database create/upgrade` 把端口钉死在 54350，并断言旧的迁移清单，已删除。新建隔离库改用 `acceptance/method_v05/database.py`（见 `acceptance/method_v05/README.md`）。以下步骤保留为当时的执行记录。
+
 ```sh
 .venv/bin/python -m acceptance.method_independent.baseline \
   --output .runtime-acceptance/method-local/baseline-before.json
 
-.venv/bin/python -m acceptance.method_independent.database create \
-  --env-file .runtime-acceptance/a3-database-20260911/env.json \
-  --private .runtime-acceptance/method-local-database \
-  --output artifacts/runtime-acceptance/method-local-database
+# 当时在此用 acceptance.method_independent.database create 建库，该入口已删除
 ```
 
 第二步在新 `tkos_a1_method_*` 数据库内，从不可变提交 `1b8cec9cc30e561e3570bc5dd010a09126f283c2` 的源码迁移至 0020，并检查重放不增加迁移。不会在原环境内清空表。
@@ -34,10 +33,7 @@
   --private .runtime-acceptance/method-local-history-before \
   --output artifacts/runtime-acceptance/method-local-history-before
 
-.venv/bin/python -m acceptance.method_independent.database upgrade \
-  --env-file .runtime-acceptance/method-local-database/env.json \
-  --source src \
-  --output artifacts/runtime-acceptance/method-local-upgrade
+# 当时在此用 acceptance.method_independent.database upgrade 升级，该入口已删除
 ```
 
 历史捕获使用真实 A2 组合激活和 A3 `承接 → 提交 v1 → 退回 → 提交 v2 → 有权人验收`，同时保存对象、回执、所有业务表哈希及原始存储清单。升级仅应用 0021，再次迁移必须为空。

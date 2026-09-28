@@ -690,7 +690,3 @@ HUMAN_ACTIONS = frozenset({
     "m1b_reopen_window", "method_confirm_state", "method_open_problem",
     "method_revise_problem", "method_close_problem",
 })
-AGENT_ACTIONS = frozenset(set(ACTION_PARAMS) - HUMAN_ACTIONS - {
-    "method_open_run", "method_attach_run", "method_pause_run", "method_resume_run",
-    "method_record_attempt",
-})

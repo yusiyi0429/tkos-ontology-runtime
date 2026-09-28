@@ -27,14 +27,11 @@ from uuid import UUID
 from memory_service_runtime.governed import db, delivery, protocol, readers
 from memory_service_runtime.governed.errors import GovernedError
 from memory_service_runtime.governed.models import (
-    A2_GENERIC_SOURCE_OBJECT_TYPES,
     A2_OBJECT_TYPE_NAMES,
     PAYLOAD_MODELS,
 )
 
 SCHEMA_VERSION = "workbench-read/0.1"
-DEFAULT_LIMIT = 50
-MAX_LIMIT = 100
 MAX_CURSOR_LENGTH = 4096
 
 GENERIC_TYPES = tuple(PAYLOAD_MODELS)

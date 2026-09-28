@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel
 
-from memory_service_app.contracts import HealthReport as HealthzReport
+from memory_service_app.contracts import HealthReport as HealthzReport  # noqa: F401 - routes_health 经 contracts 引用
 
 
 class GkVersion(BaseModel):

@@ -24,7 +24,7 @@ STAMP=$(date +%Y%m%d-%H%M%S)
   --output artifacts/runtime-acceptance/method-v05-db-$STAMP-upgrade
 ```
 
-`create` 在隔离容器内新建 `tkos_a1_method_*` 库，从接受基线 `1b8cec9` 迁移到 0020（重复迁移为空），私有 env 写入 `--private` 目录（0600）。`upgrade` 必须恰好应用给定源码中 0020 之后的全部迁移（含 `0029_method_v05.sql`），重复迁移为空，再授予应用角色运行时表权限。两者都不打印凭据，不改动已有数据库。`acceptance/method_independent/database.py` 写死 54350 端口、只接受升级 0021，不适用于当前环境与 HEAD。
+`create` 在隔离容器内新建 `tkos_a1_method_*` 库，从接受基线 `1b8cec9` 迁移到 0020（重复迁移为空），私有 env 写入 `--private` 目录（0600）。`upgrade` 必须恰好应用给定源码中 0020 之后的全部迁移（含 `0029_method_v05.sql`），重复迁移为空，再授予应用角色运行时表权限。两者都不打印凭据，不改动已有数据库。原 `acceptance/method_independent/database.py` 的 create/upgrade 写死 54350 端口、只接受升级 0021，已删除；各验收目录统一用本工具建库。
 
 ## 运行
 

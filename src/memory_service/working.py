@@ -21,22 +21,17 @@ from memory_service.actors import (
 )
 from memory_service.working_contracts import (
     AGREEMENT_DISPOSITIONS as _AGREEMENT_DISPOSITIONS,
-    OBJECT_TYPE_ORDER,
     OBJECT_TYPES,
     missing_required_content,
 )
-from memory_service.working_repository import (
+# get_* / list_chains 是对外再导出：Clark 与 src/adapter 通过 working.* 读取，本模块自身不用。
+from memory_service.working_repository import (  # noqa: F401
     _VERSION_UUID_KEYS, _dictcur, _stringify,
-    get_chain, get_chain_scoped, get_current_version, get_latest_confirmed_version,
-    get_object, get_version, get_version_chain, list_chains, lock_current_version,
-    lock_version, resolve_chain_by_title,
+    get_chain, get_current_version, get_latest_confirmed_version,
+    get_object, get_version_chain, list_chains, lock_current_version,
     list_chain_current_versions_by_type as _list_chain_current_versions_by_type,
 )
 
-_get_object = get_object
-_get_chain = get_chain
-_get_version = get_version
-_lock_version = lock_version
 _lock_current_version = lock_current_version
 
 # Re-export stable public constants while keeping working_contracts as their sole declaration.
@@ -312,13 +307,6 @@ def _authorized_version(
     )
 
 
-def _object_scope(conn, obj: dict) -> tuple[str, str]:
-    chain = _get_chain(conn, obj["chain_id"])
-    if chain is None:
-        raise ChainNotFoundError(f"对象 {obj['object_id']} 的链不存在：{obj['chain_id']}")
-    return chain["tenant_id"], chain["organization_id"]
-
-
 def _validate_issue_ref(conn, *, chain_id, issue_id) -> None:
     """Require an Issue identity in the given chain (chain_id constrained in SQL).
 
@@ -546,8 +534,8 @@ def create_chain_with_first_signal(
     title: str,
     signal_content: dict[str, Any],
     created_by,
-    tenant_id: str = "local",
-    organization_id: str = "local-org",
+    tenant_id: str,
+    organization_id: str,
 ) -> dict:
     """Insert a chain and its first Signal atomically in the caller-owned transaction."""
     _validate_object_content("Signal", signal_content)
@@ -1021,25 +1009,6 @@ def confirm_agreement(conn, agreement_record_id, *, confirmer, note: str | None 
         "party_count": len(party_ids),
         "is_complete": is_complete,
     }
-
-
-def get_agreement_parties(conn, agreement_record_id) -> list[str]:
-    rows = conn.execute(
-        "SELECT party FROM wm_agreement_parties WHERE agreement_record_id=%s ORDER BY added_at",
-        (agreement_record_id,),
-    ).fetchall()
-    return [str(r[0]) for r in rows]
-
-
-def get_agreement_confirmations(conn, agreement_record_id) -> list[dict]:
-    with _dictcur(conn) as cur:
-        cur.execute(
-            "SELECT confirmer, confirmed_at, note FROM wm_agreement_confirmations "
-            "WHERE agreement_record_id=%s ORDER BY confirmed_at",
-            (agreement_record_id,),
-        )
-        rows = cur.fetchall()
-    return [_stringify(r, ("confirmer",)) for r in rows]
 
 
 # Strategic Mission / Close：承接 confirmed Agreement

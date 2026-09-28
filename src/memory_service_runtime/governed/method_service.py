@@ -3,7 +3,6 @@ from __future__ import annotations
 from copy import deepcopy
 from uuid import uuid4
 from psycopg.types.json import Jsonb
-from pydantic import ValidationError
 from . import db, protocol, evidence, checkpoints, method_access as access
 from .errors import GovernedError
 from .service import ActionExecution
@@ -460,7 +459,6 @@ class MethodExecution(ActionExecution):
         row = self.conn.execute("SELECT * FROM gov_method_runs WHERE scope_id=%s AND run_id=%s", (self.ctx.scope_id, self.target["object_id"])).fetchone()
         if row is None:
             fail("INVALID_STATE")
-        self._method_run = db.jsonable(row)
         if self.kind != "method_record_attempt":
             self.require_role("CEO")
         if self.kind == "method_attach_run":

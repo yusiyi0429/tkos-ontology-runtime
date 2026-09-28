@@ -1,9 +1,9 @@
 """Root-controlled worker probes with a separately persisted HTTP receiver.
 
 This module neither migrates nor seeds databases. Callers provide an isolated
-synthetic scope and real task records produced by its HTTP history. All old
-worker invocations import the exported old source directly; the probe does not
-install a handler, alter a return value, or set a capability in that process.
+synthetic scope and real task records produced by its HTTP history. Worker
+invocations import the selected source directly; the probe does not install a
+handler, alter a return value, or set a capability in that process.
 """
 from __future__ import annotations
 
@@ -41,16 +41,6 @@ class Receiver:
         return result
 
 
-@dataclass
-class HeldClaim:
-    process: subprocess.Popen
-    ready: dict
-    release_file: Path
-    result_file: Path
-    task_file: Path
-    receiver: Receiver
-
-
 def start_receiver(harness: Harness, label: str = "worker") -> Receiver:
     tag = uuid.uuid4().hex
     ready = harness.private / f"{label}-receiver-{tag}.json"
@@ -74,56 +64,6 @@ def _updates(fixture: dict, receiver: Receiver) -> dict:
             "GOVERNED_EFFECT_URL": receiver.url + "/effects"}
 
 
-def prepare_old_claim(harness: Harness, fixture: dict, old_source: Path,
-                      receiver: Receiver | None = None) -> HeldClaim:
-    """Call BEFORE migration, using a fresh worker-only synthetic scope."""
-    receiver = receiver or start_receiver(harness, "old-held")
-    tag = uuid.uuid4().hex
-    ready = harness.private / f"old-held-{tag}-ready.json"
-    release = harness.private / f"old-held-{tag}-release"
-    result = harness.private / f"old-held-{tag}-result.json"
-    task = harness.private / f"old-held-{tag}-task.json"
-    process = harness.spawn("old-held-worker", [sys.executable, "-I", str(HERE / "worker_process.py"),
-        "held-claim", "--legacy", "--source", str(old_source), "--result", str(result),
-        "--task-file", str(task), "--ready", str(ready), "--release", str(release)],
-        updates=_updates(fixture, receiver))
-    def held():
-        if ready.exists():
-            return json.loads(ready.read_text())
-        if process.poll() is not None:
-            raise AssertionError("old worker failed before claiming; inspect its redacted log")
-        return None
-    info = wait(held)
-    assert info["phase"] == "claimed_before_dispatch" and not info["database_transaction_open"]
-    assert not info["capability_injected_by_probe"] and info["legacy"]
-    assert receiver.snapshot()["total_calls"] == 0
-    public_json(harness.output / "old-held-before-upgrade.json", info)
-    return HeldClaim(process, info, release, result, task, receiver)
-
-
-def release_old_claim(harness: Harness, fixture: dict, held: HeldClaim) -> dict:
-    """Call AFTER migration; the pre-existing process still holds the old task."""
-    before = harness.snapshot(fixture)
-    external = held.receiver.snapshot()
-    assert external["total_calls"] == 0
-    private_json(held.release_file, {"release_after_isolated_migration": True})
-    held.process.wait(timeout=20)
-    assert held.process.returncode == 0 and held.result_file.exists()
-    result = json.loads(held.result_file.read_text())
-    after = harness.snapshot(fixture)
-    received = held.receiver.snapshot()
-    assert result["provenance"] == held.ready["provenance"], "held process source changed"
-    result.update(sql_unchanged=before == after, receiver_unchanged=external == received,
-                  before_sql_sha256=digest(before), after_sql_sha256=digest(after),
-                  receiver_calls=received["total_calls"], held_before_upgrade=True,
-                  already_admitted_http_revocation_claimed=False)
-    result["passed"] = (not result["successful_dispatch"] and not result.get("unexpected_error")
-        and result.get("error_code") == "governance_effect_scope_invalid"
-        and result["sql_unchanged"] and result["receiver_unchanged"])
-    public_json(harness.output / "old-held-after-upgrade.json", result)
-    return result
-
-
 def task_file(harness: Harness, fixture: dict, task_id: str, *, payload_updates: dict | None = None) -> Path:
     """Read a real task; optional queue metadata forgery affects only this input."""
     rows = harness.sql(fixture, """SELECT * FROM runtime_tasks WHERE task_id=%s
@@ -138,15 +78,13 @@ def task_file(harness: Harness, fixture: dict, task_id: str, *, payload_updates:
 
 
 def run_dispatch(harness: Harness, fixture: dict, source: Path, input_task: Path, *,
-                 label: str, receiver: Receiver | None = None, legacy: bool = False,
+                 label: str, receiver: Receiver | None = None,
                  expect_success: bool = False, expected_error_codes: tuple[str, ...] = ()) -> dict:
     receiver = receiver or start_receiver(harness, label)
     result_file = harness.private / f"dispatch-result-{uuid.uuid4().hex}.json"
     before, external = harness.snapshot(fixture), receiver.snapshot()
     args = [sys.executable, "-I", str(HERE / "worker_process.py"), "dispatch", "--source", str(source),
             "--task-file", str(input_task), "--result", str(result_file)]
-    if legacy:
-        args.append("--legacy")
     process = harness.spawn(label, args, updates=_updates(fixture, receiver))
     process.wait(timeout=20)
     assert process.returncode == 0 and result_file.exists()
@@ -178,28 +116,4 @@ def run_dispatch(harness: Harness, fixture: dict, source: Path, input_task: Path
         result["passed"] = (not result["successful_dispatch"] and not result.get("unexpected_error")
             and result.get("error_code") in expected_error_codes and before == after and external == received)
     public_json(harness.output / f"worker-{label}.json", result)
-    return result
-
-
-def run_old_worker_once(harness: Harness, fixture: dict, old_source: Path) -> dict:
-    """A remaining queued governed task is mandatory; empty queues are not PASS."""
-    pending = harness.sql(fixture, """SELECT task_id FROM runtime_tasks WHERE tenant_id=%s
-        AND organization_id=%s AND task_type='governance.dispatch' AND state IN ('queued','retryable')
-        AND available_at<=clock_timestamp()""", (fixture["tenant_id"], fixture["company_id"]))
-    assert pending, "old worker claim negative requires an eligible real task"
-    receiver = start_receiver(harness, "old-once")
-    result_file = harness.private / f"old-once-result-{uuid.uuid4().hex}.json"
-    before = harness.snapshot(fixture)
-    process = harness.spawn("old-worker-once", [sys.executable, "-I", str(HERE / "worker_process.py"),
-        "worker-once", "--legacy", "--source", str(old_source), "--result", str(result_file)],
-        updates=_updates(fixture, receiver))
-    process.wait(timeout=20)
-    assert process.returncode == 0 and result_file.exists()
-    result = json.loads(result_file.read_text())
-    after, received = harness.snapshot(fixture), receiver.snapshot()
-    result.update(sql_unchanged=before == after, receiver_calls=received["total_calls"],
-                  eligible_queued_tasks=len(pending))
-    result["passed"] = (result.get("sqlstate") == "55000" and not result.get("unexpected_error")
-        and before == after and received["total_calls"] == 0)
-    public_json(harness.output / "old-worker-once.json", result)
     return result

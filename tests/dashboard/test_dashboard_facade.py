@@ -1,7 +1,6 @@
 """本地 facade 的边界回归：默认关闭、viewer 注入、来源/权限检查、静态安全头。"""
 from __future__ import annotations
 
-import os
 from types import SimpleNamespace
 
 import pytest

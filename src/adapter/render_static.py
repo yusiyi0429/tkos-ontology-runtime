@@ -65,7 +65,7 @@ def render_static(
     """渲染 M7 P0 同形的「公司经营状态」markdown。
 
     借用调用方连接（不自开、不管事务）。scope 必须由调用方显式注入
-    （adapter/settings.py 归 Peer A，占位期明确不可被 import 依赖，故不从 settings 读）。
+    （本函数不读 settings；routes_static 从 settings 取值后传入）。
     viewer 必须是该 scope 内 users.kind='human' 的用户，否则 fail-closed 抛
     HumanActorRequiredError（复用 memory_service.actors 的 canonical 校验）。
     """

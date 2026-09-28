@@ -1,9 +1,7 @@
 """A3 public read visibility must not expand to internal company admission data."""
-from copy import deepcopy
 
 from acceptance.composition_a2_independent.fixture import withdraw_domain_read_policy
 from acceptance.composition_a2_independent.cases_disclosure import assert_hidden
-from . import oracle
 
 
 def reads(flow):

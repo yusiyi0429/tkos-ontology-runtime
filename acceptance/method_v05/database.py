@@ -1,6 +1,6 @@
 """为 0.5 独立验收新建隔离的 Method 数据库，并升级到给定源码（HEAD）。
 
-步骤与 acceptance/method_independent/database.py 的 create / upgrade 相同，只有两处不同：
+步骤与已删除的 acceptance/method_independent/database.py create / upgrade 相同，只有两处不同：
 
 - 端点不写死：主机与端口取自基础 env，但必须正是隔离验收容器（compose 项目
   tkos-ontology-runtime-acceptance）当前发布的回环端口——建库走该容器的本地 socket，

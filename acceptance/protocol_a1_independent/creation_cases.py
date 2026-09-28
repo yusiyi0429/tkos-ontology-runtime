@@ -9,7 +9,7 @@ import uuid
 from acceptance.runtime.client import Client
 from .control_adapter import A_CONTRACT, A_PROTOCOL, LEGACY_CONTRACT, LEGACY_PROTOCOL, NotReady
 from .http_fence_cases import run_creation_fences
-from .support import Harness, private_json, public_json, digest
+from .support import Harness, private_json, public_json
 
 
 def run_creation_cases(h: Harness, f: dict, *, url: str, adapter, control, profile_file,

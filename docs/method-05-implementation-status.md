@@ -41,7 +41,7 @@
 5. 确认人读不到 Constraint 的某条证据时无法确认该 Constraint（返回 NOT_FOUND），是否放宽待产品决定。
 6. 候选 Mission 的 Owner 永久离任时，该候选集合无法激活（沿用 0.4 行为），只能恢复其任职。
 7. Constraint 动作引用了错误类型的 Architecture / Mission 时，现返回 NOT_FOUND（原为 INVALID_REQUEST）。
-8. 共享验收建库工具 `acceptance/method_independent/database.py` 与 `acceptance/execution_a3_independent/database.py` 仍固定端口 54350、只接受升级到 0021；0.5 验收使用 `acceptance/method_v05/database.py`。
+8. 共享验收建库工具 `acceptance/execution_a3_independent/database.py` 仍固定端口 54350；`acceptance/method_independent/database.py` 的 create/upgrade 已删除，建库统一使用 `acceptance/method_v05/database.py`。
 9. Mission 的激活记录列在其 CandidateSet 的确认记录投影里；Mission 通过 `owner_effective_from` 指向它。
 10. Scope DRI 经按范围回退本人登记的 Constraint 落在调用人所选的 `domain_id`（与 0.4 State 的回退同一模式），0.5 不约束该域。
 11. CEO 确认复盘时会按 `v4._canonical_state` 重新解析每个被引用 State 的 DRI / Owner；任一席位空缺，确认返回 FORBIDDEN，须先补任。

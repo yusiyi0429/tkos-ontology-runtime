@@ -2,8 +2,7 @@
 
 纪律（与 conftest 一致）：
 1. 一切测试数据落在随机 tenant/org 的隔离 scope，绝不读写 local/local-org；
-2. context_graph_versions / semantic_entities 没有可造 current 代的治理写路径
-   （create_generation 只允许 shadow），种子用最小 SQL 直插；
+2. context_graph_versions / semantic_entities 没有造代的治理写路径，种子用最小 SQL 直插；
    提案一律走 context_graph.service.propose 治理路径；
 3. 用例结束按 scope 清理（图台账 + 测试用户），不留残留。
 """
@@ -12,13 +11,11 @@ from __future__ import annotations
 import uuid
 from contextlib import contextmanager
 
-from psycopg.types.json import Jsonb
-
 from tests.conftest import Scope, connect
 
 
 def borrowed_connection(conn):
-    """与 ingest._borrowed_connection 相同的借用语义：治理函数复用调用方事务。"""
+    """借用调用方连接：治理函数复用调用方事务。"""
 
     @contextmanager
     def connect_factory(autocommit: bool = False):

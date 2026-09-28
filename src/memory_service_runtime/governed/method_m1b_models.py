@@ -424,5 +424,3 @@ M1B_ACTION_TARGETS = {
     "m1b_reopen_candidates": frozenset({"CandidateSet"}),
     "m1b_reopen_window": frozenset({"ReviewWindow"}),
 }
-M1B_OBJECT_TYPES = frozenset(M1B_PAYLOAD_MODELS)
-M1B_ACTIONS = frozenset(M1B_ACTION_PARAMS)

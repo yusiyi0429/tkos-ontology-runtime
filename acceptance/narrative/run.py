@@ -8,7 +8,6 @@ from __future__ import annotations
 import argparse
 import base64
 from contextlib import contextmanager
-import hashlib
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 from pathlib import Path

@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 from copy import deepcopy
-import uuid
 
 from acceptance.runtime.client import Client
 from .control_adapter import A_CONTRACT

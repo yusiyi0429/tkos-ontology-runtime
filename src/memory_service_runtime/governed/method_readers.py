@@ -6,7 +6,6 @@ from psycopg.types.json import Jsonb
 from . import db, protocol, method_access as access
 from .errors import GovernedError
 from .method_profile import CONTRACT_VERSION
-from .method_models import METHOD_ACTION_PARAMS
 
 ANALYSIS_TYPES = {"ResearchMemo", "ResearchReport", "ResearchBrief", "PeriodReview", "LTCOReviewAdvice", "StrategyUpdateProposal"}
 FORMAL_TYPES = {"StrategicArchitecture", "OperatingState", "Strategy", "StrategicJudgment", "LTCO", "PCO", "Mission", "StrategicAgreement"}

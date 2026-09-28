@@ -4,7 +4,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, Response
 
-from . import db, method_access, method_readers, workspace_readers, workspace_service, dashboard
+from . import db, method_access, method_readers, workspace_readers, dashboard
 from .errors import GovernedError
 from .routes import bearer
 

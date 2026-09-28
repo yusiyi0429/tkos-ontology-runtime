@@ -1,8 +1,6 @@
 """Anchor actions use the existing authorization, CAS and receipt transaction."""
-from copy import deepcopy
 from datetime import datetime
 from hashlib import sha256
-from psycopg.types.json import Jsonb
 from . import db, method_m1a as a, method_v02 as v2
 from .errors import GovernedError
 

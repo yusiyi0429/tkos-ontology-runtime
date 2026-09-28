@@ -14,10 +14,6 @@ FIELD_KINDS = {"source_add", "source_version", "source_correct", "source_withdra
                "source_share", "source_unshare"}
 
 
-def event_index(history: list[dict]) -> dict[str, dict]:
-    return {str(row["event_id"]): row for row in history}
-
-
 def scene_seed(history: list[dict]) -> dict | None:
     if not history or history[0]["kind"] != "scene_create":
         return None
@@ -42,11 +38,6 @@ def member_owner(seed: dict, principal_id: str, principal_type: str) -> str | No
             if binding["agent_principal_id"] == principal_id and binding["owner_principal_id"] in people:
                 return binding["owner_principal_id"]
     return None
-
-
-def bound_agent(seed: dict, principal_id: str) -> dict | None:
-    return next((item for item in seed.get("agent_bindings", [])
-                 if item["agent_principal_id"] == principal_id), None)
 
 
 def source_states(history: list[dict]) -> dict[str, dict]:
@@ -156,20 +147,6 @@ def draft_readable(states: dict[str, dict], draft_payload: dict, reader_human: s
             }, reader_human):
                 return False
     return True
-
-
-def active_shares(state: dict, *, version_event_id: str | None = None,
-                  grantee: str | None = None) -> list[dict]:
-    result = []
-    for share in state["shares"].values():
-        if not share["active"]:
-            continue
-        if version_event_id is not None and share["version_event_id"] != version_event_id:
-            continue
-        if grantee is not None and share["grantee"] != grantee:
-            continue
-        result.append(share)
-    return result
 
 
 def latest_decisions(history: list[dict], draft_event_id: str) -> dict[int, dict]:

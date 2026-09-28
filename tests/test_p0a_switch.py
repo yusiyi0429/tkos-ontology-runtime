@@ -3,7 +3,7 @@
 覆盖：switch 后旧 generation 的实体/关系/来源引用（entity+relation）/提案/审计六类表
 逐 PK 全行保留、旧代 retired、目标代 current、返回显式 retained（relation_source_refs
 非零种子）与零 deleted；生产 scope 在任何 DB/preflight/snapshot/object-store/lock 之前
-即 aborted（allow_production=True 也不例外）；未授权 actor（跨 scope human / 同 scope
+即 aborted；未授权 actor（跨 scope human / 同 scope
 agent / 不存在）在仅一次只读身份校验后即 aborted，store/preflight/snapshot/lock 零副作用；
 run_switch_transaction 事务自包含：内部失败或跨 scope switched_by 复核失败，调用方
 catch 后 commit 也不留半切换。
@@ -241,8 +241,7 @@ def test_switch_is_non_destructive_and_reports_retained(rig: GraphRig):
         assert new_status == "current"
 
 
-@pytest.mark.parametrize("allow_production", [False, True])
-def test_production_scope_switch_always_fails_closed(allow_production: bool):
+def test_production_scope_switch_always_fails_closed():
     """生产 scope 在任何 DB/preflight/snapshot/object-store/lock 之前即拒绝。"""
 
     def forbidden_connect():
@@ -260,7 +259,6 @@ def test_production_scope_switch_always_fails_closed(allow_production: bool):
         switched_by=str(uuid.uuid4()),
         db_connect=forbidden_connect,
         object_store=ForbiddenStore(),
-        allow_production=allow_production,
     )
     assert outcome.status == "aborted"
     assert outcome.retained is None and outcome.deleted is None

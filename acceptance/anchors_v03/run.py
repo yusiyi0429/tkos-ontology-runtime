@@ -132,7 +132,7 @@ def run(h,source):
             'payload':{'title':'Another discovery','summary':'Associate an existing question','core_question':pp['core_question'],
                 'business_scope':'strategic','urgency':'yellow','source_refs':[review]}})['result'])
         count=len([r for r in flow.rows('gov_objects') if r['object_type']=='StrategicIssue'])
-        linked=flow.act('ceo_agent','m1a_confirm_strategic_issue',{'reason':'Same core judgment, preserve sources','existing_issue_ref':flow.ref(issue['object_id'])},oid=duplicate['object_id'])
+        flow.act('ceo_agent','m1a_confirm_strategic_issue',{'reason':'Same core judgment, preserve sources','existing_issue_ref':flow.ref(issue['object_id'])},oid=duplicate['object_id'])
         check('agent_association_does_not_duplicate_issue',count==len([r for r in flow.rows('gov_objects') if r['object_type']=='StrategicIssue']))
         from .extended import exercise
         exercise(flow,h,source,process,chain,targets,ltco,state,payload,body,receipt,check)

@@ -8,7 +8,6 @@
   （同快照）。事务生命周期由 ``conn.transaction()`` 完整管理：首句
   ``SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY``（不触碰会话默认值），
   成功/失败后借用连接均回到 IDLE 且原默认不变。可用 ``conn=`` 借用调用方连接。
-- ``retrieve``：规划 + 执行的便捷门面。
 
 分层：契约在 query_contracts，SQL 在 query_repository，Pack/渲染在 context_pack。
 本模块不含 SQL 与渲染；核心控制状态一律用 typed 契约对象，不用裸 dict 表达。
@@ -53,7 +52,7 @@ from memory_service.context_graph.query_contracts import (
 __all__ = [
     "STRATEGIC_PATH_V1", "RETRIEVAL_MODES", "RetrievalBudgets", "QueryPlan",
     "GraphRetrieval", "QueryError", "RetrievalModeError", "plan_query",
-    "execute_query", "retrieve", "Embedder",
+    "execute_query", "Embedder",
 ]
 
 
@@ -263,8 +262,7 @@ def execute_query(
 ) -> GraphRetrieval:
     """在单一只读一致性事务内执行 strategic_path_v1 图查询。
 
-    - ``conn=None``：用 ``_connect`` 开新连接（门面 strategic_context/retrieve
-      走这条路，保证同快照）；
+    - ``conn=None``：用 ``_connect`` 开新连接；
     - ``conn=``：借用调用方连接（须空闲）；提交/回滚由本函数经
       ``conn.transaction()`` 完整管理，调用方只负责最终关闭连接。
 
@@ -405,26 +403,3 @@ def _execute_in_transaction(cur, plan: QueryPlan) -> GraphRetrieval:
         source_resolutions=resolutions,
         audit=audit,
     )
-
-
-def retrieve(
-    tenant_id: str,
-    organization_id: str,
-    effective_query: str,
-    *,
-    retrieval_mode: str = STRATEGIC_PATH_V1,
-    embedder: Embedder,
-    budgets: RetrievalBudgets | None = None,
-    embedding_dim: int,
-    _connect: Callable[..., Any],
-) -> GraphRetrieval:
-    """规划并执行一次 strategic_path_v1 检索（embedding 在事务外）。
-
-    ``embedder``/``embedding_dim``/``_connect`` 均由宿主显式传入（host capability boundary）。
-    """
-    plan = plan_query(
-        tenant_id, organization_id, effective_query,
-        retrieval_mode=retrieval_mode, embedder=embedder, budgets=budgets,
-        embedding_dim=embedding_dim,
-    )
-    return execute_query(plan, _connect=_connect)

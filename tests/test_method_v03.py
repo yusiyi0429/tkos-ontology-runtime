@@ -7,7 +7,6 @@ import pytest
 from pydantic import ValidationError
 from memory_service_runtime.governed import method_v03_models as m, method_v03 as actions, method_v03_profile as profile
 from memory_service_runtime.governed.models import ActionRequest
-from memory_service_runtime.governed.errors import GovernedError
 
 
 def ref():

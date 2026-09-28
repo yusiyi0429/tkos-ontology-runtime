@@ -480,40 +480,6 @@ def _readback_object(
     )
 
 
-def readback_snapshot(
-    conn, object_store: SnapshotObjectStore, *, snapshot_id: str,
-    tenant_id: str | None = None, organization_id: str | None = None,
-    generation_id: str | None = None,
-) -> dict[str, Any]:
-    """按数据库账本的权威 key/hash 回读，并执行完整恢复前验证。"""
-    with conn.cursor(row_factory=dict_row) as cur:
-        row = _one(
-            cur,
-            """SELECT snapshot_id,graph_generation_id,tenant_id,organization_id,s3_key,
-                      snapshot_sha256,hash_verified
-                 FROM context_graph_snapshots WHERE snapshot_id=%s""",
-            (snapshot_id,),
-        )
-    if row is None:
-        raise SnapshotValidationError("snapshot ledger entry not found")
-    ledger_tenant = row["tenant_id"]
-    ledger_org = row["organization_id"]
-    ledger_generation = str(row["graph_generation_id"])
-    if tenant_id is not None and tenant_id != ledger_tenant:
-        raise SnapshotValidationError("snapshot ledger tenant mismatch")
-    if organization_id is not None and organization_id != ledger_org:
-        raise SnapshotValidationError("snapshot ledger organization mismatch")
-    if generation_id is not None and str(generation_id) != ledger_generation:
-        raise SnapshotValidationError("snapshot ledger generation mismatch")
-    if not row["hash_verified"]:
-        raise SnapshotValidationError("snapshot ledger hash is not verified")
-    return _readback_object(
-        object_store, key=row["s3_key"], expected_sha256=row["snapshot_sha256"],
-        tenant_id=ledger_tenant, organization_id=ledger_org,
-        generation_id=ledger_generation,
-    )
-
-
 def _object_key(tenant_id: str, organization_id: str, generation_id: str, digest: str) -> str:
     parts = (tenant_id, organization_id, generation_id, digest)
     encoded = [quote(str(part), safe="") for part in parts]

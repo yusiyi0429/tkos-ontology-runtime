@@ -78,8 +78,6 @@ jobs:
         working-directory: workbench/dashboard
       - name: 已提交的构建产物与源码清单一致
         run: python3 scripts/verify_dashboard_assets.py
-      - name: 旧版静态工作台的纯模块测试
-        run: node --test tests/workbench-ui/*.test.mjs
 
   build:
     name: sdist 与 wheel 构建

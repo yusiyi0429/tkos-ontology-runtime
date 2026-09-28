@@ -7,7 +7,6 @@ therefore commit together, or roll back together on any exception.
 """
 from __future__ import annotations
 
-from datetime import datetime, timezone
 from typing import Any
 from uuid import uuid4
 
@@ -18,8 +17,6 @@ from memory_service_runtime.repository import enqueue_task
 from . import canon, checkpoints, db, delivery, protocol
 from .errors import GovernedError
 from .models import (
-    A2_GENERIC_SOURCE_OBJECT_TYPES,
-    A2_OBJECT_TYPE_NAMES,
     ActionRequest,
     validated_payload,
 )
@@ -994,10 +991,7 @@ def _execution_factory(conn: Any, ctx: Any, request: ActionRequest) -> ActionExe
     from .a3_service import A3Execution
     if A3Execution.handles_request(conn, ctx, request):
         return A3Execution(conn, ctx, request)
-    try:
-        from . import a2_service
-    except Exception as exc:  # pragma: no cover - broken installation must surface
-        raise
+    from . import a2_service
     if a2_service.A2Execution.handles_request(conn, ctx, request):
         return a2_service.A2Execution(conn, ctx, request)
     return ActionExecution(conn, ctx, request)
@@ -1070,12 +1064,7 @@ def _replay(conn: Any, ctx: Any, request: ActionRequest, digest: str) -> dict[st
         # receipt's company domain; the generic company-domain check would
         # deny that. The A2 reader authorizes by actor identity, current
         # Round membership, or current read rights on the company domain.
-        try:
-            from . import a2_readers
-        except Exception:
-            raise  # broken installation must surface, not silently widen rights
-        if not hasattr(a2_readers, "authorize_receipt"):
-            _fail("FORBIDDEN", "A2 receipt reader is unavailable.")
+        from . import a2_readers
         a2_readers.authorize_receipt(conn, ctx, row)
     else:
         # Reauthorize before returning a historical success, including every

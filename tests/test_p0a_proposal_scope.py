@@ -60,7 +60,7 @@ def _seed_pending_proposal(rig: GraphRig, conn, *, proposed_by: str, generation_
 @pytest.mark.parametrize("mode", ["tenant", "organization"])
 def test_propose_rejects_out_of_scope_actor(rig: GraphRig, kind: str, mode: str):
     with connect() as conn, conn.transaction():
-        human = rig.insert_user(conn)
+        rig.insert_user(conn)
         generation_id = rig.insert_generation(conn, label="g-current", status="current")
         foreign = (
             rig.foreign_tenant_scope() if mode == "tenant" else rig.foreign_organization_scope()
@@ -581,7 +581,7 @@ def test_propose_invalid_uuid_inputs_fail_before_any_sql(rig: GraphRig):
     with connect() as conn, conn.transaction():
         human = rig.insert_user(conn)
         generation_id = rig.insert_generation(conn, label="g-current", status="current")
-        entity_id = rig.insert_confirmed_entity(
+        rig.insert_confirmed_entity(
             conn, generation_id=generation_id, name="既有愿景", confirmed_by=human
         )
 

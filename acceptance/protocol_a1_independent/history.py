@@ -10,7 +10,6 @@ import argparse
 import hashlib
 import json
 from pathlib import Path
-import subprocess
 import sys
 import uuid
 
@@ -20,7 +19,7 @@ from psycopg.rows import dict_row
 
 from acceptance.runtime import sql_oracle
 from .legacy_flow import LegacyFlow
-from .support import Harness, HERE, ROOT, digest, public_json, source_manifest
+from .support import Harness, HERE, public_json, source_manifest
 
 
 def historic_sql(harness: Harness, fixture: dict, template: dict) -> dict:

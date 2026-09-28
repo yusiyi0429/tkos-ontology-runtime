@@ -21,7 +21,6 @@ import psycopg
 from acceptance.anchors_v03.fixture import register_v03, seed_v03
 from acceptance.method_independent.harness import MethodHarness
 from acceptance.protocol_a1_independent.support import public_json, source_manifest
-from acceptance.runtime.client import Client
 from acceptance.workspace_scenes.drop_response import drop_response
 from .import_sources import import_private_sources, verify_no_private_text
 
@@ -435,7 +434,6 @@ def run(h: MethodHarness, source: Path, output: Path, sources_dir: Path | None =
         check("context_replay_stable",
               replay_context["context_id"] == results[0]["context_id"]
               and replay_context["items"] == results[0]["items"])
-        conflict = deepcopy(concurrent_context.__closure__[0].cell_contents) if False else None
         bad_context = {"contract_version": "tkos.workspace/0.2", "scene_id": sid,
                        "idempotency_key": context_key, "purpose": "different body",
                        "items": [{"source_id": source_id, "version_event_id": v_event, "payload_hash": v_hash}]}

@@ -245,7 +245,3 @@ OBJECT_TYPES = frozenset(PAYLOAD_MODELS) | {"EvidenceAsset"}
 
 # Human actions offered to the governance workbench; Agent-only drafting stays out.
 HUMAN_ACTIONS = (v4.HUMAN_ACTIONS - {"method_confirm_state"}) | V05_ONLY_ACTIONS
-AGENT_ACTIONS = frozenset(set(ACTION_PARAMS) - HUMAN_ACTIONS - {
-    "method_open_run", "method_attach_run", "method_pause_run", "method_resume_run",
-    "method_record_attempt",
-})

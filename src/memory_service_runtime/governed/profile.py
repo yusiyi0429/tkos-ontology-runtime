@@ -396,12 +396,6 @@ def implied_protocol(schema_version: str, content: object) -> tuple[str, str] | 
     return None
 
 
-def canonical_hash_of(core: ProfileCore) -> str:
-    return canon.digest_excluding(
-        core.model_dump(mode="json"), frozenset({"canonical_hash"})
-    )
-
-
 # 旧 v0.2 协议的解释记录（非实验 ProfileCore，不宣称公司批准）。内容由迁移与
 # 控制面共用；canonical_hash 为 tkos-json-v1 对 content 的摘要，必须保持确定。
 LEGACY_PROFILE_CONTENT: dict = {

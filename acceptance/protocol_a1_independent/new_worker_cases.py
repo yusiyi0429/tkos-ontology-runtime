@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 from copy import deepcopy
-import json
 
 from psycopg.types.json import Jsonb
 
@@ -37,7 +36,7 @@ def run_new_worker_cases(h, f, *, source, old_source, url, legacy_flow, typed_fi
     receipt = command["receipt"]
     assert len(receipt["effect_task_ids"]) == 1
     task_id = receipt["effect_task_ids"][0]
-    real = task_file(h, f, task_id)
+    task_file(h, f, task_id)
     forged = task_file(h, f, task_id, payload_updates={
         "protocol_id": LEGACY_PROTOCOL, "contract_version": LEGACY_CONTRACT,
         "method_profile_ref": {"profile_id": "queue-cannot-select-a-profile", "revision": "forged"},

@@ -7,7 +7,7 @@ import pytest
 from adapter.codes import slug_of
 from adapter.contracts import GkEntity, GkVersion
 from adapter.errors import status_for_exception
-from adapter.main import app
+from memory_service_app.main import app
 from adapter.settings import Settings, get_settings
 from adapter.wm_views import build_code_index, project_entity
 from memory_service import working

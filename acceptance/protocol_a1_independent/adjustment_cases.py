@@ -24,7 +24,7 @@ def run_adjustment_cases(h, f, *, legacy_flow, legacy_result, typed_fixture):
     old_bc, old_ec = flow.ref(bc), flow.ref(ec)
     bc_payload = deepcopy(flow.object(bc)["effective_revision"]["payload"])
     bc_payload["terms"]["target"] = 4
-    revised_bc = flow.act("ceo", "propose_revision", {"payload": bc_payload, "bundle_id": adjustment}, oid=bc)
+    flow.act("ceo", "propose_revision", {"payload": bc_payload, "bundle_id": adjustment}, oid=bc)
     new_bc = flow.object(bc)["latest_revision_id"]
     ec_payload = deepcopy(flow.object(ec)["effective_revision"]["payload"])
     ec_payload["terms"]["target"] = 4

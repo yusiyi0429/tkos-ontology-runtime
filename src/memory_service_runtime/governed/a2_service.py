@@ -68,7 +68,7 @@ def _fail(code: str, message: str = "", status: int | None = None) -> None:
 def _canonical_uuid(value: Any) -> str:
     try:
         return str(UUID(str(value)))
-    except (ValueError, TypeError, AttributeError) as exc:
+    except (ValueError, TypeError, AttributeError):
         _fail("INVALID_REQUEST", f"invalid UUID: {value!r}", 422)
 
 

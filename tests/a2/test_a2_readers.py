@@ -593,26 +593,6 @@ def test_domain_commitment_signature_requires_object_id_revision_id():
 # (6) authorize_receipt — ALL refs, no historical actor shortcut
 # ---------------------------------------------------------------------------
 
-def _wire_authorize(target_visible=True, refs_visible=True,
-                    current_slot=None, ceo_history=False):
-    def _authz(conn, c, oid, rid=None):
-        if oid == "00000000-0000-0000-0000-0000000000aa":
-            return target_visible
-        return refs_visible
-    slot = current_slot
-
-    def _slot_resolver(conn, c, rid):
-        return slot
-
-    def _ceo(conn, c, rid):
-        return ceo_history
-
-    def _slot_pol(conn, c, slot_):
-        return True
-
-    return _authz, _slot_resolver, _ceo, _slot_pol
-
-
 def test_authorize_receipt_first_visible_then_private_denies():
     """target visible, but a later referenced object is private → denied."""
     target = "00000000-0000-0000-0000-0000000000aa"

@@ -1,14 +1,12 @@
 """Real independent HTTP races, final admission expiry and first-write failures."""
 from concurrent.futures import ThreadPoolExecutor
 from copy import deepcopy
-from datetime import datetime, timezone
 import json
 import sys
 
 from acceptance.composition_a2_independent.concurrency import race, reached, ordered
 from acceptance.composition_a2_independent.cases_authority import revoke_body
 from acceptance.protocol_a1_independent.support import wait, HERE
-from acceptance.runtime.client import Client
 
 from . import oracle
 from .fixture import invalidate_execution_epoch

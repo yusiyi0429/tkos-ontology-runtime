@@ -133,7 +133,7 @@ uv run uvicorn memory_service_app.main:app --host 127.0.0.1 --port 58802
 ## 前端工程与可复现依赖
 
 React 19 + TypeScript + Vite + Tailwind CSS v4 + 官方 shadcn/ui 组件源码，位于
-`workbench/dashboard/`。旧的 `workbench/` 四页原型保留不变。
+`workbench/dashboard/`。
 
 | 项目 | 记录 |
 | --- | --- |

@@ -41,31 +41,6 @@ def get_chain(conn, chain_id) -> dict | None:
     return _stringify(row, _CHAIN_UUID_KEYS)
 
 
-def get_chain_scoped(conn, *, chain_id, tenant_id: str, organization_id: str) -> dict | None:
-    with _dictcur(conn) as cur:
-        cur.execute(
-            """SELECT * FROM wm_issue_chains
-               WHERE chain_id=%s AND tenant_id=%s AND organization_id=%s""",
-            (chain_id, tenant_id, organization_id),
-        )
-        row = cur.fetchone()
-    return _stringify(row, _CHAIN_UUID_KEYS)
-
-
-def get_version(conn, record_id) -> dict | None:
-    with _dictcur(conn) as cur:
-        cur.execute("SELECT * FROM wm_object_versions WHERE record_id=%s", (record_id,))
-        row = cur.fetchone()
-    return _stringify(row, _VERSION_UUID_KEYS)
-
-
-def lock_version(conn, record_id) -> dict | None:
-    with _dictcur(conn) as cur:
-        cur.execute("SELECT * FROM wm_object_versions WHERE record_id=%s FOR UPDATE", (record_id,))
-        row = cur.fetchone()
-    return _stringify(row, _VERSION_UUID_KEYS)
-
-
 def lock_current_version(conn, object_id) -> dict | None:
     with _dictcur(conn) as cur:
         cur.execute(
@@ -115,16 +90,6 @@ def list_chain_current_versions_by_type(conn, chain_id, object_type: str) -> lis
         )
         rows = cur.fetchall()
     return [_stringify(row, _VERSION_UUID_KEYS) for row in rows]
-
-
-def resolve_chain_by_title(conn, *, tenant_id: str, organization_id: str, title: str) -> dict | None:
-    with _dictcur(conn) as cur:
-        cur.execute(
-            "SELECT * FROM wm_issue_chains WHERE tenant_id=%s AND organization_id=%s AND lower(title)=lower(%s)",
-            (tenant_id, organization_id, title),
-        )
-        row = cur.fetchone()
-    return _stringify(row, _CHAIN_UUID_KEYS)
 
 
 def list_chains(conn, *, tenant_id: str, organization_id: str, status: str | None = None) -> list[dict]:

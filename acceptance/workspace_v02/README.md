@@ -19,7 +19,7 @@ uv run python -m acceptance.workspace_v02.run \
   --output artifacts/workspace_v02_run \
   --sources-dir .runtime-acceptance/pi-method-04/real-sources
 
-# 2) Python/workbench/build 回归
+# 2) Python/build 回归
 uv run python -m acceptance.workspace_v02.regression \
   --env-file .runtime-acceptance/pi-method-04/db/env.json \
   --output .runtime-acceptance/pi-method-04/workspace-v02-regression

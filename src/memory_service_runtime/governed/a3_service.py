@@ -39,7 +39,7 @@ from .a3_models import (
 )
 from .errors import GovernedError
 from .models import ActionRequest
-from .protocol import A3_EXECUTION_OBJECT_TYPES, A3_TARGET_OBJECT_TYPES
+from .protocol import A3_TARGET_OBJECT_TYPES
 from .service import ActionExecution
 
 # A3 复用既有动作名（契约包 A §5.2）；目标类型集合在 protocol.py 中编译固定。
@@ -157,10 +157,9 @@ class A3Execution(A2Execution):
         else:
             raw = {}
         try:
-            strict = model.model_validate(raw)
+            model.model_validate(raw)
         except (ValidationError, ValueError, TypeError):
             _fail("INVALID_REQUEST", "The request does not satisfy the A3 command schema.", 422)
-        self.a3_params = strict
 
     def authorize(self) -> None:
         _require_human(self)

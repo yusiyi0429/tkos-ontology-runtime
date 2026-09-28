@@ -5,7 +5,7 @@
 
 ## 复跑
 
-先按 `acceptance/anchors_v03/README.md` 建立隔离数据库和独立 API 角色，将私有配置保存为 `.runtime-acceptance/governance/db/env.json`。不要输出配置内容。
+先按 `acceptance/method_v05/README.md` 的「建库」一节在隔离验收栈建立数据库和独立 API 角色，将私有配置保存为 `.runtime-acceptance/governance/db/env.json`。不要输出配置内容。
 
 ```sh
 uv run python -m acceptance.governance_workbench.bootstrap \

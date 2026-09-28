@@ -1,12 +1,10 @@
 """Independent cross-method version and protocol/compatibility acceptance."""
-from copy import deepcopy
 from datetime import datetime, timezone
 import json
 from pathlib import Path
 
 from acceptance.runtime.client import Client
 from acceptance.protocol_a1_independent.support import source_manifest
-from .flow import exact
 from .cases_chain import check, payload
 
 ROOT = Path(__file__).resolve().parents[2]

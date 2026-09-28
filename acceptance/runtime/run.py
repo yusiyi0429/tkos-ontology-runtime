@@ -8,7 +8,6 @@ from __future__ import annotations
 import argparse
 import base64
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timedelta, timezone
 import json
 from pathlib import Path
 import sqlite3
@@ -25,7 +24,7 @@ import psycopg
 from psycopg.rows import dict_row
 
 from acceptance.runtime.client import Client, assert_error, sha256, utc_now
-from acceptance.runtime.harness import Harness, private_json, wait_until
+from acceptance.runtime.harness import Harness, wait_until
 
 
 class Scenario:
@@ -369,7 +368,7 @@ class Scenario:
 
     def group_closure(self):
         with self.h.group("05_evidence_independent_acceptance_and_closure") as result:
-            evidence = self.upload_evidence()
+            self.upload_evidence()
             deps = (self.dec, self.evidence, self.adjustment, self.bc, self.ec)
             denied = self.act(self.verifier, "record_acceptance", self.acceptance_params(self.dec), oid=self.fb, deps=deps, expected=409)
             assert denied.get("error"), "pending external effects must prevent acceptance"

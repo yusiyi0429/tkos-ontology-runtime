@@ -1,13 +1,12 @@
-"""Peer A health and viewer dependency checks."""
+"""Peer A health and request-connection dependency checks."""
 from __future__ import annotations
 
 import pytest
-from fastapi import HTTPException
 from pydantic import ValidationError
 from pgvector import HalfVector
 
-from adapter.deps import get_conn, resolve_viewer
-from adapter.main import app
+from adapter.deps import get_conn
+from memory_service_app.main import app
 from adapter.settings import Settings, get_settings
 from tests.conftest import DATABASE_URL, connect
 from tests.conftest import Scope
@@ -159,42 +158,3 @@ def test_request_connection_registers_pgvector_and_closes(scope: Scope) -> None:
     finally:
         dependency.close()
     assert conn.closed is True
-
-
-@pytest.mark.db
-def test_viewer_resolves_in_scope_human(scope: Scope) -> None:
-    with connect() as conn, conn.transaction():
-        user_id = scope.ensure_human(conn)
-        settings = _settings(scope, viewer=user_id)
-        first = resolve_viewer(conn, settings)
-        second = resolve_viewer(conn, settings)
-
-    assert first.user_id == user_id
-    assert first.display_name.startswith("适配器测试人类-")
-    assert second == first
-
-
-@pytest.mark.db
-def test_viewer_must_be_configured(scope: Scope) -> None:
-    with connect() as conn:
-        with pytest.raises(HTTPException) as raised:
-            resolve_viewer(conn, _settings(scope))
-    assert raised.value.status_code == 500
-    assert "VIEWER_USER_ID" in str(raised.value.detail)
-
-
-@pytest.mark.db
-def test_viewer_rejects_non_human(scope: Scope) -> None:
-    # The schema intentionally permits only one agent_service user globally;
-    # reuse that fixture row and verify it cannot cross into this human scope.
-    with connect() as conn:
-        row = conn.execute(
-            "SELECT user_id FROM users WHERE kind='agent_service' LIMIT 1"
-        ).fetchone()
-        if row is None:
-            pytest.skip("数据库没有 agent_service 用户可用于非 human viewer 检查")
-        user_id = str(row[0])
-        with pytest.raises(HTTPException) as raised:
-            resolve_viewer(conn, _settings(scope, viewer=user_id))
-    assert raised.value.status_code == 500
-    assert "viewer 配置无效" in str(raised.value.detail)

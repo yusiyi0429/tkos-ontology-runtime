@@ -99,7 +99,6 @@ def _runs(history, states, reader):
             entry["reason"] = "input_source_access_revoked_or_withdrawn"
         result.append(entry)
     return result
-    return result
 
 
 def _drafts(history, states, reader):

@@ -6,7 +6,6 @@ attempts. Call only after the target scope has its real legacy registration.
 """
 from __future__ import annotations
 
-from copy import deepcopy
 import json
 from pathlib import Path
 import uuid

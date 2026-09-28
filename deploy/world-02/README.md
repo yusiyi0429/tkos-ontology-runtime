@@ -272,6 +272,8 @@ rm -rf /tmp/tkos-secrets
 
 第 11 节的本机预演（2026-09-29，#69 合入之后）：`build_images.py` 对 15f6ff8（a66f9c9 加上第 11 节的名单与播种）构建 arm64，项目 `tkos-world-02-rehearsal`、端口 8051，迁移到重写后的 0039。实验 scope 按 `spec.eo.example.json` 供给、签 6 枚凭证；九段按 ceo → eo-dri → ceo → eo-dri → ceo → eo-dri → eo-owner → eo-dri → eo-owner 跑完（CEO 与 Owner 各段代录、operator eo-dri，DRI 本人），33 步全部提交，每段的「下一步」都对，最后「全部完成」；代录说明 5 条（CEO 4、2、2 条，Owner 3、9 条）。读回：两个长期目标与十月周期目标已确认，三个 Mission 已成立、Owner 是 eo-owner，8 个 Task 按 3、3、2 挂在各自的 Mission 下、未指派，Strategy 仍是草稿，三条委托在 E&O 域生效（CEO 那条另覆盖公司域）；33 条事件的记录者都是本人的主体，代录的门事件带代录句；每条代录说明由 eo-dri 记，refs 与主体正好覆盖那一段的事件与对象，不是迟记。九段整体重跑一步不做、不补记，库里仍是 17 个对象、38 条事件、38 张回执；删掉状态文件再跑前三段，建对象与代录说明拿回原回执，第一个门步骤在 prepare 被拒（INVALID_STATE），库里没多一条。之后 `smoke.py --probe-only` 对实验 scope 10 项全过（6 个主体），对它跑完整冒烟在读凭证之前 FAIL；另供给冒烟 scope 跑完整冒烟两遍都过，实验 scope 的计数不变。预演栈已 `down -v`，含密钥的目录已删。
 
+2026-09-29 #69 与第 11 节合入后按第 9.5 节换到 c29e7d5 重建，实验 scope 改按真名名单（6 个主体、公司域与 E&O 域）供给：实验 scope 的 `--probe-only` 本机口与域名都过；冒烟 scope 完整冒烟本机口 94 项、域名 83 项，本机 `--mcp-cli` 92 项全过。随后在本机经域名按九段跑完十月起点播种：33 步全部提交，其中代录 20 步，代录说明 5 条；再跑一段不做任何事。用天枢凭证读回：17 个对象，两个长期目标与十月周期目标已确认，三个 Mission 已成立，8 个 Task 未指派，`period=2026-10` 列出 12 个，周期目标的 `identity.delegations` 有 3 条。归档见第 10 节（含 `seed-eo-state.json`）。
+
 主机上踩到的坑：经 `ssh … 'bash -s' <<EOS` 远程跑脚本时，`docker compose exec -T` 同样会吃掉 stdin，把后面的脚本当输入读走，要接 `</dev/null`（`run -T` 已在脚本里这样做）；但别给管道的下游加：`gunzip -c … | docker load </dev/null` 会让 `docker load` 读到空输入、什么都不加载，之后 compose 转去 Docker Hub 拉镜像超时。远程脚本里先解到文件再 `docker load -i`。本机对域名跑冒烟时遇到过一次连接超时，重跑即过。
 
 未验证：并发写下的外部引用唯一性；大数据量下列对象的性能；第 11 节在主机实例上实跑（真名、经域名 HTTPS、状态文件放在 tkos-secrets）；天枢凭这三条委托实际代记。

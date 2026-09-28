@@ -23,7 +23,7 @@ recorders：记录者对这个对象满足的记录者类别（登记 ``recorder
   再确认结束本轮。
 
 admit 返回记下后所处的状态，与这条事件对正式内容指针的作用：成为正式、收回正式、开轮、写回、结束本轮，
-以及要写回的候选来自哪条事件。
+以及要写回的候选来自哪条事件；另给 ``by``：这条事件按哪类记录者被准入（撤回取原转移的），服务据此记下用到的指派。
 """
 from __future__ import annotations
 
@@ -93,7 +93,7 @@ class _Replay:
     def step(self, event: dict[str, Any], *, admitting: bool) -> dict[str, Any]:
         """记下一条事件，返回它对正式内容指针的作用；不能记则抛 Refused，状态不变。"""
         effect = {"makes_formal": False, "unmakes_formal": False, "opens_round": False, "writes_back": False,
-                  "ends_round": False, "candidate_event_id": None}
+                  "ends_round": False, "candidate_event_id": None, "by": None}
         if event.get("outcome") == "withdrawn":
             self.withdraw(event, effect, admitting)
         elif self.formal_by is not None and event["action"] in self.round_actions:
@@ -108,6 +108,7 @@ class _Replay:
         found = self.choose(top["state"], event, admitting)
         if found is None:
             raise Refused("state", f"{event['action']} is not allowed at this stage ({top['state']}).")
+        effect["by"] = found["by"]
         initial = self.spec["initial"]
         if event.get("candidate") and not (event["action"] == self.rounds.get("candidate_carried_by")
                                            and self.rounds.get("agreed_by") is None and found["to"] != initial):
@@ -140,6 +141,7 @@ class _Replay:
                                    "is no longer withdrawn. Open another re-run instead.")
         if admitting and producing["by"] not in event["recorders"]:
             raise Refused("recorder", f"The withdrawal is recorded by {producing['by']}, like the original.")
+        effect["by"] = producing["by"]
         self.stages.pop()  # 上一段连同它的候选原样回来，只是改由撤回事件推出
         self.stages[-1]["producer"] = event["event_id"]
         if self.formal_by == original["event_id"]:
@@ -163,6 +165,7 @@ class _Replay:
         if found is None or (one_shot and found["to"] != formal):
             raise Refused("state", "A re-run of the gate is still open; the confirmer accepts or returns it first."
                           if self.round else f"{action} does not re-run the gate at this stage ({state}).")
+        effect["by"] = found["by"]
         if carries and not (opening or one_shot):
             raise Refused("state", f"{action} does not carry a candidate; the round's opening event does.")
         if (opening or one_shot) and not carries and self.rounds["agreed_by"] is None:

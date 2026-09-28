@@ -599,15 +599,43 @@ class WorldV02RecordEventParams(StrictModel):
         return self
 
 
+class WorldV02AssignParams(StrictModel):
+    """指派（契约第 9.1 节）：只给被指派者；生效时间是事件的发生时刻。"""
+    principal_id: CanonicalUUID
+
+
+class WorldV02LifecycleParams(StrictModel):
+    """六个通用生命周期动作（契约第 9.1、11 节）：目标是对象；可选内容；撤回带 outcome 与原事件。
+    写入声明只对 Agent 强制（开始、交付在 Agent 面上），人带了按同样规则校验。"""
+    content: Optional[_block_model((), False)] = None
+    outcome: Optional[Literal["withdrawn"]] = None
+    supersedes_event_id: Optional[CanonicalUUID] = None
+    declaration: Optional[Declaration] = None
+
+    @model_validator(mode="after")
+    def withdrawal_names_the_original(self) -> "WorldV02LifecycleParams":
+        if (self.outcome is None) != (self.supersedes_event_id is None):
+            raise ValueError("a withdrawal carries outcome withdrawn and the event it withdraws, and only it does")
+        return self
+
+
+LIFECYCLE_ACTIONS = ("world_start", "world_deliver", "world_accept", "world_reject", "world_reopen", "world_cancel")
+
 # 本进程已实现的 0.2 动作与可建类型。支持登记只能在这之内收窄，不能扩大（与协议支持集合同理）。
 ACTION_PARAMS = {"world_create_object": WorldV02CreateObjectParams, "world_revise_object": WorldV02ReviseObjectParams,
                  "world_relate": WorldV02RelateParams, "world_refresh_state": WorldV02RefreshStateParams,
-                 "world_record_event": WorldV02RecordEventParams}
+                 "world_record_event": WorldV02RecordEventParams, "world_assign": WorldV02AssignParams,
+                 **{action: WorldV02LifecycleParams for action in LIFECYCLE_ACTIONS}}
 BUSINESS_TYPES = frozenset({"Company", "Strategy", "ResponsibilityUnit", "LongTermGoal", "PeriodGoal", "Mission",
                             "Task", "Activity"})
 # 状态快照只经 world_refresh_state 写入，建对象在服务里先拒绝它。
 CREATABLE = BUSINESS_TYPES | {"StateSnapshot"}
 # 动作 -> 允许的目标类型；空集表示该动作不带 target。状态快照不修订，只有带跨链关系字段的类型能建关系。
-ACTION_TARGETS: dict[str, frozenset[str]] = {"world_create_object": frozenset(), "world_revise_object": BUSINESS_TYPES,
-                                             "world_relate": frozenset({"PeriodGoal", "Mission", "Task"}),
-                                             "world_refresh_state": frozenset(), "world_record_event": frozenset()}
+# 生命周期动作本票只接 Task 与 Activity（Mission 随票 #55，长期目标与周期目标的取消随票 #60）。
+ACTION_TARGETS: dict[str, frozenset[str]] = {
+    "world_create_object": frozenset(), "world_revise_object": BUSINESS_TYPES,
+    "world_relate": frozenset({"PeriodGoal", "Mission", "Task"}),
+    "world_refresh_state": frozenset(), "world_record_event": frozenset(),
+    "world_assign": frozenset({"ResponsibilityUnit", "Mission", "Task", "Activity"}),
+    **{action: frozenset({"Task", "Activity"}) for action in LIFECYCLE_ACTIONS},
+}

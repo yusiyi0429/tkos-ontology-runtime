@@ -5,7 +5,11 @@
 重放与读回执据此分派。授权先于协议错误：先按激活策略判权，Agent 不在建对象的 Agent 面上，再过协议
 闸门；然后校验载荷，按主干判断调用者是不是有权的责任人（从新对象的主干上一级找起，同 0.1），之后才
 钉定其余引用、核对对象放在哪个域与挂在谁下面、写入声明。已接通八类业务对象的建对象、合并修订与建关系，
-写状态快照与记外部事件；生命周期随各自的票接入。
+写状态快照与记外部事件，指派与 Task、Activity 的六个生命周期动作（#53）；门随各自的票接入。
+
+指派与生命周期动作的判权（契约第 9.2 节）：激活策略列角色的并集，之后由服务算出调用者对目标满足的记录者类别
+（self、parent），连同目标的事件交给生命周期引擎 admit 判状态与记录者。记录者不符是 FORBIDDEN，状态表不允许
+是 INVALID_STATE。
 """
 from __future__ import annotations
 
@@ -17,10 +21,12 @@ from psycopg.types.json import Jsonb
 from . import db, protocol
 from . import world_v02_models as models
 from . import world_v02_profile as world_profile
+from . import world_v02_lifecycle as world_lifecycle
 from . import world_v02_registry as world_registry
 from .errors import GovernedError
 from .service import ActionExecution
-from .world_v02_readers import cited, head_and_binding
+from .world_v01_readers import holds_role
+from .world_v02_readers import cited, head_and_binding, lifecycle, lifecycle_events
 
 
 def _fail(code: str, message: str = "", status: int | None = None) -> None:
@@ -43,14 +49,17 @@ class WorldExecution(ActionExecution):
         self.responsible_through: str | None = None
         # 事件 subject_refs 里除新修订外还要钉的：建关系的列表、写快照时的主体。
         self.event_subjects: list[dict[str, Any]] = []
+        self.declaration: dict[str, Any] | None = None
         if self.kind == "world_create_object":
             self.authorize_create()
         elif self.kind == "world_refresh_state":
             self.authorize_refresh_state()
         elif self.kind == "world_record_event":
             self.authorize_record_event()
-        else:
+        elif self.kind in {"world_revise_object", "world_relate"}:
             self.authorize_target()
+        else:
+            self.authorize_responsibility()
 
     def authorize_create(self) -> None:
         """建对象（契约第 3、9 节）：权限与域放置同 0.1，Company 只由 CEO 本人建；授权之后才暴露协议错误。"""
@@ -257,6 +266,82 @@ class WorldExecution(ActionExecution):
         if self.conn.execute("SELECT %s::timestamptz > clock_timestamp() AS future", (moment,)).fetchone()["future"]:
             _invalid(message)
 
+    # ------------------------------------------------------------ assign and lifecycle
+    def authorize_responsibility(self) -> None:
+        """指派与生命周期动作（契约第 9、10.5、10.6、11 节）：目标须是本 scope 的 world 对象（否则 404），按激活
+        策略判权后过目标动作闸门；Agent 只做 Agent 面上的动作并带写入声明；然后校验参数，最后按状态表与责任关系
+        判这条事件现在能不能记。"""
+        self.target = head_and_binding(self.conn, self.ctx, self.request.target.object_id)[0]
+        self.domain_id = self.target["domain_id"]
+        self.action_assignments = db.authorize_domain(self.conn, self.ctx, self.domain_id, self.kind)
+        if self.ctx.principal_type != "human" and self.kind not in world_registry.registry()["agent_face"]["writes"]:
+            _fail("FORBIDDEN", "This action is not on the Agent face.")
+        self.protocol_context = protocol.gate_target_action(
+            self.conn, self.ctx.scope_id, self.target["object_id"], self.kind, self.request.contract_version)
+        self.require_declaration(self.target["object_type"])
+        self.declaration = self.pinned_declaration()
+        content = self.params.get("content")
+        self.content = content and {**content, "refs": [self.pin(text) for text in content["refs"]]}
+        recorders = self.recorders()
+        object_type = self.target["object_type"]
+        if self.kind == "world_assign":
+            # 逐级指派、不越级（契约第 9.2 节）：只由上一级责任人记；被指派者须已在该域持对应角色。
+            if "parent" not in recorders:
+                _fail("FORBIDDEN", "Only the responsible one level up assigns this object: the Strategy's CEO a "
+                                   "unit's DRI, the period goal's DRI a Mission's Owner, the Mission's Owner a Task, "
+                                   "the Task's responsible an Activity.")
+            self.assignee = self.params["principal_id"]
+            self.check_assignee()
+        if object_type in world_registry.registry()["lifecycles"] and object_type not in {"Task", "Activity"}:
+            # Mission 的状态表里没有指派；已关闭、已取消的不能再指派（补 16）。
+            spec = world_registry.registry()["lifecycles"][object_type]
+            if lifecycle(self.conn, self.ctx, self.target)["status"] in spec["terminal"]:
+                _fail("INVALID_STATE", "A closed or cancelled object is not assigned again.")
+            by = "parent"
+        elif object_type in {"Task", "Activity"}:
+            event = {"event_id": "pending", "action": self.kind, "outcome": self.params.get("outcome"),
+                     "disposition": None, "supersedes_event_id": self.params.get("supersedes_event_id"),
+                     "candidate": False, "guards": {}, "recorders": set(recorders)}
+            try:
+                by = world_lifecycle.admit(world_registry.registry(), object_type,
+                                           lifecycle_events(self.conn, self.ctx, self.target["object_id"]), event)["by"]
+            except world_lifecycle.Refused as exc:
+                _fail("FORBIDDEN" if exc.reason == "recorder" else "INVALID_STATE", str(exc))
+        else:
+            by = "parent"  # 责任单元没有生命周期，只有版本
+        used, through = recorders[by]
+        self.required_assignments.add(used["assignment_id"])
+        self.responsible_through = through
+
+    def recorders(self) -> dict[str, tuple[dict[str, Any], str | None]]:
+        """调用者对目标满足的记录者类别（登记 recorders，契约第 9.2 节）→（让他满足的那条角色指派，经哪个对象的
+        responsible 属性成立）：self 是目标的责任人，parent 是主干上一级的责任人。"""
+        current = db._assignments(self.conn, self.ctx)
+        node = self.current_object(self.target["object_id"])
+        found = {}
+        for category, level in (("self", node), ("parent", self.current_object(self.spine_parent(node)))):
+            used = self.responsibility_assignment(level, current)
+            if used is not None:
+                by_attribute = world_registry.object_spec(level["object_type"])["responsible"]["source"] == "attribute"
+                found[category] = (used, level["object_id"] if by_attribute else None)
+        return found
+
+    def check_assignee(self) -> None:
+        """被指派者是本 scope 启用的身份，且当前在目标所在的域持该类型要求的角色（契约第 3.3 节）；
+        责任单元的 DRI 是人、持 DOMAIN_DRI。"""
+        principal = self.conn.execute(
+            "SELECT principal_type FROM gov_principals WHERE scope_id=%s AND principal_id=%s AND active",
+            (self.ctx.scope_id, self.assignee)).fetchone()
+        rule = world_registry.object_spec(self.target["object_type"])["responsible"]
+        if principal is None:
+            role = None
+        elif rule["source"] == "role":
+            role = rule["role"] if principal["principal_type"] == "human" else None
+        else:
+            role = rule["roles"].get(principal["principal_type"])
+        if role is None or not holds_role(self.conn, self.ctx, self.assignee, self.domain_id, role):
+            _invalid("The assignee does not hold the role this assignment needs in the object's domain.")
+
     # ------------------------------------------------------------ references
     def pin(self, text: str) -> dict[str, Any]:
         """把业务形式的引用解析并钉住（契约第 5 节）：对象形式钉到本 scope 某个 0.2 world 对象的某个修订，
@@ -433,6 +518,8 @@ class WorldExecution(ActionExecution):
         current = {row["assignment_id"] for row in db._assignments(self.conn, self.ctx)}
         if not self.required_assignments <= current:
             _fail("FORBIDDEN", "A required assignment is not currently valid.")
+        if self.kind == "world_assign":  # 责任关系一并复核：被指派者此刻仍持对应角色
+            self.check_assignee()
 
     # ------------------------------------------------------------ writing
     def collect_dependencies(self) -> None:
@@ -443,6 +530,10 @@ class WorldExecution(ActionExecution):
             return self.create_world_object(self.object_type)
         if self.kind == "world_record_event":
             return self.record_event()
+        if self.kind == "world_assign":
+            return self.assign()
+        if self.kind in models.LIFECYCLE_ACTIONS:
+            return self.record_lifecycle()
         return self.new_revision()
 
     def record_event(self) -> dict[str, Any]:
@@ -454,6 +545,31 @@ class WorldExecution(ActionExecution):
         if self.declaration is not None:
             result["declaration"] = self.declaration
         return result
+
+
+    def assign(self) -> dict[str, Any]:
+        """指派只记业务责任、不授予权限（契约第 9.2 节）。Mission、Task、Activity 出新修订写 responsible，
+        生效指针原先等于最新修订的随之移动；责任单元的 DRI 按角色解析，只记事件。事件 detail 写被指派者。"""
+        obj, latest = self.target, self.target_revision_row()
+        if obj["object_type"] == "ResponsibilityUnit":
+            revision = latest
+            obj = self.bump(obj)
+        else:
+            revision = self.insert_revision(obj, {**latest["payload"], "responsible": self.assignee},
+                                            version=latest["object_version"] + 1)
+            moves = obj["effective_revision_id"] == obj["latest_revision_id"]
+            obj = self.bump(obj, latest=revision["revision_id"],
+                            effective=revision["revision_id"] if moves else obj["effective_revision_id"])
+        result = self.written_result(obj, revision, detail={"principal_id": self.assignee})
+        result["assignee"] = self.assignee
+        return result
+
+    def record_lifecycle(self) -> dict[str, Any]:
+        """生命周期事件不改内容、不出修订，钉到当前最新修订；对象行的并发版本照常前进（同门事件）。"""
+        revision = self.target_revision_row()
+        obj = self.bump(self.target)
+        return self.written_result(obj, revision, outcome=self.params.get("outcome"), content=self.content,
+                                   supersedes_event_id=self.params.get("supersedes_event_id"))
 
     def create_world_object(self, object_type: str) -> dict[str, Any]:
         if object_type == "StateSnapshot" and self.conn.execute(
@@ -497,30 +613,33 @@ class WorldExecution(ActionExecution):
         return self.written_result(obj, revision)
 
     def world_event(self, kind: str, subject_refs: list[dict[str, Any]], *, category: str | None = None,
-                    occurred_at: str | None = None, content: dict[str, Any] | None = None,
-                    supersedes_event_id: str | None = None) -> str:
+                    occurred_at: str | None = None, outcome: str | None = None, content: dict[str, Any] | None = None,
+                    detail: dict[str, Any] | None = None, supersedes_event_id: str | None = None) -> str:
         """写恰好一条 0.2 的 world 事件（契约第 11 节）：只读一次时钟，记录时刻与不补记的发生时刻取同一个值；
         只有外部事件与状态刷新给 occurred_at，迁移 0039 同样这样约束。"""
         if occurred_at is not None and kind not in models.BACKDATED_KINDS:
             raise ValueError(f"{kind} happens at the moment it is recorded")
         return str(self.conn.execute(
-            """INSERT INTO gov_world_events (scope_id, contract_version, kind, category, subject_refs, principal_id,
-                                             occurred_at, recorded_at, content, action_id, supersedes_event_id)
-               SELECT %s,%s,%s,%s,%s,%s,COALESCE(%s::timestamptz, now.t),now.t,%s,%s,%s
+            """INSERT INTO gov_world_events (scope_id, contract_version, kind, category, outcome, subject_refs,
+                                             principal_id, occurred_at, recorded_at, content, detail, action_id,
+                                             supersedes_event_id)
+               SELECT %s,%s,%s,%s,%s,%s,%s,COALESCE(%s::timestamptz, now.t),now.t,%s,%s,%s,%s
                  FROM (SELECT clock_timestamp() AS t) now RETURNING event_id""",
-            (self.ctx.scope_id, models.CONTRACT_VERSION, kind, category, Jsonb(subject_refs), self.ctx.principal_id,
-             occurred_at, Jsonb(content) if content is not None else None, self.action_id,
-             supersedes_event_id)).fetchone()["event_id"])
+            (self.ctx.scope_id, models.CONTRACT_VERSION, kind, category, outcome, Jsonb(subject_refs),
+             self.ctx.principal_id, occurred_at, Jsonb(content) if content is not None else None,
+             Jsonb(detail) if detail is not None else None, self.action_id, supersedes_event_id)).fetchone()["event_id"])
 
-    def written_result(self, obj: dict[str, Any], revision: dict[str, Any]) -> dict[str, Any]:
-        """写恰好一条钉到新修订的事件（建关系时再加列表里的对象），返回回执结果；结果写明契约版本。"""
+    def written_result(self, obj: dict[str, Any], revision: dict[str, Any], **event: Any) -> dict[str, Any]:
+        """写恰好一条钉到该修订的事件（建关系时再加列表里的对象；event 是事件的其余字段），返回回执结果；
+        结果写明契约版本。"""
         version = revision["object_version"]
         pinned = {"object_id": obj["object_id"], "object_version": version, "revision_id": revision["revision_id"],
                   "block": None, "component": None}
         kind = world_registry.action_spec(self.kind)["event_kind"]
         # 状态刷新的发生时刻取快照的 as_of（契约第 11 节）；事件同时钉住快照与它的主体。
-        event_id = self.world_event(kind, [pinned, *self.event_subjects],
-                                    occurred_at=self.payload["as_of"] if kind == "state.refreshed" else None)
+        if kind == "state.refreshed":
+            event["occurred_at"] = self.payload["as_of"]
+        event_id = self.world_event(kind, [pinned, *self.event_subjects], **event)
         result = {"contract_version": models.CONTRACT_VERSION, "object_id": obj["object_id"],
                   "revision_id": revision["revision_id"], "version": version,
                   "ref": models.citation(obj["object_id"], version), "event_id": event_id}

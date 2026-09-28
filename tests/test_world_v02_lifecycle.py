@@ -188,6 +188,7 @@ def test_every_listed_cell_enters_its_state_with_the_right_producer(object_type,
     result = admit(REGISTRY, object_type, events, event)
     assert result["status"] == to
     assert result["event_id"] == (before if to == start else event["event_id"])
+    assert result["by"] == by  # 服务按准入它的记录者类别记下用到的那条指派
     after = derive(REGISTRY, object_type, [*events, event])
     assert (after["status"], after["event_id"]) == (result["status"], result["event_id"])
 
@@ -313,6 +314,7 @@ def test_withdrawing_the_latest_delivery_returns_to_in_progress():
     back = withdraw(deliver, by={"self"})
     result = admit(REGISTRY, "Task", events, back)
     assert (result["status"], result["event_id"]) == ("in_progress", back["event_id"])
+    assert result["by"] == "self"
     assert derive(REGISTRY, "Task", [*events, back])["event_id"] == back["event_id"]
 
 
@@ -501,8 +503,8 @@ def test_a_mission_round_survives_stage_changes_and_writes_back():
     events += [commit, ev("world_deliver")]
     result = admit(REGISTRY, "Mission", events, ev("world_confirm_mission", "accepted",
                                                    guards={"parent_goal_confirmed": True}, by={"gate_role"}))
-    assert (result["status"], result["writes_back"], result["candidate_event_id"]) == (
-        "delivered", True, commit["event_id"])
+    assert (result["status"], result["writes_back"], result["candidate_event_id"], result["by"]) == (
+        "delivered", True, commit["event_id"], "gate_role")
 
 
 def test_a_mission_round_does_not_open_once_closed():

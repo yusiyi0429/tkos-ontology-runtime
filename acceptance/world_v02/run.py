@@ -25,13 +25,13 @@ from acceptance.protocol_a1_independent.support import now, public_json, safe_tr
 from acceptance.runtime.client import Client
 from acceptance.world_v01.fixture import ROOT, _seed_actor, register_world, revoke_assignment, seed_world
 from acceptance.world_v01.flow import Flow as V01Flow
-from .fixture import (CONTRACT, PROFILE, REGISTRY, SUPPORT, action_roles, install_activation_policies, owner,
-                      owner_rows, probe_binding_gate, probe_event_row, register_world_v02)
+from .fixture import (CONTRACT, PROFILE, REGISTRY, SUPPORT, action_roles, install_activation_policies,
+                      owner, owner_rows, probe_binding_gate, probe_event_row, register_world_v02)
 
 V01, V02 = 'tkos.world/0.1', 'tkos.world/0.2'
 MIGRATION = '0039_world_v02.sql'
 SCENARIOS = ['migration', 'control_plane', 'company', 'objects', 'rejections', 'coexistence', 'references',
-             'revise_relate', 'state_events', 'revocation']
+             'revise_relate', 'state_events', 'assign_lifecycle', 'revocation']
 EVENT_KINDS = {item['kind']: item for item in json.loads(REGISTRY.read_text())['event_kinds']}
 OBJECTS = {item['type']: item for item in json.loads(REGISTRY.read_text())['objects']}
 TYPES = ['Company', 'Strategy', 'ResponsibilityUnit', 'LongTermGoal', 'PeriodGoal', 'Mission', 'Task', 'Activity']
@@ -391,6 +391,214 @@ def objects(book, h, f, flow, company):
           and all(e['kind'] == 'object.created' and e['contract_version'] == V02
                   and e['subject_refs'][0]['component'] is None for e in events))
     return {'made': made, 'strategy_event': strategy_event, 'assumption': assumption}
+
+
+def assign_lifecycle(book, h, f, flow, trunk):
+    """#53：逐级指派（责任单元、Mission、Task、Activity）与 Task、Activity 状态表的每一格各经 HTTP 走一条；
+    未列出的组合、越级与错角色指派、Agent 与 Mission Owner 验收 Activity、撤回的三条规则各有拒绝，库快照不变。
+    Task 的责任人是人（ic_a），Activity 的责任人是 Agent（agent_a），Agent 的开始、交付与撤回带写入声明。"""
+    check = book.check
+    made = trunk['made']
+    actor_id = {name: actor['principal_id'] for name, actor in f['actors'].items()}
+
+    def declared(actor, kind, oid):
+        """Agent 身份记生命周期事件带写入声明（契约第 9.3 节）；指派不收写入声明。"""
+        if f['actors'][actor]['role'] != 'AGENT' or kind == 'world_assign':
+            return {}
+        return {'declaration': {'scene': f'{oid}@1', 'trigger': '执行', 'human_acceptance': {'required': False}}}
+
+    def act(actor, kind, oid, params=None):
+        body = flow.targeted(kind, oid, {**declared(actor, kind, oid), **(params or {})})
+        return flow.commit(actor, flow.prepare(actor, body))['result']
+
+    def deny(actor, kind, oid, codes, params=None):
+        flow.deny(actor, flow.targeted(kind, oid, {**declared(actor, kind, oid), **(params or {})}), codes=codes)
+
+    def life(oid):
+        return flow.read('outsider', oid)['records']['lifecycle']
+
+    def event(event_id):
+        return flow.rows('SELECT e.*, r.action_type FROM gov_world_events e JOIN gov_action_receipts r '
+                         'ON r.scope_id=e.scope_id AND r.receipt_id=e.action_id WHERE e.scope_id=%s AND e.event_id=%s',
+                         (f['scope_id'], event_id))[0]
+
+    # ---- 责任单元：DRI 由 Strategy 的责任人（CEO）指派，只记事件、不出修订。
+    unit = made['ResponsibilityUnit']['object_id']
+    unit_version = flow.read('outsider', unit)['business']['version']
+    deny('a', 'world_assign', unit, {'FORBIDDEN'}, {'principal_id': actor_id['a']})
+    deny('ceo', 'world_assign', unit, {'INVALID_REQUEST'}, {'principal_id': actor_id['ic_a']})
+    check('a_unit_dri_is_assigned_only_by_the_strategy_responsible_and_only_to_a_domain_dri_of_the_unit')
+    assigned = act('ceo', 'world_assign', unit, {'principal_id': actor_id['a']})
+    row = event(assigned['event_id'])
+    check('assigning_the_unit_dri_records_one_assign_event_without_a_new_revision',
+          assigned['version'] == unit_version and assigned['assignee'] == actor_id['a'] and row['kind'] == 'assign'
+          and row['contract_version'] == V02 and row['detail'] == {'principal_id': actor_id['a']}
+          and EVENT_KINDS['assign']['class'] == 'record' and flow.read('outsider', unit)['records']['lifecycle'] is None)
+
+    # ---- Mission：Owner 由周期目标的 DRI 指派，出新修订写 responsible。
+    mission = made['Mission']['object_id']
+    mission_version = flow.read('outsider', mission)['business']['version']
+    # 夹具里 CEO 也持 a 域的 DOMAIN_DRI（A2 的负例身份），是周期目标的责任人；越级用另一单元的 DRI。
+    deny('b', 'world_assign', mission, {'FORBIDDEN'}, {'principal_id': actor_id['owner_a']})
+    deny('ic_a', 'world_assign', mission, {'FORBIDDEN'}, {'principal_id': actor_id['owner_a']})
+    deny('a', 'world_assign', mission, {'INVALID_REQUEST'}, {'principal_id': actor_id['ic_a']})
+    check('a_mission_owner_is_assigned_only_by_the_period_goal_dri_and_only_to_an_owner_of_the_unit')
+    assigned = act('a', 'world_assign', mission, {'principal_id': actor_id['owner_a']})
+    view = flow.read('outsider', mission)
+    check('assigning_the_mission_owner_writes_a_new_revision_and_identity_names_the_owner_by_attribute',
+          assigned['version'] == mission_version + 1
+          and view['business']['attributes']['responsible'] == actor_id['owner_a']
+          and view['identity']['responsible']['source'] == 'attribute'
+          and [p['principal_id'] for p in view['identity']['responsible']['principals']] == [actor_id['owner_a']]
+          and view['records']['lifecycle']['status'] == 'draft'
+          and event(assigned['event_id'])['subject_refs'][0]['revision_id'] == assigned['revision_id'])
+
+    # ---- Task 与 Activity 的状态表逐格。
+    def create(object_type, parent_ref, title):
+        return flow.create('a', object_type, 'a', {'title': title, 'parent_ref': parent_ref})['result']
+
+    def walk(object_type, parent_ref, parent, responsible, wrong_assigner, wrong_assignee):
+        name = object_type.lower()
+        main = create(object_type, parent_ref, f'{object_type} 主线')['object_id']
+        born = life(main)
+        deny(responsible, 'world_start', main, {'INVALID_STATE'})
+        check(f'{name}_an_unassigned_{name}_cannot_start')
+        deny(wrong_assigner, 'world_assign', main, {'FORBIDDEN'}, {'principal_id': actor_id[responsible]})
+        deny(parent, 'world_assign', main, {'INVALID_REQUEST'}, {'principal_id': actor_id[wrong_assignee]})
+        deny(parent, 'world_assign', main, {'INVALID_REQUEST'}, {'principal_id': uid()})
+        deny('agent_a', 'world_assign', main, {'FORBIDDEN'}, {'principal_id': actor_id[responsible]})
+        check(f'{name}_assignment_one_level_up_to_a_holder_of_the_role_only')
+
+        cell = {}
+        cell['assign'] = act(parent, 'world_assign', main, {'principal_id': actor_id[responsible]})
+        check(f'{name}_unassigned_assign_to_assigned',
+              life(main) == {'status': 'assigned', 'display_name': '已指派', 'event_id': cell['assign']['event_id']}
+              and born['status'] == 'unassigned')
+        view = flow.read('outsider', main)
+        check(f'{name}_identity_names_the_assignee_by_attribute',
+              view['identity']['responsible']['source'] == 'attribute'
+              and [p['principal_id'] for p in view['identity']['responsible']['principals']] == [actor_id[responsible]])
+
+        def self_loop(state):
+            before = life(main)
+            act(parent, 'world_assign', main, {'principal_id': actor_id[responsible]})
+            check(f'{name}_{state}_reassign_keeps_the_stage_and_its_producer',
+                  before['status'] == state and life(main) == before)
+
+        self_loop('assigned')
+        deny(wrong_assigner if object_type == 'Task' else 'lapsed', 'world_start', main, {'FORBIDDEN'})
+        check(f'{name}_only_its_responsible_starts_it')
+        start = act(responsible, 'world_start', main)
+        check(f'{name}_assigned_start_to_in_progress', life(main)['status'] == 'in_progress'
+              and life(main)['event_id'] == start['event_id'])
+        self_loop('in_progress')
+        content = {'text': '交付说明', 'refs': [parent_ref], 'artifacts': ['https://example.test/delivery']}
+        current = flow.read('outsider', main)['business']
+        deliver = act(responsible, 'world_deliver', main, {'content': content})
+        row = event(deliver['event_id'])
+        check(f'{name}_in_progress_deliver_to_delivered_with_a_lifecycle_event_pinned_to_the_current_revision',
+              life(main) == {'status': 'delivered', 'display_name': '已交付', 'event_id': deliver['event_id']}
+              and row['kind'] == 'deliver' and EVENT_KINDS['deliver']['class'] == 'lifecycle'
+              and row['contract_version'] == V02 and row['outcome'] is None and row['supersedes_event_id'] is None
+              and str(row['principal_id']) == actor_id[responsible] and row['action_type'] == 'world_deliver'
+              and row['subject_refs'] == [{'object_id': main, 'object_version': current['version'],
+                                           'revision_id': current['revision_id'], 'block': None, 'component': None}]
+              and row['content']['refs'][0]['object_id'] == parent_ref.split('@')[0]
+              and row['content']['text'] == '交付说明' and deliver['contract_version'] == V02)
+        self_loop('delivered')
+
+        # 撤回：只撤推出当前状态的那条，由同一角色记；撤回事件与更早的事件都不能再撤。
+        deny(parent, 'world_deliver', main, {'FORBIDDEN'}, {'outcome': 'withdrawn', 'supersedes_event_id': deliver['event_id']})
+        check(f'{name}_a_withdrawal_is_recorded_by_the_role_of_the_original')
+        back = act(responsible, 'world_deliver', main, {'outcome': 'withdrawn', 'supersedes_event_id': deliver['event_id']})
+        check(f'{name}_withdrawing_the_latest_delivery_returns_to_in_progress_and_keeps_the_original',
+              life(main) == {'status': 'in_progress', 'display_name': '进行中', 'event_id': back['event_id']}
+              and event(back['event_id'])['outcome'] == 'withdrawn'
+              and str(event(back['event_id'])['supersedes_event_id']) == deliver['event_id']
+              and event(deliver['event_id'])['kind'] == 'deliver')
+        read = {item['event_id']: item for item in flow.events('outsider', main)['events']}
+        check(f'{name}_reading_events_shows_the_delivery_withdrawn_by_the_withdrawal',
+              read[deliver['event_id']]['withdrawn_by'] == [back['event_id']]
+              and read[back['event_id']]['class'] == 'lifecycle' and read[back['event_id']]['outcome'] == 'withdrawn'
+              and read[back['event_id']]['action'] == 'world_deliver' and read[back['event_id']]['late'] is False)
+        deny(responsible, 'world_start', main, {'INVALID_STATE'},
+             {'outcome': 'withdrawn', 'supersedes_event_id': start['event_id']})
+        check(f'{name}_an_earlier_event_cannot_be_withdrawn')
+        deny(responsible, 'world_deliver', main, {'INVALID_STATE'},
+             {'outcome': 'withdrawn', 'supersedes_event_id': back['event_id']})
+        check(f'{name}_a_withdrawal_cannot_be_withdrawn')
+
+        act(responsible, 'world_deliver', main)
+        reject = act(parent, 'world_reject', main, {'content': {'text': '缺录屏'}})
+        check(f'{name}_delivered_reject_to_adjusting', life(main)['status'] == 'adjusting'
+              and life(main)['event_id'] == reject['event_id'])
+        self_loop('adjusting')
+        redeliver = act(responsible, 'world_deliver', main)
+        check(f'{name}_adjusting_deliver_to_delivered', life(main)['status'] == 'delivered'
+              and life(main)['event_id'] == redeliver['event_id'])
+        return main, parent, responsible, cancel_cells(object_type, parent_ref, parent, responsible)
+
+    def cancel_cells(object_type, parent_ref, parent, responsible):
+        """取消从五个可取消的状态各走一条，每条用一个新对象。"""
+        name = object_type.lower()
+        paths = {'unassigned': [], 'assigned': ['world_assign'], 'in_progress': ['world_assign', 'world_start'],
+                 'delivered': ['world_assign', 'world_start', 'world_deliver'],
+                 'adjusting': ['world_assign', 'world_start', 'world_deliver', 'world_reject']}
+        for state, steps in paths.items():
+            oid = create(object_type, parent_ref, f'{object_type} 取消于{state}')['object_id']
+            for kind in steps:
+                actor = parent if kind in ('world_assign', 'world_reject') else responsible
+                act(actor, kind, oid, {'principal_id': actor_id[responsible]} if kind == 'world_assign' else None)
+            assert life(oid)['status'] == state
+            cancelled = act(parent, 'world_cancel', oid)
+            check(f'{name}_{state}_cancel_to_cancelled',
+                  life(oid) == {'status': 'cancelled', 'display_name': '已取消', 'event_id': cancelled['event_id']})
+        return oid
+
+    def close_and_reopen(object_type, main, parent, responsible, cancelled):
+        name = object_type.lower()
+        accept = act(parent, 'world_accept', main)
+        check(f'{name}_delivered_accept_to_closed', life(main) == {'status': 'closed', 'display_name': '已关闭',
+                                                                    'event_id': accept['event_id']})
+        deny(responsible, 'world_deliver', main, {'INVALID_STATE'})
+        deny(parent, 'world_assign', main, {'INVALID_STATE'}, {'principal_id': actor_id[responsible]})
+        deny(parent, 'world_assign', cancelled, {'INVALID_STATE'}, {'principal_id': actor_id[responsible]})
+        deny(parent, 'world_cancel', cancelled, {'INVALID_STATE'})
+        check(f'{name}_a_closed_or_cancelled_{name}_is_not_delivered_reassigned_or_cancelled_again')
+        reopen = act(parent, 'world_reopen', main)
+        check(f'{name}_closed_reopen_to_in_progress', life(main)['status'] == 'in_progress'
+              and life(main)['event_id'] == reopen['event_id'])
+
+    task_ref = made['Task']['ref']
+    mission_ref = made['Mission']['ref']
+    task, parent, responsible, cancelled = walk('Task', mission_ref, 'owner_a', 'ic_a', 'a', 'agent_a')
+    deny('ic_a', 'world_accept', task, {'FORBIDDEN'})
+    deny('a', 'world_accept', task, {'FORBIDDEN'})
+    check('task_only_the_mission_owner_accepts_a_task')
+    close_and_reopen('Task', task, parent, responsible, cancelled)
+
+    # Activity 的上一级是 Task 的责任人：把主干上的 Task 指派给 ic_a；Activity 由 Agent 执行。
+    act('owner_a', 'world_assign', made['Task']['object_id'], {'principal_id': actor_id['ic_a']})
+    activity, parent, responsible, cancelled = walk('Activity', task_ref, 'ic_a', 'agent_a', 'owner_a', 'ceo')
+    flow.deny('agent_a', flow.targeted('world_start', activity, {}), codes={'INVALID_REQUEST'})
+    check('activity_an_agent_start_or_delivery_carries_a_declaration')
+    deny('agent_a', 'world_accept', activity, {'FORBIDDEN'})
+    deny('owner_a', 'world_accept', activity, {'FORBIDDEN'})
+    check('activity_an_agent_delivery_is_not_accepted_by_the_agent_or_the_mission_owner')
+    close_and_reopen('Activity', activity, parent, responsible, cancelled)
+    check('activity_the_agent_delivery_was_accepted_by_the_task_responsible',
+          str(flow.rows("SELECT principal_id FROM gov_world_events WHERE scope_id=%s AND kind='accept' "
+                        "AND subject_refs->0->>'object_id'=%s", (f['scope_id'], activity))[0]['principal_id'])
+          == actor_id['ic_a'])
+    # 票 #51、#50 留下的补验：Agent 经指派成为 Activity 的责任人后可以修订它，触及正式块的声明要求人工验收；
+    # Agent 写入声明的场景可以是周期目标。
+    revised = flow.revise('agent_a', activity, {'blocks': {'instruction': {'text': '按新脚本录屏。'}}},
+                          {'scene': made['PeriodGoal']['ref'], 'trigger': '执行中调整',
+                           'human_acceptance': {'required': True, 'acceptor': actor_id['ic_a']}})['result']
+    check('an_agent_assigned_to_an_activity_revises_it_with_a_declaration_whose_scene_is_a_period_goal',
+          revised['responsible_through'] == activity
+          and revised['declaration']['human_acceptance']['acceptor'] == actor_id['ic_a']
+          and revised['declaration']['scene']['ref'] == made['PeriodGoal']['ref'])
 
 
 def references(book, h, f, flow, trunk, foreign):
@@ -999,6 +1207,8 @@ def run(book, h, source, upgrade_evidence):
             revise_relate(book, h, f, flow, trunk)
         with scenario('state_events'):
             state_events(book, h, f, flow, trunk, foreign)
+        with scenario('assign_lifecycle'):
+            assign_lifecycle(book, h, f, flow, trunk)
         with scenario('revocation'):
             revocation(book, h, f, flow, made['command'])
     finally:

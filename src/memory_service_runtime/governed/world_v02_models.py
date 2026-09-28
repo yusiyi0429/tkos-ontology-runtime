@@ -20,6 +20,7 @@ from pydantic import (AfterValidator, BaseModel, Field, StrictBool, StrictStr, S
 
 from . import world_v02_registry as world_registry
 from .a2_models import CanonicalUUID, NEStr, PositiveInt, StrictModel
+from .world_v01_models import Timestamp
 
 CONTRACT_VERSION = "tkos.world/0.2"
 
@@ -79,6 +80,8 @@ def _ref_text(*forms: str):
 
 RefText = _ref_text("object", "block", "component", "event")
 ObjectRefText = _ref_text("object")
+SubjectRefText = _ref_text("object", "component")
+EventRefText = _ref_text("event")
 
 
 def _relation_ref(relation: dict[str, Any]):
@@ -140,7 +143,17 @@ def _value_type(attribute: dict[str, Any]) -> Any:
         return CanonicalUUID
     if kind == "external_refs":
         return list[ExternalRef]
+    if kind == "progress_entries":
+        return list[_progress_entry_model()]
     raise NotImplementedError(f"world 0.2 attribute value kind {kind} is not implemented yet")
+
+
+@lru_cache(maxsize=1)
+def _progress_entry_model() -> type[BaseModel]:
+    """进展条目的一条本期记录（契约第 4 节，字段取对接说明 11.2 草案）：时刻规范为 UTC 文本，来源按登记。"""
+    sources = tuple(item["id"] for item in world_registry.registry()["components"]["progress_entry_sources"])
+    return create_model("ProgressEntry", __config__=StrictModel.model_config, at=(Timestamp, ...),
+                        source=(Literal[sources], ...), text=(NEStr, ...), url=(Optional[ArtifactUrl], None))
 
 
 def _attribute_fields(attributes: list[dict[str, Any]]) -> dict[str, Any]:
@@ -436,6 +449,68 @@ def touches_formal(object_type: str, patch: dict[str, Any]) -> bool:
             or any(block_id in formal_blocks for block_id in patch.get("blocks", {})))
 
 
+# ------------------------------------------------------------ state snapshots
+def payload_spec(payload_type: str) -> dict[str, Any]:
+    return next(item for item in world_registry.registry()["state"]["payload_types"] if item["id"] == payload_type)
+
+
+def payload_type_for(object_type: str) -> str | None:
+    """主体类型登记的那一种 payload（契约第 7 节）；不是业务对象的没有。"""
+    return next((item["id"] for item in world_registry.registry()["state"]["payload_types"]
+                 if object_type in item["subjects"]), None)
+
+
+@lru_cache(maxsize=None)
+def _snapshot_model(payload_type: str, stored: bool) -> type[BaseModel]:
+    """快照外壳加这种 payload 的块（契约第 7 节）。写入模型不收生成者：它由服务按凭证填。"""
+    spec = payload_spec(payload_type)
+    name = "".join(part.title() for part in payload_type.split("_")) + ("Stored" if stored else "Input")
+    blocks = create_model(name + "Blocks", __config__=StrictModel.model_config,
+                          **{block["id"]: (Optional[_block_model(tuple(block["components"]), stored)], None)
+                             for block in spec["blocks"]})
+    fields: dict[str, Any] = {
+        "title": (NEStr, ...),
+        "subject_ref": (PinnedObjectRef if stored else ObjectRefText, ...),
+        "as_of": (Timestamp, ...), "period": (Optional[Month], None),
+        "payload_type": (Literal[payload_type], ...),
+        "source_event_refs": (list[PinnedEventRef if stored else EventRefText], Field(min_length=1)),
+        "blocks": (blocks, Field(default_factory=blocks)),
+    }
+    if stored:
+        fields["generator"] = (CanonicalUUID, ...)
+    return create_model(name + "Snapshot", __base__=_PayloadBase, **fields)
+
+
+def validate_snapshot(payload: Any) -> dict[str, Any]:
+    """按 payload 类型严格校验客户端写的快照，引用保持业务形式；违反契约抛 ValueError。"""
+    payload_type = payload.get("payload_type") if isinstance(payload, dict) else None
+    if payload_type not in {item["id"] for item in world_registry.registry()["state"]["payload_types"]}:
+        raise ValueError("payload_type is not a registered state payload type")
+    value = _snapshot_model(payload_type, False).model_validate(payload).model_dump(mode="json")
+    if len(set(value["source_event_refs"])) != len(value["source_event_refs"]):
+        raise ValueError("a snapshot names each source event once")
+    return value
+
+
+def snapshot_ref_texts(written: dict[str, Any]) -> list[str]:
+    """快照里出现的全部引用：主体、来源事件，然后逐块的组件与块内引用，按出现顺序。"""
+    return [written["subject_ref"], *written["source_event_refs"], *ref_texts("StateSnapshot", written)]
+
+
+def stored_snapshot(written: dict[str, Any], pins: dict[str, dict[str, Any]], *, generator: str) -> dict[str, Any]:
+    """把快照里的引用换成钉定结果，给没有 id 的组件生成 id，写上生成者，按存储模型校验后返回。
+    快照不修订，所以不维护组件台账。"""
+    def component(item: dict[str, Any]) -> dict[str, Any]:
+        return {**item, "id": item["id"] or str(uuid4()), "scope": item["scope"] and pins[item["scope"]],
+                "refs": [pins[text] for text in item["refs"]]}
+    value = {**written, "generator": generator, "subject_ref": pins[written["subject_ref"]],
+             "source_event_refs": [pins[text] for text in written["source_event_refs"]],
+             "blocks": {block_id: block and {**block, "components": [component(item) for item in block["components"]],
+                                             "refs": [pins[text] for text in block["refs"]]}
+                        for block_id, block in written["blocks"].items()}}
+    return _snapshot_model(written["payload_type"], True).model_validate(value).model_dump(mode="json")
+
+
 class HumanAcceptance(StrictModel):
     required: StrictBool
     acceptor: Optional[CanonicalUUID] = None
@@ -489,11 +564,50 @@ class WorldV02RelateParams(StrictModel):
         return refs
 
 
+class WorldV02RefreshStateParams(StrictModel):
+    """写状态快照：载荷是外壳加 payload，按 payload 类型在服务里校验；所在域随主体（契约第 7 节）。"""
+    payload: dict[str, Any]
+    declaration: Optional[Declaration] = None
+
+
+# 外部事件的类别与可以补记的事件种类（契约第 8.2、11 节）。请求模型在导入时就要，由测试与登记逐条对齐。
+EVENT_CATEGORIES = ("meeting", "review", "delivery", "acceptance", "other", "correction")
+BACKDATED_KINDS = frozenset({"event.recorded", "state.refreshed"})
+
+
+class WorldV02RecordEventParams(StrictModel):
+    """记外部事件（契约第 8 节）：category 必带，可以补记过去的 occurred_at；更正且只有更正以
+    supersedes_event_id 指向被更正的事件。主体是对象或组件形式，逐条不重复；内容是不带组件的块值。"""
+    category: Literal[EVENT_CATEGORIES]
+    subject_refs: list[SubjectRefText] = Field(min_length=1)
+    occurred_at: Timestamp
+    content: _block_model((), False)
+    supersedes_event_id: Optional[CanonicalUUID] = None
+    declaration: Optional[Declaration] = None
+
+    @field_validator("subject_refs")
+    @classmethod
+    def distinct_subjects(cls, refs: list[str]) -> list[str]:
+        if len(set(refs)) != len(refs):
+            raise ValueError("an event names each subject once")
+        return refs
+
+    @model_validator(mode="after")
+    def correction_references_its_original(self) -> "WorldV02RecordEventParams":
+        if (self.category == "correction") != (self.supersedes_event_id is not None):
+            raise ValueError("a correction, and only a correction, references the event it corrects")
+        return self
+
+
 # 本进程已实现的 0.2 动作与可建类型。支持登记只能在这之内收窄，不能扩大（与协议支持集合同理）。
 ACTION_PARAMS = {"world_create_object": WorldV02CreateObjectParams, "world_revise_object": WorldV02ReviseObjectParams,
-                 "world_relate": WorldV02RelateParams}
-CREATABLE = frozenset({"Company", "Strategy", "ResponsibilityUnit", "LongTermGoal", "PeriodGoal", "Mission", "Task",
-                       "Activity"})
+                 "world_relate": WorldV02RelateParams, "world_refresh_state": WorldV02RefreshStateParams,
+                 "world_record_event": WorldV02RecordEventParams}
+BUSINESS_TYPES = frozenset({"Company", "Strategy", "ResponsibilityUnit", "LongTermGoal", "PeriodGoal", "Mission",
+                            "Task", "Activity"})
+# 状态快照只经 world_refresh_state 写入，建对象在服务里先拒绝它。
+CREATABLE = BUSINESS_TYPES | {"StateSnapshot"}
 # 动作 -> 允许的目标类型；空集表示该动作不带 target。状态快照不修订，只有带跨链关系字段的类型能建关系。
-ACTION_TARGETS: dict[str, frozenset[str]] = {"world_create_object": frozenset(), "world_revise_object": CREATABLE,
-                                             "world_relate": frozenset({"PeriodGoal", "Mission", "Task"})}
+ACTION_TARGETS: dict[str, frozenset[str]] = {"world_create_object": frozenset(), "world_revise_object": BUSINESS_TYPES,
+                                             "world_relate": frozenset({"PeriodGoal", "Mission", "Task"}),
+                                             "world_refresh_state": frozenset(), "world_record_event": frozenset()}

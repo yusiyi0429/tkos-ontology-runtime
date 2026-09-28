@@ -114,16 +114,20 @@ def world_object_get(object_id: uuid.UUID, token: Annotated[str, Depends(bearer)
 @router.get("/world/objects/{object_id}/state")
 def world_object_state(object_id: uuid.UUID, token: Annotated[str, Depends(bearer)],
                        as_of: Annotated[AwareDatetime | None, Query()] = None):
-    from . import world_v01_readers
+    from . import world_v01_readers, world_v02_readers
     with db.transaction(token) as (conn, ctx):
+        if world_v02_readers.bound_contract(conn, ctx, str(object_id)) == world_v02_readers.CONTRACT_VERSION:
+            return world_v02_readers.state(conn, ctx, str(object_id), as_of)
         return world_v01_readers.state(conn, ctx, str(object_id), as_of)
 
 
 @router.get("/world/objects/{object_id}/events")
 def world_object_events(object_id: uuid.UUID, token: Annotated[str, Depends(bearer)],
                         since: Annotated[AwareDatetime | None, Query()] = None):
-    from . import world_v01_readers
+    from . import world_v01_readers, world_v02_readers
     with db.transaction(token) as (conn, ctx):
+        if world_v02_readers.bound_contract(conn, ctx, str(object_id)) == world_v02_readers.CONTRACT_VERSION:
+            return world_v02_readers.events(conn, ctx, str(object_id), since)
         return world_v01_readers.events(conn, ctx, str(object_id), since)
 
 

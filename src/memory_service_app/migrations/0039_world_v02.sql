@@ -84,7 +84,11 @@ ALTER TABLE gov_world_events
                                              'reject','reopen','cancel'))
         AND (external_record_id IS NULL OR external_record_id ~ '\S')
         AND (external_confirmed_at IS NULL OR external_confirmed_at <= recorded_at)
-        AND (detail IS NULL OR jsonb_typeof(detail) = 'object')));
+        AND (detail IS NULL OR jsonb_typeof(detail) = 'object')
+        -- contract section 11: nothing happens after it is recorded; only external events and state
+        -- refreshes may be backdated, every other kind happens at the moment it is recorded.
+        AND occurred_at <= recorded_at
+        AND (kind IN ('event.recorded','state.refreshed') OR occurred_at = recorded_at)));
 
 -- Preserve prior binding contracts (world 0.1 exactly as 0035 pinned it); add the world 0.2 identity.
 CREATE OR REPLACE FUNCTION gov_binding_insert_gate()

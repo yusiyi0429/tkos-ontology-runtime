@@ -195,15 +195,17 @@ def world_models(contract_version: str) -> Any:
     return world_v01_models
 
 
-def gate_world_action(conn: Any, scope_id: str, action_type: str) -> str:
-    """不落在某个对象上的 world 动作（外部事件）：支持登记列出该动作且可写。声明的契约已由请求信封限定为 world。"""
-    from .world_v01_models import CONTRACT_VERSION as WORLD_CONTRACT
-    registry = _check_registry(conn, scope_id, "tkos.world", WORLD_CONTRACT)
+def gate_world_action(conn: Any, scope_id: str, action_type: str, contract_version: str | None = None) -> str:
+    """不落在某个对象上的 world 动作（外部事件）：该版本的支持登记列出该动作且可写。声明的契约已由请求信封
+    限定为 world；不给版本即 0.1。"""
+    from .world_v01_models import CONTRACT_VERSION as WORLD_V01
+    contract_version = contract_version or WORLD_V01
+    registry = _check_registry(conn, scope_id, "tkos.world", contract_version)
     if action_type not in registry.actions:
         _fail("ACTION_NOT_SUPPORTED_FOR_PROTOCOL")
     if not registry.can_write:
         _fail("PROTOCOL_WRITE_DISABLED")
-    return WORLD_CONTRACT
+    return contract_version
 
 
 def _declared_mismatch(code_for_known_legacy_or_absent: bool, declared: str | None,

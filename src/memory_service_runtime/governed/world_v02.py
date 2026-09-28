@@ -4,8 +4,8 @@
 对象修订、恰好一条 world 事件与回执（契约第 8.1 节）；0.2 的事件行写明契约版本，回执结果也写明，
 重放与读回执据此分派。授权先于协议错误：先按激活策略判权，Agent 不在建对象的 Agent 面上，再过协议
 闸门；然后校验载荷，按主干判断调用者是不是有权的责任人（从新对象的主干上一级找起，同 0.1），之后才
-钉定其余引用、核对对象放在哪个域与挂在谁下面、写入声明。已接通八类业务对象的建对象、合并修订与建关系；
-快照、事件读取与生命周期随各自的票接入。
+钉定其余引用、核对对象放在哪个域与挂在谁下面、写入声明。已接通八类业务对象的建对象、合并修订与建关系，
+写状态快照与记外部事件；生命周期随各自的票接入。
 """
 from __future__ import annotations
 
@@ -41,10 +41,14 @@ class WorldExecution(ActionExecution):
         self.referenced: dict[str, dict[str, Any]] = {}
         # 调用者经哪个对象的 responsible 属性成为责任人；重放时复核该属性仍指向他（契约第 3.3 节）。
         self.responsible_through: str | None = None
-        # 事件 subject_refs 里除新修订外还要钉的对象：建关系的列表。
+        # 事件 subject_refs 里除新修订外还要钉的：建关系的列表、写快照时的主体。
         self.event_subjects: list[dict[str, Any]] = []
         if self.kind == "world_create_object":
             self.authorize_create()
+        elif self.kind == "world_refresh_state":
+            self.authorize_refresh_state()
+        elif self.kind == "world_record_event":
+            self.authorize_record_event()
         else:
             self.authorize_target()
 
@@ -118,7 +122,7 @@ class WorldExecution(ActionExecution):
             self.relate(object_type, current)
         self.declaration = self.pinned_declaration()
 
-    def require_declaration(self, object_type: str) -> None:
+    def require_declaration(self, object_type: str | None = None) -> None:
         """写入声明只对 Agent 强制（契约第 9.3 节）；Agent 的修订触及正式块、正式属性时必须要求人工验收，
         只触及活动块与活动属性时可以不要求（补 18）。"""
         if self.ctx.principal_type == "human":
@@ -173,6 +177,86 @@ class WorldExecution(ActionExecution):
             "SELECT * FROM gov_object_revisions WHERE scope_id=%s AND revision_id=%s",
             (self.ctx.scope_id, self.target["latest_revision_id"])).fetchone())
 
+    def authorize_refresh_state(self) -> None:
+        """写状态快照（契约第 7、9 节）：所在域随主体；人须是主体主干上的责任人，Agent 须在主体所在域持
+        AGENT。授权之后才暴露协议错误；生成者按凭证填，来源事件至少一条，payload 类型是主体类型登记的那种。"""
+        self.object_type = "StateSnapshot"
+        payload = self.params["payload"]
+        try:
+            subject_id = models.parse_ref(payload.get("subject_ref"))["object_id"]
+        except (ValueError, TypeError):
+            _invalid("A state snapshot names its subject as <object id>@<version>.")
+        subject = head_and_binding(self.conn, self.ctx, subject_id)[0]
+        self.domain_id = subject["domain_id"]
+        self.action_assignments = db.authorize_domain(self.conn, self.ctx, self.domain_id, self.kind)
+        self.open_world_v02(self.object_type)
+        try:
+            self.written = models.validate_snapshot(payload)
+        except ValueError:
+            _invalid("The snapshot does not satisfy the world 0.2 state shell or its payload type.")
+        self.require_declaration()
+        subject_type = self.referenced_type(self.written["subject_ref"])
+        if world_registry.object_spec(subject_type)["category"] != "business_object":
+            _invalid("The subject of a state snapshot is a business object.")
+        if self.written["payload_type"] != models.payload_type_for(subject_type):
+            _invalid(f"A {subject_type} snapshot carries the {models.payload_type_for(subject_type)} payload.")
+        if self.ctx.principal_type == "agent":
+            held = [row for row in self.action_assignments if row["role"] == "AGENT"]
+            if not held:
+                _fail("FORBIDDEN", "An Agent writes a snapshot only with the AGENT role in the subject's domain.")
+            used = held[0]
+        else:
+            used = self.responsible_up_the_spine(subject_id)
+        self.required_assignments.add(used["assignment_id"])
+        for text in models.snapshot_ref_texts(self.written):
+            self.pin(text)
+        self.check_components(self.object_type)
+        self.not_in_future(self.written["as_of"], "A snapshot cannot be as of a time that has not come yet.")
+        self.payload = models.stored_snapshot(self.written, self.pins, generator=self.ctx.principal_id)
+        self.event_subjects = [self.pins[self.written["subject_ref"]]]
+        self.declaration = self.pinned_declaration()
+
+    def authorize_record_event(self) -> None:
+        """记外部事件（契约第 8、11 节）：按 scope 判权，不看各域策略；主体与内容里的引用钉定；发生时刻可以在过去，
+        不能在将来；更正指向本 scope 里登记允许更正的 0.2 事件（外部事件与 Issue 事件）。"""
+        db._assignments(self.conn, self.ctx)  # scope 内没有生效指派的调用者是 403
+        self.protocol_context = protocol.gate_world_action(self.conn, self.ctx.scope_id, self.kind,
+                                                           models.CONTRACT_VERSION)
+        self.require_declaration()
+        self.event_subjects = [self.pin(text) for text in self.params["subject_refs"]]
+        # 回执记第一条主体所在的域；判权不看它。
+        self.domain_id = self.referenced[self.params["subject_refs"][0]]["domain_id"]
+        self.not_in_future(self.params["occurred_at"], "An external event that has not happened yet cannot be recorded.")
+        original = self.params.get("supersedes_event_id")
+        if original is not None and self.conn.execute(
+                """SELECT 1 FROM gov_world_events WHERE scope_id=%s AND event_id=%s AND contract_version=%s
+                     AND kind = ANY(%s)""",
+                (self.ctx.scope_id, original, models.CONTRACT_VERSION,
+                 world_registry.registry()["rules"]["correction"]["corrects"])).fetchone() is None:
+            _invalid("A correction corrects an external event or an Issue event in this scope.")
+        content = self.params["content"]
+        self.content = {**content, "refs": [self.pin(text) for text in content["refs"]]}
+        self.declaration = self.pinned_declaration()
+
+    def open_world_v02(self, object_type: str) -> None:
+        """0.2 只在默认契约是 0.2 的域里启用（契约第 1 节），然后按支持登记解析新对象的绑定。"""
+        policy = protocol.creation_policy(self.conn, self.ctx.scope_id, self.domain_id)
+        if policy is None or (policy["content"].get("default_protocol"), policy["content"].get(
+                "default_contract_version")) != (world_profile.PROTOCOL_ID, models.CONTRACT_VERSION):
+            _fail("PROTOCOL_NOT_SUPPORTED", "tkos.world/0.2 is not enabled for this domain.", 409)
+        self.creation_fields = protocol.resolve_creation(
+            self.conn, self.ctx.scope_id, self.domain_id, object_type, self.request.contract_version,
+            action_type=self.kind)
+        self.protocol_context = self.creation_fields["contract_version"]
+
+    def referenced_type(self, text: str) -> str:
+        self.pin(text)
+        return self.referenced[text]["object_type"]
+
+    def not_in_future(self, moment: str, message: str) -> None:
+        if self.conn.execute("SELECT %s::timestamptz > clock_timestamp() AS future", (moment,)).fetchone()["future"]:
+            _invalid(message)
+
     # ------------------------------------------------------------ references
     def pin(self, text: str) -> dict[str, Any]:
         """把业务形式的引用解析并钉住（契约第 5 节）：对象形式钉到本 scope 某个 0.2 world 对象的某个修订，
@@ -198,7 +282,7 @@ class WorldExecution(ActionExecution):
             _invalid("A reference does not resolve to a version of a world 0.2 object in this scope.")
         target = db.jsonable(row)
         if ref["block"] is not None:
-            if ref["block"] not in {block["id"] for block in world_registry.object_spec(target["object_type"])["blocks"]}:
+            if ref["block"] not in {block["id"] for block in self.blocks_of(target)}:
                 _invalid("A reference names a block its object type does not have.")
             block = target["payload"]["blocks"][ref["block"]]
             if ref["component"] is not None:
@@ -212,6 +296,13 @@ class WorldExecution(ActionExecution):
         self.pins[text] = {"object_id": target["object_id"], "object_version": ref["object_version"],
                            "revision_id": target["revision_id"], "block": ref["block"], "component": ref["component"]}
         return self.pins[text]
+
+    @staticmethod
+    def blocks_of(target: dict[str, Any]) -> list[dict[str, Any]]:
+        """对象的块按类型登记；状态快照的块按它的 payload 类型（契约第 7 节），所以快照里的组件同样可以引用。"""
+        if target["object_type"] == "StateSnapshot":
+            return models.payload_spec(target["payload"]["payload_type"])["blocks"]
+        return world_registry.object_spec(target["object_type"])["blocks"]
 
     def check_placement(self, object_type: str) -> None:
         """关系引用指向登记允许的类型与组件类型，对象放在契约第 1 节规定的域，目标约束同 0.1。"""
@@ -334,7 +425,11 @@ class WorldExecution(ActionExecution):
 
     def recheck_final_barrier(self) -> None:
         # 让调用者成为责任人的指派可以在上一级对象的域（例如公司域的 CEO），不必在本动作的域。
-        db.authorize_domain(self.conn, self.ctx, self.domain_id, action_type=self.kind)
+        # 外部事件按 scope 判权，不看各域策略，只要调用者仍在 scope 内有生效指派。
+        if world_registry.action_spec(self.kind)["authorization"] == "scope":
+            db._assignments(self.conn, self.ctx)
+        else:
+            db.authorize_domain(self.conn, self.ctx, self.domain_id, action_type=self.kind)
         current = {row["assignment_id"] for row in db._assignments(self.conn, self.ctx)}
         if not self.required_assignments <= current:
             _fail("FORBIDDEN", "A required assignment is not currently valid.")
@@ -344,11 +439,28 @@ class WorldExecution(ActionExecution):
         """引用钉在不可变的修订上，不随被引用对象更新而漂移，所以不是需要期望版本的可变依赖。"""
 
     def run_action(self) -> dict[str, Any]:
-        if self.kind == "world_create_object":
+        if self.kind == "world_create_object" or self.kind == "world_refresh_state":
             return self.create_world_object(self.object_type)
+        if self.kind == "world_record_event":
+            return self.record_event()
         return self.new_revision()
 
+    def record_event(self) -> dict[str, Any]:
+        event_id = self.world_event(world_registry.action_spec(self.kind)["event_kind"], self.event_subjects,
+                                    category=self.params["category"], occurred_at=self.params["occurred_at"],
+                                    content=self.content, supersedes_event_id=self.params.get("supersedes_event_id"))
+        result = {"contract_version": models.CONTRACT_VERSION, "event_id": event_id,
+                  "occurred_at": self.params["occurred_at"], "subject_refs": cited(self.event_subjects)}
+        if self.declaration is not None:
+            result["declaration"] = self.declaration
+        return result
+
     def create_world_object(self, object_type: str) -> dict[str, Any]:
+        if object_type == "StateSnapshot" and self.conn.execute(
+                """SELECT 1 FROM gov_object_revisions WHERE scope_id=%s AND payload->'subject_ref' ? 'object_version'
+                     AND payload->'subject_ref'->>'object_id'=%s AND payload->>'as_of'=%s LIMIT 1""",
+                (self.ctx.scope_id, self.payload["subject_ref"]["object_id"], self.payload["as_of"])).fetchone():
+            _fail("INVALID_STATE", "The subject already has a snapshot at this time.")
         if object_type == "Company" and self.conn.execute(
                 "SELECT 1 FROM gov_objects WHERE scope_id=%s AND object_type='Company' LIMIT 1",
                 (self.ctx.scope_id,)).fetchone() is not None:
@@ -384,24 +496,37 @@ class WorldExecution(ActionExecution):
                         effective=revision["revision_id"] if moves else obj["effective_revision_id"])
         return self.written_result(obj, revision)
 
-    def world_event(self, kind: str, subject_refs: list[dict[str, Any]]) -> str:
-        """写恰好一条 0.2 的 world 事件；门事件与生命周期事件的发生时刻就是记录时刻（契约第 11 节）。"""
+    def world_event(self, kind: str, subject_refs: list[dict[str, Any]], *, category: str | None = None,
+                    occurred_at: str | None = None, content: dict[str, Any] | None = None,
+                    supersedes_event_id: str | None = None) -> str:
+        """写恰好一条 0.2 的 world 事件（契约第 11 节）：只读一次时钟，记录时刻与不补记的发生时刻取同一个值；
+        只有外部事件与状态刷新给 occurred_at，迁移 0039 同样这样约束。"""
+        if occurred_at is not None and kind not in models.BACKDATED_KINDS:
+            raise ValueError(f"{kind} happens at the moment it is recorded")
         return str(self.conn.execute(
-            """INSERT INTO gov_world_events (scope_id, contract_version, kind, subject_refs, principal_id,
-                                             occurred_at, action_id)
-               VALUES (%s,%s,%s,%s,%s,clock_timestamp(),%s) RETURNING event_id""",
-            (self.ctx.scope_id, models.CONTRACT_VERSION, kind, Jsonb(subject_refs), self.ctx.principal_id,
-             self.action_id)).fetchone()["event_id"])
+            """INSERT INTO gov_world_events (scope_id, contract_version, kind, category, subject_refs, principal_id,
+                                             occurred_at, recorded_at, content, action_id, supersedes_event_id)
+               SELECT %s,%s,%s,%s,%s,%s,COALESCE(%s::timestamptz, now.t),now.t,%s,%s,%s
+                 FROM (SELECT clock_timestamp() AS t) now RETURNING event_id""",
+            (self.ctx.scope_id, models.CONTRACT_VERSION, kind, category, Jsonb(subject_refs), self.ctx.principal_id,
+             occurred_at, Jsonb(content) if content is not None else None, self.action_id,
+             supersedes_event_id)).fetchone()["event_id"])
 
     def written_result(self, obj: dict[str, Any], revision: dict[str, Any]) -> dict[str, Any]:
         """写恰好一条钉到新修订的事件（建关系时再加列表里的对象），返回回执结果；结果写明契约版本。"""
         version = revision["object_version"]
         pinned = {"object_id": obj["object_id"], "object_version": version, "revision_id": revision["revision_id"],
                   "block": None, "component": None}
-        event_id = self.world_event(world_registry.action_spec(self.kind)["event_kind"], [pinned, *self.event_subjects])
+        kind = world_registry.action_spec(self.kind)["event_kind"]
+        # 状态刷新的发生时刻取快照的 as_of（契约第 11 节）；事件同时钉住快照与它的主体。
+        event_id = self.world_event(kind, [pinned, *self.event_subjects],
+                                    occurred_at=self.payload["as_of"] if kind == "state.refreshed" else None)
         result = {"contract_version": models.CONTRACT_VERSION, "object_id": obj["object_id"],
                   "revision_id": revision["revision_id"], "version": version,
                   "ref": models.citation(obj["object_id"], version), "event_id": event_id}
+        if kind == "state.refreshed":
+            result.update(subject_refs=cited(self.event_subjects), as_of=self.payload["as_of"],
+                          generator=self.payload["generator"])
         if self.responsible_through is not None:
             result["responsible_through"] = self.responsible_through
         if self.declaration is not None:

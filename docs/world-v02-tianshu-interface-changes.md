@@ -1,0 +1,194 @@
+# tkos.world/0.2 接口变化清单（给天枢）｜2026-09-29
+
+对象：天枢服务端接入本体的工程师。用途：10 月 12 日至 16 日的试用走 0.2，天枢在此之前把接入从 0.1 改到 0.2。本清单只写相对 0.1 的变化；0.1 的调用约定见《Agent 接入对接说明》（rev 31），没提到的沿用。
+
+依据：0.2 契约草案 `docs/contracts/tkos-world-0.2.md` 与登记 `docs/contracts/world-registry-0.2.json`（分支 `world/0.2`）。下文「第 N 节」指该契约的章节。
+
+**状态说明**：0.2 还是草案，正在实现。本清单里的动作名、字段名与规则按契约写，是天枢可以开始改的依据；请求与返回的完整 JSON 以 10 月 9 日实验实例上线时附的实测示例为准。标「可能变」的在锁版前可能再改，改了会单独通知。示例里的 id 都是占位。
+
+## 一、环境与版本
+
+| 项 | 0.1 | 0.2 |
+|-|-|-|
+| 实例 | `https://world-lab.tokenkingos.com` | 新的实验实例，地址 10 月 9 日前给；world-lab 保持 0.1 不动 |
+| scope、对象 id、域 id、principal 表 | world-lab 那一套 | 新实例上重新播种，清单随实例一起给；0.1 的 id 不能带过来 |
+| 凭证 | 天枢服务主体一枚 | 新实例另发一枚，同样在公司域与各责任单元域持 AGENT；另用于代记（第八项） |
+| 请求信封 | `contract_version: "tkos.world/0.1"` | `contract_version: "tkos.world/0.2"` |
+| 写入流程 | prepare 再 commit、幂等键、回执 | 不变 |
+
+- 实验实例可以清空重建：锁版前契约改动时会重建库，对象 id 会变。天枢的同步表请能按实例整批作废重来。
+- 0.1 的数据不迁到 0.2，两边不建桥。
+
+## 二、块值：多一个组件列表
+
+0.1 的块只有 `{text, refs, artifacts}`。0.2 是 `{text, components, refs, artifacts}`（第 4 节）。
+
+- 组件是块里一条可以单独引用的内容：`{id, type, scope?, text?, refs?, artifacts?, attributes?}`。
+- `id`：天枢可以自己给，字符集 `[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}`，在所属对象内唯一；不给由服务生成。**建议直接用天枢的 todo id、issue id**（加前缀也行，例如 `todo:123`），这样跨周对得上。
+- `type`：必须是该块允许的组件类型，天枢会用到的三种见下表。
+- 删除组件留痕，删掉的 id 不能再用；组件不能从一个块挪到另一个块。
+- 修订对象时块按字段合并：给出的 `text`、`refs`、`artifacts` 整体替换；`components` 按 id 合并，给出的 id 新增或改写，`{"id": "...", "removed": true}` 删除，没提到的保留（第 12 节）。0.1 是整块替换。
+
+| 组件类型 | 放在哪 | 类型属性 |
+|-|-|-|
+| `progress_item` 进展条目 | 执行状态快照的 `progress` 块 | `principal_id`、`principal_name`（写入时的姓名）、`external_status`（天枢状态原样）、`entries`（本期条目列表，每条 `{at, source, text, url?}`，`source` 取 `web`、`codex`、`claude`、`github`、`other`） |
+| `issue` 问题 | 各类快照的 `issues` 块 | `core_question`（核心判断问题，必填）、`responsible_hint`（最低充分责任主体，可选，本体 principal id） |
+| `plan_item` 计划条目 | Mission 的执行计划块、Task 的计划块 | `responsible`（只作记录，不是指派、不产生权限） |
+
+进展条目的字段来自对接说明 11.2 的草案，三方会上定稿；天枢状态与紧急度的枚举会上对一下（可能变）。
+
+## 三、引用：四种形式
+
+| 形式 | 写法 | 0.1 有没有 |
+|-|-|-|
+| 对象 | `<对象 id>@<版本>` | 有 |
+| 块 | `<对象 id>@<版本>#<块 id>` | 有 |
+| 组件 | `<对象 id>@<版本>#<块 id>/<组件 id>` | 新增 |
+| 事件 | `event:<事件 id>` | 新增 |
+
+- 写入一律用字符串；读回同时给字符串与钉定后的结构。引用钉在版本上，对象出新版本后不漂移；组件 id 稳定，在新版本里用同一个 id 找到同一条。
+- 快照的 `subject_ref` 与写入声明的 `scene` 用对象形式；事件的 `subject_refs` 可以用对象形式或组件形式。
+
+## 四、状态快照：统一外壳 + payload 类型 + 来源事件
+
+0.1 的快照块固定是 `progress`、`issue`、`artifacts`。0.2 是统一外壳加按主体类型的 payload（第 7 节）。
+
+外壳：
+
+| 字段 | 说明 | 相对 0.1 |
+|-|-|-|
+| `subject_ref` | 主体，对象形式；可以是任一业务对象（Mission、责任单元、周期目标……） | 0.1 天枢只写 Mission；现在可以写单元 |
+| `as_of` | 时点，带时区；不晚于写入时刻；同一主体同一时点只有一条 | 不变 |
+| `period` | 可选，`YYYY-MM` | 不变 |
+| `source_event_refs` | 来源事件，事件引用列表，**至少一条** | 新增，必填 |
+| `payload_type` | 必须是主体类型登记的那一种，见下表 | 新增，必填 |
+| `title` | 标题 | 不变 |
+| `generator` | 生成者，**服务端按凭证填，请求里不要给** | 新增，只读 |
+
+| `payload_type` | 主体 | 块 |
+|-|-|-|
+| `execution_state` | Mission、Task、Activity | `progress`（进展条目）、`blockers`、`issues`（问题组件）、`materials` |
+| `goal_state` | 长期目标、周期目标 | `progress`、`issues`、`materials` |
+| `unit_state` | 责任单元 | `progress`、`issues`、`materials` |
+| `strategy_state` | Strategy | `issues`、`materials` |
+| `company_review` | Company | `results`、`gaps`、`causes`、`key_changes`、`implications`、`materials` |
+
+**天枢每周进展快照的改法**：
+
+1. 先记一条外部事件作来源，例如 `category: "other"`，内容「天枢每周同步 <ISO 周>」，主体是该 Mission，幂等键建议 `tianshu:weekly-sync:<missionId>:<ISO周>`。
+2. 再写快照：`payload_type: "execution_state"`，`source_event_refs` 放第 1 步返回的 `event:<事件 id>`；进展按人 × 事项写成 `progress` 块里的 `progress_item` 组件，组件 id 用天枢 todo id；议题写成 `issues` 块里的 `issue` 组件，组件 id 用天枢 issue id；链接放 `materials`（0.1 的 `artifacts` 块改名为 `materials`，块内仍有 `artifacts` 链接列表）。
+3. `as_of`、幂等键、声明沿用 0.1 的约定（周日 23:59:59+08:00，`tianshu:weekly:<missionId>:<ISO周>`，`human_acceptance.required=false`）。
+
+0.1 里按模板渲染成 Markdown 的做法在 0.2 不再需要：每条事项、每个议题是一个组件，字段在 `attributes` 里；`text` 可以留一句说明。
+
+## 五、写入声明：场景放宽
+
+`scene` 可以是任一业务对象的对象形式引用（0.1 只认 Mission 或 Task），所以写单元、周期目标的快照时，场景写该对象本身即可（第 9.3 节）。其余两项（`trigger`、`human_acceptance`）不变；代记写入不带声明（见第八项）。
+
+## 六、生命周期：显式事件取代外部事件推导
+
+| 0.1 | 0.2 |
+|-|-|
+| 此后第一条状态快照推出「进行中」 | 由开始事件 `world_start` 推出；快照不再推导生命周期 |
+| 交付类、验收类外部事件推出已交付、已关闭 | 由 `world_deliver`、`world_accept` 推出；交付类、验收类外部事件只作记录 |
+| 没有退回、重开、取消 | `world_reject`（进入调整中）、`world_reopen`、`world_cancel` |
+| Mission 立项与交付各一道门 | 门只在立项；交付改由生命周期事件表达 |
+
+- 六个生命周期动作是通用动作，目标是对象；谁能记由状态表判定（第 10 节）：Task 的开始、交付由 Task 责任人记，验收通过、退回、重开、取消由 Mission Owner 记；Mission 的交付由 Owner 记，验收通过、退回、重开、取消由 DRI 记。
+- **天枢「执行事项完成」要记成对应 Task 的 `world_deliver`**，记录者是执行人；天枢以代记的方式替执行人记（第八项）。交付要求 Task 处于进行中或调整中，所以之前要有指派（Mission Owner 记）与开始（执行人记）；只记一条交付类外部事件不会改变 Task 的状态。
+- 与当前状态不匹配的记录返回 `INVALID_STATE`，所以重复推送同一事件不会产生第二次状态变化；同键重放照旧返回原回执。
+- 撤回：记 `outcome: "withdrawn"` 并以 `supersedes_event_id` 指向原事件，只能撤回推出当前状态的那条（第 11 节）。
+
+状态名与落地计划 rev 48 的口径一致：待验收即已交付，已完成即已关闭，退回进入调整中，未开始对应未指派与已指派。
+
+## 七、Issue：问题组件与事件
+
+议题在 0.2 是主受影响对象快照里的 `issue` 组件（第 13 节；CEO 若改为对象会另行通知，可能变）。
+
+- 身份是（主受影响对象，组件 id）。同一对象同一核心问题沿用原 id，后续快照带同一个 id 表示新情况。
+- 流转各记一条事件，动作以 `issue_ref`（组件引用）指明问题：提出 `world_raise_issue`、路由 `world_route_issue`（`to_principal_id`，承接人须是人）、承接 `world_own_issue`、处置 `world_dispose_issue`（`disposition` 六类之一，`content` 写最低理由）、退回形成 `world_return_issue`。
+- 天枢服务主体（在该域持 AGENT）可以提出、路由、退回形成；承接与处置只能由承接人本人记，第一版不可代记（代记的动作族是门、指派与生命周期；是否纳入 Issue 的承接与处置，三方会上提，可能变）。
+- 正在处理的问题不能重复提出；已处置的不再提出，复发用新 id 并在内容里引用原问题。
+
+## 八、代记：人在天枢页面确认，直接进本体
+
+0.1 的门与指派只能由人持自己的凭证记。0.2 开放代记（第 14 节）：
+
+1. **登记委托**：人（CEO、DRI、Owner、执行人）本人记 `world_grant_delegation`，参数 `delegate_principal_id`（天枢服务主体）、`families`（`gate` 门、`assign` 指派、`lifecycle` 生命周期，可多选）、`domain_ids`（范围内的域）、`valid_until`（必填）。本人可随时 `world_revoke_delegation` 撤销，即时生效。委托不能转委托。**每个人登记一次委托这一步要本人做**，E&O 会在实例上线时协助（方式另行说明）。
+2. **代记写入**：天枢以自己的凭证调用可代记的动作，另带
+   ```json
+   "on_behalf_of": {
+     "principal_id": "<被代记的人>",
+     "external_record_id": "<天枢里这次确认的记录 id>",
+     "external_confirmed_at": "2026-10-12T15:30:00+08:00"
+   }
+   ```
+   `external_confirmed_at` 不晚于写入时刻。代记写入不带写入声明。
+3. **判权**：按被代记的人判，规则和他本人记时一样；同时要求委托有效、动作所属的族与目标所在域在委托范围内。任一不满足返回 `FORBIDDEN`。
+4. **效果**：事件与回执同时记下记录者（天枢服务主体）与被代记的人；生命周期与决定权按被代记的人算；事件的发生时刻是写入时刻，外部确认时刻另存。被代记的人可以本人撤回。
+5. 代记只走 HTTP。代记不含建对象（待 CEO 定，可能变）。
+
+对照映射表（对接说明 10.1），0.2 下可以代记的：
+
+| 天枢里的人工确认 | 本体动作 | 族 |
+|-|-|-|
+| 月度计划签发（DRI 提交、CEO 签） | `world_commit_period_goal`（DRI）、`world_confirm_period_goal`（CEO） | 门 |
+| 任务卡确认（Owner 提交、DRI 确认） | `world_commit_mission`、`world_confirm_mission` | 门 |
+| 指定 Mission 负责人、执行人 | `world_assign` | 指派 |
+| 执行事项开始、完成、验收、打回 | `world_start`、`world_deliver`、`world_accept`、`world_reject` | 生命周期 |
+| 会后 CEO 确认的战略类条目 | Strategy 的 Agreement 与确认生效、长期目标的确认 | 门 |
+| CEO 关注某张任务卡 | `world_mark_core_battle`（只影响可见性，不加确认门；CEO 若改方案会另行通知，可能变） | 门 |
+
+## 九、外部引用与查找
+
+0.1 没有外部引用字段，天枢靠同步表对照。0.2（第 3.4、15.2 节）：
+
+- 每个业务对象可以带 `external_refs`：列表，每项 `{system, id, url?}`，例如 `{"system": "tianshu", "id": "battlefield:XX"}`、`{"system": "tianshu", "id": "card:123"}`。建议 `system` 统一用 `tianshu`，类别写进 `id` 前缀（可能变，三方会上定一个写法）。
+- 外部引用是活动属性：有门对象有了正式内容后也可以直接修订，不走门。天枢服务主体以 Agent 身份修订时要带写入声明，只改外部引用这类活动属性时 `human_acceptance.required` 可以为 false；能不能改某个对象按修订权限判。
+- 同一 scope 内同一 `(system, id)` 只能指向一个对象，冲突拒绝。
+- 按外部引用查找：见第十项的列对象接口，带 `external_system` 与 `external_id`。
+
+同步表仍建议保留（记幂等键、`context_pack_id`、回执），但不必再靠它找对象。
+
+## 十、读：列对象与分组读投影
+
+**列对象**（新增）：`GET /v1/world/objects`，筛选参数 `unit_id`（责任单元）或 `domain_id`、`type`、`period`、`external_system` 加 `external_id`，分页；返回对象头：id、类型、类别、标题、最新版本、生命周期、域、外部引用。按周期筛：周期目标按自己的 `period`，Mission 按其周期目标，Task 按其 Mission。
+
+**取对象的返回改为三组**（第 15.1 节）：
+
+- `business`：id、类型、类别、版本与 `revision_id`、属性（含 `external_refs`）、关系引用、块与组件、组件台账、正式内容指针、进行中的一轮。
+- `identity`：责任人（注明来自属性还是角色）、与该对象有关的当前有效委托。
+- `records`：生命周期与推出它的事件、最新快照（标明未经确认）、最近的已确认复盘、未处置的问题。
+
+写前取 `revision_id` 与 `object_version` 的做法不变，只是它们挪进了 `business` 组（字段位置以实测示例为准，可能变）。
+
+**取事件**：按发生时刻升序；每条带 `class`（门、生命周期、记录）、记录者、被代记的人与外部确认记录、迟记标记（补记过去时刻时）、被更正与被撤回的关系。
+
+**取上下文**：接口与默认预算不变；返回里的引用细到组件，事件行写出记录者与被代记的人；Why 沿单元长期目标追到公司级长期目标、Strategy 与 Company。
+
+## 十一、补记与迟记
+
+- 外部事件与状态刷新可以补记过去的时刻：外部事件取 `occurred_at`，快照取 `as_of`；都不晚于写入时刻。读取按发生时刻排序并标「迟记」。
+- 门事件、生命周期事件与其余记录事件的发生时刻就是写入时刻，不接受补记；天枢里「实际确认时刻」放在代记的 `external_confirmed_at`。
+
+## 十二、天枢要改的，汇总
+
+1. 切到新实例、新 scope、新凭证，信封版本改 `tkos.world/0.2`；同步表能按实例整批重来。
+2. 每周进展：先记来源外部事件，再写带 `payload_type`、`source_event_refs` 的快照；进展与议题改为组件，组件 id 用天枢 id；`artifacts` 块改 `materials`。
+3. 执行事项完成改记 Task 的 `world_deliver`（代记执行人），不再只记交付类外部事件。
+4. 月度计划签发、任务卡确认、指派经代记写入，带 `on_behalf_of`；请参与的人先登记委托。
+5. 战场、能力域、任务卡写 `external_refs`，按列对象接口查回，替代同步表里的对象对照。
+6. 读取改从 `business`、`identity`、`records` 三组取字段；引用解析支持组件与事件两种新形式。
+7. 议题按 Issue 的事件流转（提出、路由由天枢服务主体记；承接、处置由承接人本人记）。
+8. 调用日志的约定不变（对接说明 4.4），引用集合包括组件引用与事件引用。
+
+## 十三、时间表
+
+| 时间 | 事项 |
+|-|-|
+| 9 月 30 日 | 本清单交天枢 |
+| 10 月 9 日 | 0.2 实验实例上线，附实例地址、凭证、id 清单与各接口的实测请求返回示例 |
+| 10 月 9 日至 11 日 | 天枢按实例联调，E&O 协助人员登记委托 |
+| 10 月 12 日至 16 日 | 试用；16 日联调验收 |
+
+三方会上要定的仍是对接说明 11.2 列的几项，另加：外部引用的 `system` 与 `id` 写法；Issue 的承接与处置是否纳入代记。

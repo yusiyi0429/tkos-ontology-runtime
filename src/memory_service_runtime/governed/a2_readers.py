@@ -959,10 +959,10 @@ def authorize_receipt(conn: Any, ctx: Any, receipt: dict[str, Any]) -> None:
 
     round_object_id = _receipt_anchor_round(conn, ctx, receipt)
     if round_object_id is None:
-        # No live Round anchor.  Source actions pass on reference authz
-        # alone; composition receipts without a round anchor are denied
-        # because the receipt is no longer grounded in a live composition.
-        return
+        # No Round anchor.  Source actions already returned above; a
+        # composition receipt without a round anchor is denied because the
+        # receipt is no longer grounded in a composition (fail closed).
+        raise GovernedError("NOT_FOUND", "Receipt was not found", status=404)
 
     slot = _actor_current_slot(conn, ctx, round_object_id)
     if slot is None:

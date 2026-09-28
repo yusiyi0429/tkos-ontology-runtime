@@ -713,6 +713,9 @@ def main():
     leak_free = (verify_no_private_text(args.output / "http-transcript.jsonl", args.sources_dir)
                  if args.sources_dir is not None else True)
     assert leak_free, "private source text leaked into the public HTTP transcript"
+    # 与其余验收 runner 一致：运行期间 src 被改动时不得宣称验收通过。
+    assert source_manifest(source) == initial, "src changed during acceptance; rerun on a stable source"
+    checks.append("production_source_unchanged_during_acceptance")
     public_json(args.output / "source-manifest.json", initial)
     public_json(args.output / "summary.json", {
         "checks_passed": checks, "check_count": len(checks),

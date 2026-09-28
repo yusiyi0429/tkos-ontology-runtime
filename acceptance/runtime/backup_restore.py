@@ -170,7 +170,7 @@ def restore_backup() -> dict:
     pg_dump = folder / "postgres.dump"
     archive = folder / "minio-volume.tar"
     source_volume = minio_source_volume()
-    buckets = [env["TKOS_OBJECT_STORE_BUCKET"], env["TKOS_OBJECT_STORE_ARTIFACT_BUCKET"]]
+    buckets = [env["TKOS_OBJECT_STORE_BUCKET"]]
     s3_params = {"endpoint": env["TKOS_OBJECT_STORE_ENDPOINT"], "access": private["MINIO_APP_ACCESS_KEY"],
                  "secret": private["MINIO_APP_SECRET_KEY"], "buckets": buckets}
     source_s3 = infra.child_python(S3_MANIFEST, s3_params)

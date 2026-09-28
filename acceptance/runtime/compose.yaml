@@ -49,16 +49,13 @@ services:
       - |
         mc alias set acceptance http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD" >/dev/null
         mc ready acceptance >/dev/null
-        mc mb --ignore-existing acceptance/runtime-acceptance-artifacts >/dev/null
-        mc version enable acceptance/runtime-acceptance-artifacts >/dev/null
         mc mb --ignore-existing --with-lock acceptance/runtime-acceptance-snapshots >/dev/null
         mc version enable acceptance/runtime-acceptance-snapshots >/dev/null
         mc retention set --default GOVERNANCE 1d acceptance/runtime-acceptance-snapshots >/dev/null
         cat >/tmp/app-policy.json <<'POLICY'
         {"Version":"2012-10-17","Statement":[
-          {"Effect":"Allow","Action":["s3:GetBucketLocation","s3:ListBucket","s3:ListBucketVersions","s3:GetBucketVersioning","s3:GetBucketObjectLockConfiguration"],"Resource":["arn:aws:s3:::runtime-acceptance-artifacts","arn:aws:s3:::runtime-acceptance-snapshots"]},
-          {"Effect":"Allow","Action":["s3:GetObject","s3:GetObjectVersion","s3:GetObjectRetention","s3:PutObject"],"Resource":["arn:aws:s3:::runtime-acceptance-artifacts/*","arn:aws:s3:::runtime-acceptance-snapshots/*"]},
-          {"Effect":"Allow","Action":["s3:DeleteObject"],"Resource":["arn:aws:s3:::runtime-acceptance-artifacts/*"]}
+          {"Effect":"Allow","Action":["s3:GetBucketLocation","s3:ListBucket","s3:ListBucketVersions","s3:GetBucketVersioning","s3:GetBucketObjectLockConfiguration"],"Resource":["arn:aws:s3:::runtime-acceptance-snapshots"]},
+          {"Effect":"Allow","Action":["s3:GetObject","s3:GetObjectVersion","s3:GetObjectRetention","s3:PutObject"],"Resource":["arn:aws:s3:::runtime-acceptance-snapshots/*"]}
         ]}
         POLICY
         mc admin user add acceptance "$$MINIO_APP_ACCESS_KEY" "$$MINIO_APP_SECRET_KEY" >/dev/null

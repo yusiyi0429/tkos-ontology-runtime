@@ -8,7 +8,8 @@ def main() -> None:
     try:
         from .server import main as serve
     except ModuleNotFoundError as exc:
-        if exc.name != "mcp":
+        # server 先后导入 jsonschema 与 mcp，两者都只来自 [mcp] extra。
+        if (exc.name or "").split(".")[0] not in {"mcp", "jsonschema"}:
             raise
         print("tkos-world-mcp needs the optional mcp dependencies: install tkos-memory-service[mcp] "
               "(uv sync --extra mcp).", file=sys.stderr)

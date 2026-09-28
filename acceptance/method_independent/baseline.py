@@ -30,6 +30,14 @@ DEFERRED = [
 ]
 
 
+def file_digests(root: Path = ROOT) -> dict[str, str | None]:
+    # Some listed paths were never committed (they only existed in the author's
+    # checkout), so a missing file is recorded as None instead of crashing: the
+    # before/after comparison still catches a file that appears or disappears.
+    return {name: hashlib.sha256((root / name).read_bytes()).hexdigest() if (root / name).is_file() else None
+            for name in DEFERRED}
+
+
 def capture():
     # No docker inspect: it may expose container environment secrets.
     result = subprocess.run([
@@ -41,7 +49,7 @@ def capture():
         raw = json.loads(line)
         containers.append({key: raw[key] for key in ('ID', 'Names', 'Image', 'State', 'Ports')})
     return {
-        'files': {name: hashlib.sha256((ROOT / name).read_bytes()).hexdigest() for name in DEFERRED},
+        'files': file_digests(),
         'containers': sorted(containers, key=lambda row: row['ID']),
     }
 

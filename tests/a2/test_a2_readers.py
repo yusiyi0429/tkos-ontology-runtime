@@ -631,6 +631,23 @@ def test_authorize_receipt_source_action_without_round_uses_current_rights():
         r.authorize_receipt(object(), ctx(), receipt)  # no raise
 
 
+def test_authorize_receipt_composition_without_round_anchor_denied():
+    """A composition receipt that no longer resolves to a Round fails closed,
+    even when every referenced object is currently readable."""
+    receipt = {
+        "action_type": "confirm_company_composition",
+        "target_object_id": "00000000-0000-0000-0000-0000000000aa",
+        "object_versions": [], "result": {"referenced_object_ids": []},
+    }
+    with patch.object(r, "_authorize_object", return_value=True), \
+         patch.object(r, "_receipt_anchor_round", return_value=None), \
+         patch.object(r, "_actor_current_slot") as slot:
+        with pytest.raises(GovernedError) as ei:
+            r.authorize_receipt(object(), ctx(), receipt)
+    assert ei.value.code == "NOT_FOUND"
+    slot.assert_not_called()
+
+
 def test_authorize_receipt_revoked_signer_denied_even_for_own_history():
     """Historical actor id alone is not enough — slot must be live."""
     target = "00000000-0000-0000-0000-0000000000aa"

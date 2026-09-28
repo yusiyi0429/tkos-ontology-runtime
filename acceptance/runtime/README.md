@@ -37,7 +37,7 @@ python3 acceptance/runtime/infra.py up
 python3 acceptance/runtime/infra.py status
 ```
 
-启动时创建独立命名卷，只把 PG/S3 绑定到系统预选的空闲 `127.0.0.1` 端口，MinIO console 不发布。端口保存在私有状态中，后续启动再次校验实际映射。使用独立 bridge；Docker 29 的 internal network 在本机不创建可用的发布端口，因此这里不启用 internal。数据库和对象存储就绪后，初始化角色、迁移旧 schema、初始化两个 bucket，并用受限应用 S3 身份执行不可变配置探针。启动报告不代表治理动作或外部效果已经验收。
+启动时创建独立命名卷，只把 PG/S3 绑定到系统预选的空闲 `127.0.0.1` 端口，MinIO console 不发布。端口保存在私有状态中，后续启动再次校验实际映射。使用独立 bridge；Docker 29 的 internal network 在本机不创建可用的发布端口，因此这里不启用 internal。数据库和对象存储就绪后，初始化角色、迁移旧 schema、初始化 snapshots bucket，并用受限应用 S3 身份执行不可变配置探针。启动报告不代表治理动作或外部效果已经验收。
 
 ## 私有环境交接
 
@@ -49,7 +49,6 @@ python3 acceptance/runtime/infra.py status
 - `MIGRATION_DATABASE_URL`：`tkos_acceptance_owner`，非 superuser，仅用于迁移和测试种子子进程；API/Worker 不使用。
 - `MEMORY_TENANT`、`MEMORY_ORG`：独立随机 scope。用例仍应再划分独立 scope；不使用 `local/local-org`。
 - `TKOS_OBJECT_STORE_ENDPOINT/BUCKET/ACCESS_KEY/SECRET_KEY/REGION/VERIFY_TLS`：现有 object_store adapter 同名参数，BUCKET 为 `runtime-acceptance-snapshots`。
-- `TKOS_OBJECT_STORE_ARTIFACT_BUCKET`：`runtime-acceptance-artifacts`。
 - `RUNTIME_WORKER_ID`、`TKOS_ACCEPTANCE_PYTHON`：本次 Worker 标识及已验证的 Python 路径。
 
 `app.env` 排除 migration DSN。`infra.py run -- command` 仅给子进程应用权限；`--migration` 只对该子进程把 DATABASE_URL 切为 owner，并注入 `TEST_ADMIN_DATABASE_URL` 供创建/销毁隔离测试数据库。这个 admin DSN 不写入 env.json 或 app.env，不改变父进程或文件中的默认值。命令 stdout/stderr 会捕获并遮蔽已知验收凭据与 token，业务 payload 中的个人数据仍由用例自己避免输出。
@@ -73,7 +72,7 @@ python3 acceptance/runtime/infra.py migrate
 
 ## 真实外部效果与持久化验收
 
-MinIO artifacts bucket 开启版本化；snapshots bucket 在创建时开启 Object Lock，并设默认 GOVERNANCE 1 天保留。应用 S3 身份只能访问这两个 bucket；snapshot 不授 DeleteObject、BypassGovernanceRetention 或管理权限。它可列版本、读取指定版本及 retention，便于核实实际效果。
+MinIO 只建 snapshots 一个 bucket：创建时开启 Object Lock，并设默认 GOVERNANCE 1 天保留。应用 S3 身份只能访问这个 bucket，且不授 DeleteObject、BypassGovernanceRetention 或管理权限。它可列版本、读取指定版本及 retention，便于核实实际效果。
 
 现有 `system.noop` 只证明队列；`object_store.preflight` 只读 bucket 设置。当前治理验收通过真实 HTTP 上传/读取 S3 原始证据，通过 `governance.dispatch` 调用另一个独立 HTTP 接收器。接收器把唯一效果和每次调用持久化到 SQLite，按 receipt/task 派生的稳定 key 去重。
 

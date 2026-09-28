@@ -125,9 +125,12 @@ def run_gates(s):
 
     with h.group("workbench_independent_01_authenticated_type_and_domain_catalog") as report:
         catalog = get(ceo, "/v1/object-types")
+        # 独立验收，期望值手写而非从实现读取；A2 组合类型与 ExecutionPlan / CompanyReference /
+        # CapacityObservation 于 2026-09-11 起进入目录，这里随之更新（原先只列 11 种）。
+        a2_types = {"FormationRound", "DomainSubmission", "CompanyComposition", "Mission", "DomainCommitment"}
         expected_types = {"CompanyOutcome", "BusinessCommitment", "ExecutionCommitment", "FeedbackThread",
                           "ManagementAdjustment", "Decision", "MetricObservation", "WorkItem", "EvidenceAsset", "Deliverable",
-                          "ProtocolSentinel"}
+                          "ProtocolSentinel", "ExecutionPlan", "CompanyReference", "CapacityObservation"} | a2_types
         assert catalog["schema_version"] and {item["object_type"] for item in catalog["items"]} == expected_types
         assert len(catalog["items"]) == len(expected_types)
         for item in catalog["items"]:
@@ -135,6 +138,8 @@ def run_gates(s):
             if item["object_type"] == "ProtocolSentinel":
                 assert item["creation_mode"] == "control_plane_only"
                 assert item["payload_schema"] is None
+            elif item["object_type"] in a2_types:
+                assert item["creation_mode"] == "a2_action"
             else:
                 assert item["creation_mode"] == ("dedicated_action" if item["object_type"] in {"EvidenceAsset", "Deliverable"} else "generic_action")
         for path in ("/v1/object-types", "/v1/domains"):

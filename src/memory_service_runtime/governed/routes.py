@@ -16,6 +16,7 @@ from psycopg.types.json import Jsonb
 
 from memory_service_runtime.governed import canon, db, evidence, protocol, readers, service, workbench, workspace_v02_guard
 from memory_service_runtime.governed.errors import GovernedError
+from memory_service_runtime.governed.method_versions import METHOD_VERSIONS, SINCE_V02
 from memory_service_runtime.governed.models import ActionRequest
 from .a2_models import ObjectRef
 from .world_v01_models import WorldContextRequest
@@ -35,7 +36,7 @@ class ContextRequest(BaseModel):
     object_ids: list[uuid.UUID] = Field(min_length=1, max_length=100)
     valid_at: AwareDatetime
     known_at: AwareDatetime
-    contract_version: Literal["tkos.method/0.1", "tkos.method/0.2", "tkos.method/0.3", "tkos.method/0.4", "tkos.method/0.5"] | None = None
+    contract_version: Literal[METHOD_VERSIONS] | None = None
     stage: str | None = Field(default=None, min_length=1, max_length=200)
     purpose: str | None = Field(default=None, min_length=1, max_length=500)
     include_drafts: StrictBool = False
@@ -202,7 +203,7 @@ Limit = Annotated[int, Query(ge=1, le=100)]
 
 
 class ResearchContextRequest(ContextRequest):
-    contract_version: Literal["tkos.method/0.2", "tkos.method/0.3", "tkos.method/0.4", "tkos.method/0.5"] = "tkos.method/0.2"
+    contract_version: Literal[SINCE_V02] = "tkos.method/0.2"
     stage: Literal["research"] = "research"
     purpose: Literal["research"] = "research"
     run_ref: ObjectRef
@@ -237,7 +238,7 @@ Cursor = Annotated[str | None, Query(max_length=workbench.MAX_CURSOR_LENGTH)]
 
 @router.get("/object-types")
 def object_types_list(request: Request, response: Response, token: Annotated[str, Depends(bearer)],
-                      contract_version: Literal["tkos.method/0.1", "tkos.method/0.2", "tkos.method/0.3", "tkos.method/0.4", "tkos.method/0.5"] | None = None):
+                      contract_version: Literal[METHOD_VERSIONS] | None = None):
     workbench.strict_query(request.query_params, {"contract_version"})
     with db.transaction(token) as (conn, ctx):
         result = workbench.object_types(conn, ctx, contract_version) if contract_version else workbench.object_types(conn, ctx)

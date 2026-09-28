@@ -72,6 +72,12 @@ def _float(
     return value
 
 
+def db_connect_timeout(environ: Mapping[str, str] | None = None) -> int:
+    """``DB_CONNECT_TIMEOUT``: seconds allowed for each new database connection."""
+    source = os.environ if environ is None else environ
+    return _integer("DB_CONNECT_TIMEOUT", environ=source, default=5, minimum=1, maximum=60)
+
+
 @dataclass(frozen=True)
 class RuntimeConfig:
     database_url: str
@@ -101,9 +107,7 @@ class RuntimeConfig:
             tenant_id=tenant_id,
             organization_id=organization_id,
             worker_id=worker_id,
-            db_connect_timeout=_integer(
-                "DB_CONNECT_TIMEOUT", environ=source, default=5, minimum=1, maximum=60
-            ),
+            db_connect_timeout=db_connect_timeout(source),
             poll_seconds=_float(
                 "RUNTIME_WORKER_POLL_SECONDS",
                 environ=source,

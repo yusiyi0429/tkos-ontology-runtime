@@ -3,8 +3,8 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 import hashlib
-import os
 
+from memory_service_runtime import object_store
 from memory_service_runtime.config import env_value
 from memory_service_runtime.governed import db
 from memory_service_runtime.governed.errors import GovernedError
@@ -16,20 +16,7 @@ MAX_EVIDENCE_BYTES = 2 * 1024 * 1024
 @contextmanager
 def object_client():
     try:
-        from botocore.config import Config
-        from botocore.session import get_session
-
-        client = get_session().create_client(
-            "s3",
-            endpoint_url=env_value("TKOS_OBJECT_STORE_ENDPOINT", required=True),
-            region_name=env_value("TKOS_OBJECT_STORE_REGION", default="us-east-1"),
-            aws_access_key_id=env_value("TKOS_OBJECT_STORE_ACCESS_KEY", required=True),
-            aws_secret_access_key=env_value("TKOS_OBJECT_STORE_SECRET_KEY", required=True),
-            verify=os.environ.get("TKOS_OBJECT_STORE_VERIFY_TLS", "true").lower() not in {"0", "false", "no"},
-            config=Config(signature_version="s3v4", connect_timeout=3, read_timeout=5,
-                          retries={"total_max_attempts": 2, "mode": "standard"},
-                          s3={"addressing_style": "path"}),
-        )
+        client = object_store.create_client(**object_store.settings())
     except Exception as exc:
         raise GovernedError("EVIDENCE_UNAVAILABLE", "Evidence storage configuration is unavailable", status=503) from exc
     try:

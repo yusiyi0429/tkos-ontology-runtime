@@ -221,7 +221,7 @@ _SESSION_GUCS = ("app.governed_scope_id", "app.runtime_write_capability",
 
 _POOL_LOCK = threading.Lock()
 _POOL: ConnectionPool | None = None
-_POOL_KEY: tuple[str, int] | None = None
+_POOL_KEY: tuple[str, int, int] | None = None
 
 
 def _reset(conn: psycopg.Connection) -> None:
@@ -231,40 +231,45 @@ def _reset(conn: psycopg.Connection) -> None:
     conn.commit()
 
 
-def _pool_config() -> tuple[str, int, float]:
+def _pool_config() -> tuple[str, int, float, int]:
     """Pool sizing from the environment.  max_size 0 disables pooling.
 
     DATABASE_URL is read through env_value so DATABASE_URL_FILE works here too:
     the DSN carries the application password, and a secret file keeps it out of
     the container environment where `docker inspect` would expose it.
     """
-    from memory_service_runtime.config import RuntimeConfigError, env_value
+    from memory_service_runtime.config import RuntimeConfigError, db_connect_timeout, env_value
 
     try:
         url = env_value("DATABASE_URL").strip()
     except RuntimeConfigError:
         url = ""
     try:
+        connect_timeout = db_connect_timeout()
+    except RuntimeConfigError:
+        # Unusable like a missing DSN: a 503, not a silent fallback timeout.
+        url, connect_timeout = "", 0
+    try:
         max_size = int(os.environ.get("GOVERNED_POOL_MAX_SIZE", "10"))
         timeout = float(os.environ.get("GOVERNED_POOL_TIMEOUT_SECONDS", "10"))
     except ValueError:
         max_size, timeout = 10, 10.0
-    return url, max(max_size, 0), max(timeout, 0.1)
+    return url, max(max_size, 0), max(timeout, 0.1), connect_timeout
 
 
-def _pool(url: str, max_size: int) -> ConnectionPool:
-    """One bounded pool per process, rebuilt when the DSN or bound changes."""
+def _pool(url: str, max_size: int, connect_timeout: int) -> ConnectionPool:
+    """One bounded pool per process, rebuilt when the DSN, bound or connect timeout changes."""
     global _POOL, _POOL_KEY
     with _POOL_LOCK:
-        if _POOL is not None and _POOL_KEY == (url, max_size):
+        if _POOL is not None and _POOL_KEY == (url, max_size, connect_timeout):
             return _POOL
         if _POOL is not None:
             _POOL.close()
             _POOL, _POOL_KEY = None, None
         pool = ConnectionPool(url, min_size=0, max_size=max_size, open=True,
                               reset=_reset, kwargs={"row_factory": dict_row,
-                                                    "connect_timeout": 5})
-        _POOL, _POOL_KEY = pool, (url, max_size)
+                                                    "connect_timeout": connect_timeout})
+        _POOL, _POOL_KEY = pool, (url, max_size, connect_timeout)
         return pool
 
 
@@ -350,15 +355,15 @@ def _governed(conn: psycopg.Connection, token: str,
 
 @contextmanager
 def transaction(token: str) -> Iterator[tuple[psycopg.Connection, AuthContext]]:
-    url, max_size, timeout = _pool_config()
+    url, max_size, timeout, connect_timeout = _pool_config()
     if not url:
         raise GovernedError("EVIDENCE_UNAVAILABLE", "The governed database is unavailable.")
     if max_size == 0:
-        with psycopg.connect(url, row_factory=dict_row, connect_timeout=5) as conn:
+        with psycopg.connect(url, row_factory=dict_row, connect_timeout=connect_timeout) as conn:
             with _governed(conn, token, 0.0) as bound:
                 yield bound
         return
-    pool = _pool(url, max_size)
+    pool = _pool(url, max_size, connect_timeout)
     with ExitStack() as stack:
         started = time.perf_counter()
         try:

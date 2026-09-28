@@ -26,6 +26,7 @@ from uuid import UUID
 
 from memory_service_runtime.governed import db, delivery, protocol, readers
 from memory_service_runtime.governed.errors import GovernedError
+from .method_versions import METHOD_VERSIONS
 from memory_service_runtime.governed.models import (
     A2_OBJECT_TYPE_NAMES,
     PAYLOAD_MODELS,
@@ -272,8 +273,7 @@ def _page(fetch: Callable[[Any, int], list[Any]], keep: Callable[[Any], bool],
 
 
 def object_types(conn: Any, ctx: Any, contract_version: str | None = None) -> dict[str, Any]:
-    if contract_version in {"tkos.method/0.1", "tkos.method/0.2", "tkos.method/0.3", "tkos.method/0.4",
-                            "tkos.method/0.5"}:
+    if contract_version in METHOD_VERSIONS:
         from .method_models import registry
         _, _, payloads = registry(contract_version)
         return {"schema_version": "method-read/" + contract_version.rsplit("/", 1)[1], "contract_version": contract_version,

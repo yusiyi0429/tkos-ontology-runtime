@@ -21,7 +21,6 @@ from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
 import pytest
 
-from memory_service_app import narrative as api
 from memory_service_app.main import app
 from memory_service_runtime.governed import bootstrap
 from tests.conftest import DATABASE_URL
@@ -170,7 +169,7 @@ def legacy_rig(legacy_identity, monkeypatch):
         content = "" if provider["chat"] == "empty" else "按证据评估业务进展。"
         return httpx.Response(200, json={"choices": [{"message": {"content": content}}]})
 
-    monkeypatch.setattr(api.httpx, "Client", lambda **kwargs: real_client(transport=httpx.MockTransport(respond), **kwargs))
+    monkeypatch.setattr(httpx, "Client", lambda **kwargs: real_client(transport=httpx.MockTransport(respond), **kwargs))
     rig = SimpleNamespace(identity=identity, ids=ids, sources=expected_sources, calls=calls, provider=provider)
     try:
         yield rig

@@ -37,7 +37,7 @@ def test_returned_connection_carries_no_governance_state():
     worst case a future code path could introduce, and the pool must still
     hand the next caller a clean connection.
     """
-    pool = db._pool(os.environ["DATABASE_URL"], 1)
+    pool = db._pool(os.environ["DATABASE_URL"], 1, 5)
     with pool.connection() as conn:
         first = _pid(conn)
         conn.execute(
@@ -58,7 +58,7 @@ def test_returned_connection_carries_no_governance_state():
 def test_exhausted_pool_is_a_retryable_503(monkeypatch):
     monkeypatch.setenv("GOVERNED_POOL_MAX_SIZE", "1")
     monkeypatch.setenv("GOVERNED_POOL_TIMEOUT_SECONDS", "1")
-    pool = db._pool(os.environ["DATABASE_URL"], 1)
+    pool = db._pool(os.environ["DATABASE_URL"], 1, 5)
     with pool.connection():
         with pytest.raises(GovernedError) as caught:
             with db.transaction("x" * 40):

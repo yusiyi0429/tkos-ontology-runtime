@@ -5,6 +5,7 @@ from uuid import uuid4
 from psycopg.types.json import Jsonb
 from . import db, protocol, evidence, checkpoints, method_access as access
 from .errors import GovernedError
+from .method_versions import FORMAL_GOVERNANCE_VERSIONS, SINCE_V03
 from .service import ActionExecution
 
 
@@ -16,8 +17,6 @@ def exact_ref(head, revision):
     return {"object_id": head["object_id"], "revision_id": revision["revision_id"], "payload_hash": revision["payload_hash"]}
 
 
-# 0.4 与 0.5 共用同一套正式治理机制（全体确认、整组激活、scoped 授权）；0.5 只改本体对齐的差异。
-FORMAL_GOVERNANCE_VERSIONS = frozenset({"tkos.method/0.4", "tkos.method/0.5"})
 
 
 class MethodExecution(ActionExecution):
@@ -256,7 +255,7 @@ class MethodExecution(ActionExecution):
         domain_id = domain_id or self.domain_id
         scoped = self.method_scoped_domain and domain_id == self.domain_id and (
             (self.target and self.target["object_type"] == "StrategicIssue") or
-            (self.contract_version in {"tkos.method/0.3", *FORMAL_GOVERNANCE_VERSIONS}
+            (self.contract_version in SINCE_V03
              and self.kind in {"method_propose_state", "method_confirm_state", "m1b_record_constraint"}))
         if not scoped:
             db.authorize_domain(self.conn, self.ctx, domain_id, self.kind)

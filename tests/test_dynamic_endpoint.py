@@ -40,7 +40,7 @@ def _clear_overrides() -> None:
 def _patch_httpx_client(monkeypatch: pytest.MonkeyPatch, transport: httpx.MockTransport) -> None:
     real_client = httpx.Client
     monkeypatch.setattr(
-        routes_dynamic.httpx,
+        httpx,
         "Client",
         lambda **kwargs: real_client(transport=transport, **kwargs),
     )

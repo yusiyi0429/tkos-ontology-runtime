@@ -458,6 +458,7 @@ ActionParams = Union[CreateObjectParams, ProposeRevisionParams, AcceptCommitment
 
 
 from .a2_models import ObjectRef as MethodRunRef
+from .method_versions import FORMAL_GOVERNANCE_VERSIONS
 from .method_models import METHOD_ACTION_PARAMS, METHOD_ACTION_TARGETS, MethodActionType, MethodActionParams
 from .method_v02_models import ACTION_PARAMS as METHOD_V02_PARAMS, ACTION_TARGETS as METHOD_V02_TARGETS
 from .method_v03_models import ACTION_PARAMS as METHOD_V03_PARAMS, ACTION_TARGETS as METHOD_V03_TARGETS
@@ -576,7 +577,7 @@ class ActionRequest(StrictModel):
         if self.action_type == "method_open_run" and (self.run_ref is not None or self.step_key is not None):
             raise ValueError("A Method run is an independent root")
         if (self.action_type not in METHOD_V02_TARGETS
-                and self.contract_version not in {"tkos.method/0.4", "tkos.method/0.5"}
+                and self.contract_version not in FORMAL_GOVERNANCE_VERSIONS
                 and (self.run_ref is not None or self.step_key is not None)):
             raise ValueError("Run association belongs only to tkos.method/0.1")
         if self.idempotency_key != self.idempotency_key.strip():

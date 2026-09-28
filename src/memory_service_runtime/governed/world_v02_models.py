@@ -6,7 +6,7 @@
 
 每类有两个模型：写入模型只收客户端能写的字段，引用是业务形式的字符串，组件 id 可以不给；存储模型含
 登记的全部字段，引用是钉定后的结构，组件都有 id，另有服务维护的组件台账 ``component_ledger``。
-只由事件写的属性、只经 world_relate 写的关系字段与周期目标的 ``review_ref``（票 #60）不进写入模型。
+只由事件写的属性与只经 world_relate 写的关系字段不进写入模型；周期目标的依据复盘 ``review_ref`` 建对象时写（票 #60）。
 """
 from __future__ import annotations
 
@@ -239,8 +239,7 @@ class _PayloadBase(StrictModel):
 
 
 def _written_by_client(relation: dict[str, Any]) -> bool:
-    # 依据复盘（review_ref）随票 #60 开放。
-    return relation["written_by"] == "world_create_object" and relation["relation"] != "based_on_review"
+    return relation["written_by"] == "world_create_object"
 
 
 @lru_cache(maxsize=None)
@@ -339,7 +338,7 @@ def stored(object_type: str, value: dict[str, Any]) -> dict[str, Any]:
 
 # ------------------------------------------------------------------ revision (契约第 12 节)
 def server_owned(object_type: str) -> list[str]:
-    """只由服务写的字段：由事件写的属性，与客户端不写的关系字段（只经 world_relate 写的、票 #60 之前的依据复盘）。"""
+    """只由服务写的字段：由事件写的属性，与客户端不写的关系字段（只经 world_relate 写的）。"""
     spec = world_registry.object_spec(object_type)
     return ([attribute["id"] for attribute in spec["attributes"] if attribute["set_by"] is not None]
             + [relation["field"] for relation in spec["relation_fields"] if not _written_by_client(relation)])
@@ -458,8 +457,8 @@ def touches_formal(object_type: str, patch: dict[str, Any]) -> bool:
 
 # ------------------------------------------------------------------ candidate and write-back (契约第 12 节)
 def _formal_fields(object_type: str) -> list[str]:
-    """随正式块走门、客户端可写的顶层字段：正式属性与建对象时写的关系字段（只经 world_relate 写的关系与依据复盘
-    不在内，它们只由服务写）。"""
+    """随正式块走门、客户端可写的顶层字段：正式属性与建对象时写的关系字段（含周期目标的依据复盘；只经 world_relate
+    写的关系不在内，它们只由服务写）。"""
     spec = world_registry.object_spec(object_type)
     return ([attribute["id"] for attribute in spec["attributes"]
              if attribute["class"] == "formal" and attribute["set_by"] is None]
@@ -723,9 +722,39 @@ class WorldV02ConfirmParams(_GateParams):
     outcome: Literal["accepted", "returned", "withdrawn"]
 
 
+# 长期目标的确认与再确认可以带「返回 M1-A」的路由结果（契约第 10.2 节，补 23），写进事件的 detail.returns_to，只作记录。
+ReturnsTo = Literal["strategy"]
+
+
 class WorldV02ConfirmCandidateParams(WorldV02ConfirmParams):
-    """长期目标的确认：没有承诺门，接受时可以带候选（第 10.2 节）。"""
+    """长期目标的确认：没有承诺门，接受时可以带候选（第 10.2 节）；确认（接受或退回）可以注明返回 M1-A，撤回不是确认
+    结果，不带它。"""
     payload: Optional[dict[str, Any]] = None
+    returns_to: Optional[ReturnsTo] = None
+
+    @model_validator(mode="after")
+    def a_withdrawal_returns_nowhere(self) -> "WorldV02ConfirmCandidateParams":
+        if self.returns_to is not None and self.outcome == "withdrawn":
+            raise ValueError("a withdrawal carries no returns_to")
+        return self
+
+
+class WorldV02ReconfirmParams(StrictModel):
+    """再确认（周期目标；契约第 10.3、12 节）：不带候选、不出新修订、没有结果，也不能撤回（登记 rules.withdrawal.never
+    的 reconfirm）；可选内容写进事件。门只由人记，不带写入声明；可以代记（门族）。"""
+    content: Optional[_block_model((), False)] = None
+    on_behalf_of: Optional[OnBehalfOf] = None
+
+
+class WorldV02ReconfirmLongTermGoalParams(WorldV02ReconfirmParams):
+    """长期目标的再确认（保持）：同周期目标的再确认，另可注明返回 M1-A（补 23）。"""
+    returns_to: Optional[ReturnsTo] = None
+
+
+class WorldV02ConfirmReviewParams(_GateParams):
+    """复盘确认（契约第 7、10.3、11 节）：目标是被确认的状态快照，不带候选；只在撤回时带结果。以周期目标为主体的复盘
+    确认可以撤回，公司复盘的确认不能（服务按登记判）。"""
+    outcome: Optional[Literal["withdrawn"]] = None
 
 
 class WorldV02MarkCoreBattleParams(StrictModel):
@@ -808,11 +837,14 @@ class WorldV02ReturnIssueParams(_IssueParams):
     declaration: Optional[Declaration] = None
 
 
-# 已接入的门动作 -> 目标类型（门按目标类型拆名，ADR-0005）；再确认、复盘确认与 Strategy 随各自的票。关注标记
-# 是记录事件，但和门一样由持策略角色（CEO）的人记，按目标类型拆名，所以也列在这里（#55）。
+# 已接入的门动作 -> 目标类型（门按目标类型拆名，ADR-0005）；Strategy 的门随它的票。关注标记是记录事件，但和门
+# 一样由持策略角色（CEO）的人记，按目标类型拆名，所以也列在这里（#55）。再确认与复盘确认随票 #60：复盘确认的目标
+# 是状态快照。
 GATE_ACTIONS = {"world_commit_period_goal": "PeriodGoal", "world_confirm_period_goal": "PeriodGoal",
                 "world_confirm_long_term_goal": "LongTermGoal", "world_commit_mission": "Mission",
-                "world_confirm_mission": "Mission", "world_mark_core_battle": "Mission"}
+                "world_confirm_mission": "Mission", "world_mark_core_battle": "Mission",
+                "world_reconfirm_long_term_goal": "LongTermGoal", "world_reconfirm_period_goal": "PeriodGoal",
+                "world_confirm_review": "StateSnapshot"}
 
 # 本进程已实现的 0.2 动作与可建类型。支持登记只能在这之内收窄，不能扩大（与协议支持集合同理）。
 ACTION_PARAMS = {"world_create_object": WorldV02CreateObjectParams, "world_revise_object": WorldV02ReviseObjectParams,
@@ -822,6 +854,9 @@ ACTION_PARAMS = {"world_create_object": WorldV02CreateObjectParams, "world_revis
                  "world_commit_period_goal": WorldV02CommitParams, "world_commit_mission": WorldV02CommitParams,
                  "world_confirm_period_goal": WorldV02ConfirmParams, "world_confirm_mission": WorldV02ConfirmParams,
                  "world_confirm_long_term_goal": WorldV02ConfirmCandidateParams,
+                 "world_reconfirm_long_term_goal": WorldV02ReconfirmLongTermGoalParams,
+                 "world_reconfirm_period_goal": WorldV02ReconfirmParams,
+                 "world_confirm_review": WorldV02ConfirmReviewParams,
                  "world_mark_core_battle": WorldV02MarkCoreBattleParams,
                  "world_grant_delegation": WorldV02GrantDelegationParams,
                  "world_revoke_delegation": WorldV02RevokeDelegationParams,
@@ -833,7 +868,7 @@ BUSINESS_TYPES = frozenset({"Company", "Strategy", "ResponsibilityUnit", "LongTe
 # 状态快照只经 world_refresh_state 写入，建对象在服务里先拒绝它。
 CREATABLE = BUSINESS_TYPES | {"StateSnapshot"}
 # 动作 -> 允许的目标类型；空集表示该动作不带 target。状态快照不修订，只有带跨链关系字段的类型能建关系。
-# 生命周期动作接 Mission、Task 与 Activity（Mission 随票 #55）；长期目标与周期目标的取消随票 #60。
+# 生命周期动作接 Mission、Task 与 Activity（Mission 随票 #55）；取消另接长期目标与周期目标（票 #60）。
 ACTION_TARGETS: dict[str, frozenset[str]] = {
     "world_create_object": frozenset(), "world_revise_object": BUSINESS_TYPES,
     "world_relate": frozenset({"PeriodGoal", "Mission", "Task"}),
@@ -842,5 +877,6 @@ ACTION_TARGETS: dict[str, frozenset[str]] = {
     **{action: frozenset() for action in ISSUE_ACTIONS},  # Issue 以 issue_ref 指明问题，不带目标
     "world_assign": frozenset({"ResponsibilityUnit", "Mission", "Task", "Activity"}),
     **{action: frozenset({"Mission", "Task", "Activity"}) for action in LIFECYCLE_ACTIONS},
+    "world_cancel": frozenset({"LongTermGoal", "PeriodGoal", "Mission", "Task", "Activity"}),
     **{action: frozenset({target}) for action, target in GATE_ACTIONS.items()},
 }

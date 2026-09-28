@@ -36,8 +36,7 @@ def test_the_five_gates_of_this_ticket_are_implemented_on_their_registered_targe
 
 
 def test_the_gates_of_later_tickets_are_not_implemented_yet():
-    for action in ("world_reconfirm_period_goal", "world_reconfirm_long_term_goal", "world_confirm_review",
-                   "world_agree_strategy", "world_confirm_strategy"):  # 关注标记随票 #55 接入
+    for action in ("world_agree_strategy", "world_confirm_strategy"):  # 关注标记随票 #55、再确认与复盘确认随票 #60 接入
         assert action not in models.ACTION_PARAMS
 
 
@@ -188,6 +187,7 @@ def _revised(stored, patch, version):
     ("PeriodGoal", {"period": "2026-11", "blocks": {"realization_logic": {"text": "x"}}}),
     ("LongTermGoal", {"horizon": "2029", "blocks": {"measures": None}}),
     ("Mission", {}),
+    ("PeriodGoal", {"review_ref": f"{OID}@1"}),                       # 依据复盘随票 #60 开放，是建对象时写的关系
 ])
 def test_a_candidate_carries_formal_blocks_formal_attributes_and_creation_relations(object_type, patch):
     models.check_candidate(object_type, patch)
@@ -199,7 +199,6 @@ def test_a_candidate_carries_formal_blocks_formal_attributes_and_creation_relati
     ("Mission", {"responsible": PID}),                                # 只由服务写的字段
     ("Mission", {"core_battle": True}),
     ("Mission", {"depends_on": []}),                                  # 只经 world_relate 写
-    ("PeriodGoal", {"review_ref": f"{OID}@1"}),                       # 依据复盘随票 #60
     ("Mission", {"no_such_field": "x"}),
     ("Mission", {"blocks": {"no_such_block": {"text": "x"}}}),
     ("Mission", ["title"]),

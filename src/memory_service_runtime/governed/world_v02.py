@@ -7,7 +7,8 @@
 钉定其余引用、核对对象放在哪个域与挂在谁下面、写入声明。已接通八类业务对象的建对象、合并修订与建关系，
 写状态快照与记外部事件，指派与 Task、Activity 的六个生命周期动作（#53），周期目标、长期目标与 Mission 立项的
 承诺与确认（#54），Mission 的六个生命周期动作与关注标记（#55），委托的登记与撤销与代记（#62），外部引用在 scope
-内唯一（#63），Issue 的提出、路由、承接、处置与退回形成（#61）；其余门随各自的票接入。
+内唯一（#63），Issue 的提出、路由、承接、处置与退回形成（#61），长期目标与周期目标的再确认、复盘确认、取消与
+终止、形成锚定（#60）；其余门随各自的票接入。
 
 Issue（契约第 13 节）：问题是主受影响对象快照里的问题组件，身份是（主受影响对象，组件 id）。动作不带目标，以 issue_ref
 指明问题；判权在主受影响对象所在的域按激活策略判，承接与处置只由人记，然后按登记 issue.lifecycle 的状态表与记录者
@@ -46,8 +47,8 @@ from . import world_v02_registry as world_registry
 from .errors import GovernedError
 from .service import ActionExecution
 from .world_v01_readers import holds_role
-from .world_v02_readers import (cited, delegations_in_force, head_and_binding, issue_events, issue_holders,
-                                judged_context, lifecycle, lifecycle_events)
+from .world_v02_readers import (cited, confirmed_company_review, delegations_in_force, head_and_binding, issue_events,
+                                issue_holders, judged_context, lifecycle, lifecycle_events, review_confirmed)
 
 
 def _fail(code: str, message: str = "", status: int | None = None) -> None:
@@ -93,6 +94,8 @@ class WorldExecution(ActionExecution):
             self.authorize_issue()
         elif self.kind in {"world_revise_object", "world_relate"}:
             self.authorize_target()
+        elif self.kind == "world_confirm_review":
+            self.authorize_review()
         elif self.kind in models.GATE_ACTIONS:
             self.authorize_gate()
         else:
@@ -236,11 +239,14 @@ class WorldExecution(ActionExecution):
             _invalid("An Agent revision that touches formal blocks or attributes needs human acceptance and an acceptor.")
 
     def revise(self, object_type: str, current: dict[str, Any]) -> None:
-        """合并修订（契约第 12 节）：建对象时写的关系引用只能改钉到同一对象的另一版本（同 0.1）；
-        组件台账记下这一版的新增与删除，只由服务写的字段沿用当前版本。"""
+        """合并修订（契约第 12 节）：建对象时写的关系引用只能改钉到同一对象的另一版本（同 0.1）；例外是周期目标的依据
+        复盘，直接修订时可以改指另一条快照或清空（补 7：草稿期可以改指，正式内容只在草稿直接修订，见 check_revisable；
+        是否已确认由形成锚定判），候选写回时仍只能改钉。组件台账记下这一版的新增与删除，只由服务写的字段沿用当前版本。"""
         before = models.written_form(object_type, current)
         for relation in world_registry.object_spec(object_type)["relation_fields"]:
             field = relation["field"]
+            if relation["relation"] == "based_on_review" and self.kind == "world_revise_object":
+                continue
             if field in before and ([models.parse_ref(text)["object_id"] for text in models.listed(before[field])]
                                     != [models.parse_ref(text)["object_id"] for text in models.listed(self.written[field])]):
                 _invalid(f"{field} can only be re-pinned to another version of the object it was created with; "
@@ -584,12 +590,13 @@ class WorldExecution(ActionExecution):
         self.required_assignments.add(used["assignment_id"])
         self.responsible_through = through
 
-    def recorders(self) -> dict[str, tuple[dict[str, Any], str | None]]:
-        """调用者对目标满足的记录者类别（登记 recorders，契约第 9.2 节）→（让他满足的那条角色指派，经哪个对象的
-        responsible 属性成立）：self 是目标的责任人，parent 是主干上一级的责任人；self_or_agent 是目标的责任人，
-        或在目标所在域持 AGENT 的 Agent（Mission 的「Owner 的 Agent」，补 15）。"""
+    def recorders(self, object_id: str | None = None) -> dict[str, tuple[dict[str, Any], str | None]]:
+        """调用者对目标（给 object_id 时是该对象，例如复盘确认里快照的主体）满足的记录者类别（登记 recorders，契约
+        第 9.2 节）→（让他满足的那条角色指派，经哪个对象的 responsible 属性成立）：self 是目标的责任人，parent 是
+        主干上一级的责任人；self_or_agent 是目标的责任人，或在目标所在域持 AGENT 的 Agent（Mission 的「Owner 的
+        Agent」，补 15）。"""
         current = db._assignments(self.conn, self.ctx)
-        node = self.current_object(self.target["object_id"])
+        node = self.current_object(object_id or self.target["object_id"])
         found = {}
         for category, level in (("self", node), ("parent", self.current_object(self.spine_parent(node)))):
             used = self.responsibility_assignment(level, current)
@@ -666,8 +673,8 @@ class WorldExecution(ActionExecution):
 
     def guard_facts(self, object_type: str) -> dict[str, bool]:
         """这条门事件的守卫事实（登记 guards）：Mission 立项的承诺与确认接受查父周期目标（goal_ref）当前处于已确认；
-        关注标记查这个 Mission 还没有标过（once，每个 Mission 只标一次）。
-        周期目标的形成锚定（goal_ref 的长期目标已确认、review_ref 指向已确认的公司复盘）随票 #60 实现，本票先当它成立。"""
+        关注标记查这个 Mission 还没有标过（once，每个 Mission 只标一次）；周期目标的承诺与确认接受查形成锚定（见
+        formation_anchors）。"""
         if object_type == "Mission":
             goal = self.current_object(self.target["object_id"])["payload"]["goal_ref"]["object_id"]
             status = lifecycle(self.conn, self.ctx, {"object_id": goal, "object_type": "PeriodGoal"})["status"]
@@ -677,8 +684,81 @@ class WorldExecution(ActionExecution):
                 (self.ctx.scope_id, models.CONTRACT_VERSION, self.target["object_id"])).fetchone() is not None
             return {"parent_goal_confirmed": status == "confirmed", "once": not marked}
         if object_type == "PeriodGoal":
-            return {"formation_anchors": True}
+            return {"formation_anchors": self.formation_anchors()}
         return {}
+
+    def formation_anchors(self) -> bool:
+        """周期目标的形成锚定（契约第 10.3 节，补 24）：按目标的最新修订，goal_ref 指向的长期目标当前处于已确认（已终止、
+        草稿都不是有效的长期目标）；review_ref 指向的快照当前是已确认复盘（它是公司复盘由建对象与修订判），没有 review_ref
+        时本 scope 还没有任何已确认的公司复盘（第一个周期）。承诺带的候选只能把 goal_ref 改钉到同一长期目标的另一版本、
+        不能改指 review_ref，所以按最新修订判即是按要形成的内容判。"""
+        payload = self.current_object(self.target["object_id"])["payload"]
+        goal = {"object_id": payload["goal_ref"]["object_id"], "object_type": "LongTermGoal"}
+        if lifecycle(self.conn, self.ctx, goal)["status"] != "confirmed":
+            return False
+        review = payload.get("review_ref")
+        if review is None:
+            return confirmed_company_review(self.conn, self.ctx) is None
+        return review_confirmed(self.conn, self.ctx, review["object_id"])
+
+    # ------------------------------------------------------------ review confirmation
+    def authorize_review(self) -> None:
+        """复盘确认（契约第 7、10.3、11 节）：目标是被确认的状态快照（本 scope 的 world 对象，否则 404），按快照所在的域
+        （随主体）判策略角色（CEO，ADR-0005），门事件只由人记；再过目标动作闸门，然后钉定事件内容与快照的主体（钉到
+        主体当前的最新修订，事件 subject_refs 的第二项）。
+        - 公司复盘：只赋「已确认复盘」的效力，不改任何生命周期；不能撤回（登记 rules.withdrawal.never 的
+          review_confirmed_on_company，记错的以更新的已确认复盘为准）；同一条复盘只确认一次。
+        - 其余主体按主体类型的状态表（登记 via snapshot_subject）交给生命周期引擎：以周期目标为主体的快照使它从已确认
+          进入已关闭（守卫 review_of_subject 在这里恒成立：快照就是以它为主体的），撤回回到已确认，撤回须指向同一条
+          快照上的原事件；状态表里没有复盘确认的主体（其余业务对象）是 INVALID_STATE。"""
+        self.target = head_and_binding(self.conn, self.ctx, self.request.target.object_id)[0]
+        self.domain_id = self.target["domain_id"]
+        self.action_assignments = db.authorize_domain(self.conn, self.ctx, self.domain_id, self.kind)
+        if self.ctx.principal_type != "human":
+            _fail("FORBIDDEN", "A gate event is recorded by a person; an Agent does not record it even with the role.")
+        self.protocol_context = protocol.gate_target_action(
+            self.conn, self.ctx.scope_id, self.target["object_id"], self.kind, self.request.contract_version)
+        content = self.params.get("content")
+        self.content = content and {**content, "refs": [self.pin(text) for text in content["refs"]]}
+        snapshot = self.target_revision_row()["payload"]
+        subject = head_and_binding(self.conn, self.ctx, snapshot["subject_ref"]["object_id"])[0]
+        version = self.conn.execute(
+            "SELECT object_version FROM gov_object_revisions WHERE scope_id=%s AND revision_id=%s",
+            (self.ctx.scope_id, subject["latest_revision_id"])).fetchone()["object_version"]
+        self.event_subjects = [self.pin(models.citation(subject["object_id"], version))]
+        withdrawing = self.params.get("outcome") == "withdrawn"
+        gate_role = (sorted(self.action_assignments, key=lambda row: row["assignment_id"])[0], None)
+        spec = world_registry.registry()["lifecycles"].get(subject["object_type"])
+        self.reviewed = None  # 生命周期随这条复盘确认改变的主体（对象行），run_action 让它的并发版本前进
+        if snapshot["payload_type"] == "company_review":
+            if withdrawing:
+                _fail("INVALID_STATE", "A company review confirmation is not withdrawn; a newer confirmed review "
+                                       "supersedes it.")
+            if review_confirmed(self.conn, self.ctx, self.target["object_id"]):
+                _fail("INVALID_STATE", "This company review is already confirmed.")
+            used, through = gate_role
+        elif spec is None or all(item["action"] != self.kind for item in spec["transitions"]):
+            _fail("INVALID_STATE", "Only a company review or a snapshot of a period goal is confirmed as a review.")
+        else:
+            if withdrawing and self.conn.execute(
+                    """SELECT 1 FROM gov_world_events WHERE scope_id=%s AND event_id=%s AND kind='review.confirmed'
+                         AND subject_refs->0->>'object_id'=%s""",
+                    (self.ctx.scope_id, self.params["supersedes_event_id"], self.target["object_id"])).fetchone() is None:
+                _fail("INVALID_STATE", "A withdrawal names the review confirmation of this snapshot.")
+            recorders = self.recorders(subject["object_id"])
+            recorders["gate_role"] = gate_role
+            event = {"event_id": "pending", "action": self.kind, "outcome": self.params.get("outcome"),
+                     "disposition": None, "supersedes_event_id": self.params.get("supersedes_event_id"),
+                     "candidate": False, "guards": {"review_of_subject": True}, "recorders": set(recorders)}
+            try:
+                by = world_lifecycle.admit(world_registry.registry(), subject["object_type"],
+                                           lifecycle_events(self.conn, self.ctx, subject["object_id"]), event)["by"]
+            except world_lifecycle.Refused as exc:
+                _fail("FORBIDDEN" if exc.reason == "recorder" else "INVALID_STATE", str(exc))
+            used, through = recorders[by]
+            self.reviewed = subject
+        self.required_assignments.add(used["assignment_id"])
+        self.responsible_through = through
 
     def candidate_revision(self, object_type: str, base: dict[str, Any], latest: dict[str, Any], candidate: Any, *,
                            conflict: bool = False) -> dict[str, Any]:
@@ -761,6 +841,8 @@ class WorldExecution(ActionExecution):
                     _invalid(f"{relation['field']} must point to one of {', '.join(relation['targets'])}.")
                 if relation["target_component"] and target["component"]["type"] != relation["target_component"]:
                     _invalid(f"{relation['field']} must point to a {relation['target_component']} component.")
+                if relation["target_payload"] and target["payload"]["payload_type"] != relation["target_payload"]:
+                    _invalid(f"{relation['field']} must point to a {relation['target_payload']} snapshot.")
         field = spec["spine_parent_field"]
         if field is not None:
             same_domain = self.referenced[self.written[field]]["domain_id"] == self.domain_id
@@ -940,6 +1022,8 @@ class WorldExecution(ActionExecution):
             return self.record_lifecycle()
         if self.kind == "world_mark_core_battle":
             return self.mark_core_battle()
+        if self.kind == "world_confirm_review":
+            return self.record_review()
         if self.kind in models.GATE_ACTIONS:
             return self.record_gate()
         return self.new_revision()
@@ -1020,8 +1104,9 @@ class WorldExecution(ActionExecution):
     def record_gate(self) -> dict[str, Any]:
         """记门事件并按它的作用挪正式内容指针（契约第 12 节末条）：第一次进入正式段时对象行改为 confirmed、生效指针
         挪到被确认的修订，撤回这条确认时回到 draft、生效指针清空。写回候选出一个新修订，最新与生效指针一起移过去，
-        门事件钉这一修订、不另记 object.revised；其余门事件钉当前最新修订。带候选的门事件把候选（合并补丁，新组件的
-        id 已定下）留存在 detail，确认接受时从它写回。"""
+        门事件钉这一修订、不另记 object.revised；其余门事件（含再确认）钉当前最新修订、不出修订。带候选的门事件把候选
+        （合并补丁，新组件的 id 已定下）留存在 detail，确认接受时从它写回；长期目标的确认与再确认注明的返回 M1-A 写在
+        detail.returns_to，只作记录（补 23）。"""
         obj, effect = self.target, self.effect
         status, latest, effective = obj["lifecycle_status"], obj["latest_revision_id"], obj["effective_revision_id"]
         if self.payload is not None:
@@ -1034,9 +1119,20 @@ class WorldExecution(ActionExecution):
         if effect["unmakes_formal"]:
             status, effective = "draft", None
         obj = self.bump(obj, status=status, latest=latest, effective=effective)
+        detail = {**({"candidate": self.candidate} if self.candidate is not None else {}),
+                  **({"returns_to": self.params["returns_to"]} if "returns_to" in self.params else {})}
         return self.written_result(obj, revision, outcome=self.params.get("outcome"), content=self.content,
-                                   detail=None if self.candidate is None else {"candidate": self.candidate},
-                                   supersedes_event_id=self.params.get("supersedes_event_id"))
+                                   detail=detail or None, supersedes_event_id=self.params.get("supersedes_event_id"))
+
+    def record_review(self) -> dict[str, Any]:
+        """复盘确认（契约第 7 节）：一条门事件，钉住被确认的快照（第一项）与它的主体（第二项，主体当前的最新修订）。快照
+        不修订，对象行也不动；生命周期随之改变的主体（周期目标关闭、撤回后回到已确认）并发版本前进。"""
+        if self.reviewed is not None:
+            self.bump(self.reviewed)
+        result = self.written_result(self.target, self.target_revision_row(), outcome=self.params.get("outcome"),
+                                     content=self.content, supersedes_event_id=self.params.get("supersedes_event_id"))
+        result["subject_refs"] = cited(self.event_subjects)
+        return result
 
     def create_world_object(self, object_type: str) -> dict[str, Any]:
         if object_type == "StateSnapshot" and self.conn.execute(

@@ -24,8 +24,8 @@ MARK = "world_mark_core_battle"
 
 # ------------------------------------------------------------------ 本票接入的动作与目标
 def test_the_six_lifecycle_actions_land_on_a_mission_as_well():
-    for action in LIFECYCLE:  # 长期目标与周期目标的取消随票 #60
-        assert models.ACTION_TARGETS[action] == {"Mission", "Task", "Activity"}
+    for action in LIFECYCLE:  # 取消另接长期目标与周期目标（票 #60）
+        assert models.ACTION_TARGETS[action] >= {"Mission", "Task", "Activity"}
         assert models.ACTION_TARGETS[action] <= set(ACTIONS[action]["target_types"])
 
 

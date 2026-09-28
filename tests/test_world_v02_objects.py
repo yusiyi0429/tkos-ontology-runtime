@@ -84,7 +84,6 @@ def test_each_business_object_type_takes_a_minimal_payload(object_type):
     ("Mission", "depends_on", [f"{OID}@1"]),          # 跨链关系只经 world_relate 写
     ("Mission", "contributes_to", [f"{OID}@1"]),
     ("PeriodGoal", "depends_on", [f"{OID}@1"]),
-    ("PeriodGoal", "review_ref", f"{OID}@1"),         # 依据复盘随票 #60
     ("Task", "responsible", PID),
     ("Mission", "component_ledger", []),             # 台账由服务维护
 ])

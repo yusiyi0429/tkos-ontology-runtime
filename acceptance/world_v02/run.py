@@ -27,6 +27,7 @@ from acceptance.runtime.client import Client
 from acceptance.world_v01.fixture import ROOT, _grant, _seed_actor, register_world, revoke_assignment, seed_world
 from acceptance.world_v01.flow import Flow as V01Flow
 from .agent_face import mcp_end_to_end
+from .goal_closure import goal_closure
 from .issues import issues
 from .listing import list_objects
 from .fixture import (CONTRACT, PROFILE, REGISTRY, SUPPORT, action_roles, install_activation_policies,
@@ -36,7 +37,7 @@ V01, V02 = 'tkos.world/0.1', 'tkos.world/0.2'
 MIGRATION = '0039_world_v02.sql'
 SCENARIOS = ['migration', 'control_plane', 'company', 'objects', 'rejections', 'coexistence', 'references',
              'revise_relate', 'state_events', 'assign_lifecycle', 'gates', 'context_packs', 'mission_lifecycle',
-             'delegation', 'mcp_end_to_end', 'list_objects', 'issues', 'revocation']
+             'delegation', 'mcp_end_to_end', 'list_objects', 'issues', 'goal_closure', 'revocation']
 EVENT_KINDS = {item['kind']: item for item in json.loads(REGISTRY.read_text())['event_kinds']}
 OBJECTS = {item['type']: item for item in json.loads(REGISTRY.read_text())['objects']}
 TYPES = ['Company', 'Strategy', 'ResponsibilityUnit', 'LongTermGoal', 'PeriodGoal', 'Mission', 'Task', 'Activity']
@@ -611,7 +612,8 @@ def gates(book, h, f, flow, trunk):
     带候选的确认接受写回新修订（活动内容取当前值），不带候选接受当时的最新修订；一轮重走开轮、退回作废、写回
     且状态不变，一轮未完不能再开；写回过后让对象成为正式的那条确认不能撤回；Mission 立项查父周期目标已确认；
     有门对象的块类别修订规则（正式块只在草稿直接改，活动块由责任人、下级责任人与 Co-Agent 直接改）；门只由人记。
-    周期目标的形成锚定随票 #60，本场景里它当作成立。"""
+    周期目标的形成锚定（#60）：主干的单元长期目标还是草稿时承诺被拒，CEO 确认它之后放行（scope 里还没有已确认的公司
+    复盘，周期目标不带 review_ref）；此后各场景的周期目标都挂在这条已确认的长期目标上。"""
     check = book.check
     made = trunk['made']
     actor_id = {name: actor['principal_id'] for name, actor in f['actors'].items()}
@@ -683,6 +685,11 @@ def gates(book, h, f, flow, trunk):
     deny('a', 'world_commit_period_goal', pid, {'INVALID_REQUEST'},
          {'payload': {'blocks': {'acceptance': {'components': [{'id': 'g-o1', 'type': 'acceptance_criterion'}]}}}})
     check('period_goal_a_gate_takes_no_declaration_a_confirmation_needs_its_outcome_and_a_candidate_only_formal_content')
+
+    # 形成锚定（#60）：挂在草稿长期目标上的承诺被拒；CEO 确认主干的单元长期目标之后放行。
+    deny('a', 'world_commit_period_goal', pid, {'INVALID_STATE'}, says='formation_anchors')
+    gate('ceo', 'world_confirm_long_term_goal', unit_goal['object_id'], {'outcome': 'accepted'})
+    check('period_goal_a_commitment_waits_for_its_long_term_goal_to_be_confirmed')
 
     # 承诺、撤回承诺；再承诺、退回。
     committed = gate('a', 'world_commit_period_goal', pid)
@@ -1040,7 +1047,7 @@ def references(book, h, f, flow, trunk, foreign):
     check('a_component_scope_is_an_object_reference')
     flow.deny_create('a', 'PeriodGoal', 'a', {'title': 'P', 'period': '2026-11', 'goal_ref': made['LongTermGoal.unit']['ref'],
                                              'review_ref': made['Company']['ref']}, codes={'INVALID_REQUEST'})
-    check('a_period_goal_review_reference_is_not_open_yet')
+    check('a_period_goal_review_reference_points_to_a_state_snapshot')
     deny_task({'INVALID_REQUEST'}, declaration={'scene': mission['ref'] + '#acceptance', 'trigger': 'x',
                                                 'human_acceptance': {'required': False}})
     check('a_declared_scene_is_an_object_reference')
@@ -2496,6 +2503,8 @@ def run(book, h, source, upgrade_evidence):
             list_objects(book, h, f, flow, trunk, foreign)
         with scenario('issues'):
             issues(book, h, f, flow, trunk)
+        with scenario('goal_closure'):
+            goal_closure(book, h, f, flow, trunk, EVENT_KINDS)
         with scenario('revocation'):
             revocation(book, h, f, flow, made['command'])
     finally:

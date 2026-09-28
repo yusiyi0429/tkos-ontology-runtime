@@ -7,18 +7,23 @@ Owner。从周期目标与 Mission 出发经 HTTP 取上下文，核对：Why �
 被代记的人，指派的写出被指派者；同一世界状态两次调用结果相同；收紧预算时裁剪顺序同 0.1。MCP 取上下文只交四项
 由前面的 mcp_end_to_end 场景在同一个 API 进程上核对。
 
-第二段（形成时带入待带入的问题）：出发对象是有门类型就带入，不看它当前在哪个生命周期段——「此后主受影响对象还没记过
+第二段（形成时带入）：出发对象是有门类型就带入，不看它当前在哪个生命周期段——「此后主受影响对象还没记过
 门事件」已经让问题自然失效，只在草稿或一轮里才带的话，立即重开的问题在对象重开之前就看不到了。在周期目标下另建一条
 Mission，Co-Agent 写带问题组件的快照、提出并路由给 Owner，Owner 承接后处置为带入下次形成：从这条 Mission 取上下文
 看到「形成时带入」（计入覆盖、预算再紧也不裁）；Owner 记承诺（门事件）之后不再带入。再给单元长期目标写带问题的
-快照，DRI 处置为立即重开：从本单元的周期目标取上下文带入它。
+快照，DRI 处置为立即重开：从本单元的周期目标取上下文带入它。CEO 写并确认一条公司复盘，从周期目标取上下文带入它
+（钉到快照修订，材料不带）；再确认一条时点更晚的与一条时点更早、确认更晚的，带入的是时点最新的那条。本单元新建一条
+确认的、一条确认后终止的与一条草稿的长期目标：只带入已确认的（与列对象按域核对），不带周期目标自己 goal_ref 指的那条。
 """
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+from urllib.parse import urlencode
 
 V02 = 'tkos.world/0.2'
 SECTIONS = ['## 六问指引', '## 为什么', '## 做什么', '## 谁负责', '## 现在怎样', '## 发生了什么', '## 凭什么']
+# 从周期目标出发一定有「形成时带入」一节（公司复盘或它的缺口），在六问指引之后。
+FORMING = SECTIONS[:1] + ['## 形成时带入'] + SECTIONS[1:]
 # 同一层里先裁的在前（同 0.1）：跨链关系、多取的一跳、块、快照。
 TRIM_RANK = {'relations': 0, 'hop': 1, 'block': 2, 'snapshot': 3}
 
@@ -108,7 +113,7 @@ def context_fill(book, h, f, flow, trunk):
 
     check('the_markdown_opens_with_the_six_question_guide_and_takes_the_six_questions_as_its_sections',
           markdown.startswith(f"# 上下文\n\n问题：{question['question']}\n\n出发对象：`{goal['ref']}`\n\n## 六问指引\n")
-          and [line for line in markdown.splitlines() if line.startswith('## ')] == SECTIONS
+          and [line for line in markdown.splitlines() if line.startswith('## ')] == FORMING
           and [line.split('：', 1)[0] for line in parts['六问指引'].splitlines()[1:]]
           == ['- 为什么', '- 做什么', '- 谁负责', '- 现在怎样', '- 发生了什么', '- 凭什么']
           and f"`{targets[strategy]}#choices`" in parts['为什么'] and f"`{targets[company]}#identity`" in parts['为什么']
@@ -170,7 +175,7 @@ def context_fill(book, h, f, flow, trunk):
                 and rest == sorted(rest) and all(level != 0 for level, _ in rest)
                 and result['context_pack']['layers'][0]['blocks'] == layers[0]['blocks']
                 and [line for line in result['context_pack']['markdown'].splitlines() if line.startswith('## ')]
-                == SECTIONS
+                == FORMING
                 and not [ref for ref in gone if f"`{ref}" in guide and ref != stage]
                 and result['budget']['used_chars'] == len(result['context_pack']['markdown'])
                 and result['budget']['over_budget'] is (result['budget']['used_chars'] > result['budget']['max_chars']))
@@ -216,7 +221,7 @@ def context_fill(book, h, f, flow, trunk):
     rolled = dispose(mission_issue, 'owner_a', 'roll_forward', '换打法的判断放到下次形成')
     rolled_event = {event['event_id']: event for event in flow.events('outsider', cmid)['events']}[rolled['event_id']]
     before_gate = flow.context('agent_a', cmid, question)
-    carried = before_gate['context_pack']['carried']
+    carried = before_gate['context_pack']['carried']['issues']
     carried_md = sections(before_gate['context_pack']['markdown']).get('形成时带入', '')
     check('after_a_roll_forward_the_affected_gated_object_carries_the_issue_into_its_formation',
           [item['issue_ref']['ref'] for item in carried] == [mission_issue]
@@ -228,13 +233,13 @@ def context_fill(book, h, f, flow, trunk):
           and carried[0]['reason'] == '换打法的判断放到下次形成'
           and [line for line in before_gate['context_pack']['markdown'].splitlines() if line.startswith('## ')][:3]
           == ['## 六问指引', '## 形成时带入', '## 为什么']
-          and f"### 问题 `{mission_issue}`：试点要不要换打法？" in carried_md
+          and f"### 待带入的问题 `{mission_issue}`：试点要不要换打法？" in carried_md
           and f"处置：带入下次形成（事件 `event:{rolled['event_id']}`" in carried_md
           and {'ref': mission_issue} in before_gate['coverage']['basis']['evidence']
           and {'ref': f"event:{rolled['event_id']}"} in before_gate['coverage']['basis']['evidence'])
     tiny_carry = flow.context('agent_a', cmid, {**question, 'budget': {'max_chars': 10}})
     check('carried_issues_are_never_trimmed',
-          tiny_carry['budget']['over_budget'] is True and tiny_carry['context_pack']['carried'] == carried
+          tiny_carry['budget']['over_budget'] is True and tiny_carry['context_pack']['carried']['issues'] == carried
           and sections(tiny_carry['context_pack']['markdown'])['形成时带入'] == carried_md
           and not [entry for entry in tiny_carry['plan']['trimmed'] if entry['kind'] == 'carried'])
 
@@ -242,7 +247,7 @@ def context_fill(book, h, f, flow, trunk):
     after_gate = flow.context('agent_a', cmid, question)
     check('once_the_affected_object_records_a_gate_event_the_issue_is_no_longer_carried',
           flow.read('outsider', cmid)['records']['lifecycle']['event_id'] == gate['event_id']
-          and after_gate['context_pack']['carried'] == []
+          and after_gate['context_pack']['carried'] == {'issues': []}
           and '## 形成时带入' not in after_gate['context_pack']['markdown']
           and {'ref': mission_issue} not in after_gate['coverage']['basis']['evidence'])
 
@@ -251,12 +256,97 @@ def context_fill(book, h, f, flow, trunk):
     goal_issue = f"{goal_snapshot['ref']}#issues/fill-g-iss"
     reopened = dispose(goal_issue, 'a', 'immediate_reopen', '衡量口径不对，立即重开')
     from_goal = flow.context('agent_a', pid, question)
-    goal_carried = from_goal['context_pack']['carried']
+    goal_carried = from_goal['context_pack']['carried']['issues']
     check('forming_a_period_goal_carries_a_pending_issue_on_its_units_long_term_goal',
           [item['issue_ref']['ref'] for item in goal_carried] == [goal_issue]
           and goal_carried[0]['primary']['object_id'] == unit_goal
           and goal_carried[0]['primary']['object_type'] == 'LongTermGoal'
           and goal_carried[0]['disposition']['id'] == 'immediate_reopen'
           and goal_carried[0]['disposed_by']['event_id'] == reopened['event_id']
-          and f"### 问题 `{goal_issue}`：长期目标的衡量要不要改？" in sections(from_goal['context_pack']['markdown'])['形成时带入']
+          and f"### 待带入的问题 `{goal_issue}`：长期目标的衡量要不要改？"
+          in sections(from_goal['context_pack']['markdown'])['形成时带入']
           and flow.context('outsider', pid, question)['context_pack'] == from_goal['context_pack'])
+
+    # ---------------------------------------------------------------- 第二段：形成周期目标时带入公司复盘与有效的长期目标
+    # 进来时 scope 里已有前面 goal_closure 场景确认的公司复盘；这里写的快照时点都更晚。
+    def listed(**query):
+        return flow.clients['outsider'].json('GET', '/v1/world/objects?' + urlencode(query))['items']
+
+    def company_review(period, as_of):
+        """CEO 写一条公司复盘快照并确认它（复盘确认的目标是快照，期望版本取列对象头）；返回快照的回执结果。"""
+        written = flow.refresh('ceo', {
+            'title': f'公司复盘 {period}', 'subject_ref': latest(company), 'as_of': as_of, 'period': period,
+            'payload_type': 'company_review', 'source_event_refs': [f"event:{confirmed['event_id']}"],
+            'blocks': {'results': {'text': f'{period} 营收达成八成'}, 'gaps': {'text': '交付慢两周'},
+                       'implications': {'text': '下月先补交付'},
+                       'materials': {'text': '复盘草稿', 'artifacts': ['https://example.test/review-draft']}}})['result']
+        header, = listed(type='StateSnapshot', period=period)
+        target = {'object_id': written['object_id'], 'revision_id': written['revision_id'],
+                  'expected_version': header['object_version']}
+        flow.commit('ceo', flow.prepare('ceo', flow.targeted('world_confirm_review', written['object_id'],
+                                                             {'content': {'text': '复盘确认（#64）'}}, target)))
+        return written
+
+    def moment(**delta):
+        return (datetime.now(timezone.utc) + timedelta(**delta)).strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+
+    first_review = company_review('2036-01', moment(seconds=-2))
+    one = flow.context('agent_a', pid, question)
+    review = one['context_pack']['carried']['company_review']
+    review_md = sections(one['context_pack']['markdown'])['形成时带入']
+    check('after_a_company_review_is_confirmed_forming_a_period_goal_carries_it_pinned_to_its_snapshot',
+          review['snapshot']['ref'] == first_review['ref']
+          and review['snapshot']['pinned']['revision_id'] == first_review['revision_id']
+          and [block['id'] for block in review['snapshot']['blocks']]
+          == ['results', 'gaps', 'causes', 'key_changes', 'implications']
+          and all(block['pinned']['revision_id'] == first_review['revision_id'] for block in review['snapshot']['blocks'])
+          and review['principal']['principal_id'] == actor_id['ceo']
+          and f"### 已确认的公司复盘《公司复盘 2036-01》 `{first_review['ref']}`" in review_md
+          and '2036-01 营收达成八成' in review_md and '复盘草稿' not in review_md
+          and {'ref': first_review['ref']} in one['coverage']['basis']['evidence']
+          and {'ref': f"{first_review['ref']}#results"} in one['coverage']['basis']['evidence'])
+
+    now = datetime.now(timezone.utc)
+    later_review = company_review('2036-02', now.strftime('%Y-%m-%dT%H:%M:%S.%fZ'))
+    # 时点比它早一秒、确认在它之后：取的仍是时点最新的那条。
+    earlier_review = company_review('2036-03', (now - timedelta(seconds=1)).strftime('%Y-%m-%dT%H:%M:%S.%fZ'))
+    two = flow.context('agent_a', pid, question)
+    check('with_a_later_confirmed_review_the_latest_by_as_of_is_carried',
+          two['context_pack']['carried']['company_review']['snapshot']['ref'] == later_review['ref']
+          and earlier_review['ref'] not in two['context_pack']['markdown']
+          and first_review['ref'] not in sections(two['context_pack']['markdown'])['形成时带入'])
+
+    unit = made['ResponsibilityUnit']['object_id']
+
+    def unit_goal_of(title):
+        return flow.create('a', 'LongTermGoal', 'a', {
+            'title': title, 'scope': 'unit', 'horizon': '2030', 'parent_ref': latest(unit),
+            'goal_ref': latest(company_goal), 'blocks': {'outcome': {'text': f'{title}：结果'}}})['result']
+
+    effective = unit_goal_of('有效的单元目标（#64）')
+    flow.gate('ceo', 'world_confirm_long_term_goal', effective['object_id'], {'outcome': 'accepted'})
+    ended = unit_goal_of('终止的单元目标（#64）')
+    flow.gate('ceo', 'world_confirm_long_term_goal', ended['object_id'], {'outcome': 'accepted'})
+    flow.gate('ceo', 'world_cancel', ended['object_id'], {'content': {'text': '不再有效'}})
+    draft = unit_goal_of('草稿的单元目标（#64）')
+    three = flow.context('agent_a', pid, question)
+    goals = three['context_pack']['carried']['long_term_goals']
+    expected = [f"{item['object_id']}@{item['version']}" for item in listed(domain_id=f['domains']['a'], type='LongTermGoal')
+                if (item['lifecycle'] or {}).get('status') == 'confirmed' and item['object_id'] != unit_goal]
+    goals_md = sections(three['context_pack']['markdown'])['形成时带入']
+    check('forming_a_period_goal_carries_the_units_confirmed_long_term_goals_and_not_terminated_drafts_or_its_own',
+          [goal['ref'] for goal in goals] == expected and effective['ref'] in expected
+          and not {ended['object_id'], draft['object_id'], unit_goal} & {goal['object_id'] for goal in goals}
+          and all(goal['lifecycle']['status'] == 'confirmed' and goal['object_type'] == 'LongTermGoal' for goal in goals)
+          and [block['ref'] for block in next(goal for goal in goals if goal['ref'] == effective['ref'])['definition_refs']]
+          == [f"{effective['ref']}#outcome", f"{effective['ref']}#measures"]
+          and f"### 有效的长期目标《有效的单元目标（#64）》 `{effective['ref']}`" in goals_md
+          and f"### 有效的长期目标《终止的单元目标（#64）》" not in goals_md
+          and {'ref': f"{effective['ref']}#outcome"} in three['coverage']['why']['evidence']
+          and flow.context('outsider', pid, question)['context_pack'] == three['context_pack'])
+    tiny_form = flow.context('agent_a', pid, {**question, 'budget': {'max_chars': 10}})
+    check('the_formation_carry_in_is_never_trimmed',
+          tiny_form['budget']['over_budget'] is True
+          and tiny_form['context_pack']['carried'] == three['context_pack']['carried']
+          and sections(tiny_form['context_pack']['markdown'])['形成时带入'] == goals_md
+          and not [entry for entry in tiny_form['plan']['trimmed'] if entry['kind'] == 'carried'])

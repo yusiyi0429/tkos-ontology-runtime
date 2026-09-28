@@ -89,6 +89,7 @@ def uid(n: int) -> str:
 
 COMPANY, STRATEGY, UNIT, GOAL, PERIOD, MISSION, TASK, ACTIVITY = (uid(n) for n in range(1, 9))
 COMPANY_GOAL, OTHER_GOAL, OTHER_MISSION = uid(9), uid(10), uid(11)
+GOAL_2, GOAL_ENDED, GOAL_DRAFT = uid(12), uid(13), uid(14)
 SNAP_ACTIVITY, SNAP_MISSION = uid(21), uid(23)
 CEO, DRI, OWNER, IC, AGENT, TIANSHU = (uid(n) for n in range(31, 37))
 CREATED, ASSIGNED, CONFIRMED, MET, STARTED, LATE, REFRESHED, CORRECTED = (uid(n) for n in range(41, 49))
@@ -141,6 +142,17 @@ OBJECTS = {
             "goal_ref": pin(COMPANY_GOAL)},
            {"outcome": value(components=[part("lt-o1", "outcome", "建立 Enterprise Context",
                                               refs=[pin(COMPANY_GOAL, 1, "outcome", "cg-o1")])])}),
+    # 本单元另外三条长期目标：已确认、已终止、草稿（形成周期目标时只带入已确认的）。
+    GOAL_2: ("LongTermGoal", "eo", 1, "confirmed",
+             {"title": "E&O 客户目标", "scope": "unit", "horizon": "一年", "external_refs": [], "parent_ref": pin(UNIT),
+              "goal_ref": None},
+             {"outcome": value(components=[part("g2-o1", "outcome", "两家标杆客户")])}),
+    GOAL_ENDED: ("LongTermGoal", "eo", 1, "confirmed",
+                 {"title": "已终止的目标", "scope": "unit", "horizon": "一年", "external_refs": [],
+                  "parent_ref": pin(UNIT), "goal_ref": None}, {"outcome": value("不再追")}),
+    GOAL_DRAFT: ("LongTermGoal", "eo", 1, "draft",
+                 {"title": "草稿目标", "scope": "unit", "horizon": "一年", "external_refs": [],
+                  "parent_ref": pin(UNIT), "goal_ref": None}, {"outcome": value("还没确认")}),
     PERIOD: ("PeriodGoal", "eo", 1, "confirmed",
              {"title": "E&O 10 月", "period": "2026-10", "external_refs": [], "goal_ref": pin(GOAL), "review_ref": None,
               "depends_on": []},
@@ -254,6 +266,10 @@ LIFECYCLE = {
              (uid(57), "world_confirm_period_goal", "accepted")],
     GOAL: [(uid(58), "world_create_object"), (uid(59), "world_confirm_long_term_goal", "accepted")],
     COMPANY_GOAL: [(uid(61), "world_create_object"), (uid(62), "world_confirm_long_term_goal", "accepted")],
+    GOAL_2: [(uid(63), "world_create_object"), (uid(64), "world_confirm_long_term_goal", "accepted")],
+    GOAL_ENDED: [(uid(65), "world_create_object"), (uid(66), "world_confirm_long_term_goal", "accepted"),
+                 (uid(67), "world_cancel")],
+    GOAL_DRAFT: [(uid(68), "world_create_object")],
     STRATEGY: [(uid(60), "world_create_object")],
 }
 
@@ -298,6 +314,23 @@ ISSUE_EVENTS = {  # 主受影响对象 -> issue_events 给出的事件（按记�
                                                     (uid(94), "world_own_issue", None),
                                                     (M_ISS, "world_dispose_issue", "immediate_reopen"))],
 }
+# 本 scope 最近的已确认公司复盘（#60 的 confirmed_company_review 给出的形状）。
+REVIEW_SNAPSHOT, REVIEW_EVENT = uid(26), uid(95)
+
+
+def company_review() -> dict:
+    payload = {"title": "九月公司复盘", "subject_ref": pin(COMPANY), "as_of": "2026-09-30T15:59:59Z", "period": "2026-09",
+               "payload_type": "company_review", "source_event_refs": [{"event_id": MET}], "generator": CEO,
+               "blocks": {"results": value("营收达成八成"), "gaps": value("交付慢两周"), "causes": None,
+                          "key_changes": value("换了交付负责人"), "implications": value("十月先补交付"),
+                          "materials": value("复盘草稿", artifacts=["https://docs.example/review-draft"])}}
+    row = {"revision_id": rev(REVIEW_SNAPSHOT, 1), "object_id": REVIEW_SNAPSHOT, "object_version": 1, "payload": payload}
+    return {"event_id": REVIEW_EVENT, "ref": f"event:{REVIEW_EVENT}", "confirmed_at": "2026-10-01T02:00:00Z",
+            "principal": {"principal_id": CEO, "principal_type": "human", "display_name": "CEO"}, "on_behalf_of": None,
+            "snapshot": readers.snapshot_view({"object_id": REVIEW_SNAPSHOT}, row, generator={
+                "principal_id": CEO, "principal_type": "human", "display_name": "CEO"})}
+
+
 # 处置事件：发生时刻、理由、subject_refs（问题组件、主受影响对象）、记录者，此后主受影响对象是否记过门事件。
 DISPOSALS = {
     G_ISS: ("2026-09-23T08:00:00Z", "客户流失原因要在下个周期回答", SNAP_GOAL, 3, "g-iss", GOAL, 1, DRI, False),
@@ -320,8 +353,8 @@ class Conn:
     def answer(self, sql, params):
         if "make_interval" in sql:
             return [{"start": datetime(2026, 8, 25, tzinfo=timezone.utc)}]
-        if sql.startswith("SELECT object_id FROM gov_objects WHERE scope_id=%s AND domain_id=%s"):
-            return [{"object_id": oid} for oid, spec in OBJECTS.items() if spec[1] == params[1] and spec[0] in params[2]]
+        if sql.startswith("SELECT * FROM gov_objects WHERE scope_id=%s AND domain_id=%s"):
+            return [head(oid) for oid, spec in OBJECTS.items() if spec[1] == params[1] and spec[0] in params[2]]
         if sql.startswith("SELECT e.event_id, e.occurred_at, e.content, e.subject_refs"):
             at, reason, snap, snap_version, cid, primary, version, who, gated = DISPOSALS[params[-1]]
             return [{"event_id": params[-1], "occurred_at": datetime.fromisoformat(at.replace("Z", "+00:00")),
@@ -378,6 +411,7 @@ def world(monkeypatch):
     monkeypatch.setattr(readers, "events", events)
     monkeypatch.setattr(readers, "issue_events", lambda conn, ctx, primary_id, component_id=None: ISSUE_EVENTS.get(
         primary_id, []))
+    monkeypatch.setattr(readers, "confirmed_company_review", lambda conn, ctx: company_review())
     return Conn()
 
 
@@ -673,12 +707,13 @@ def test_why_from_a_unit_period_goal_reaches_the_company_goal_the_strategy_and_t
     assert result["coverage"]["why"]["evidence"] == [
         {"ref": f"{GOAL}@1#outcome/lt-o1"}, {"ref": f"{COMPANY_GOAL}@1#outcome/cg-o1"}, {"ref": f"{UNIT}@1#definition"},
         {"ref": f"{STRATEGY}@1#choices"}, {"ref": f"{STRATEGY}@1#responsibility_structure"},
-        {"ref": f"{STRATEGY}@1#responsibility_structure/unit-eo"}, {"ref": f"{COMPANY}@1#identity"}]
+        {"ref": f"{STRATEGY}@1#responsibility_structure/unit-eo"}, {"ref": f"{COMPANY}@1#identity"},
+        {"ref": f"{GOAL_2}@1#outcome"}]  # 形成时带入的本单元有效长期目标，排在最后
     parts = sections(result["context_pack"]["markdown"])
     assert parts["六问指引"].splitlines()[1] == (
         f"- 为什么：长期目标 `{GOAL}@1#outcome` → 公司级长期目标 `{COMPANY_GOAL}@1#outcome` → "
         f"责任单元 `{UNIT}@1#definition` → 战略 `{STRATEGY}@1#choices`、`{STRATEGY}@1#responsibility_structure` → "
-        f"公司 `{COMPANY}@1#identity`")
+        f"公司 `{COMPANY}@1#identity`；形成时带入的有效长期目标 `{GOAL_2}@1`")
     assert heads(parts["为什么"]) == [
         f"### 长期目标·结果 `{GOAL}@1#outcome`", f"### 长期目标·衡量 `{GOAL}@1#measures`",
         f"### 沿 goal_ref 多取一跳：公司级长期目标《公司三年目标》 `{COMPANY_GOAL}@1`",
@@ -804,20 +839,78 @@ def test_starting_from_the_company_the_empty_sections_and_the_guide_name_their_g
         "- 发生了什么：（缺口）窗口内没有取到事件", f"- 凭什么：文档链接在块 `{COMPANY}@1#identity`"]
 
 
-# ------------------------------------------------------------ #64 第二段：形成时带入待带入的问题
+# ------------------------------------------------------------ #64 第二段：形成时带入
 def carried_markdown(result) -> list[str]:
     return sections(result["context_pack"]["markdown"])["形成时带入"].split("\n\n")
 
 
-def test_a_period_goal_carries_the_pending_issues_of_its_unit_in_their_own_section_after_the_guide(world):
-    """从周期目标出发：带入主受影响对象是本单元（同域的责任单元、长期目标、周期目标）、处置为带入下次形成或立即重开、
-    此后没记过门事件的问题，按处置事件的时刻与 id 排序；Mission 上的问题不带。"""
+def test_a_period_goal_carries_the_latest_confirmed_company_review_its_units_effective_goals_and_pending_issues(world):
+    """从周期目标出发（补 43）：本 scope 最近的已确认公司复盘（钉到快照修订，结果、缺口、原因、关键变化、经营含义五块，
+    材料不带）、本单元已确认的长期目标（goal_ref 指的那条已在「为什么」里，不重复；已终止与草稿不带），以及主受影响
+    对象是本单元的待带入问题。自成一节，放在六问指引之后。"""
     result = build(world, start=PERIOD, question="形成这个周期目标要看什么？")
     carried = result["context_pack"]["carried"]
-    assert [(item["issue_ref"]["ref"], item["disposed_by"]["ref"]) for item in carried] == [
-        (f"{SNAP_GOAL}@3#issues/g-early", f"event:{G_EARLY}"), (f"{SNAP_GOAL}@3#issues/g-iss", f"event:{G_ISS}")]
-    assert carried[1] == {
-        "kind": "issue", "issue_ref": cited(SNAP_GOAL, 3, "issues", "g-iss"),
+    assert list(carried) == ["company_review", "long_term_goals", "issues"]
+    review = carried["company_review"]
+    assert (review["ref"], review["confirmed_at"], review["principal"]["display_name"], review["on_behalf_of"]) == (
+        f"event:{REVIEW_EVENT}", "2026-10-01T02:00:00Z", "CEO", None)
+    snapshot = review["snapshot"]
+    assert (snapshot["ref"], snapshot["pinned"], snapshot["as_of"], snapshot["payload_type"]["id"]) == (
+        f"{REVIEW_SNAPSHOT}@1", cited(REVIEW_SNAPSHOT), "2026-09-30T15:59:59Z", "company_review")
+    assert [(block["id"], block["pinned"]) for block in snapshot["blocks"]] == [
+        (block, cited(REVIEW_SNAPSHOT, 1, block)) for block in ("results", "gaps", "causes", "key_changes", "implications")]
+    goals = carried["long_term_goals"]
+    assert [goal["ref"] for goal in goals] == [f"{GOAL_2}@1"]
+    assert (goals[0]["title"], goals[0]["lifecycle"]["status"], goals[0]["pinned"]) == (
+        "E&O 客户目标", "confirmed", cited(GOAL_2))
+    assert goals[0]["definition_refs"] == [
+        {"id": "outcome", "display_name": "结果", "ref": f"{GOAL_2}@1#outcome", "pinned": cited(GOAL_2, 1, "outcome"),
+         "empty": False},
+        {"id": "measures", "display_name": "衡量", "ref": f"{GOAL_2}@1#measures", "pinned": cited(GOAL_2, 1, "measures"),
+         "empty": True}]
+    assert [item["issue_ref"]["ref"] for item in carried["issues"]] == [
+        f"{SNAP_GOAL}@3#issues/g-early", f"{SNAP_GOAL}@3#issues/g-iss"]
+    markdown = result["context_pack"]["markdown"]
+    assert [line for line in markdown.splitlines() if line.startswith("## ")] == [
+        "## 六问指引", "## 形成时带入", "## 为什么", "## 做什么", "## 谁负责", "## 现在怎样", "## 发生了什么", "## 凭什么"]
+    parts = carried_markdown(result)
+    assert parts[0] == ("形成周期目标时必须看到、不必须采用：本 scope 最近的已确认公司复盘、本单元有效的长期目标，以及处置为"
+                        "带入下次形成或立即重开、此后主受影响对象还没记过门事件的问题。")
+    assert parts[1].splitlines() == [
+        f"### 已确认的公司复盘《九月公司复盘》 `{REVIEW_SNAPSHOT}@1`（截至 2026-09-30T15:59:59Z）",
+        f"确认事件 `event:{REVIEW_EVENT}`（CEO 记，2026-10-01T02:00:00Z）",
+        f"#### 结果 `{REVIEW_SNAPSHOT}@1#results`", "营收达成八成", f"#### 缺口 `{REVIEW_SNAPSHOT}@1#gaps`", "交付慢两周",
+        f"#### 原因 `{REVIEW_SNAPSHOT}@1#causes`", "当前没有原因",
+        f"#### 关键变化 `{REVIEW_SNAPSHOT}@1#key_changes`", "换了交付负责人",
+        f"#### 经营含义 `{REVIEW_SNAPSHOT}@1#implications`", "十月先补交付"]
+    assert parts[2].splitlines() == [f"### 有效的长期目标《E&O 客户目标》 `{GOAL_2}@1`",
+                                     f"生命周期：已确认（事件 `event:{uid(64)}`）", f"定义类块：`{GOAL_2}@1#outcome`"]
+    assert parts[3].splitlines() == [
+        f"### 待带入的问题 `{SNAP_GOAL}@3#issues/g-early`：衡量口径不一",
+        f"主受影响对象：长期目标《E&O 六个月目标》 `{GOAL}@1`", "核心判断问题：收入按签约还是按回款算？",
+        f"处置：带入下次形成（事件 `event:{G_EARLY}`，E&O DRI 记，2026-09-23T06:00:00Z）", "理由：口径在形成时统一"]
+    assert len(parts) == 5 and "复盘草稿" not in markdown
+    # 计入覆盖：复盘与问题是「凭什么」，有效的长期目标是「为什么」；六问指引指向它们；检索计划记下取过它们。
+    basis = [item["ref"] for item in result["coverage"]["basis"]["evidence"]]
+    assert {f"{REVIEW_SNAPSHOT}@1", f"{REVIEW_SNAPSHOT}@1#results", f"{SNAP_GOAL}@3#issues/g-iss", f"event:{G_ISS}"} \
+        <= set(basis) and f"{REVIEW_SNAPSHOT}@1#materials" not in basis
+    assert {"ref": f"{GOAL_2}@1#outcome"} in result["coverage"]["why"]["evidence"]
+    guide = sections(markdown)["六问指引"].splitlines()
+    assert guide[1].endswith(f"；形成时带入的有效长期目标 `{GOAL_2}@1`")
+    assert guide[-1].startswith(f"- 凭什么：形成时带入的公司复盘 `{REVIEW_SNAPSHOT}@1`；形成时带入的问题 "
+                                f"`{SNAP_GOAL}@3#issues/g-early`、`{SNAP_GOAL}@3#issues/g-iss`；")
+    assert [entry["key"] for entry in result["plan"]["taken"] if entry["kind"] == "carried"] == [
+        f"carried:review:{REVIEW_SNAPSHOT}@1", f"carried:goal:{GOAL_2}@1", f"carried:event:{G_EARLY}",
+        f"carried:event:{G_ISS}"]
+
+
+def test_a_pending_issue_is_carried_with_its_pinned_component_disposition_and_reason(world):
+    """待带入的问题：处置为带入下次形成或立即重开、此后主受影响对象没记过门事件，按处置事件的时刻与 id 排序；
+    Mission 上的问题不在本单元里，不随周期目标带入。"""
+    issues = build(world, start=PERIOD)["context_pack"]["carried"]["issues"]
+    assert [item["disposed_by"]["ref"] for item in issues] == [f"event:{G_EARLY}", f"event:{G_ISS}"]
+    assert issues[1] == {
+        "issue_ref": cited(SNAP_GOAL, 3, "issues", "g-iss"),
         "primary": {**cited(GOAL), "object_type": "LongTermGoal", "type_display_name": "长期目标",
                     "title": "E&O 六个月目标"},
         "text": "试点客户流失", "core_question": "下个周期要不要换客户群？",
@@ -825,48 +918,40 @@ def test_a_period_goal_carries_the_pending_issues_of_its_unit_in_their_own_secti
         "disposed_by": {"event_id": G_ISS, "ref": f"event:{G_ISS}", "occurred_at": "2026-09-23T08:00:00Z",
                         "principal": {"principal_id": DRI, "principal_type": "human", "display_name": "E&O DRI"}},
         "reason": "客户流失原因要在下个周期回答"}
-    markdown = result["context_pack"]["markdown"]
-    assert [line for line in markdown.splitlines() if line.startswith("## ")] == [
-        "## 六问指引", "## 形成时带入", "## 为什么", "## 做什么", "## 谁负责", "## 现在怎样", "## 发生了什么", "## 凭什么"]
-    assert carried_markdown(result) == [
-        "处置为带入下次形成或立即重开、此后主受影响对象还没记过门事件的问题：必须看到，不必须采用。",
-        "\n".join([f"### 问题 `{SNAP_GOAL}@3#issues/g-early`：衡量口径不一",
-                   f"主受影响对象：长期目标《E&O 六个月目标》 `{GOAL}@1`", "核心判断问题：收入按签约还是按回款算？",
-                   f"处置：带入下次形成（事件 `event:{G_EARLY}`，E&O DRI 记，2026-09-23T06:00:00Z）",
-                   "理由：口径在形成时统一"]),
-        "\n".join([f"### 问题 `{SNAP_GOAL}@3#issues/g-iss`：试点客户流失",
-                   f"主受影响对象：长期目标《E&O 六个月目标》 `{GOAL}@1`", "核心判断问题：下个周期要不要换客户群？",
-                   f"处置：带入下次形成（事件 `event:{G_ISS}`，E&O DRI 记，2026-09-23T08:00:00Z）",
-                   "理由：客户流失原因要在下个周期回答"])]
-    # 计入覆盖（凭什么）与六问指引；检索计划记下取过它们。
-    basis = result["coverage"]["basis"]["evidence"]
-    assert [{"ref": f"{SNAP_GOAL}@3#issues/g-iss"}, {"ref": f"event:{G_ISS}"}] == [
-        item for item in basis if item["ref"] in {f"{SNAP_GOAL}@3#issues/g-iss", f"event:{G_ISS}"}]
-    assert sections(markdown)["六问指引"].splitlines()[-1].startswith(
-        f"- 凭什么：形成时带入的问题 `{SNAP_GOAL}@3#issues/g-early`、`{SNAP_GOAL}@3#issues/g-iss`；")
-    assert [entry["key"] for entry in result["plan"]["taken"] if entry["kind"] == "carried"] == [
-        f"carried:event:{G_EARLY}", f"carried:event:{G_ISS}"]
+
+
+def test_without_a_confirmed_company_review_the_carry_in_names_the_gap(world, monkeypatch):
+    monkeypatch.setattr(readers, "confirmed_company_review", lambda conn, ctx: None)
+    result = build(world, start=PERIOD)
+    assert result["context_pack"]["carried"]["company_review"] is None
+    assert carried_markdown(result)[1] == "### 已确认的公司复盘\n（缺口）本 scope 里还没有已确认的公司复盘"
+    assert not [item for item in result["coverage"]["basis"]["evidence"] if item["ref"].startswith(REVIEW_SNAPSHOT)]
 
 
 def test_another_gated_object_carries_only_the_pending_issues_it_is_the_primary_affected_object_of(world):
-    """从其他有门对象出发：只带主受影响对象是它本身的问题；立即重开的同样带入。已关闭、还在处理与处置之后又记过门
-    事件的不带。"""
+    """从其他有门对象出发：只带主受影响对象是它本身的问题，不带复盘与长期目标；立即重开的同样带入。已关闭、还在处理与
+    处置之后又记过门事件的不带；没有待带入的问题就没有这一节。"""
     mission = build(world, start=MISSION, question="Mission 要重开吗？")["context_pack"]
-    assert [(item["issue_ref"]["ref"], item["disposition"]["id"]) for item in mission["carried"]] == [
+    assert list(mission["carried"]) == ["issues"]
+    assert [(item["issue_ref"]["ref"], item["disposition"]["id"]) for item in mission["carried"]["issues"]] == [
         (f"{SNAP_MISSION_ISSUES}@1#issues/m-iss", "immediate_reopen")]
+    assert sections(mission["markdown"])["形成时带入"].split("\n\n")[0] == (
+        "形成时必须看到、不必须采用：处置为带入下次形成或立即重开、此后主受影响对象还没记过门事件的问题。")
     assert (f"处置：立即重开（事件 `event:{M_ISS}`，Mission Owner 记，2026-09-24T09:00:00Z）"
             in mission["markdown"].splitlines())
     goal = build(world, start=GOAL, question="长期目标要再确认吗？")["context_pack"]
-    assert [item["disposed_by"]["event_id"] for item in goal["carried"]] == [G_EARLY, G_ISS]
+    assert [item["disposed_by"]["event_id"] for item in goal["carried"]["issues"]] == [G_EARLY, G_ISS]
+    quiet = build(world, start=GOAL_2)["context_pack"]
+    assert quiet["carried"] == {"issues": []} and "## 形成时带入" not in quiet["markdown"]
 
 
 def test_objects_without_a_gate_carry_nothing(world):
     for start in (ACTIVITY, TASK, UNIT, COMPANY):
         result = build(world, start=start)
-        assert result["context_pack"]["carried"] == [] and "## 形成时带入" not in result["context_pack"]["markdown"]
+        assert result["context_pack"]["carried"] is None and "## 形成时带入" not in result["context_pack"]["markdown"]
 
 
-def test_carried_issues_are_never_trimmed_and_the_same_world_gives_the_same_carry_in(world):
+def test_the_carry_in_is_never_trimmed_and_the_same_world_gives_the_same_carry_in(world):
     whole, again = build(world, start=PERIOD), build(world, start=PERIOD)
     tiny = build(world, start=PERIOD, budget={"max_chars": 10})
     assert tiny["budget"]["over_budget"] is True and carried_markdown(tiny) == carried_markdown(whole)

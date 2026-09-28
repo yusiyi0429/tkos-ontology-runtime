@@ -7,7 +7,6 @@ must come from authenticated HTTP. Secrets stay in a private fixture file.
 from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 import hashlib
-import json
 from pathlib import Path
 import secrets
 import uuid
@@ -15,15 +14,13 @@ import uuid
 import psycopg
 from psycopg.types.json import Jsonb
 
-from acceptance.protocol_a1_independent.support import Environment, private_json, public_json
+from acceptance.protocol_a1_independent.support import Environment, private_json
 from acceptance.protocol_a1_independent.control_adapter import ControlAdapter
 
 A_CONTRACT = 'tkos.contract-a/0.1'
 A_PROTOCOL = 'tkos.contract-a'
 PROFILE = {'profile_id':'urn:tkos:experimental:method-profile:contract-a','revision':'0.1.0',
            'canonical_hash':'5050d542cc521991f17932562c4397331c0482b673f9bcd8fe694749bd43fc76'}
-ACTIONS = ['open_formation_round','amend_formation_round','publish_domain_submission',
-           'form_company_composition','confirm_company_composition','activate_company_composition']
 
 
 def uid(): return str(uuid.uuid4())

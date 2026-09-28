@@ -92,7 +92,7 @@ Runtime 提供 Clark 现有月度核对、周进展和会议工作面的 Runtime
 - 构建：`./scripts/build_dashboard.sh`（只接受 `npm ci` + typecheck + vitest + vite build + 构建清单）；`uv build` 的 Hatch hook 与 Dockerfile 都会按清单校验资源，源码改动未重建会使打包失败；`scripts/verify_dashboard_assets.py --archive` 逐文件 hash 校验 wheel/sdist。
 - 原列表看板验收基线：0.3 隔离 HTTP/PG/MinIO **58/58**（[复跑](acceptance/dashboard_0_3/README.md)）、真实 0.1 数据只读 **49/49**（[复跑](acceptance/dashboard_0_1/README.md)）、Python dashboard 回归 76、Node 前端回归 56。
 - 原容器访问：[Runtime 经营看板](http://127.0.0.1:58802/dashboard/)。API/Worker 已按 `eccc346` 重建，保留现有 0.1 数据、Clark 及 PostgreSQL/MinIO 数据卷；当前仍为五容器。
-- 原列表看板独立浏览器与本机部署通过，见[验收报告与截图](docs/runtime-dashboard-acceptance.md)；[复跑与回滚](docs/runtime-dashboard-deployment.md)。业务同事理解度、Clark 接线/浏览器及真实模型另行验证；本增量已纳入 v0.3.0。旧的 `workbench/` 四页原型与 `/docs` 保留不变。
+- 原列表看板独立浏览器与本机部署通过，见[验收报告与截图](docs/runtime-dashboard-acceptance.md)；[复跑与回滚](docs/runtime-dashboard-deployment.md)。业务同事理解度、Clark 接线/浏览器及真实模型另行验证；本增量已纳入 v0.3.0。`/docs` 保留不变。
 
 ## Method 0.5：本体 v0.7 对齐
 
@@ -220,7 +220,6 @@ python3 acceptance/runtime/infra.py up       # 本机隔离 PostgreSQL＋MinIO�
 python3 acceptance/runtime/infra.py run -- .venv/bin/python -m pytest tests -q -m "db and not owner"
 python3 acceptance/runtime/infra.py run --migration -- .venv/bin/python -m pytest tests -q -m owner
 (cd workbench/dashboard && npm ci && npm run typecheck && npm test) && python3 scripts/verify_dashboard_assets.py
-node --test tests/workbench-ui/*.test.mjs
 uv build
 ```
 
@@ -230,9 +229,9 @@ uv build
 
 ## 本地独立验收
 
-需要 Python 3.12+、uv、Docker Engine 与 Compose。当前 0.3 增量先按 [Anchor 隔离验收说明](acceptance/anchors_v03/README.md) 创建新库并运行当前源码 API；若进入容器联调，须重新构建镜像并记录源码、镜像和契约版本。
+需要 Python 3.12+、uv、Docker Engine 与 Compose。新建隔离库统一用 [`acceptance/method_v05/database.py`](acceptance/method_v05/README.md)（只接受 `acceptance/runtime/infra.py` 起的隔离验收栈，不连 54350/54351 的 Clark 联动栈），再按各验收目录的 README 运行当前源码 API；若进入容器联调，须重新构建镜像并记录源码、镜像和契约版本。
 
-原 M1A＋M1B 基线请按 [Method 独立验收说明](acceptance/method_independent/README.md)执行：保留环境基线 → 创建隔离库 → 捕获真实旧历史 → 应用 0021 并验证重放 → 旧能力回归 → 完整 Method HTTP 场景及历史复核。只有 98 条检查与 8 个环境门槛全部通过，报告才设 `method_api_accepted: true`。API 使用普通应用数据库角色，控制面与迁移使用独立身份。
+原 M1A＋M1B 基线请按 [Method 独立验收说明](acceptance/method_independent/README.md)执行（该矩阵固定在 2026-09-11 那次运行，只升级 0021，HEAD 上不能原样复跑）：保留环境基线 → 创建隔离库 → 捕获真实旧历史 → 应用 0021 并验证重放 → 旧能力回归 → 完整 Method HTTP 场景及历史复核。只有 98 条检查与 8 个环境门槛全部通过，报告才设 `method_api_accepted: true`。API 使用普通应用数据库角色，控制面与迁移使用独立身份。
 
 以下命令用于**既有 v0.2 验收**，不能替代 Method／A2／A3 独立矩阵。先按 [v0.2 验收说明](acceptance/runtime/README.md)缓存固定镜像，再在本仓库目录执行：
 

@@ -1,4 +1,4 @@
-import type { ExactRef, Missing } from "@/lib/types"
+import type { Missing } from "@/lib/types"
 
 export function isMissing(value: unknown): value is Missing {
   return Boolean(value) && typeof value === "object" && (value as Missing).status === "missing"
@@ -27,11 +27,6 @@ export function formatDay(value: string | null | undefined): string {
 export function formatPeriod(period: { start: string; end: string } | null | undefined): string {
   if (!period) return "未记录"
   return `${formatDay(period.start)} 至 ${formatDay(period.end)}`
-}
-
-export function formatRef(ref: ExactRef | null | undefined): string {
-  if (!ref) return "未记录"
-  return shortId(ref.object_id)
 }
 
 export function formatValue(value: unknown): string {

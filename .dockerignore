@@ -2,12 +2,7 @@
 **
 !Dockerfile
 !.dockerignore
-!pyproject.toml
-!uv.lock
 !requirements.lock
-!README.md
-!src/
-!src/**
 !docs/
 !docs/contracts/
 !docs/contracts/method-profile.json

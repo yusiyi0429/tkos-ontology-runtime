@@ -83,7 +83,7 @@ def run(h: MethodHarness, source: Path) -> None:  # noqa: C901 - acceptance matr
         # ---------------------------------------------------------------
         chain1 = flow.strategy(complete=True)
         s1 = chain1["strategy"]
-        a1 = flow.object(s1["object_id"])["method_state"]["architecture_ref"]
+        flow.object(s1["object_id"])["method_state"]["architecture_ref"]
         ltco1 = flow.ltco(s1)["ltco"]
         draft1 = flow.draft_targets(s1, ltco1)
         draft_m1 = dict(draft1["mission"])
@@ -191,7 +191,7 @@ def run(h: MethodHarness, source: Path) -> None:  # noqa: C901 - acceptance matr
                         "level": "mission", "responsible_assignment_id": f["actors"]["a"]["assignment_id"],
                         "evidence_refs": [evidence]},
         })["result"])
-        problem_revised = exact(flow.act("a", "method_revise_problem", {
+        exact(flow.act("a", "method_revise_problem", {
             "payload": {"state_ref": state2, "core_question": "Does the pilot choice remain appropriate?",
                         "statement": "Evidence quality diverges; clarify the source checks",
                         "why_material": "May invalidate the choice", "level": "mission",
@@ -202,7 +202,7 @@ def run(h: MethodHarness, source: Path) -> None:  # noqa: C901 - acceptance matr
             "disposition": "no_further_action", "reason": "Owner checked the concern",
             "evidence_refs": [evidence]}, oid=problem["object_id"])
 
-        issue_chain = flow.start_issue()
+        flow.start_issue()
         strategic_problem = exact(flow.act("co_agent", "method_open_problem", {
             "domain_id": company,
             "payload": {"state_ref": state2, "core_question": "Is the strategic basis still valid?",

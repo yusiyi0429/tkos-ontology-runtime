@@ -33,7 +33,6 @@ FRONTEND = ROOT / "workbench" / "dashboard"
 DIST = ROOT / "src" / "memory_service_app" / "dashboard_dist"
 MANIFEST_NAME = "asset-manifest.json"
 MANIFEST_SCHEMA = "tkos.dashboard-assets/1"
-REQUIRED_ENTRY = "memory_service_app/dashboard_dist/" + MANIFEST_NAME
 ASSET_REFERENCE = re.compile(r"(?:src|href)=\"(/dashboard/assets/[^\"]+)\"")
 EXTERNAL_RUNTIME = re.compile(
     r"(?:src|href)=\"(?:https?:)?//[^\"]+\"|<link[^>]+href=\"(?:https?:)?//[^\"]+\"")

@@ -22,7 +22,7 @@ from __future__ import annotations
 from typing import Any
 
 from psycopg.types.json import Jsonb
-from pydantic import BaseModel, ConfigDict, StrictBool, StrictInt, StrictStr
+from pydantic import BaseModel, ConfigDict, StrictBool, StrictStr
 
 from . import db, profile
 from .errors import GovernedError

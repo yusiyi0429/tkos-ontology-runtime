@@ -1,5 +1,7 @@
 # 工作台布局重构设计记录（workbench UI v0.2）
 
+> 旧版静态工作台（`workbench/` 四页原型、`tests/workbench-ui/`）已删除，本文仅作历史设计记录。
+
 针对「四页信息架构乱」的整改。设计方向由 Codex 给出，本文记录实施后的结构。
 色板沿用蓝灰身份并收敛为：paper `#f4f6fa`、surface `#ffffff`、ink `#1e2c43`、
 muted `#64748b`、blue `#315bb5`、line `#dce4ef`；绿/琥珀/红语义不变。无新字体、

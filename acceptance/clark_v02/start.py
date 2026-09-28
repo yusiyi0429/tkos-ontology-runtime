@@ -18,7 +18,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "src"))
 
-from acceptance.runtime.harness import Harness, port, private_json, wait_until
+from acceptance.runtime.harness import Harness, port, private_json
 from acceptance.runtime.run import Scenario
 from acceptance.runtime.seed import create_fixture
 

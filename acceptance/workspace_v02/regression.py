@@ -1,4 +1,4 @@
-"""Python/workbench/build regression with private, role-specific env."""
+"""Python/build regression with private, role-specific env."""
 import argparse
 import json
 from pathlib import Path
@@ -26,7 +26,6 @@ def main():
         ("python", False, [sys.executable, "-m", "pytest", "tests",
                            "--ignore=tests/test_migrations.py", "-q",
                            "--junitxml=" + str(args.output.resolve() / "python.xml")]),
-        ("workbench", False, ["node", "--test", *[str(p) for p in sorted((root / "tests/workbench-ui").glob("*.test.mjs"))]]),
         ("build", False, ["uv", "build", "--offline"]),
     ]
     results = {}

@@ -33,7 +33,6 @@ from memory_service_runtime.governed.a2_models import (
     ConfirmCompanyCompositionParams,
 )
 from memory_service_runtime.governed.a2_service import A2Execution as _A2ServiceExecution
-from memory_service_runtime.governed.errors import GovernedError
 from memory_service_runtime.governed.models import (
     A2_GENERIC_SOURCE_OBJECT_TYPES,
     A2_OBJECT_TYPE_NAMES,
@@ -68,11 +67,8 @@ REFERENCE_PAYLOAD_HASH = "0" * 64
 
 DOMAIN_A_ID = _uuid_str("domain-a")
 DRI_A_ASSIGNMENT_ID = _uuid_str("dri-a-assignment")
-DRI_A_PRINCIPAL_ID = _uuid_str("dri-a-principal")
 DOMAIN_B_ID = _uuid_str("domain-b")
 DRI_B_ASSIGNMENT_ID = _uuid_str("dri-b-assignment")
-DRI_B_PRINCIPAL_ID = _uuid_str("dri-b-principal")
-CEO_PRINCIPAL_ID = _uuid_str("ceo-principal")
 CAPACITY_OBS_OBJECT_ID = _uuid_str("cap-obj")
 CAPACITY_OBS_REVISION_ID = _uuid_str("cap-rev")
 

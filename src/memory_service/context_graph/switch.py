@@ -10,7 +10,7 @@ scope-local human actor is required.
 
 The MVP does not fabricate replay or reconciliation reports, so ``context_graph_switch_log`` stays
 unused while its report-key columns are mandatory.  Production scope always fails closed until the
-P8 cutover gate is complete; ``allow_production`` no longer lifts that gate.
+P8 cutover gate is complete.
 """
 from __future__ import annotations
 
@@ -276,11 +276,9 @@ def switch_graph(
     switched_by: str,
     db_connect: Callable[[], ContextManager[Any]],
     object_store: Any,
-    allow_production: bool = False,
 ) -> SwitchOutcome:
     """受控非破坏式切换（MVP 核心链路）。生产 scope 在 P8 切换门禁完成前始终 fail closed。
 
-    ``allow_production`` 仅保留签名兼容，不再豁免生产 scope：传 True 也同样拒绝。
     ``db_connect`` 与 ``object_store`` 由宿主显式装配（host capability boundary：Memory 不自开连接、
     不自取 S3）。
     """
@@ -288,7 +286,7 @@ def switch_graph(
         return SwitchOutcome(
             status="aborted", tenant_id=tenant_id, organization_id=organization_id,
             from_generation=from_generation, to_generation=to_generation,
-            aborted_reason="生产 scope 切换在 P8 正式切换门禁完成前始终拒绝（allow_production 不再豁免）",
+            aborted_reason="生产 scope 切换在 P8 正式切换门禁完成前始终拒绝",
         )
 
     # from/to generation 在任何 DB/preflight/snapshot/lock 前 Python 侧 canonical：

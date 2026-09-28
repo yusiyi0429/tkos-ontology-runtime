@@ -96,11 +96,6 @@ def _current_ceo(e, domain_id):
     return principal, owners[principal]
 
 
-def _ref_payload(e, reference, types):
-    head, revision = e.ref(reference, types=set(types), current=False)
-    return head, revision, revision["payload"]
-
-
 def _architecture_payload(e, reference):
     # Internal responsibility derivation reads the exact basis server-side: a
     # mapping never grants the caller domain role, but the DRI/Owner still needs
@@ -117,14 +112,6 @@ def _scope_definition(e, architecture_payload, unit_id):
     if definition is None:
         fail("The primary business Scope is absent from the exact Architecture.", "INVALID_REQUEST")
     return definition
-
-
-def _domain_definition(e, architecture_payload, unit_id):
-    """Required Capability primary responsibility remains a Domain unit."""
-    domain = next((d for d in architecture_payload["domains"] if d["unit_id"] == unit_id), None)
-    if domain is None:
-        fail("The primary Domain is absent from the exact Architecture.", "INVALID_REQUEST")
-    return domain
 
 
 def _check_architecture(e, payload, old=None):
@@ -158,14 +145,6 @@ def _check_architecture(e, payload, old=None):
             for definition in values:
                 if definition["unit_id"] in prior and prior[definition["unit_id"]] != kind:
                     fail("Stable definition IDs cannot change their nature.")
-
-
-def _current_architecture(e, strategy_head):
-    reference = e.state(strategy_head).get("architecture_ref")
-    if not reference:
-        fail("The Strategy has no confirmed Architecture.")
-    head, revision = e.ref(reference, types={"StrategicArchitecture"}, effective=True, current=False)
-    return head, revision
 
 
 def _formal_pair_exists(e, domain_id) -> bool:

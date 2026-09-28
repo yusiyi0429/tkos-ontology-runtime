@@ -151,7 +151,6 @@ class RefConn:
 
 
 def test_mission_keeps_the_exact_pco_revision_after_pco_head_moves(monkeypatch):
-    mission_oid, mission_rid = uid(10), uid(11)
     pco_oid, pco_v1, pco_v2 = uid(20), uid(21), uid(22)
     strategy_old = _ref(uid(30), uid(31))
     payload = {"title": "M", "pco_ref": _ref(pco_oid, pco_v1)}
@@ -1183,7 +1182,6 @@ def test_mission_period_comes_from_the_exact_pco_revision(monkeypatch):
     pco_v2_rev = revision(pco_oid, pco_v2, {"title": "PCO v2",
                                             "period": {"start": "2026-11-01T00:00:00+00:00",
                                                        "end": "2026-12-01T00:00:00+00:00"}})
-    loads = {}
 
     def load(conn, ctx, ref):
         oid, rid = str(ref["object_id"]), str(ref["revision_id"])

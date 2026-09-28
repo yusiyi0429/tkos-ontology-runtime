@@ -536,30 +536,6 @@ def authorized_ref(conn: Any, ctx: Any, object_id: str, revision_id: str) -> dic
     return _ref(head["object_id"], revision["revision_id"])
 
 
-def _basis_of_object(conn: Any, ctx: Any, object_id: str, selected: dict[str, Any] | None,
-                     *, impact_linked: bool | None = None) -> dict[str, Any]:
-    """Basis of an object's current effective (else latest) revision."""
-    try:
-        head, allowed = _visible_head(conn, ctx, object_id)
-    except GovernedError as exc:
-        if exc.code in _UNAVAILABLE_CODES:
-            return _basis("unavailable", selected=selected, reason="object_unavailable")
-        raise
-    pointer = head["effective_revision_id"] or head["latest_revision_id"]
-    if pointer is None:
-        return _basis("unavailable", selected=selected, reason="no_readable_revision",
-                      impact_linked=bool(impact_linked))
-    try:
-        revision = _visible_revision(conn, ctx, head["object_id"], str(pointer), allowed)
-    except GovernedError as exc:
-        if exc.code in _UNAVAILABLE_CODES:
-            return _basis("unavailable", selected=selected, reason="revision_unavailable",
-                          impact_linked=bool(impact_linked))
-        raise
-    return _basis_of_revision(conn, ctx, head, revision, selected, visited=frozenset(),
-                              impact_linked=impact_linked)
-
-
 def _basis_matches(basis: dict[str, Any], requested: str) -> bool:
     status = basis.get("status")
     if requested == "current":

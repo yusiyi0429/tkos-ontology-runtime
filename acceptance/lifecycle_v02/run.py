@@ -102,7 +102,7 @@ def run(h, source):
         baseline = flow.ref(targets['pco']['object_id'])
         fact = flow.fact(targets)
         corrected = flow.fact(targets,corrects=fact,value=3)
-        review = flow.review(targets,[corrected])
+        flow.review(targets,[corrected])
         materials = flow.clients['ceo'].json('GET','/v1/method/pcos/'+targets['pco']['object_id']+'/review-materials')
         check('PCO_aggregates_independent_facts_and_review_without_revision',len(materials['business_facts']) == 2
             and len(materials['period_reviews']) == 1 and baseline == flow.ref(targets['pco']['object_id']))

@@ -12,11 +12,6 @@ SCHEMA_VERSION = 1
 SOURCE_MARKER_KEY = "context_graph_schema_version"
 
 
-def is_typed_context_graph(source: Mapping[str, Any] | None) -> bool:
-    """Return whether proposal metadata marks the current governed graph contract."""
-    return bool(source) and source.get(SOURCE_MARKER_KEY) == SCHEMA_VERSION
-
-
 class ContextGraphValidationError(ValueError):
     pass
 
@@ -37,7 +32,6 @@ def load_relation_contract() -> dict[str, dict[str, str]]:
     return raw["relations"]
 
 
-TYPE_KEYS = frozenset(load_type_contract())
 RELATION_TYPES = frozenset(load_relation_contract())
 
 

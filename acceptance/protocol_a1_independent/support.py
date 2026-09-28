@@ -13,7 +13,6 @@ import json
 import os
 from pathlib import Path
 import secrets
-import sqlite3
 import subprocess
 import sys
 import time
@@ -21,7 +20,6 @@ from typing import Any
 from urllib.parse import urlsplit
 import uuid
 
-import httpx
 import psycopg
 from psycopg.rows import dict_row
 from psycopg.conninfo import conninfo_to_dict
@@ -329,12 +327,3 @@ class Harness:
             assert storage_before == self.storage_snapshot(fixture["scope_id"]), "rejected upload wrote S3"
         return {"status": status, "code": code, "snapshot_sha256": digest(after),
                 "storage_unchanged": True if check_storage else None}
-
-
-def receiver_snapshot(path: Path) -> dict:
-    """A missing ledger is a failure, not a zero-effects proof."""
-    if not path.is_file():
-        raise AssertionError("receiver ledger is missing")
-    with sqlite3.connect(f"file:{path}?mode=ro", uri=True) as conn:
-        return {"calls": conn.execute("SELECT count(*) FROM calls").fetchone()[0],
-                "effects": conn.execute("SELECT count(*) FROM effects").fetchone()[0]}

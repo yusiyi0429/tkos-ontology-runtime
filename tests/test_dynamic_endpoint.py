@@ -6,7 +6,7 @@ import httpx
 import pytest
 
 from adapter import routes_dynamic
-from adapter.main import app
+from memory_service_app.main import app
 from adapter.settings import Settings, get_settings
 from tests.conftest import DATABASE_URL, Scope
 from tests.asgi_client import get_json as _request

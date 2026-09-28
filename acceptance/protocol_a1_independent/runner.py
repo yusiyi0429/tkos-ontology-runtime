@@ -48,7 +48,6 @@ class Runner:
         self.control = FrozenControlContract(args.control_contract)
         self.adapter = None
         self.scope_catalog_result = None
-        self.binding_result = None
 
     def record(self, case, check, evidence):
         self.book.check(case, check, True, evidence=evidence)
@@ -323,7 +322,6 @@ class Runner:
             assert check["passed"] is True
             self.record("A1-07", name, check)
         self.record("A1-04", "cross_protocol_parent_denied", result["checks"]["parent_binding_conflict_denied"])
-        self.binding_result = result
         if self.scope_catalog_result and "cross_scope_binding_fk_denied" in result["checks"]:
             self.record("A1-11", "cross_scope_fk_and_reads", {"reads": self.scope_catalog_result,
                 "fk": result["checks"]["cross_scope_binding_fk_denied"]})

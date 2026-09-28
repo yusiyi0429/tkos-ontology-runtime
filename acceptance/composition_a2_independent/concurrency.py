@@ -10,7 +10,6 @@ from copy import deepcopy
 from datetime import datetime, timezone
 import json
 import threading
-import time
 import uuid
 
 from acceptance.runtime.client import Client

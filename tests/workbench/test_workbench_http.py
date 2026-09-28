@@ -6,7 +6,7 @@ from contextlib import contextmanager
 import pytest
 
 from memory_service_app.main import app
-from memory_service_runtime.governed import db, routes, workbench
+from memory_service_runtime.governed import db, workbench
 from tests.asgi_client import get
 
 from fakes import CTX, FakeConn, domain_row, uid

@@ -99,7 +99,7 @@ def exercise(flow,h,source,process,chain,targets,ltco,state,payload,body,receipt
     check('v03_rejects_cross_version_sources')
     legacy.close();v02.close()
     # Revoke after prepare; neither the late write nor the historical snapshot revives authority.
-    recommendation=exact(flow.act('co_agent','method_propose_state',{'domain_id':f['domains']['company'],
+    exact(flow.act('co_agent','method_propose_state',{'domain_id':f['domains']['company'],
         'payload':{**payload,'generation_version':'controlled-late'},'previous_state_ref':state})['result'])
     pending=flow.prepare('a','method_confirm_state',{'reason':'Late confirmation after revocation'},oid=state['object_id'])
     assignments=h.sql(f,'SELECT assignment_id FROM gov_role_assignments WHERE scope_id=%s AND principal_id=%s AND active',(f['scope_id'],f['actors']['a']['principal_id']))

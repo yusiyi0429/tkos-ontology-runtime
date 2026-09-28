@@ -51,9 +51,8 @@ from typing import Any
 
 from pydantic import ValidationError
 
-from memory_service_runtime.governed import db, delivery, protocol, readers, workbench
+from memory_service_runtime.governed import db, protocol, readers, workbench
 from memory_service_runtime.governed.a2_models import (
-    A2_COMPOSITION_TYPES,
     A2_OBJECT_TYPES,
     A2_SOURCE_TYPES,
     CompositionManifest,
@@ -83,11 +82,6 @@ def _uuid_str(value: Any) -> str | None:
         return str(UUID(str(value)))
     except (ValueError, TypeError, AttributeError):
         return None
-
-
-# Roles accepted for the two Round slot kinds.
-CEO_ROLES = frozenset({"CEO", "DOMAIN_CEO"})
-DRI_ROLES = frozenset({"DOMAIN_DRI", "CEO"})
 
 
 # ---------------------------------------------------------------------------
@@ -157,18 +151,6 @@ def _round_state_row(conn: Any, scope_id: str, round_object_id: str) -> dict[str
     )
 
 
-def _member_rows(conn: Any, scope_id: str, round_object_id: str) -> list[dict[str, Any]]:
-    head = _load_head(conn, scope_id, round_object_id)
-    if head is None:
-        return []
-    rev = _load_revision(conn, scope_id, str(head["object_id"]),
-                         str(head["latest_revision_id"]))
-    if rev is None or not isinstance(rev.get("payload"), dict):
-        return []
-    members = rev["payload"].get("members") or []
-    return [m for m in members if isinstance(m, dict)]
-
-
 def _formal_pointer_row(conn: Any, scope_id: str, round_object_id: str,
                         domain_id: str) -> dict[str, Any] | None:
     return _row(
@@ -225,7 +207,6 @@ def _actor_current_slot(conn: Any, ctx: Any, round_object_id: str) -> dict[str, 
     if snap is None:
         return None
     payload = snap["payload"]
-    head = snap["head"]
     members = payload.get("members") if isinstance(payload.get("members"), list) else []
     ceo_assignment_id = payload.get("ceo_assignment_id")
     ceo_principal_id = payload.get("ceo_principal_id")
@@ -895,43 +876,6 @@ def _receipt_anchor_round(conn: Any, ctx: Any, receipt: dict[str, Any]) -> str |
     return None
 
 
-def _authorize_referenced_sources(conn: Any, ctx: Any,
-                                  receipt: dict[str, Any]) -> bool:
-    """Every actual referenced material must be currently readable.
-
-    Walks ``receipt["target_object_id"]``, every entry in
-    ``receipt["object_versions"]``, and every id in
-    ``receipt["result"]["referenced_object_ids"]`` and re-authorizes each
-    against the current scope/policy/binding via :func:`visible_object`
-    (which already runs the same-domain gate, then the bounded A2-18
-    exception).  If a referenced revision id is provided, it is validated
-    against the requested head via :func:`visible_revision`.  No short-circuit
-    on the first native-readable object; the first denial fails the whole
-    receipt.
-    """
-    target = receipt.get("target_object_id")
-    if target:
-        if not _authorize_object(conn, ctx, str(target)):
-            return False
-    for item in receipt.get("object_versions") or []:
-        if not isinstance(item, dict):
-            continue
-        oid = _uuid_str(item.get("object_id"))
-        if oid is None:
-            return False
-        rid = _uuid_str(item.get("revision_id"))
-        if not _authorize_object(conn, ctx, oid, rid):
-            return False
-    referenced = (receipt.get("result") or {}).get("referenced_object_ids") or []
-    for item in referenced:
-        oid = _uuid_str(item)
-        if oid is None:
-            return False
-        if not _authorize_object(conn, ctx, oid):
-            return False
-    return True
-
-
 def _company_ceo_current_read(conn: Any, ctx: Any,
                               round_object_id: str) -> bool:
     """The company domain currently grants the actor read AND the actor is
@@ -1122,7 +1066,7 @@ def relations(conn: Any, ctx: Any, object_id: str,
     if head is None or head.get("object_type") not in A2_OBJECT_TYPES:
         return workbench.relations(conn, ctx, object_id, revision_id, limit, cursor)
 
-    head_view = visible_object(conn, ctx, oid)
+    visible_object(conn, ctx, oid)
     head_metadata = protocol.read_metadata(conn, ctx.scope_id, head["object_id"])
     if head_metadata.get("interpretation_status") not in CONTRACT_A_READ_STATUSES:
         raise GovernedError(

@@ -1,7 +1,7 @@
 """无数据库的 workbench 读取聚焦测试。
 
-运行方式（避免 tests/conftest.py 的 DATABASE_URL 夹具）：
-    PYTHONPATH=src pytest tests/workbench --confcutdir=tests/workbench
+运行方式（无需 DATABASE_URL）：
+    PYTHONPATH=src pytest tests/workbench
 
 FakeConn 只响应 workbench.py 里带 /*workbench:*/ 标记的查询；授权钩子
 （db.object_row / db.authorize_domain / db.revision_row /

@@ -1,7 +1,7 @@
 """Authorized version and historical context reads from authoritative records."""
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime
 import uuid
 
 from psycopg.types.json import Jsonb

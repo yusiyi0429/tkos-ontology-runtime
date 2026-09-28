@@ -163,7 +163,6 @@ class WorkItemPayload(StrictModel):
 from .a2_models import (  # noqa: E402  (intentional module-level wiring)
     ActivateCompanyCompositionParams,
     AmendFormationRoundParams,
-    A2_ACTION_PARAMS,
     CapacityObservationPayload,
     CompanyReferencePayload,
     ConfirmCompanyCompositionParams,

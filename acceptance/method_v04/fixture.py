@@ -5,7 +5,6 @@ import hashlib
 import json
 from pathlib import Path
 import secrets
-import uuid
 
 import psycopg
 from psycopg.rows import dict_row

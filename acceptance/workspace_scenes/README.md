@@ -4,28 +4,29 @@
 
 ## 环境与复跑
 
-Python 3.12+、uv、Node.js。按 `acceptance/runtime/README.md` 准备本地验收 PostgreSQL/MinIO；当前本地工具预期 Docker `desktop-linux`、PostgreSQL `127.0.0.1:54350`。以下创建新数据库，保留旧库与所有卷。`BASE_ENV` 是已存在的私有本地验收环境文件，禁止提交或打印内容。
+Python 3.12+、uv、Node.js。按 `acceptance/runtime/README.md` 准备本地验收 PostgreSQL/MinIO；当前本地工具预期 Docker `desktop-linux` 与正在运行的隔离验收栈。建库统一用 `acceptance/method_v05/database.py`：只接受隔离验收栈（`python3 acceptance/runtime/infra.py up`），迁移到当前源码的全部迁移。原先的建库脚本会把目标容器改写为 Clark 联动栈（54350）并断言旧的迁移清单，已删除。本 runner 在迁移到 HEAD 的库上尚未重新验证。以下创建新数据库，保留旧库与所有卷。`.runtime-acceptance/env.json` 是 infra 的私有状态文件，禁止提交或打印内容。
 
 ```bash
 uv sync --frozen --extra s3
 
-# 在 Runtime 独立工作区执行，替换 BASE_ENV 为私有 env.json 路径。
-uv run python -m acceptance.method_independent.database create \
-  --env-file BASE_ENV \
-  --private .runtime-acceptance/workspace-db-NEW \
-  --output artifacts/workspace-db-NEW
-
-uv run python -m acceptance.workspace_scenes.bootstrap \
-  --env-file .runtime-acceptance/workspace-db-NEW/env.json \
-  --output artifacts/workspace-upgrade-NEW
+# 在 Runtime 独立工作区执行。
+STAMP=$(date +%Y%m%d-%H%M%S)
+.venv/bin/python -m acceptance.method_v05.database create \
+  --env-file .runtime-acceptance/env.json \
+  --private .runtime-acceptance/workspace-db-$STAMP \
+  --output artifacts/runtime-acceptance/workspace-db-$STAMP
+.venv/bin/python -m acceptance.method_v05.database upgrade \
+  --env-file .runtime-acceptance/workspace-db-$STAMP/env.json \
+  --source src \
+  --output artifacts/runtime-acceptance/workspace-db-$STAMP-upgrade
 
 uv run python -m acceptance.workspace_scenes.run \
-  --env-file .runtime-acceptance/workspace-db-NEW/env.json \
+  --env-file .runtime-acceptance/workspace-db-$STAMP/env.json \
   --private .runtime-acceptance/workspace-run-NEW \
   --output artifacts/workspace-run-NEW
 
 uv run python -m acceptance.workspace_scenes.regression \
-  --env-file .runtime-acceptance/workspace-db-NEW/env.json \
+  --env-file .runtime-acceptance/workspace-db-$STAMP/env.json \
   --output .runtime-acceptance/workspace-regression-NEW
 
 uv run python -m acceptance.workspace_scenes.export_contract --check

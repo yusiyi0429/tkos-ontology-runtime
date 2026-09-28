@@ -1,5 +1,5 @@
 """Read-only lifecycle presentation; action commits remain authoritative."""
-from . import db, method_access as access, method_readers
+from . import db, method_readers
 from .errors import GovernedError
 
 

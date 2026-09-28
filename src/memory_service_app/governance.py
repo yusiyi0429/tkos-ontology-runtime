@@ -2,11 +2,11 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Query, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 
-from memory_service_runtime.governed import governance as reads, workspace_readers, readers, method_readers, dashboard, method_access
+from memory_service_runtime.governed import governance as reads, workspace_readers, readers, dashboard, method_access
 from memory_service_runtime.governed.errors import GovernedError
 from . import governance_sessions as sessions, governance_commands as commands
 from .settings import get_settings

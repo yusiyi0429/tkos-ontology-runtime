@@ -2,26 +2,29 @@
 
 在全新隔离数据库中，用合法 Method 0.3 动作建立完整链路，再以真实 HTTP/PG/MinIO
 验证看板读取契约与本地 facade。运行位置为 Runtime 工作区；需要 Python 3.12+、uv
-（`--extra s3`）、Docker Engine 与本机既有 PostgreSQL/MinIO 端点。
+（`--extra s3`）、Docker Desktop（`desktop-linux`）与正在运行的隔离验收栈。
 
 ## 1. 创建隔离数据库
 
 ```sh
-uv run python -m acceptance.dashboard_0_3.database \
-  --env-file <private base env.json> \
-  --private .runtime-acceptance/dashboard-0-3-db \
-  --output .runtime-acceptance/dashboard-0-3-db-report
+STAMP=$(date +%Y%m%d-%H%M%S)
+.venv/bin/python -m acceptance.method_v05.database create \
+  --env-file .runtime-acceptance/env.json \
+  --private .runtime-acceptance/dashboard-0-3-db-$STAMP \
+  --output artifacts/runtime-acceptance/dashboard-0-3-db-$STAMP
+.venv/bin/python -m acceptance.method_v05.database upgrade \
+  --env-file .runtime-acceptance/dashboard-0-3-db-$STAMP/env.json \
+  --source src \
+  --output artifacts/runtime-acceptance/dashboard-0-3-db-$STAMP-upgrade
 ```
 
-该命令委托 `acceptance.anchors_v03.database`：在既有本机 PostgreSQL 容器创建新的
-`tkos_a1_method_*` 库，迁移至 0025 并重复迁移验证为空，应用/迁移身份分离；不改动任何
-既有数据库、容器或凭据。私有 env 与公开报告路径必须分开。
+建库统一用 `acceptance/method_v05/database.py`：只接受隔离验收栈（`python3 acceptance/runtime/infra.py up`），迁移到当前源码的全部迁移。原先的建库脚本会把目标容器改写为 Clark 联动栈（54350）并断言旧的迁移清单，已删除。本 runner 在迁移到 HEAD 的库上尚未重新验证。
 
 ## 2. 运行验收
 
 ```sh
 uv run --extra s3 python -m acceptance.dashboard_0_3.run \
-  --env-file .runtime-acceptance/dashboard-0-3-db/env.json \
+  --env-file .runtime-acceptance/dashboard-0-3-db-$STAMP/env.json \
   --private .runtime-acceptance/dashboard-0-3-run/private \
   --output .runtime-acceptance/dashboard-0-3-run/report
 ```

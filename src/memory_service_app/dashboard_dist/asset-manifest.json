@@ -70,10 +70,6 @@
       "sha256": "05ab6f68bf3f955e30344a7615746c2a062e9f70c3075fc880d7ea81c64d56f3"
     },
     {
-      "path": "workbench/dashboard/src/__tests__/FilterBar.test.tsx",
-      "sha256": "58e91b05d8e99aece2c60a00d11c001460ca761f1d05fc92bac0d790299a8d74"
-    },
-    {
       "path": "workbench/dashboard/src/__tests__/GovernanceApp.test.tsx",
       "sha256": "06dba343534da60014829dac24fee2764161dbb8e54833ba24304472f12e1a5c"
     },
@@ -104,10 +100,6 @@
     {
       "path": "workbench/dashboard/src/__tests__/MethodMap.test.tsx",
       "sha256": "3e0d41495a897a1b9aa25b9d85d793ab00bcaa0ddd726c662442e0a92cb7404e"
-    },
-    {
-      "path": "workbench/dashboard/src/__tests__/ObjectList.test.tsx",
-      "sha256": "84c3d7e3b01748b2714e38c33e92b59e8b4a56d18c8e512513f116d740fff9eb"
     },
     {
       "path": "workbench/dashboard/src/__tests__/OntologyMap.test.tsx",
@@ -182,24 +174,12 @@
       "sha256": "aab9819411a1a518eb450b9df8d190c0dbc8392ffe048cb920feae11240ece52"
     },
     {
-      "path": "workbench/dashboard/src/components/FilterBar.tsx",
-      "sha256": "b4f851c867176c6cf30934ae9ef1c91f47ce4433d51aa3f5567f8921cb6ef3dd"
-    },
-    {
-      "path": "workbench/dashboard/src/components/ObjectList.tsx",
-      "sha256": "78ce4843989ad08ccec6dc381e2dc3119b79a26981811d4ccf4224e199987af4"
-    },
-    {
       "path": "workbench/dashboard/src/components/OntologyMap.tsx",
       "sha256": "133c29377a875da9b41fb178f1a888f4c0586a681b2c1d42963240433f4ed461"
     },
     {
       "path": "workbench/dashboard/src/components/PanZoomCanvas.tsx",
       "sha256": "337969d726c048b6715deca403c720856eeefe56f65531c3fce501be6b2b7641"
-    },
-    {
-      "path": "workbench/dashboard/src/components/SideNav.tsx",
-      "sha256": "ebc2682b848734dac1a1c3b55220a99a5d79215a95a9710d62feb1462ff43409"
     },
     {
       "path": "workbench/dashboard/src/components/StatePanel.tsx",
@@ -271,7 +251,7 @@
     },
     {
       "path": "workbench/dashboard/src/index.css",
-      "sha256": "481205e683ec46e6ea0ba4e714767ec2ea05b41f2faf025812f47e9ec7968978"
+      "sha256": "872db6a65341248a5786def74c3bc33f04d395c42c7decb336e5551afc87c130"
     },
     {
       "path": "workbench/dashboard/src/lib/api.ts",
@@ -283,11 +263,11 @@
     },
     {
       "path": "workbench/dashboard/src/lib/format.ts",
-      "sha256": "d127201213c978ed338b63b950b0371e03f4f8d69a89c08a30caec669623859f"
+      "sha256": "1249f7514290c2102a6df57b6b363e020a04af129ec6a49314f50a3fc3dcda7a"
     },
     {
       "path": "workbench/dashboard/src/lib/labels.ts",
-      "sha256": "f6305162bccce606873123fd5515d89c8e4bf893144e74294271a093a4291a97"
+      "sha256": "0c8c0c75ef5a04b67bc64e0d6940a5ba16de64f650135ee45898d7b9435449ed"
     },
     {
       "path": "workbench/dashboard/src/lib/live.ts",
@@ -357,19 +337,19 @@
       "sha256": "8fa40e5d248247735eb97a0bd593b8852440430600d6ba01364c31fe0abc1fe1"
     },
     {
-      "bytes": 80154,
-      "path": "assets/index-Bao8H1y5.css",
-      "sha256": "5b7f1ccbf88ae75c144427326d7d251ceb4e3bbce7f134bf528b6a2248c39190"
+      "bytes": 75515,
+      "path": "assets/index-8DK0o3tj.css",
+      "sha256": "530614ee2a6d4b3fe719088c6a9f01bb76f772e01cc8f18290ed9e3b46f26b69"
     },
     {
       "bytes": 653842,
-      "path": "assets/index-CamHqM66.js",
+      "path": "assets/index-BIkamoDr.js",
       "sha256": "8ac311c243945b63d8a0c3a9ffa981df9da87196c2e75b2c2660b504a9d2e8eb"
     },
     {
       "bytes": 479,
       "path": "index.html",
-      "sha256": "f775c6d5e85c0a3fa633f6abcb2b1ff37c76ee36569b79f7e65f91ce613d2fec"
+      "sha256": "00f97bb871a7a0d461eca70bd446bee7099b3790dbc077cfe5261c861bee5567"
     }
   ],
   "schema_version": "tkos.dashboard-assets/1"

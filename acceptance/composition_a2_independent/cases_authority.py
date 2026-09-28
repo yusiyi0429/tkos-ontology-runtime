@@ -1,7 +1,6 @@
 """Actual identity, exact signer slots, revocation and unsupported extensions."""
 from __future__ import annotations
 from copy import deepcopy
-import uuid
 
 from acceptance.runtime.client import Client
 from .cases_versions import rejected, reject_stale_manifest

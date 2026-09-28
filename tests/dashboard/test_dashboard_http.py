@@ -7,7 +7,7 @@ from memory_service_app.main import app
 from memory_service_runtime.governed import dashboard, dashboard_routes
 from tests.asgi_client import get
 
-from dashboard_fakes import CTX, uid
+from dashboard_fakes import uid
 
 
 TOKEN = "synthetic-token-for-dashboard-http-tests-0000000000000000000"

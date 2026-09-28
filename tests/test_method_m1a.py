@@ -14,7 +14,7 @@ from memory_service_runtime.governed.errors import GovernedError
 from memory_service_runtime.governed import method_m1a as m1a
 from memory_service_runtime.governed.method_m1a_models import (
     AssignResearchParams, M1A_ACTION_PARAMS, M1A_ACTION_TARGETS,
-    StrategyPayload, StrategyUpdateProposalPayload,
+    StrategyPayload,
 )
 
 

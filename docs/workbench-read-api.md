@@ -292,4 +292,4 @@ Context Pack 页完全使用既有接口，本批没有为它新增端点。
 - 未接入/不承诺：入向关系图查询、跨请求一致性快照、自由过滤/排序、
   total 计数、人员目录、可执行动作结论、签名书签、Clark UI/BFF（由 Clark
   伙伴负责）。无库单元测试见 `tests/workbench/`；真实数据库+对象存储的
-  端到端验收由 Codex 独立执行，演练数据生成入口见 `acceptance/workbench/`。
+  端到端验收由 Codex 独立执行，入口见 `acceptance/workbench/`。

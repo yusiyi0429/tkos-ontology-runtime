@@ -36,13 +36,6 @@ def _canonical_uuid(value: Any) -> str:
         _fail("INVALID_REQUEST", f"invalid UUID: {value!r}", 422)
 
 
-# ---------- execution.kind dispatch ----------
-
-_A2_FORM_KINDS = {"form_company_composition",
-                  "confirm_company_composition",
-                  "activate_company_composition"}
-
-
 # ---------- identity / visibility primitives ----------
 
 
@@ -232,7 +225,7 @@ def _aggregate_capacity(execution, formal_submissions, round_period_id, particip
 # ---------- collect ----------
 
 def collect(execution):
-    from .a2_rounds import source_refs, sources
+    from .a2_rounds import source_refs
     round_id = execution.target['object_id'] if execution.kind == 'form_company_composition' else execution.target_revision['payload']['round_id']
     head = execution.add_dependency(round_id)
     definition = execution.revision(round_id, head['latest_revision_id'])['payload']

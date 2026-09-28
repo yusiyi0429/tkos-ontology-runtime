@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 
 from acceptance.runtime.client import Client
 
-from .cases_chain import check, payload
+from .cases_chain import check
 
 
 def run(flow, book, chain, business):

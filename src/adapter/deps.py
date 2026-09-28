@@ -1,8 +1,7 @@
-"""FastAPI dependencies for per-request DB connections and viewer identity."""
+"""FastAPI dependency for per-request DB connections."""
 from __future__ import annotations
 
 from collections.abc import Iterator
-from dataclasses import dataclass
 import logging
 from typing import Annotated
 
@@ -10,19 +9,9 @@ import psycopg
 from fastapi import Depends, HTTPException
 from pgvector.psycopg import register_vector
 
-from memory_service import actors
-
 from adapter.settings import Settings, get_settings
 
 LOGGER = logging.getLogger("tkos.adapter")
-
-
-@dataclass(frozen=True)
-class Viewer:
-    """The validated human viewer exposed to rendering/projection code."""
-
-    user_id: str
-    display_name: str
 
 
 def get_conn(
@@ -57,43 +46,3 @@ def get_conn(
         yield conn
     finally:
         conn.close()
-
-
-def resolve_viewer(conn: psycopg.Connection, settings: Settings) -> Viewer:
-    """Resolve and fail closed unless the configured viewer is an in-scope human."""
-    user_id = settings.viewer_user_id
-    if not user_id:
-        raise HTTPException(status_code=500, detail="VIEWER_USER_ID 未配置，无法解析 viewer")
-
-    try:
-        # Keep the memory_service actor check as the single authority for the
-        # human + tenant/org invariant; this is not a duplicate local policy.
-        actors.require_human(
-            conn,
-            user_id,
-            tenant_id=settings.memory_tenant,
-            organization_id=settings.memory_org,
-            field_name="viewer",
-        )
-    except actors.ActorRequiredError as exc:
-        # Viewer is process configuration, not a user-provided anchor.  A bad
-        # configured viewer therefore fails loudly as 500, never as 404.
-        raise HTTPException(status_code=500, detail=f"viewer 配置无效：{exc}") from exc
-
-    row = conn.execute(
-        "SELECT display_name FROM users WHERE user_id=%s",
-        (user_id,),
-    ).fetchone()
-    if row is None:
-        # Defensive: require_human already checked this row.  Keep the failure
-        # explicit if the row disappears between the two reads.
-        raise HTTPException(status_code=500, detail=f"viewer 用户不存在：{user_id}")
-    return Viewer(user_id=user_id, display_name=str(row[0] or user_id))
-
-
-def get_viewer(
-    conn: Annotated[psycopg.Connection, Depends(get_conn)],
-    settings: Annotated[Settings, Depends(get_settings)],
-) -> Viewer:
-    """FastAPI dependency wrapper around :func:`resolve_viewer`."""
-    return resolve_viewer(conn, settings)

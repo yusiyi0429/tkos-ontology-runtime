@@ -17,8 +17,6 @@ verifiable at the model layer, and the models do not claim it.
 """
 from __future__ import annotations
 
-import copy
-
 import pytest
 from pydantic import ValidationError
 

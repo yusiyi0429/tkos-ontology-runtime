@@ -5,7 +5,7 @@ import base64
 
 import pytest
 
-from adapter.main import app
+from memory_service_app.main import app
 from adapter.settings import Settings, get_settings
 from tests.asgi_client import get
 from tests.conftest import DATABASE_URL, Scope

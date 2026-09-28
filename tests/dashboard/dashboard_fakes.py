@@ -1,8 +1,8 @@
 """无数据库的 dashboard 读取聚焦测试辅助。
 
-运行方式（避免 tests/conftest.py 的 DATABASE_URL 夹具）：
+运行方式（无需 DATABASE_URL）：
 
-    PYTHONPATH=src pytest tests/dashboard --confcutdir=tests/dashboard
+    PYTHONPATH=src pytest tests/dashboard
 
 FakeConn 只响应 dashboard.py 中带明确标记/固定形状的查询；对象/修订读取与
 协议元数据由 monkeypatch 换成内存判定，从而在无数据库环境下验证分组、

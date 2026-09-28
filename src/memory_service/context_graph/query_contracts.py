@@ -478,12 +478,6 @@ class GraphRetrieval:
     source_resolutions: tuple[OwnerResolution, ...]
     audit: RetrievalAudit
 
-    def owner_resolution(self, owner_kind: str, owner_id: str) -> OwnerResolution | None:
-        for resolution in self.source_resolutions:
-            if resolution.owner_kind == owner_kind and resolution.owner_id == owner_id:
-                return resolution
-        return None
-
     def to_json(self) -> dict[str, Any]:
         return {
             "retrieval_mode": self.retrieval_mode,

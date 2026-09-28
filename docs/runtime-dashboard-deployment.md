@@ -87,8 +87,8 @@ facade 每个请求重新读取该文件并重新认证；文件缺失、mode �
 
 ## 4. 升级前 clone 验证（不碰运行库）
 
-1. 用 `acceptance/dashboard_0_3/database.py` 创建新隔离库并迁移至 0025；重复迁移必须
-   为 0，应用/迁移角色与授权符合预期。
+1. 用 `acceptance/method_v05/database.py`（`create` 再 `upgrade`）在隔离验收栈创建新库并迁移到当前源码；
+   重复迁移必须为 0，应用/迁移角色与授权符合预期。
 2. 对 clone 运行 `acceptance/dashboard_0_1/run.py`（只读，含前后表计数 oracle），并
    复核既有对象、默认绑定与旧读兼容（`/v1/identity`、Strategy、LTCO、PCO、Mission、
    ReviewWindow）。

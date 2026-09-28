@@ -15,7 +15,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from memory_service_runtime.governed import dashboard, dashboard_routes, db, method_map, method_map_snapshot, method_models, protocol
+from memory_service_runtime.governed import dashboard, dashboard_routes, db, method_map, method_map_snapshot, method_models
 from memory_service_runtime.governed.errors import GovernedError
 
 
@@ -222,9 +222,6 @@ def test_availability_partial_failure_keeps_visible_data(map_env, monkeypatch):
     assert combined["by_object_type"]["EvidenceAsset"] == "failed"
     # I06 has only Mission, which has no rows here but must not be "failed"
     assert entries["I06"]["authorized_read_availability"]["status"] == "none_visible"
-    # I03 (StrategicArchitecture) is uncompiled at this checkpoint
-    if "StrategicArchitecture" not in method_map.compiled_types().get("tkos.method/0.3", set()):
-        assert entries["I03"]["authorized_read_availability"]["status"] == "not_implemented"
 
 
 def test_infrastructure_failure_propagates(map_env, monkeypatch):
@@ -279,11 +276,10 @@ def test_catalog_lists_only_compiled_registries(map_env):
     assert result["runtime_implementation"]["documented_contract_states"]["tkos.workspace/0.2"] == "compiled_surface"
 
 
-def test_v04_requests_fail_closed_while_not_compiled():
-    if ("tkos.method", "tkos.method/0.4") in protocol.SUPPORTED_PROTOCOL_CONTRACTS:
-        pytest.skip("0.4 support was enabled by the B3/B4 increment; fail-closed is covered there")
+@pytest.mark.parametrize("version", ["tkos.method/9.9", None])
+def test_uncompiled_method_versions_fail_closed(version):
     with pytest.raises(GovernedError) as error:
-        method_models.registry("tkos.method/0.4")
+        method_models.registry(version)
     assert error.value.code == "PROTOCOL_NOT_SUPPORTED"
 
 
@@ -327,15 +323,12 @@ def test_compiled_reporting_follows_the_real_registry(map_env):
     compiled = method_map.compiled_types()
     assert "tkos.method/0.3" in compiled
     from memory_service_runtime.governed import method_v04_models
-    if ("tkos.method", "tkos.method/0.4") in protocol.SUPPORTED_PROTOCOL_CONTRACTS:
-        assert "tkos.method/0.4" in compiled
-        assert "StrategicAgreement" in compiled["tkos.method/0.4"]
-        assert method_v04_models.ACTION_PARAMS  # compiled registry is the source
+    assert "tkos.method/0.4" in compiled
+    assert "StrategicAgreement" in compiled["tkos.method/0.4"]
+    assert method_v04_models.ACTION_PARAMS  # compiled registry is the source
     map_env["rows"] = {}
     result = run_build()
-    assert "tkos.method/0.4" in result["runtime_implementation"]["compiled_contract_versions"] or \
-        ("tkos.method", "tkos.method/0.4") not in protocol.SUPPORTED_PROTOCOL_CONTRACTS
+    assert "tkos.method/0.4" in result["runtime_implementation"]["compiled_contract_versions"]
     # A compiled-but-unregistered 0.4 is never labeled document-only.
-    if "tkos.method/0.4" in compiled:
-        assert result["runtime_implementation"]["documented_contract_states"]["tkos.method/0.4"] == \
-            "compiled_not_enabled_in_scope"
+    assert result["runtime_implementation"]["documented_contract_states"]["tkos.method/0.4"] == \
+        "compiled_not_enabled_in_scope"

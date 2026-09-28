@@ -5,7 +5,7 @@ import uuid
 from urllib.parse import urlencode
 import pytest
 
-from adapter.main import app
+from memory_service_app.main import app
 from adapter.settings import Settings, get_settings
 from adapter.wm_views import build_code_index
 from tests.asgi_client import get

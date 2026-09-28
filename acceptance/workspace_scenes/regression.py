@@ -1,4 +1,4 @@
-"""Run the local Python/workbench/build checks with private, role-specific env."""
+"""Run the local Python/build checks with private, role-specific env."""
 import argparse
 import json
 from pathlib import Path
@@ -25,7 +25,6 @@ def main():
     jobs = [
         ("python", False, [sys.executable, "-m", "pytest", "tests", "--ignore=tests/test_migrations.py", "--ignore=tests/test_narrative_legacy.py", "-q", "--junitxml=" + str(args.output.resolve() / "python.xml")]),
         ("narrative", True, [sys.executable, "-m", "pytest", "tests/test_narrative_legacy.py", "-q", "--junitxml=" + str(args.output.resolve() / "narrative.xml")]),
-        ("workbench", False, ["node", "--test", *[str(p) for p in sorted((root / "tests/workbench-ui").glob("*.test.mjs"))]]),
         ("build", False, ["uv", "build", "--offline"]),
     ]
     results = {}

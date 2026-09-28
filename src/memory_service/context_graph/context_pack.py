@@ -3,19 +3,14 @@
 ``build_context_pack`` is a pure conversion from one consistent ``GraphRetrieval`` snapshot and
 rejects missing owner resolutions.  ``render_narrative`` reads only typed business payloads and
 frozen source anchors; similarity, rank, and budget metadata cannot enter the rendered path.
-``strategic_context`` performs embedding outside the transaction, one consistent read, pack
-assembly, and rendering.  Contracts, SQL, and query orchestration remain in their dedicated modules.
+Contracts, SQL, and query orchestration remain in their dedicated modules.
 """
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Callable
+from typing import Any
 
-from memory_service.context_graph.query import (
-    Embedder, RetrievalBudgets, execute_query, plan_query,
-)
 from memory_service.context_graph.query_contracts import (
-    STRATEGIC_PATH_V1,
     Compressor,
     EntityPayload,
     GenerationRef,
@@ -496,46 +491,3 @@ def _join_root_and_rest(root: str, compressed_rest: str) -> str:
         return compressed_rest
     joiner = "" if root.endswith(("。", "！", "？")) else "。"
     return f"{root}{joiner}{compressed_rest}"
-
-
-def strategic_context(
-    tenant_id: str,
-    organization_id: str,
-    effective_query: str,
-    *,
-    retrieval_mode: str = STRATEGIC_PATH_V1,
-    embedder: Embedder,
-    compressor: Compressor,
-    budgets: RetrievalBudgets | None = None,
-    embedding_dim: int,
-    _connect: Callable[..., Any],
-) -> dict[str, Any]:
-    """全链路门面：规划（embedding 事务外）→ 单一只读一致性事务执行 → Pack → 叙事 → 压缩。
-
-    ``embedder``/``compressor``/``embedding_dim``/``_connect`` 由宿主显式传入
-    （host capability boundary）。根节点（公司愿景）的正文逐字保留、从不送进压缩调用：
-    只压缩根节点以下的推导链/命中节点/横向节点，再与未动的根节点文本拼回。压缩在读时现算
-    （每次调用一次 chat），fail-closed：压缩失败即整次调用失败，不静默回退未压缩全文。
-
-    返回 {"pack": NarrativeContextPack, "narrative": 单块叙事文本（根节点原文 + 已压缩的推导链），
-    "narrative_raw_chars": 压缩前字符数, "narrative_chars": 压缩后字符数}。
-    pack 用于审计与调试（to_json()）；narrative 是唯一应注入模型的文本。
-    """
-    plan = plan_query(
-        tenant_id, organization_id, effective_query,
-        retrieval_mode=retrieval_mode, embedder=embedder, budgets=budgets,
-        embedding_dim=embedding_dim,
-    )
-    retrieval = execute_query(plan, _connect=_connect)
-    pack = build_context_pack(retrieval)
-    raw_narrative = render_narrative(pack)
-    root = root_statement(pack)
-    rest = _narrative_without_root(pack)
-    compressed_rest = compress_narrative(rest, compressor=compressor)
-    narrative = _join_root_and_rest(root, compressed_rest)
-    return {
-        "pack": pack,
-        "narrative": narrative,
-        "narrative_raw_chars": len(raw_narrative),
-        "narrative_chars": len(narrative),
-    }

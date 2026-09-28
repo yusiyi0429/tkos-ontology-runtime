@@ -19,25 +19,7 @@ from typing import Any
 
 from botocore.exceptions import ClientError
 
-from memory_service.context_graph.object_store import S3SnapshotObjectStore
-from memory_service.context_graph.snapshot import SnapshotStorageError
-
 _RETENTION_MODES = ("GOVERNANCE", "COMPLIANCE")
-
-
-def get_snapshot_object_store(client: Any, bucket: str, *, max_conflict_retries: int = 5) -> S3SnapshotObjectStore:
-    """构造 S3SnapshotObjectStore。
-
-    ``client``（boto3 S3 client）与 ``bucket`` 由宿主显式装配（host capability boundary：settings/S3
-    凭证归宿主，Memory 不读 settings、不自取 S3）；测试可注入 stub client。
-    ``max_conflict_retries``：仅 409 条件写冲突的有限重试上限（object_store 既定语义）。
-    """
-    return S3SnapshotObjectStore(client, bucket=bucket, max_conflict_retries=max_conflict_retries)
-
-
-def preflight_snapshot_storage(bucket: str, client: Any) -> None:
-    """Fail closed unless the bucket satisfies every immutability requirement."""
-    get_snapshot_object_store(client=client, bucket=bucket).preflight_immutability()
 
 
 # ---------------------------------------------------------------------------

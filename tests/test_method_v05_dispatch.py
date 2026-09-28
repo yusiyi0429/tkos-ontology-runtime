@@ -203,12 +203,6 @@ def _dispatch(action, declared, target=None):
     return service._execution_factory(None, None, request)
 
 
-def _raise(code):
-    def boom(*a, **k):
-        raise GovernedError(code)
-    return boom
-
-
 @pytest.mark.parametrize('action', ('m1b_revise_constraint', 'm1b_confirm_constraint', 'm1b_confirm_review'))
 @pytest.mark.parametrize('scenario', ('absent', 'read_denied'))
 def test_authorization_resolves_before_any_protocol_error_is_revealed(action, scenario, monkeypatch):

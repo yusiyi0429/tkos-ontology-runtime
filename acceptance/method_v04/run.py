@@ -302,7 +302,7 @@ def negatives(h, f, flow, ctx):
     issue = ctx['issue']
     strategy_ref = ctx['strategy_ref']
     architecture_ref = ctx['architecture_ref']
-    ltco_a, ltco_b = ctx['ltco_a'], ctx['ltco_b']
+    _ltco_a, _ltco_b = ctx['ltco_a'], ctx['ltco_b']
 
     # ------------------------------------------- replay / duplicate response
     run2 = flow.open_run(title='Synthetic 0.4 replay run')

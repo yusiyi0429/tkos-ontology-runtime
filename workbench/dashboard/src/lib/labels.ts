@@ -1,23 +1,5 @@
 /** Chinese business labels.  The UI shows these, never raw API enum text. */
 
-export const GROUP_LABELS: Record<string, string> = {
-  strategy: "战略",
-  architecture: "责任结构 Architecture",
-  ltco: "LTCO 长期目标",
-  pco: "PCO 当期目标",
-  mission: "Mission 任务",
-  operating: "经营运行",
-}
-
-export const GROUP_HINTS: Record<string, string> = {
-  strategy: "当前正式生效的战略",
-  architecture: "战略各责任域的定义与边界",
-  ltco: "长期经营目标（周期以记录为准）",
-  pco: "当期目标与责任人",
-  mission: "承接 PCO 的当前任务",
-  operating: "状态、事实、复盘与问题",
-}
-
 export const TYPE_LABELS: Record<string, string> = {
   Strategy: "战略",
   StrategicArchitecture: "责任结构",
@@ -326,11 +308,3 @@ export function candidateLabel(candidate: { revision_id: string }, effectiveId: 
   if (!effectiveId) return { label: "草稿版本", tone: "border-border bg-muted text-muted-foreground" }
   return { label: "历史版本", tone: "border-amber-300 bg-amber-50 text-amber-900" }
 }
-
-export const BASIS_SECTIONS: Array<{ statuses: string[]; title: string; hint: string }> = [
-  { statuses: ["current"], title: "当前依据", hint: "与所选战略精确匹配" },
-  { statuses: ["historical", "mixed"], title: "历史依据（旧 Strategy）",
-    hint: "保留旧战略依据，效力以各对象状态为准" },
-  { statuses: ["unattached"], title: "未关联（主题型事实）", hint: "未记录任务关联" },
-  { statuses: ["unavailable"], title: "依据当前不可读", hint: "不推断、不补造" },
-]

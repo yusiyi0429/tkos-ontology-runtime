@@ -112,30 +112,6 @@ def _resolve_decider_scope(cur, decided_by) -> tuple[uuid.UUID, str, str]:
     return decided_by_uuid, actor["tenant_id"], actor["organization_id"]
 
 
-def create_generation(
-    *, tenant_id: str, organization_id: str, label: str, status: str = "shadow",
-    _connect: Callable[..., Any],
-) -> str:
-    """Create an empty generation. Switching status/current is intentionally not exposed."""
-    if status != "shadow":
-        raise ContextGraphError("graph governance may create shadow generations only")
-    with _connect() as conn:
-        row = conn.execute(
-            """INSERT INTO context_graph_versions
-                 (tenant_id, organization_id, label, status, baseline_audit_seq)
-               VALUES (
-                   %s,%s,%s,'shadow',
-                   (SELECT coalesce(max(a.audit_seq),0)
-                      FROM memory_audit a
-                      JOIN memory_proposals p USING (proposal_id)
-                     WHERE p.tenant_id=%s AND p.organization_id=%s)
-               )
-               RETURNING generation_id""",
-            (tenant_id, organization_id, label, tenant_id, organization_id),
-        ).fetchone()
-    return str(row[0])
-
-
 def propose(
     *, tenant_id: str, organization_id: str, generation_id: str,
     target_kind: str, action: str, proposed_content: dict[str, Any],
@@ -812,8 +788,9 @@ def confirm(
 
     Entity confirmation, required relations, and source refs commit atomically.  Embedding is a
     network call and therefore runs after that transaction.  A failed embedding does not roll back
-    valid governance data; the result reports the failure and ``backfill_generation_embeddings``
-    can fill the temporary retrieval gap idempotently.
+    valid governance data; the result's ``embedding`` field reports the failure and nothing repairs
+    it automatically: a newly created entity stays out of vector hits (``embedding IS NULL``) and an
+    updated entity keeps its previous vector until a later confirmed update re-embeds it.
     """
     pid = _canonical_proposal_id(proposal_id)
     with _connect() as conn, conn.cursor(row_factory=dict_row) as cur:
@@ -900,7 +877,7 @@ def _embed_confirmed_entity(
 
     写入用 revision 做 CAS：若在 embed 的网络窗口里实体已被另一次确认推到更新的
     revision，本次的旧向量就不得覆盖它（结果标为 stale）。update 动作下内容已变，
-    向量必须重算，所以这里不能用 backfill 那条 embedding IS NULL 的幂等条件。
+    向量必须重算，所以这里不能用 embedding IS NULL 作幂等条件。
     """
     if target_kind != "entity" or action not in ("create", "update") or entity_id is None:
         return "skipped"

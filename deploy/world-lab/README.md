@@ -1,8 +1,8 @@
 # world-lab：给天枢联调的独立实例
 
-在火山主机上，在 Clark 用的生产实例（`memory-api.tokenkingos.com` → 127.0.0.1:8030，版本 0.3.0，没有 world 路由）之外，再起一套独立的 compose 项目跑当前主干（含 tkos.world/0.1、迁移到 0038），对外走宿主机 Nginx 的 `world-lab.tokenkingos.com`。它有自己的 PostgreSQL 与 MinIO 卷，与生产实例互不相干；里面的 scope 是联调数据，可整体清空重建。
+在火山主机上，在 Clark 用的生产实例（`memory-api.tokenkingos.com` → 127.0.0.1:8030，版本 0.3.0，没有 world 路由）之外，再起一套独立的 compose 项目跑正式发布版（v0.5.0，含 tkos.world/0.1、迁移到 0038），对外走宿主机 Nginx 的 `world-lab.tokenkingos.com`。它有自己的 PostgreSQL 与 MinIO 卷，与生产实例互不相干；里面的 scope 是联调数据，可整体清空重建。
 
-复用 `deploy/offline-release/` 的 compose 与启动脚本，只换 env、端口、项目名与镜像标签。主机是 `tokenhub-prod`（115.191.26.230，x86_64，Ubuntu 22.04，部署用户 tokenhub-deploy）。主机不通 GitHub 与 Docker Hub（PyPI 通、daocloud 镜像通），所以源码从本机传、镜像在本机构建后传、密钥归档从本机推。目录沿用主机上生产实例的约定：应用目录 `/srv/tokenhub/apps/tkos-world-lab`，源码放 `releases/<发布号>/`，env 与输出放 `/srv/tokenhub/apps/tkos-world-lab/world-lab/`。下文 `SRC=/srv/tokenhub/apps/tkos-world-lab/releases/<发布号>`、`LAB=/srv/tokenhub/apps/tkos-world-lab/world-lab`。
+复用 `deploy/offline-release/` 的 compose 与启动脚本，只换 env、端口、项目名与镜像标签。主机是 `tokenhub-prod`（115.191.26.230，x86_64，Ubuntu 22.04，部署用户 tokenhub-deploy）。主机不通 GitHub 与 Docker Hub（PyPI 通、daocloud 镜像通），所以离线包从本机传、密钥归档从本机推。版本号只用发布号（如 `v0.5.0`）：镜像标签、发布目录、离线包文件名都从它派生，不另起名字。目录沿用主机上生产实例的约定：应用目录 `/srv/tokenhub/apps/tkos-world-lab`，源码放 `releases/<发布号>/`，env 与输出放 `/srv/tokenhub/apps/tkos-world-lab/world-lab/`。下文 `REL=v0.5.0`、`SRC=/srv/tokenhub/apps/tkos-world-lab/releases/$REL`、`LAB=/srv/tokenhub/apps/tkos-world-lab/world-lab`。
 
 本目录的文件：`world-lab.env.example`（env 模板）、`spec.example.json`（联调 scope 的域、主体与角色）、`provision.py`（建 scope、域、主体、角色并生成策略文件）、`provision-and-install.sh`（第 4–5 步整段，可重跑）、`smoke.py`（第 7 步冒烟，可重跑）、`nginx/world-lab.conf`。
 
@@ -13,41 +13,28 @@
 - 端口：world-lab 用 `127.0.0.1:8040`（已核空闲；8030 是生产，8080、8081 有别的服务，3130 空闲留给天枢的 edge）。
 - 已占的域名：`mvp.tokenkingos.com` 在这台主机上已指向 127.0.0.1:3120，天枢定域名时避开。
 
-## 1. 构建镜像（在有网络的机器上）
+## 1. 取离线包并加载
 
-主机架构是 linux/amd64（生产离线包就是 amd64）。在本机（Apple Silicon 也可以）交叉构建。`prepare_wheelhouse.py` 要求 `--source-ref` 是 40 位提交号，且 `pyproject.toml`、`README.md`、`src/` 相对该提交没有改动，最省事是在一个干净的 detached worktree 里跑：
-
-```bash
-cd /path/to/tkos-ontology-runtime           # 主干，含 world 0.1
-VERSION=$(python3 -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
-SHA=$(git rev-parse HEAD)
-python3 deploy/offline-release/prepare_wheelhouse.py --arch amd64 --release "v${VERSION}" \
-  --source-ref "$SHA" --output /tmp/wheelhouse-amd64
-docker buildx build --platform linux/amd64 --load --build-context wheelhouse=/tmp/wheelhouse-amd64 \
-  --build-arg VERSION="$VERSION" --build-arg VCS_REF="$SHA" --target runtime -t tkos/ontology-runtime:world-lab-amd64 .
-docker buildx build --platform linux/amd64 --load --build-context wheelhouse=/tmp/wheelhouse-amd64 \
-  --build-arg VERSION="$VERSION" --build-arg VCS_REF="$SHA" --target worker  -t tkos/ontology-worker:world-lab-amd64 .
-docker save tkos/ontology-runtime:world-lab-amd64 tkos/ontology-worker:world-lab-amd64 | gzip > /tmp/world-lab-images.tgz
-```
-
-源码也从本机传（主机不通 GitHub）。`git archive` 只打已跟踪的文件，`deploy/world-lab/` 提交之前要用 tar 打工作区：
+用 GitHub Release 的 amd64 离线包（主机是 linux/amd64）。包里有五个镜像（`tkos/ontology-runtime`、`tkos/ontology-worker`、`tkos/offline-postgres-pgvector`、`tkos/offline-minio`、`tkos/offline-minio-mc`，标签都是 `$REL-amd64`）与该版本的完整源码 `runtime-source.tar.gz`，本目录的脚本就在源码里。主机不通 GitHub，在本机下载后传过去（包约 330 MB，连接可能中途断，用 `rsync --partial` 可续传）：
 
 ```bash
-REL=world-lab-$(git rev-parse --short HEAD)
-tar -czf /tmp/$REL-src.tar.gz --exclude .git --exclude .venv --exclude node_modules --exclude artifacts --exclude .runtime-acceptance .
+REL=v0.5.0; PKG=tkos-ontology-runtime-$REL-linux-amd64
+gh release download $REL -R yusiyi0429/tkos-ontology-runtime -p "$PKG.tar.gz" -p SHA256SUMS -D /tmp/$REL
+(cd /tmp/$REL && grep " $PKG.tar.gz\$" SHA256SUMS | shasum -a 256 -c -)
 ssh tokenhub-prod "mkdir -p /srv/tokenhub/apps/tkos-world-lab/releases/$REL /srv/tokenhub/apps/tkos-world-lab/world-lab"
-scp /tmp/world-lab-images.tgz /tmp/$REL-src.tar.gz tokenhub-prod:/srv/tokenhub/apps/tkos-world-lab/world-lab/
+rsync -a --partial --timeout=60 /tmp/$REL/$PKG.tar.gz tokenhub-prod:/srv/tokenhub/apps/tkos-world-lab/world-lab/
 ```
 
 主机上：
 
 ```bash
-tar -xzf $LAB/$REL-src.tar.gz -C $SRC
-docker load < $LAB/world-lab-images.tgz
-docker images | grep world-lab      # 应有 runtime 与 worker 两个 world-lab-amd64
+cd $LAB && tar -xzf $PKG.tar.gz && cd $PKG
+python3 deploy/offline-release/verify_bundle.py . --load      # 校验包内哈希、架构与五个镜像，加载进本机镜像库
+tar -xzf runtime-source.tar.gz -C $SRC                         # 源码（含 deploy/offline-release 与本目录）
+docker images | grep "$REL-amd64"                              # 应有五个镜像
 ```
 
-PostgreSQL、MinIO、mc 三个镜像沿用主机上已加载的 `tkos/offline-postgres-pgvector:v0.3.0-amd64`、`tkos/offline-minio:v0.3.0-amd64`、`tkos/offline-minio-mc:v0.3.0-amd64`（已核在），env 模板里就是这三个标签。
+`world-lab.env.example` 里的五个镜像标签就是 `v0.5.0-amd64`；换版本时连同 `REL` 一起改。
 
 ## 2. 配置
 
@@ -171,6 +158,6 @@ cd /tmp/tkos-secrets && git add -A && git commit -m "world-lab: 联调实例的 
 
 已核（2026-09-28 本机预演）：用同一份 compose、同标签的三个基础镜像、本文的 env 模板与两个脚本，在 amd64 仿真下跑通第 3 步、第 4–5 步（连跑两遍，第二遍全部跳过或报已安装）与第 7 步冒烟（对 127.0.0.1 端口）。
 
-已核（2026-09-28 主机部署）：第 1–5 步与第 7 步本机口冒烟（10 项全过）；`docker load` 后两个 `world-lab-amd64` 标签正确；uid 10001 写 `out/` 与 chown 回收正常；MinIO 应用密钥文件必须 10001:0、440（见第 2 步）。scp 传 76 MB 镜像包途中断过一次，改用 `rsync --partial` 续传。
+已核（2026-09-28 主机部署，当时用本机按提交 a759c64 自建的两个镜像与 v0.3.0 离线包的三个基础镜像，尚未改用第 1 节的 v0.5.0 离线包）：第 1–5 步与第 7 步本机口冒烟（10 项全过）；uid 10001 写 `out/` 与 chown 回收正常；MinIO 应用密钥文件必须 10001:0、440（见第 2 步）。scp 传 76 MB 镜像包途中断过一次，改用 `rsync --partial` 续传。
 
 已核（2026-09-28 主机，第 6–7 步）：证书以 webroot 签发（Let's Encrypt，ecdsa，到期 2026-12-27），`certbot renew --dry-run` 成功；HTTP 301 到 HTTPS；对域名冒烟全过；从外网看 `/v1/health` 200、`/openapi.json` 含五条 world 路由；同机 memory-api 仍 200。

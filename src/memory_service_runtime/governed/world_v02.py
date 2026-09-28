@@ -6,12 +6,19 @@
 闸门；然后校验载荷，按主干判断调用者是不是有权的责任人（从新对象的主干上一级找起，同 0.1），之后才
 钉定其余引用、核对对象放在哪个域与挂在谁下面、写入声明。已接通八类业务对象的建对象、合并修订与建关系，
 写状态快照与记外部事件，指派与 Task、Activity 的六个生命周期动作（#53），周期目标、长期目标与 Mission 立项的
-承诺与确认（#54），Mission 的六个生命周期动作与关注标记（#55）；其余门随各自的票接入。
+承诺与确认（#54），Mission 的六个生命周期动作与关注标记（#55），委托的登记与撤销与代记（#62）；其余门随各自的票
+接入。
 
 指派、生命周期动作与门的判权（契约第 9.2 节）：激活策略列角色（门按目标类型拆名，ADR-0005），之后由服务算出
 调用者对目标满足的记录者类别（self、self_or_agent、parent、gate_role）与守卫事实，连同目标的事件交给生命周期引擎
 admit 判状态、守卫与记录者。记录者不符是 FORBIDDEN，状态表或守卫不允许是 INVALID_STATE。关注标记是记录事件，
 但和门一样只由持策略角色（CEO）的人记，走门的判权，写入时只置 core_battle。
+
+代记（契约第 14 节）：受托的服务主体以自己的凭证记可代记的动作，另带 on_behalf_of。判权不改内核机制，只换判谁：
+先按调用者核对委托（服务主体本人、当前有效、动作族与目标所在域在范围内），再把身份上下文换成被代记的人——带他当前
+的角色指派——走他本人记时的同一条判权路径（内核的 authorize_domain 对照激活策略，服务算记录者类别与责任关系）；
+最终复核同样先核委托、再按被代记的人复核。回执与事件的记录者、幂等与重放仍是调用者本人，事件另写被代记的人与外部
+确认记录。
 
 有门对象的修订规则（契约第 12 节）：正式块、正式属性与建对象时写的关系只在草稿直接修订；有了正式内容以后经一轮
 重走改——承诺或长期目标的确认带候选（合并补丁），确认接受时写回，活动内容取写回时的当前值。活动块与活动属性在
@@ -19,7 +26,9 @@ admit 判状态、守卫与记录者。记录者不符是 FORBIDDEN，状态表�
 """
 from __future__ import annotations
 
-from typing import Any
+from contextlib import contextmanager
+from dataclasses import replace
+from typing import Any, Iterator
 from uuid import uuid4
 
 from psycopg.types.json import Jsonb
@@ -32,7 +41,8 @@ from . import world_v02_registry as world_registry
 from .errors import GovernedError
 from .service import ActionExecution
 from .world_v01_readers import holds_role
-from .world_v02_readers import cited, head_and_binding, lifecycle, lifecycle_events
+from .world_v02_readers import (cited, delegations_in_force, head_and_binding, judged_context, lifecycle,
+                                lifecycle_events)
 
 
 def _fail(code: str, message: str = "", status: int | None = None) -> None:
@@ -56,12 +66,24 @@ class WorldExecution(ActionExecution):
         # 事件 subject_refs 里除新修订外还要钉的：建关系的列表、写快照时的主体。
         self.event_subjects: list[dict[str, Any]] = []
         self.declaration: dict[str, Any] | None = None
+        # 代记（契约第 14 节）：被代记的人与外部确认记录，以及让这条写入成立的那条委托；不代记时都为 None。
+        self.on_behalf: dict[str, Any] | None = self.params.get("on_behalf_of")
+        self.delegation: dict[str, Any] | None = None
+        if self.on_behalf is not None:
+            self.authorize_on_behalf()
+        else:
+            self.authorize_recording()
+
+    def authorize_recording(self) -> None:
+        """按动作分派判权；代记时由 authorize_on_behalf 换成被代记的人再走这里。"""
         if self.kind == "world_create_object":
             self.authorize_create()
         elif self.kind == "world_refresh_state":
             self.authorize_refresh_state()
         elif self.kind == "world_record_event":
             self.authorize_record_event()
+        elif self.kind in models.DELEGATION_ACTIONS:
+            self.authorize_delegation()
         elif self.kind in {"world_revise_object", "world_relate"}:
             self.authorize_target()
         elif self.kind in models.GATE_ACTIONS:
@@ -307,6 +329,99 @@ class WorldExecution(ActionExecution):
     def not_in_future(self, moment: str, message: str) -> None:
         if self.conn.execute("SELECT %s::timestamptz > clock_timestamp() AS future", (moment,)).fetchone()["future"]:
             _invalid(message)
+
+    # ------------------------------------------------------------ delegation
+    def authorize_delegation(self) -> None:
+        """登记与撤销委托（契约第 14 节）：按 scope 判权（同外部事件），只由委托人本人记——人；Agent 既不登记也不撤销，
+        所以受托的服务主体不能转委托。两者都是记录事件，以 Company 为主体（补 39），钉住它的当前修订。"""
+        db._assignments(self.conn, self.ctx)  # scope 内没有生效指派的调用者是 403
+        if self.ctx.principal_type != "human":
+            _fail("FORBIDDEN", "A delegation is granted and revoked by the delegating person in person.")
+        self.protocol_context = protocol.gate_world_action(self.conn, self.ctx.scope_id, self.kind,
+                                                           models.CONTRACT_VERSION)
+        company = self.conn.execute(
+            """SELECT o.object_id, r.object_version FROM gov_objects o JOIN gov_object_revisions r
+                 ON r.scope_id=o.scope_id AND r.revision_id=o.latest_revision_id
+                WHERE o.scope_id=%s AND o.object_type='Company'""", (self.ctx.scope_id,)).fetchone()
+        if company is None:
+            _fail("INVALID_STATE", "The scope has no Company yet to record a delegation under.")
+        text = models.citation(str(company["object_id"]), company["object_version"])
+        self.event_subjects = [self.pin(text)]
+        self.domain_id = self.referenced[text]["domain_id"]  # 回执记 Company 所在的域；判权不看它
+        if self.kind == "world_grant_delegation":
+            self.check_grant()
+        else:
+            self.check_revocation()
+
+    def check_grant(self) -> None:
+        """受托的是本 scope 启用的 Agent 主体，域都是本 scope 的域，有效期还没到；事件 detail 写登记的范围。"""
+        params = self.params
+        if self.conn.execute(
+                """SELECT 1 FROM gov_principals WHERE scope_id=%s AND principal_id=%s AND active
+                     AND principal_type='agent'""", (self.ctx.scope_id, params["delegate_principal_id"])).fetchone() is None:
+            _invalid("A delegation goes to an active Agent service principal of this scope.")
+        known = self.conn.execute(
+            "SELECT count(*) AS n FROM gov_domains WHERE scope_id=%s AND domain_id = ANY(%s::uuid[])",
+            (self.ctx.scope_id, params["domain_ids"])).fetchone()["n"]
+        if known != len(params["domain_ids"]):
+            _invalid("A delegation covers domains of this scope.")
+        if self.conn.execute("SELECT %s::timestamptz <= clock_timestamp() AS passed",
+                             (params["valid_until"],)).fetchone()["passed"]:
+            _invalid("A delegation is valid until a time that has not passed yet.")
+        self.detail = {field: params[field] for field in world_registry.registry()["delegation"]["grant_fields"]}
+
+    def check_revocation(self) -> None:
+        """撤销引用本 scope 的一条登记事件，只由它的委托人本人撤销；已撤销的不再撤销。"""
+        original = self.params["delegation_event_id"]
+        grant = self.conn.execute(
+            """SELECT principal_id FROM gov_world_events WHERE scope_id=%s AND event_id=%s AND contract_version=%s
+                 AND kind='delegation.granted'""", (self.ctx.scope_id, original, models.CONTRACT_VERSION)).fetchone()
+        if grant is None:
+            _invalid("A revocation references a delegation granted in this scope.")
+        if str(grant["principal_id"]) != self.ctx.principal_id:
+            _fail("FORBIDDEN", "Only the delegating person revokes the delegation.")
+        if self.conn.execute(
+                """SELECT 1 FROM gov_world_events WHERE scope_id=%s AND contract_version=%s
+                     AND kind='delegation.revoked' AND detail->>'delegation_event_id'=%s""",
+                (self.ctx.scope_id, models.CONTRACT_VERSION, original)).fetchone() is not None:
+            _fail("INVALID_STATE", "The delegation has already been revoked.")
+        self.detail = {"delegation_event_id": original}
+
+    def authorize_on_behalf(self) -> None:
+        """代记写入（契约第 14 节）：目标须是本 scope 的 world 对象（否则 404）；记录者须是本 scope 的 Agent 主体，并持有
+        被代记的人登记给它、当前有效、覆盖这个动作所属的族与目标所在域的委托。之后按被代记的人走他本人记时的同一条
+        判权路径：他当前的角色指派对照激活策略，状态表的记录者类别与责任关系，规则相同。任一不满足是 FORBIDDEN。
+        代记写入不带写入声明（请求模型已拒）；外部确认时刻不晚于记录时刻，在委托之后、按被代记的人判权之前校验。"""
+        target = head_and_binding(self.conn, self.ctx, self.request.target.object_id)[0]
+        if self.ctx.principal_type != "agent":
+            _fail("FORBIDDEN", "Only an Agent service principal of this scope records on behalf of a person.")
+        self.delegation = self.delegation_in_force(target["domain_id"])
+        self.not_in_future(self.on_behalf["external_confirmed_at"],
+                           "An external confirmation cannot be later than the recording.")
+        with self.judged_as_represented():
+            self.authorize_recording()
+
+    def delegation_in_force(self, domain_id: str) -> dict[str, Any]:
+        """被代记的人登记给调用者、当前有效、覆盖这个动作的族与该域的一条委托（取最早登记的）；没有是 FORBIDDEN。"""
+        found = delegations_in_force(self.conn, self.ctx, grantor=self.on_behalf["principal_id"],
+                                     delegate=self.ctx.principal_id,
+                                     family=world_registry.action_spec(self.kind)["delegable"], domain_id=domain_id)
+        if not found:
+            _fail("FORBIDDEN", "No delegation in force lets this service principal record this family of actions in "
+                               "this domain on behalf of that person.")
+        return found[0]
+
+    @contextmanager
+    def judged_as_represented(self) -> Iterator[None]:
+        """判权期间把身份上下文换成被代记的人、带他当前的角色指派（没有生效指派是 FORBIDDEN），之后换回调用者：
+        回执、事件的记录者、幂等键与重放都属于调用者本人。"""
+        caller = self.ctx
+        person = judged_context(caller, self.on_behalf["principal_id"])
+        self.ctx = replace(person, assignments=db._assignments(self.conn, person))
+        try:
+            yield
+        finally:
+            self.ctx = caller
 
     # ------------------------------------------------------------ assign and lifecycle
     def authorize_responsibility(self) -> None:
@@ -668,6 +783,16 @@ class WorldExecution(ActionExecution):
                 _fail("STALE_DEPENDENCY", "Target must identify the current latest revision.")
 
     def recheck_final_barrier(self) -> None:
+        # 代记：服务主体仍在 scope 内有生效指派、委托仍有效，再按被代记的人复核他用到的指派与责任关系（契约第 14 节）。
+        if self.on_behalf is not None:
+            db._assignments(self.conn, self.ctx)
+            self.delegation_in_force(self.domain_id)
+            with self.judged_as_represented():
+                self.recheck_recorder()
+        else:
+            self.recheck_recorder()
+
+    def recheck_recorder(self) -> None:
         # 让调用者成为责任人的指派可以在上一级对象的域（例如公司域的 CEO），不必在本动作的域。
         # 外部事件按 scope 判权，不看各域策略，只要调用者仍在 scope 内有生效指派。
         if world_registry.action_spec(self.kind)["authorization"] == "scope":
@@ -689,6 +814,8 @@ class WorldExecution(ActionExecution):
             return self.create_world_object(self.object_type)
         if self.kind == "world_record_event":
             return self.record_event()
+        if self.kind in models.DELEGATION_ACTIONS:
+            return self.record_delegation()
         if self.kind == "world_assign":
             return self.assign()
         if self.kind in models.LIFECYCLE_ACTIONS:
@@ -709,6 +836,12 @@ class WorldExecution(ActionExecution):
             result["declaration"] = self.declaration
         return result
 
+    def record_delegation(self) -> dict[str, Any]:
+        """登记或撤销委托：一条以 Company 为主体的记录事件，detail 写登记的范围或被撤销的那条登记（契约第 14 节）。"""
+        event_id = self.world_event(world_registry.action_spec(self.kind)["event_kind"], self.event_subjects,
+                                    detail=self.detail)
+        return {"contract_version": models.CONTRACT_VERSION, "event_id": event_id,
+                "subject_refs": cited(self.event_subjects), "detail": self.detail}
 
     def assign(self) -> dict[str, Any]:
         """指派只记业务责任、不授予权限（契约第 9.2 节）。Mission、Task、Activity 出新修订写 responsible，
@@ -809,19 +942,23 @@ class WorldExecution(ActionExecution):
 
     def world_event(self, kind: str, subject_refs: list[dict[str, Any]], *, category: str | None = None,
                     occurred_at: str | None = None, outcome: str | None = None, content: dict[str, Any] | None = None,
-                    detail: dict[str, Any] | None = None, supersedes_event_id: str | None = None) -> str:
+                    detail: dict[str, Any] | None = None, supersedes_event_id: str | None = None,
+                    on_behalf_of: dict[str, Any] | None = None) -> str:
         """写恰好一条 0.2 的 world 事件（契约第 11 节）：只读一次时钟，记录时刻与不补记的发生时刻取同一个值；
-        只有外部事件与状态刷新给 occurred_at，迁移 0039 同样这样约束。"""
+        只有外部事件与状态刷新给 occurred_at，迁移 0039 同样这样约束。记录者是调用者；代记时另写被代记的人、
+        外部记录 id 与外部确认时刻（契约第 8.1、14 节）。"""
         if occurred_at is not None and kind not in models.BACKDATED_KINDS:
             raise ValueError(f"{kind} happens at the moment it is recorded")
+        on_behalf_of = on_behalf_of or {}
         return str(self.conn.execute(
             """INSERT INTO gov_world_events (scope_id, contract_version, kind, category, outcome, subject_refs,
-                                             principal_id, occurred_at, recorded_at, content, detail, action_id,
-                                             supersedes_event_id)
-               SELECT %s,%s,%s,%s,%s,%s,%s,COALESCE(%s::timestamptz, now.t),now.t,%s,%s,%s,%s
+                                             principal_id, on_behalf_of, external_record_id, external_confirmed_at,
+                                             occurred_at, recorded_at, content, detail, action_id, supersedes_event_id)
+               SELECT %s,%s,%s,%s,%s,%s,%s,%s,%s,%s,COALESCE(%s::timestamptz, now.t),now.t,%s,%s,%s,%s
                  FROM (SELECT clock_timestamp() AS t) now RETURNING event_id""",
             (self.ctx.scope_id, models.CONTRACT_VERSION, kind, category, outcome, Jsonb(subject_refs),
-             self.ctx.principal_id, occurred_at, Jsonb(content) if content is not None else None,
+             self.ctx.principal_id, on_behalf_of.get("principal_id"), on_behalf_of.get("external_record_id"),
+             on_behalf_of.get("external_confirmed_at"), occurred_at, Jsonb(content) if content is not None else None,
              Jsonb(detail) if detail is not None else None, self.action_id, supersedes_event_id)).fetchone()["event_id"])
 
     def written_result(self, obj: dict[str, Any], revision: dict[str, Any], **event: Any) -> dict[str, Any]:
@@ -834,7 +971,7 @@ class WorldExecution(ActionExecution):
         # 状态刷新的发生时刻取快照的 as_of（契约第 11 节）；事件同时钉住快照与它的主体。
         if kind == "state.refreshed":
             event["occurred_at"] = self.payload["as_of"]
-        event_id = self.world_event(kind, [pinned, *self.event_subjects], **event)
+        event_id = self.world_event(kind, [pinned, *self.event_subjects], on_behalf_of=self.on_behalf, **event)
         result = {"contract_version": models.CONTRACT_VERSION, "object_id": obj["object_id"],
                   "revision_id": revision["revision_id"], "version": version,
                   "ref": models.citation(obj["object_id"], version), "event_id": event_id}
@@ -845,4 +982,6 @@ class WorldExecution(ActionExecution):
             result["responsible_through"] = self.responsible_through
         if self.declaration is not None:
             result["declaration"] = self.declaration
+        if self.on_behalf is not None:  # 回执同时记下被代记的人、外部确认记录与用到的委托（契约第 14 节）
+            result["on_behalf_of"] = {**self.on_behalf, "delegation_event_id": self.delegation["event_id"]}
         return result

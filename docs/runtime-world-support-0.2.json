@@ -3,7 +3,7 @@
   "can_create": true,
   "can_write": true,
   "evidence_upload": false,
-  "actions": ["world_accept", "world_assign", "world_cancel", "world_commit_mission", "world_commit_period_goal", "world_confirm_long_term_goal", "world_confirm_mission", "world_confirm_period_goal", "world_create_object", "world_deliver", "world_mark_core_battle", "world_record_event", "world_refresh_state", "world_reject", "world_relate", "world_reopen", "world_revise_object", "world_start"],
+  "actions": ["world_accept", "world_assign", "world_cancel", "world_commit_mission", "world_commit_period_goal", "world_confirm_long_term_goal", "world_confirm_mission", "world_confirm_period_goal", "world_create_object", "world_deliver", "world_grant_delegation", "world_mark_core_battle", "world_record_event", "world_refresh_state", "world_reject", "world_relate", "world_reopen", "world_revise_object", "world_revoke_delegation", "world_start"],
   "object_types": ["Activity", "Company", "LongTermGoal", "Mission", "PeriodGoal", "ResponsibilityUnit", "StateSnapshot", "Strategy", "Task"],
   "readonly_compat": ["tkos.world/0.2"],
   "notes": "World 0.2 support registry content; lists only the actions and object types implemented so far."

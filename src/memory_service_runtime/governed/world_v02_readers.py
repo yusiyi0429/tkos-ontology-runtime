@@ -3,12 +3,14 @@
 读权限同 0.1（契约第 15.1 节）：scope 内有任一生效角色指派的责任主体可读该 scope 的全部
 world 对象，不走域级 read 策略；非 world 对象一律 NOT_FOUND，授权先于任何协议错误。
 读投影按三层分组：``business``、``identity``、``records``。``business`` 给块、组件、组件台账与关系，
-引用同时给钉定结构与业务形式，另给正式内容指针与进行中的一轮（票 #54）；``records`` 给生命周期与推出它的事件
-（按登记的状态表推导，ADR-0002）与最新状态快照（标明未经确认）。委托、复盘与问题随各自的票接入，在此之前给
-空值。状态快照是时间记录，按 id 读回的是快照视图，不分三组。
+引用同时给钉定结构与业务形式，另给正式内容指针与进行中的一轮（票 #54）；``identity`` 给责任人与委托范围覆盖
+对象所在域的当前有效委托（票 #62）；``records`` 给生命周期与推出它的事件（按登记的状态表推导，ADR-0002）与最新
+状态快照（标明未经确认）。复盘与问题随各自的票接入，在此之前给空值。状态快照是时间记录，按 id 读回的是快照视图，
+不分三组。
 """
 from __future__ import annotations
 
+from dataclasses import replace
 from typing import Any
 
 from psycopg.types.json import Jsonb
@@ -124,7 +126,8 @@ def round_view(conn: Any, ctx: Any, head: dict[str, Any], current: dict[str, Any
 
 def object_view(head: dict[str, Any], revision: dict[str, Any], metadata: dict[str, Any], *,
                 responsible: list[dict[str, Any]], latest_state: dict[str, Any] | None = None,
-                lifecycle: dict[str, Any] | None = None, current_round: dict[str, Any] | None = None) -> dict[str, Any]:
+                lifecycle: dict[str, Any] | None = None, current_round: dict[str, Any] | None = None,
+                delegations: list[dict[str, Any]] | None = None) -> dict[str, Any]:
     spec = world_registry.object_spec(head["object_type"])
     payload, version = revision["payload"], revision["object_version"]
     category = world_registry.category(spec["category"])
@@ -144,7 +147,7 @@ def object_view(head: dict[str, Any], revision: dict[str, Any], metadata: dict[s
         "formal": {"lifecycle_status": head["lifecycle_status"], "effective_revision_id": head["effective_revision_id"]},
         "round": current_round,
     }
-    identity = {"responsible": {**spec["responsible"], "principals": responsible}, "delegations": []}
+    identity = {"responsible": {**spec["responsible"], "principals": responsible}, "delegations": delegations or []}
     records = {"lifecycle": lifecycle and {key: lifecycle[key] for key in ("status", "display_name", "event_id")},
                "latest_state": latest_state, "confirmed_review": None, "open_issues": []}
     return {"object_id": head["object_id"], "business": business, "identity": identity, "records": records,
@@ -169,7 +172,54 @@ def read_object(conn: Any, ctx: Any, object_id: str, version: int | None = None)
     derived = lifecycle(conn, ctx, head)
     return object_view(head, revision, metadata, responsible=responsible_principals(conn, ctx, head, revision["payload"]),
                        latest_state=latest_snapshot(conn, ctx, head["object_id"]), lifecycle=derived,
-                       current_round=round_view(conn, ctx, head, derived and derived["round"]))
+                       current_round=round_view(conn, ctx, head, derived and derived["round"]),
+                       delegations=[delegation_view(conn, ctx, row) for row in
+                                    delegations_in_force(conn, ctx, domain_id=head["domain_id"])])
+
+
+# ------------------------------------------------------------ delegations
+def delegations_in_force(conn: Any, ctx: Any, *, grantor: str | None = None, delegate: str | None = None,
+                         family: str | None = None, domain_id: str | None = None) -> list[dict[str, Any]]:
+    """当前有效的代记委托（契约第 2、14 节）：身份投影，由委托事件投影、不建表——已登记、未撤销、未过期，且委托人
+    仍是 scope 内有效的人（启用的人，当前有任一生效的角色指派）。可按委托人、受托的服务主体、动作族与域筛选，
+    按登记顺序。"""
+    return [db.jsonable(row) for row in conn.execute(
+        """SELECT g.event_id, g.principal_id, g.detail, g.recorded_at FROM gov_world_events g
+            WHERE g.scope_id=%s AND g.contract_version=%s AND g.kind='delegation.granted'
+              AND (g.detail->>'valid_until')::timestamptz > clock_timestamp()
+              AND NOT EXISTS (SELECT 1 FROM gov_world_events r
+                               WHERE r.scope_id=g.scope_id AND r.contract_version=g.contract_version
+                                 AND r.kind='delegation.revoked' AND r.detail->>'delegation_event_id'=g.event_id::text)
+              AND EXISTS (SELECT 1 FROM gov_principals p
+                           WHERE p.scope_id=g.scope_id AND p.principal_id=g.principal_id AND p.active
+                             AND p.principal_type='human'
+                             AND EXISTS (SELECT 1 FROM gov_role_assignments a
+                                          WHERE a.scope_id=p.scope_id AND a.principal_id=p.principal_id AND a.active
+                                            AND a.valid_from<=clock_timestamp()
+                                            AND (a.valid_to IS NULL OR clock_timestamp()<a.valid_to)))
+              AND (%s::uuid IS NULL OR g.principal_id=%s::uuid)
+              AND (%s::text IS NULL OR g.detail->>'delegate_principal_id'=%s::text)
+              AND (%s::text IS NULL OR g.detail->'families' ? %s::text)
+              AND (%s::text IS NULL OR g.detail->'domain_ids' ? %s::text)
+            ORDER BY g.recorded_at, g.event_id""",
+        (ctx.scope_id, CONTRACT_VERSION, grantor, grantor, delegate, delegate, family, family,
+         domain_id, domain_id)).fetchall()]
+
+
+def delegation_view(conn: Any, ctx: Any, row: dict[str, Any]) -> dict[str, Any]:
+    """一条当前有效的委托读回的样子：登记事件（及其事件引用）、委托人、受托的服务主体、动作族、域与有效期。"""
+    detail = row["detail"]
+    return {"event_id": row["event_id"], "ref": f"event:{row['event_id']}",
+            "grantor": principal(conn, ctx, row["principal_id"]),
+            "delegate": principal(conn, ctx, detail["delegate_principal_id"]),
+            "families": detail["families"], "domain_ids": detail["domain_ids"], "valid_until": detail["valid_until"],
+            "granted_at": utc_text(row["recorded_at"])}
+
+
+def judged_context(ctx: Any, principal_id: str) -> Any:
+    """代记时判权用的身份上下文（契约第 14 节）：同一 scope、同一授权纪元，身份换成被代记的人（委托人只能是人）；
+    指派留空，由 db._assignments 按他当前的取。"""
+    return replace(ctx, principal_id=principal_id, principal_type="human", assignments=[])
 
 
 # ------------------------------------------------------------ state snapshots
@@ -289,6 +339,7 @@ def authorize_receipt(conn: Any, ctx: Any, row: dict[str, Any], *, replay: bool 
 
     重放是再次执行成功，另按当前权限复核：必须是原调用者，动作当时用到的指派仍然有效，
     且调用者在该域仍有这个动作的角色；经某对象的 responsible 属性成为责任人的，该属性仍须指向他。
+    代记的回执另要委托仍有效，指派、角色与责任关系按被代记的人复核。
     """
     ids = {str(item["object_id"]) for item in row["object_versions"]}
     ids.update(str(item["object_id"]) for item in row["result"].get("subject_refs", []))
@@ -300,14 +351,22 @@ def authorize_receipt(conn: Any, ctx: Any, row: dict[str, Any], *, replay: bool 
         return
     if str(row["principal_id"]) != ctx.principal_id:
         raise GovernedError("FORBIDDEN")
-    current = {item["assignment_id"] for item in db._assignments(conn, ctx)}
+    judged = ctx
+    represented = (row["result"].get("on_behalf_of") or {}).get("principal_id")
+    if represented is not None:  # 代记：委托仍有效，指派与责任关系按被代记的人复核（契约第 14 节）
+        if not delegations_in_force(conn, ctx, grantor=represented, delegate=ctx.principal_id,
+                                    family=world_registry.action_spec(row["action_type"])["delegable"],
+                                    domain_id=row["result"]["domain_id"]):
+            raise GovernedError("FORBIDDEN", "The delegation this command relied on is no longer in force.")
+        judged = judged_context(ctx, represented)
+    current = {item["assignment_id"] for item in db._assignments(conn, judged)}
     if any(aid not in current for aid in row["result"].get("required_assignment_ids", [])):
         raise GovernedError("FORBIDDEN", "An assignment this command relied on is no longer valid.")
     if world_registry.action_spec(row["action_type"])["authorization"] != "scope":  # 外部事件按 scope 判权
-        db.authorize_domain(conn, ctx, row["result"]["domain_id"], row["action_type"])
+        db.authorize_domain(conn, judged, row["result"]["domain_id"], row["action_type"])
     through = row["result"].get("responsible_through")
     if through is not None and db.jsonable(conn.execute(
             """SELECT r.payload->>'responsible' AS responsible FROM gov_objects o JOIN gov_object_revisions r
                  ON r.scope_id=o.scope_id AND r.revision_id=o.latest_revision_id
-                WHERE o.scope_id=%s AND o.object_id=%s""", (ctx.scope_id, through)).fetchone())["responsible"] != ctx.principal_id:
+                WHERE o.scope_id=%s AND o.object_id=%s""", (ctx.scope_id, through)).fetchone())["responsible"] != judged.principal_id:
         raise GovernedError("FORBIDDEN", "The responsibility this command relied on has moved to someone else.")

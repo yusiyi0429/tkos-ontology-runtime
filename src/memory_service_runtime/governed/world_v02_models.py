@@ -582,6 +582,14 @@ class Declaration(StrictModel):
     human_acceptance: HumanAcceptance
 
 
+class OnBehalfOf(StrictModel):
+    """代记（契约第 14 节）：被代记的人、外部系统里的记录 id、外部确认时刻；确认时刻不晚于记录时刻，在服务里判。
+    只有登记列在代记族里的动作带它，代记写入不带写入声明。"""
+    principal_id: CanonicalUUID
+    external_record_id: ShortText
+    external_confirmed_at: Timestamp
+
+
 class WorldV02CreateObjectParams(StrictModel):
     """建对象。写入声明只对 Agent 强制，人带了按同样规则校验；Agent 不在建对象的 Agent 面上。"""
     domain_id: CanonicalUUID
@@ -653,22 +661,26 @@ class WorldV02RecordEventParams(StrictModel):
 
 
 class WorldV02AssignParams(StrictModel):
-    """指派（契约第 9.1 节）：只给被指派者；生效时间是事件的发生时刻。"""
+    """指派（契约第 9.1 节）：只给被指派者；生效时间是事件的发生时刻。可以代记（指派族）。"""
     principal_id: CanonicalUUID
+    on_behalf_of: Optional[OnBehalfOf] = None
 
 
 class WorldV02LifecycleParams(StrictModel):
     """六个通用生命周期动作（契约第 9.1、11 节）：目标是对象；可选内容；撤回带 outcome 与原事件。
-    写入声明只对 Agent 强制（开始、交付在 Agent 面上），人带了按同样规则校验。"""
+    写入声明只对 Agent 强制（开始、交付在 Agent 面上），人带了按同样规则校验；代记（生命周期族）不带声明。"""
     content: Optional[_block_model((), False)] = None
     outcome: Optional[Literal["withdrawn"]] = None
     supersedes_event_id: Optional[CanonicalUUID] = None
     declaration: Optional[Declaration] = None
+    on_behalf_of: Optional[OnBehalfOf] = None
 
     @model_validator(mode="after")
     def withdrawal_names_the_original(self) -> "WorldV02LifecycleParams":
         if (self.outcome is None) != (self.supersedes_event_id is None):
             raise ValueError("a withdrawal carries outcome withdrawn and the event it withdraws, and only it does")
+        if self.on_behalf_of is not None and self.declaration is not None:
+            raise ValueError("a write on behalf of a person carries no declaration")
         return self
 
 
@@ -678,9 +690,10 @@ LIFECYCLE_ACTIONS = ("world_start", "world_deliver", "world_accept", "world_reje
 class _GateParams(StrictModel):
     """门动作（契约第 9.1 节）：content 是事件内容（例如退回理由、候选稿的链接），撤回带 outcome withdrawn 并以
     supersedes_event_id 引用原事件。候选 payload 是合并补丁，只随承诺与长期目标接受的确认提交。门只由人记，
-    不带写入声明；0.2 没有阶段。"""
+    不带写入声明；0.2 没有阶段。可以代记（门族）。"""
     content: Optional[_block_model((), False)] = None
     supersedes_event_id: Optional[CanonicalUUID] = None
+    on_behalf_of: Optional[OnBehalfOf] = None
 
     @model_validator(mode="after")
     def withdrawal_names_the_original(self) -> "_GateParams":
@@ -710,8 +723,35 @@ class WorldV02ConfirmCandidateParams(WorldV02ConfirmParams):
 
 class WorldV02MarkCoreBattleParams(StrictModel):
     """关注标记（契约第 9.1、10.4 节，方案 A）：目标是 Mission，可选内容写进事件（例如关注的理由）。它是记录事件，
-    不撤回、不带候选，core_battle 由服务置；只由人记，不带写入声明。"""
+    不撤回、不带候选，core_battle 由服务置；只由人记，不带写入声明；可以代记（门族）。"""
     content: Optional[_block_model((), False)] = None
+    on_behalf_of: Optional[OnBehalfOf] = None
+
+
+# 代记的动作族，第一版是门、指派与生命周期（补 38）；建对象待决 6。请求模型在导入时就要，由测试与登记逐条对齐。
+DELEGATION_FAMILIES = ("gate", "assign", "lifecycle")
+DELEGATION_ACTIONS = ("world_grant_delegation", "world_revoke_delegation")
+
+
+class WorldV02GrantDelegationParams(StrictModel):
+    """登记委托（契约第 14 节）：受托的服务主体（本 scope 的 Agent 主体，在服务里判）、动作族、域列表与必填的
+    有效期；族与域各至少一个、不重复。不带 on_behalf_of：委托由委托人本人记，不可转委托。"""
+    delegate_principal_id: CanonicalUUID
+    families: list[Literal[DELEGATION_FAMILIES]] = Field(min_length=1)
+    domain_ids: list[CanonicalUUID] = Field(min_length=1)
+    valid_until: Timestamp
+
+    @field_validator("families", "domain_ids")
+    @classmethod
+    def distinct(cls, values: list[str]) -> list[str]:
+        if len(set(values)) != len(values):
+            raise ValueError("a delegation names each family and each domain once")
+        return values
+
+
+class WorldV02RevokeDelegationParams(StrictModel):
+    """撤销委托（契约第 14 节）：引用登记事件，即时生效。"""
+    delegation_event_id: CanonicalUUID
 
 
 # 已接入的门动作 -> 目标类型（门按目标类型拆名，ADR-0005）；再确认、复盘确认与 Strategy 随各自的票。关注标记
@@ -728,7 +768,9 @@ ACTION_PARAMS = {"world_create_object": WorldV02CreateObjectParams, "world_revis
                  "world_commit_period_goal": WorldV02CommitParams, "world_commit_mission": WorldV02CommitParams,
                  "world_confirm_period_goal": WorldV02ConfirmParams, "world_confirm_mission": WorldV02ConfirmParams,
                  "world_confirm_long_term_goal": WorldV02ConfirmCandidateParams,
-                 "world_mark_core_battle": WorldV02MarkCoreBattleParams}
+                 "world_mark_core_battle": WorldV02MarkCoreBattleParams,
+                 "world_grant_delegation": WorldV02GrantDelegationParams,
+                 "world_revoke_delegation": WorldV02RevokeDelegationParams}
 BUSINESS_TYPES = frozenset({"Company", "Strategy", "ResponsibilityUnit", "LongTermGoal", "PeriodGoal", "Mission",
                             "Task", "Activity"})
 # 状态快照只经 world_refresh_state 写入，建对象在服务里先拒绝它。
@@ -739,6 +781,7 @@ ACTION_TARGETS: dict[str, frozenset[str]] = {
     "world_create_object": frozenset(), "world_revise_object": BUSINESS_TYPES,
     "world_relate": frozenset({"PeriodGoal", "Mission", "Task"}),
     "world_refresh_state": frozenset(), "world_record_event": frozenset(),
+    **{action: frozenset() for action in DELEGATION_ACTIONS},
     "world_assign": frozenset({"ResponsibilityUnit", "Mission", "Task", "Activity"}),
     **{action: frozenset({"Mission", "Task", "Activity"}) for action in LIFECYCLE_ACTIONS},
     **{action: frozenset({target}) for action, target in GATE_ACTIONS.items()},

@@ -24,7 +24,7 @@ from acceptance.method_independent.fixture import uid
 from acceptance.method_independent.harness import MethodHarness
 from acceptance.protocol_a1_independent.support import now, public_json, safe_traceback_frames, source_manifest
 from acceptance.runtime.client import Client
-from acceptance.world_v01.fixture import ROOT, _seed_actor, register_world, revoke_assignment, seed_world
+from acceptance.world_v01.fixture import ROOT, _grant, _seed_actor, register_world, revoke_assignment, seed_world
 from acceptance.world_v01.flow import Flow as V01Flow
 from .fixture import (CONTRACT, PROFILE, REGISTRY, SUPPORT, action_roles, install_activation_policies,
                       owner, owner_rows, probe_binding_gate, probe_event_row, register_world_v02)
@@ -33,7 +33,7 @@ V01, V02 = 'tkos.world/0.1', 'tkos.world/0.2'
 MIGRATION = '0039_world_v02.sql'
 SCENARIOS = ['migration', 'control_plane', 'company', 'objects', 'rejections', 'coexistence', 'references',
              'revise_relate', 'state_events', 'assign_lifecycle', 'gates', 'context_packs', 'mission_lifecycle',
-             'revocation']
+             'delegation', 'revocation']
 EVENT_KINDS = {item['kind']: item for item in json.loads(REGISTRY.read_text())['event_kinds']}
 OBJECTS = {item['type']: item for item in json.loads(REGISTRY.read_text())['objects']}
 TYPES = ['Company', 'Strategy', 'ResponsibilityUnit', 'LongTermGoal', 'PeriodGoal', 'Mission', 'Task', 'Activity']
@@ -2150,6 +2150,281 @@ def mission_lifecycle(book, h, f, flow, trunk):
           and after['records']['lifecycle'] == stage('in_progress', restarted))
 
 
+def delegation(book, h, f, flow, trunk):
+    """#62：人向服务主体登记委托，服务主体以自己的凭证代记门、指派与生命周期事件，按被代记的人判权。天枢（在公司域
+    与单元 a 持 AGENT 的 Agent）代 CEO 确认周期目标、代 Mission 的 Owner 指派 Task、代 Task 的责任人开始与交付；
+    委托过期、已撤销、动作族或域超出范围、委托人不再是 scope 内有效的人、被代记的人自己无权，各一条 FORBIDDEN 且
+    库快照不变。事件与回执同时记下记录者、被代记的人与外部确认记录；被代记的人本人撤回代记的事件；读投影 identity
+    给委托范围覆盖对象所在域的当前有效委托；重放按委托与被代记的人复核。#55 合入后顺带代 CEO 记一条关注标记。
+    对象都新建，不动前面场景的主干。"""
+    check = book.check
+    made = trunk['made']
+    scope = f['scope_id']
+    actor_id = {name: actor['principal_id'] for name, actor in f['actors'].items()}
+    east8 = timezone(timedelta(hours=8))
+    records = iter(range(1, 10_000))
+
+    def later(**delta):
+        """东八区写法的时刻（服务按 UTC 规范化）。"""
+        return (datetime.now(east8) + timedelta(**delta)).isoformat(timespec='seconds')
+
+    def grant_params(delegate, families, domains, valid_until=None):
+        return {'delegate_principal_id': actor_id.get(delegate, delegate), 'families': list(families),
+                'domain_ids': [f['domains'].get(d, d) for d in domains], 'valid_until': valid_until or later(days=1)}
+
+    def grant(actor, delegate, families, domains, valid_until=None):
+        return flow.act(actor, 'world_grant_delegation', grant_params(delegate, families, domains, valid_until))['result']
+
+    def deny_grant(actor, codes, delegate='tianshu', families=('gate',), domains=('a',), valid_until=None, **extra):
+        params = {**grant_params(delegate, families, domains, valid_until), **extra}
+        flow.deny(actor, flow.command('world_grant_delegation', params), codes=codes)
+
+    def revoke(actor, grant_event_id):
+        return flow.act(actor, 'world_revoke_delegation', {'delegation_event_id': grant_event_id})['result']
+
+    def deny_revoke(actor, grant_event_id, codes):
+        flow.deny(actor, flow.command('world_revoke_delegation', {'delegation_event_id': grant_event_id}), codes=codes)
+
+    def behalf(person, **change):
+        """on_behalf_of：外部记录 id 各不相同，外部确认时刻取几分钟前。"""
+        return {'principal_id': actor_id.get(person, person), 'external_record_id': f'tianshu:confirm:{next(records)}',
+                'external_confirmed_at': later(minutes=-5), **change}
+
+    def on_behalf(kind, oid, person, params=None, actor='tianshu'):
+        """代记一条，返回（回执，带去的 on_behalf_of）。"""
+        sent = behalf(person)
+        body = flow.targeted(kind, oid, {**(params or {}), 'on_behalf_of': sent})
+        return flow.commit(actor, flow.prepare(actor, body)), sent
+
+    def deny_on_behalf(kind, oid, person, codes, params=None, actor='tianshu', says=None, **change):
+        flow.deny(actor, flow.targeted(kind, oid, {**(params or {}), 'on_behalf_of': behalf(person, **change)}),
+                  codes=codes, says=says)
+
+    unscoped = 'No delegation in force'  # 委托不在（过期、撤销、族或域不在范围、委托人不再有效）时的拒绝说明
+
+    def act(actor, kind, oid, params=None):
+        return flow.commit(actor, flow.prepare(actor, flow.targeted(kind, oid, params or {})))['result']
+
+    def event(event_id):
+        return flow.rows('SELECT e.*, r.action_type FROM gov_world_events e JOIN gov_action_receipts r '
+                         'ON r.scope_id=e.scope_id AND r.receipt_id=e.action_id WHERE e.scope_id=%s AND e.event_id=%s',
+                         (scope, event_id))[0]
+
+    def events_of(receipt_id):
+        return flow.rows('SELECT event_id FROM gov_world_events WHERE scope_id=%s AND action_id=%s', (scope, receipt_id))
+
+    def life(oid):
+        return flow.read('outsider', oid)['records']['lifecycle']
+
+    def delegations(oid):
+        return {item['event_id']: item for item in flow.read('outsider', oid)['identity']['delegations']}
+
+    def confirmation(sent):
+        """事件行与回执里的外部确认记录应有的样子：确认时刻按 UTC 规范化。"""
+        return {'external_record_id': sent['external_record_id'],
+                'external_confirmed_at': utc(datetime.fromisoformat(sent['external_confirmed_at']))}
+
+    company = made['Company']
+    company_view = flow.read('outsider', company['object_id'])['business']
+    pg = flow.create('a', 'PeriodGoal', 'a', {'title': '1 月目标（代记）', 'period': '2027-01',
+                                             'goal_ref': made['LongTermGoal.unit']['ref']})['result']
+    pid = pg['object_id']
+    company_goal = flow.create('ceo', 'LongTermGoal', 'company', {'title': '公司五年目标（代记）', 'scope': 'company',
+                                                                 'horizon': '2031', 'parent_ref': company['ref']})['result']
+
+    # ---------------------------------------------------------------- 登记委托
+    deny_grant('tianshu', {'FORBIDDEN'})
+    deny_grant('ceo', {'INVALID_REQUEST'}, delegate='a')
+    deny_grant('ceo', {'INVALID_REQUEST'}, delegate=uid())
+    deny_grant('ceo', {'INVALID_REQUEST'}, families=('create',))
+    deny_grant('ceo', {'INVALID_REQUEST'}, domains=(f['foreign_domains']['a'],))
+    deny_grant('ceo', {'INVALID_REQUEST'}, valid_until=later(minutes=-1))
+    deny_grant('ceo', {'INVALID_REQUEST'}, on_behalf_of=behalf('ceo'))
+    check('a_delegation_is_granted_by_a_person_in_person_to_an_agent_of_the_scope_for_its_families_domains_and_a_'
+          'future_expiry_and_is_not_itself_recorded_on_behalf')
+    until = later(days=1)
+    ceo_grant = grant('ceo', 'tianshu', ['gate'], ['a'], until)
+    row = event(ceo_grant['event_id'])
+    check('granting_records_one_record_event_under_the_company_with_the_delegation_in_its_detail',
+          row['kind'] == 'delegation.granted' and EVENT_KINDS['delegation.granted']['class'] == 'record'
+          and row['contract_version'] == V02 and str(row['principal_id']) == actor_id['ceo']
+          and row['on_behalf_of'] is None and row['outcome'] is None and row['supersedes_event_id'] is None
+          and row['action_type'] == 'world_grant_delegation' and row['occurred_at'] == row['recorded_at']
+          and row['subject_refs'] == [{'object_id': company['object_id'], 'object_version': company_view['version'],
+                                       'revision_id': company_view['revision_id'], 'block': None, 'component': None}]
+          and row['detail'] == {'delegate_principal_id': actor_id['tianshu'], 'families': ['gate'],
+                                'domain_ids': [f['domains']['a']], 'valid_until': utc(datetime.fromisoformat(until))}
+          and ceo_grant['detail'] == row['detail'] and ceo_grant['contract_version'] == V02
+          and len(events_of(flow.receipts[-1]['receipt_id'])) == 1)
+    owner_grant = grant('owner_a', 'tianshu', ['assign'], ['a'])
+    ic_grant = grant('ic_a', 'tianshu', ['lifecycle'], ['a'])
+    leaver_grant = grant('leaver', 'tianshu', ['lifecycle'], ['a'])
+    brief = grant('ic_a', 'agent_a', ['lifecycle'], ['a'], later(seconds=8))
+    listed = delegations(pid)
+    check('identity_gives_the_delegations_in_force_whose_domains_cover_the_objects_domain',
+          set(listed) == {ceo_grant['event_id'], owner_grant['event_id'], ic_grant['event_id'],
+                          leaver_grant['event_id'], brief['event_id']}
+          and listed[ceo_grant['event_id']] == {
+              'event_id': ceo_grant['event_id'], 'ref': f"event:{ceo_grant['event_id']}",
+              'grantor': {'principal_id': actor_id['ceo'], 'principal_type': 'human',
+                          'display_name': listed[ceo_grant['event_id']]['grantor']['display_name']},
+              'delegate': {'principal_id': actor_id['tianshu'], 'principal_type': 'agent',
+                           'display_name': listed[ceo_grant['event_id']]['delegate']['display_name']},
+              'families': ['gate'], 'domain_ids': [f['domains']['a']], 'valid_until': ceo_grant['detail']['valid_until'],
+              'granted_at': utc(row['recorded_at'])}
+          and delegations(company_goal['object_id']) == {})
+
+    # ---------------------------------------------------------------- 代 CEO 确认周期目标（门）
+    act('a', 'world_commit_period_goal', pid)
+    confirmed, sent = on_behalf('world_confirm_period_goal', pid, 'ceo', {'outcome': 'accepted'})
+    result = confirmed['result']
+    row = event(result['event_id'])
+    check('the_service_principal_confirms_a_period_goal_on_behalf_of_the_ceo_and_it_counts_as_the_ceos_confirmation',
+          life(pid) == {'status': 'confirmed', 'display_name': '已确认', 'event_id': result['event_id']}
+          and flow.read('outsider', pid)['business']['formal'] == {'lifecycle_status': 'confirmed',
+                                                                   'effective_revision_id': result['revision_id']}
+          and result['required_assignment_ids'] == [f['ceo_domain_assignments']['a']])
+    check('the_delegated_event_records_the_service_principal_the_person_and_the_external_confirmation',
+          row['kind'] == 'confirm' and row['outcome'] == 'accepted' and row['action_type'] == 'world_confirm_period_goal'
+          and str(row['principal_id']) == actor_id['tianshu'] and str(row['on_behalf_of']) == actor_id['ceo']
+          and row['external_record_id'] == sent['external_record_id']
+          and row['external_confirmed_at'] == datetime.fromisoformat(sent['external_confirmed_at'])
+          and row['occurred_at'] == row['recorded_at'] and row['external_confirmed_at'] <= row['recorded_at'])
+    check('the_delegated_receipt_records_the_service_principal_the_person_the_external_confirmation_and_the_delegation',
+          confirmed['actor_id'] == actor_id['tianshu'] and 'declaration' not in result
+          and result['on_behalf_of'] == {'principal_id': actor_id['ceo'], **confirmation(sent),
+                                         'delegation_event_id': ceo_grant['event_id']})
+    read = {item['event_id']: item for item in flow.events('outsider', pid)['events']}[result['event_id']]
+    check('reading_events_gives_the_recorder_the_person_recorded_on_behalf_of_and_the_external_confirmation',
+          read['principal']['principal_id'] == actor_id['tianshu'] and read['principal']['principal_type'] == 'agent'
+          and read['on_behalf_of']['principal_id'] == actor_id['ceo']
+          and read['external_confirmation'] == confirmation(sent)
+          and read['class'] == 'gate' and read['action'] == 'world_confirm_period_goal'
+          and read['action_id'] == confirmed['receipt_id'])
+
+    # ---------------------------------------------------------------- 代 Mission 的 Owner 指派 Task（指派）
+    mission = flow.create('a', 'Mission', 'a', {
+        'title': '代记试点', 'goal_ref': f"{pid}@{flow.read('outsider', pid)['business']['version']}"})['result']
+    flow.assign('a', mission['object_id'], actor_id['owner_a'])
+    marked, _ = on_behalf('world_mark_core_battle', mission['object_id'], 'ceo')
+    row = event(marked['result']['event_id'])
+    check('the_service_principal_marks_a_mission_as_a_core_battle_on_behalf_of_the_ceo',
+          flow.read('outsider', mission['object_id'])['business']['attributes']['core_battle'] is True
+          and row['kind'] == 'core_battle.marked' and str(row['principal_id']) == actor_id['tianshu']
+          and str(row['on_behalf_of']) == actor_id['ceo']
+          and marked['result']['on_behalf_of']['delegation_event_id'] == ceo_grant['event_id'])
+    task = flow.create('owner_a', 'Task', 'a', {
+        'title': '代记 Task',
+        'parent_ref': f"{mission['object_id']}@{flow.read('outsider', mission['object_id'])['business']['version']}"}
+    )['result']
+    tid = task['object_id']
+    body = flow.prepare('tianshu', flow.targeted('world_assign', tid, {'principal_id': actor_id['ic_a'],
+                                                                         'on_behalf_of': behalf('owner_a')}))
+    assigned = flow.commit('tianshu', body)
+    row = event(assigned['result']['event_id'])
+    view = flow.read('outsider', tid)
+    check('the_service_principal_assigns_a_task_on_behalf_of_the_mission_owner_judged_by_his_responsibility',
+          life(tid) == {'status': 'assigned', 'display_name': '已指派', 'event_id': assigned['result']['event_id']}
+          and view['business']['attributes']['responsible'] == actor_id['ic_a']
+          and [p['principal_id'] for p in view['identity']['responsible']['principals']] == [actor_id['ic_a']]
+          and row['kind'] == 'assign' and row['detail'] == {'principal_id': actor_id['ic_a']}
+          and str(row['principal_id']) == actor_id['tianshu'] and str(row['on_behalf_of']) == actor_id['owner_a']
+          and assigned['result']['responsible_through'] == mission['object_id']
+          and assigned['result']['required_assignment_ids'] == [f['actors']['owner_a']['assignment_id']]
+          and assigned['result']['on_behalf_of']['delegation_event_id'] == owner_grant['event_id'])
+    replay = flow.commit('tianshu', deepcopy(body))
+    check('replaying_a_command_recorded_on_behalf_returns_the_original_receipt',
+          replay['receipt_id'] == assigned['receipt_id'] and len(events_of(assigned['receipt_id'])) == 1)
+
+    # ---------------------------------------------------------------- 撤销委托
+    revoked = revoke('owner_a', owner_grant['event_id'])
+    row = event(revoked['event_id'])
+    check('revoking_records_one_record_event_under_the_company_that_references_the_grant',
+          row['kind'] == 'delegation.revoked' and EVENT_KINDS['delegation.revoked']['class'] == 'record'
+          and row['detail'] == {'delegation_event_id': owner_grant['event_id']} and revoked['detail'] == row['detail']
+          and str(row['principal_id']) == actor_id['owner_a'] and row['supersedes_event_id'] is None
+          and row['subject_refs'][0]['object_id'] == company['object_id']
+          and owner_grant['event_id'] not in delegations(tid))
+    deny_on_behalf('world_assign', tid, 'owner_a', {'FORBIDDEN'}, {'principal_id': actor_id['ic_a']}, says=unscoped)
+    flow.assign('owner_a', tid, actor_id['ic_a'])  # 他本人照样能再指派：拒绝只因委托已撤销
+    check('a_revoked_delegation_takes_effect_at_once_and_nothing_more_is_recorded_on_its_behalf')
+    response = flow.clients['tianshu'].json('POST', '/v1/actions', deepcopy(body), expected={403})
+    check('a_command_recorded_on_behalf_cannot_be_replayed_into_success_once_the_delegation_is_revoked',
+          response['error']['code'] == 'FORBIDDEN')
+    deny_revoke('owner_a', owner_grant['event_id'], {'INVALID_STATE'})
+    deny_revoke('ceo', ic_grant['event_id'], {'FORBIDDEN'})
+    deny_revoke('tianshu', ic_grant['event_id'], {'FORBIDDEN'})
+    deny_revoke('ceo', uid(), {'INVALID_REQUEST'})
+    deny_revoke('ceo', result['event_id'], {'INVALID_REQUEST'})
+    check('only_the_grantor_revokes_a_grant_of_this_scope_once')
+
+    # ---------------------------------------------------------------- 代 Task 的责任人开始与交付（生命周期）
+    started, _ = on_behalf('world_start', tid, 'ic_a')
+    delivered, sent = on_behalf('world_deliver', tid, 'ic_a', {'content': {'text': '天枢：执行事项完成'}})
+    row = event(delivered['result']['event_id'])
+    check('the_service_principal_starts_and_delivers_a_task_on_behalf_of_its_responsible_without_a_declaration',
+          life(tid) == {'status': 'delivered', 'display_name': '已交付', 'event_id': delivered['result']['event_id']}
+          and event(started['result']['event_id'])['kind'] == 'start'
+          and str(event(started['result']['event_id'])['on_behalf_of']) == actor_id['ic_a']
+          and row['kind'] == 'deliver' and row['content']['text'] == '天枢：执行事项完成'
+          and str(row['principal_id']) == actor_id['tianshu'] and str(row['on_behalf_of']) == actor_id['ic_a']
+          and row['external_record_id'] == sent['external_record_id']
+          and delivered['result']['responsible_through'] == tid and 'declaration' not in delivered['result']
+          and delivered['result']['required_assignment_ids'] == [f['actors']['ic_a']['assignment_id']])
+    deny_on_behalf('world_accept', tid, 'ic_a', {'FORBIDDEN'}, says='is recorded by parent')
+    check('a_write_on_behalf_of_a_person_who_may_not_record_it_himself_is_forbidden')
+    back = act('ic_a', 'world_deliver', tid, {'outcome': 'withdrawn',
+                                              'supersedes_event_id': delivered['result']['event_id']})
+    row = event(back['event_id'])
+    check('the_person_withdraws_in_person_the_event_recorded_on_his_behalf',
+          life(tid) == {'status': 'in_progress', 'display_name': '进行中', 'event_id': back['event_id']}
+          and str(row['principal_id']) == actor_id['ic_a'] and row['on_behalf_of'] is None
+          and str(row['supersedes_event_id']) == delivered['result']['event_id'] and row['outcome'] == 'withdrawn')
+
+    # 委托过期：ic_a 给 agent_a 的那条已过期，agent_a 不能再代他交付；天枢的那条仍有效。
+    while datetime.now(timezone.utc) <= datetime.fromisoformat(brief['detail']['valid_until'].replace('Z', '+00:00')):
+        time.sleep(0.2)
+    deny_on_behalf('world_deliver', tid, 'ic_a', {'FORBIDDEN'}, actor='agent_a', says=unscoped)
+    check('an_expired_delegation_lets_nothing_be_recorded_on_behalf_and_is_no_longer_listed',
+          brief['event_id'] not in delegations(tid) and ic_grant['event_id'] in delegations(tid))
+    again, _ = on_behalf('world_deliver', tid, 'ic_a')
+    accepted = act('owner_a', 'world_accept', tid)
+    check('the_lifecycle_goes_on_from_a_delegated_delivery_as_if_the_person_had_recorded_it',
+          life(tid) == {'status': 'closed', 'display_name': '已关闭', 'event_id': accepted['event_id']}
+          and str(event(again['result']['event_id'])['on_behalf_of']) == actor_id['ic_a'])
+
+    # ---------------------------------------------------------------- 范围与记录者
+    deny_on_behalf('world_assign', made['ResponsibilityUnit']['object_id'], 'ceo', {'FORBIDDEN'},
+                   {'principal_id': actor_id['a']}, says=unscoped)
+    check('a_family_outside_the_delegation_is_forbidden')
+    deny_on_behalf('world_confirm_long_term_goal', company_goal['object_id'], 'ceo', {'FORBIDDEN'},
+                   {'outcome': 'accepted'}, says=unscoped)
+    check('a_domain_outside_the_delegation_is_forbidden')
+    revoke_assignment(h.env, f, f['actors']['leaver']['assignment_id'])
+    deny_on_behalf('world_start', tid, 'leaver', {'FORBIDDEN'}, says=unscoped)
+    check('a_delegation_whose_grantor_is_no_longer_a_valid_person_of_the_scope_is_not_in_force',
+          leaver_grant['event_id'] not in delegations(tid))
+    deny_on_behalf('world_confirm_long_term_goal', company_goal['object_id'], 'ceo', {'FORBIDDEN'},
+                   {'outcome': 'accepted'}, actor='a', says='Only an Agent service principal')
+    deny_on_behalf('world_confirm_period_goal', pid, 'ceo', {'FORBIDDEN'}, {'outcome': 'returned'}, actor='agent_a',
+                   says=unscoped)
+    deny_on_behalf('world_start', tid, 'a', {'FORBIDDEN'}, says=unscoped)
+    check('only_the_delegated_agent_records_on_behalf_and_only_of_a_person_who_delegated_to_it')
+    deny_on_behalf('world_reopen', tid, 'ic_a', {'INVALID_REQUEST'},
+                   {'declaration': {'scene': task['ref'], 'trigger': '天枢', 'human_acceptance': {'required': False}}})
+    deny_on_behalf('world_reopen', tid, 'ic_a', {'INVALID_REQUEST'}, external_confirmed_at=later(minutes=5))
+    deny_on_behalf('world_revise_object', tid, 'owner_a', {'INVALID_REQUEST'}, {'payload': {'title': '代记改名'}})
+    check('a_write_on_behalf_carries_no_declaration_a_confirmation_not_later_than_the_recording_and_only_on_a_'
+          'delegable_action')
+
+    read = {item['event_id']: item for item in flow.events('outsider', company['object_id'])['events']}
+    check('the_company_reads_back_the_delegation_events_as_record_events',
+          all(read[e]['class'] == 'record' and read[e]['on_behalf_of'] is None for e in
+              (ceo_grant['event_id'], owner_grant['event_id'], revoked['event_id']))
+          and read[revoked['event_id']]['detail'] == {'delegation_event_id': owner_grant['event_id']})
+
+
+
 def revocation(book, h, f, flow, command):
     """撤掉 CEO 的公司域指派后，原 0.2 命令不能重放成成功（重放按 0.2 回执的规则复核）。"""
     ceo = f['actors']['ceo']
@@ -2179,6 +2454,10 @@ def run(book, h, source, upgrade_evidence):
     f['actors']['owner_a2'] = _seed_actor(h.env, f, 'OWNER', f['domains']['a'])
     # 单元 a 里持 CEO 角色的 Agent：关注标记只由人记，Agent 持角色也不能记（#55）。
     f['actors']['agent_ceo_a'] = _seed_actor(h.env, f, 'CEO', f['domains']['a'], principal_type='agent')
+    # 天枢的服务主体（在公司域与单元 a 持 AGENT，代记的受托人）与一位之后会被撤掉指派的委托人（#62）。
+    f['actors']['tianshu'] = _seed_actor(h.env, f, 'AGENT', f['domains']['company'], principal_type='agent')
+    _grant(h.env, f, f['actors']['tianshu']['principal_id'], 'AGENT', f['domains']['a'])
+    f['actors']['leaver'] = _seed_actor(h.env, f, 'IC', f['domains']['a'])
     with scenario('control_plane'):
         control_plane(book, h, source, f)
     process, url, _ = h.start_api(source)
@@ -2206,6 +2485,8 @@ def run(book, h, source, upgrade_evidence):
             context_packs(book, h, f, flow, trunk, foreign)
         with scenario('mission_lifecycle'):
             mission_lifecycle(book, h, f, flow, trunk)
+        with scenario('delegation'):
+            delegation(book, h, f, flow, trunk)
         with scenario('revocation'):
             revocation(book, h, f, flow, made['command'])
     finally:

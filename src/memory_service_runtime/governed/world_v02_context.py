@@ -58,7 +58,7 @@ _HOPS = {"LongTermGoal": ("goal_ref", "公司级长期目标")}
 _UNIT_TYPES = ["ResponsibilityUnit", "LongTermGoal", "PeriodGoal"]
 _PENDING = "处置为带入下次形成或立即重开、此后主受影响对象还没记过门事件的问题"
 _CARRIED_NOTES = {"PeriodGoal": "形成周期目标时必须看到、不必须采用：本 scope 最近的已确认公司复盘、本单元有效的长期目标，"
-                                f"以及{_PENDING}。",
+                                f"以及{_PENDING}（主受影响对象是责任单元的，看本单元的周期目标此后有没有记过门事件）。",
                   None: f"形成时必须看到、不必须采用：{_PENDING}。"}
 # 公司复盘里带入的块：材料放的是 Agent 起草的内容与候选稿（契约第 7 节），不是复盘本身，不带。
 _REVIEW_LEFT_OUT = {"materials"}
@@ -311,8 +311,9 @@ def _carried_in(conn: Any, ctx: Any, head: dict[str, Any], anchored: str | None)
       不另带：它经单元长期目标的 goal_ref 进来（「为什么」多取的一跳），别的公司级目标不是本单元形成的依据。
     - 从其他有门对象（Strategy、长期目标、Mission）出发：主受影响对象是它本身的待带入问题。
     待带入的问题：它的 Issue 事件（#61）推出的状态是已处置，推出它的处置是登记 issue.carried_into_next_formation 里的
-    带入下次形成或立即重开，且处置之后主受影响对象没记过门事件（登记里 class 为 gate 的种类）。按处置事件的发生时刻
-    与 id 排序；长期目标按建立的先后与 id 排序。"""
+    带入下次形成或立即重开，且处置之后主受影响对象没记过门事件（登记里 class 为 gate 的种类）；主受影响对象是责任单元
+    的（它没有门），看本单元任一周期目标在处置之后有没有记过门事件（补 46，#69）。按处置事件的发生时刻与 id 排序；长期
+    目标按建立的先后与 id 排序。"""
     if not world_registry.object_spec(head["object_type"])["gated"]:
         return None
     if head["object_type"] != "PeriodGoal":
@@ -362,14 +363,21 @@ def _pending_issues(conn: Any, ctx: Any, primaries: list[str]) -> list[dict[str,
 
 def _carried_issue(conn: Any, ctx: Any, event_id: str, disposition: str) -> dict[str, Any] | None:
     """一条待带入的问题：问题组件（钉到处置事件引用的那条快照）、主受影响对象、核心判断问题、处置与处置事件、理由；
-    处置之后主受影响对象记过门事件的为 None。"""
+    处置之后已失效的为 None。失效（补 43、46）：处置之后主受影响对象记过门事件；主受影响对象是责任单元时（它没有门），
+    改看本单元（同一个域）任一周期目标在处置之后记过门事件。"""
     gates = [item["kind"] for item in world_registry.registry()["event_kinds"] if item["class"] == "gate"]
     row = db.jsonable(conn.execute(
         """SELECT e.event_id, e.occurred_at, e.content, e.subject_refs, e.principal_id,
                   EXISTS (SELECT 1 FROM gov_world_events g
                            WHERE g.scope_id=e.scope_id AND g.contract_version=e.contract_version AND g.kind = ANY(%s)
-                             AND g.subject_refs->0->>'object_id' = e.subject_refs->1->>'object_id'
-                             AND g.recorded_at > e.recorded_at) AS gated_since
+                             AND g.recorded_at > e.recorded_at
+                             AND (g.subject_refs->0->>'object_id' = e.subject_refs->1->>'object_id'
+                                  OR EXISTS (SELECT 1 FROM gov_objects u JOIN gov_objects p
+                                               ON p.scope_id=u.scope_id AND p.domain_id=u.domain_id
+                                              AND p.object_type='PeriodGoal'
+                                             WHERE u.scope_id=e.scope_id AND u.object_type='ResponsibilityUnit'
+                                               AND u.object_id::text = e.subject_refs->1->>'object_id'
+                                               AND p.object_id::text = g.subject_refs->0->>'object_id'))) AS gated_since
              FROM gov_world_events e WHERE e.scope_id=%s AND e.event_id=%s""",
         (gates, ctx.scope_id, event_id)).fetchone())
     if row["gated_since"]:

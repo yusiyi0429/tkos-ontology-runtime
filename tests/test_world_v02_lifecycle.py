@@ -681,3 +681,101 @@ def test_a_candidate_on_a_round_confirmation_is_refused():
 def test_admitting_on_a_type_without_a_lifecycle_is_a_key_error():
     with pytest.raises(KeyError):
         admit(REGISTRY, "Company", [created()], ev("world_start", by={"self"}))
+
+
+# ------------------------------------------------------------------ 一轮进行中进入终态（#69，补 47）
+
+
+def open_mission_round(state):
+    events = history("Mission", state)
+    commit = ev("world_commit_mission", candidate=True, guards={"parent_goal_confirmed": True}, by={"self"})
+    assert admit(REGISTRY, "Mission", events, commit)["opens_round"] is True
+    events.append(commit)
+    return events, commit
+
+
+def test_every_gated_type_voids_its_open_round_on_entering_any_terminal_state():
+    for name, spec in REGISTRY["lifecycles"].items():
+        if spec["rounds"] is not None:
+            assert spec["rounds"]["voided_in"] == spec["terminal"], name
+
+
+@pytest.mark.parametrize("state,action,to", [("delivered", "world_accept", "closed"),
+                                             *[(state, "world_cancel", "cancelled")
+                                               for state in ("established", "in_progress", "delivered", "adjusting")]])
+def test_closing_or_cancelling_a_mission_voids_its_open_round_like_a_return(state, action, to):
+    events, _ = open_mission_round(state)
+    result = admit(REGISTRY, "Mission", events, ev(action, by={"parent"}))
+    assert (result["status"], result["ends_round"], result["round"]) == (to, True, None)
+    assert (result["writes_back"], result["candidate_event_id"], result["unmakes_formal"]) == (False, None, False)
+    assert derive(REGISTRY, "Mission", [*events, ev(action)])["round"] is None
+
+
+@pytest.mark.parametrize("action,guards,by,to", [
+    ("world_confirm_review", {"review_of_subject": True}, "gate_role", "closed"),
+    ("world_cancel", {}, "parent", "cancelled")])
+def test_closing_a_period_goal_by_review_or_cancelling_it_voids_its_open_round(action, guards, by, to):
+    events, _, _ = open_period_goal_round()
+    result = admit(REGISTRY, "PeriodGoal", events, ev(action, guards=guards, by={by}))
+    assert (result["status"], result["ends_round"], result["writes_back"], result["round"]) == (to, True, False, None)
+
+
+def test_a_voided_round_is_not_confirmed_afterwards():
+    events, _ = open_mission_round("in_progress")
+    events.append(ev("world_cancel"))
+    with pytest.raises(Refused) as caught:
+        admit(REGISTRY, "Mission", events, ev("world_confirm_mission", "accepted",
+                                              guards={"parent_goal_confirmed": True}, by={"gate_role"}))
+    assert caught.value.reason == "state"
+
+
+def test_entering_a_terminal_state_without_an_open_round_ends_nothing():
+    result = admit(REGISTRY, "Mission", history("Mission", "delivered"), ev("world_accept", by={"parent"}))
+    assert (result["status"], result["ends_round"]) == ("closed", False)
+
+
+@pytest.mark.parametrize("state,action", [("delivered", "world_accept"), ("in_progress", "world_cancel")])
+def test_withdrawing_the_event_that_voided_a_mission_round_restores_it_like_withdrawing_a_return(state, action):
+    events, commit = open_mission_round(state)
+    ended = ev(action)
+    events.append(ended)
+    back = withdraw(ended, by={"parent"})
+    result = admit(REGISTRY, "Mission", events, back)
+    assert (result["status"], result["event_id"]) == (state, back["event_id"])
+    assert result["round"] == {"opened_by_event_id": commit["event_id"], "stage": "committed",
+                               "candidate_event_id": commit["event_id"]}
+    events.append(back)
+    confirm = ev("world_confirm_mission", "accepted", guards={"parent_goal_confirmed": True}, by={"gate_role"})
+    written = admit(REGISTRY, "Mission", events, confirm)
+    assert (written["status"], written["writes_back"], written["candidate_event_id"]) == (
+        state, True, commit["event_id"])
+
+
+@pytest.mark.parametrize("action,guards", [("world_confirm_review", {"review_of_subject": True}),
+                                           ("world_cancel", {})])
+def test_withdrawing_the_review_or_cancellation_of_a_period_goal_restores_its_voided_round(action, guards):
+    events, commit, _ = open_period_goal_round()
+    ended = ev(action, guards=guards)
+    events.append(ended)
+    by = "gate_role" if action == "world_confirm_review" else "parent"
+    result = admit(REGISTRY, "PeriodGoal", events, withdraw(ended, by={by}))
+    assert result["status"] == "confirmed"
+    assert result["round"]["candidate_event_id"] == commit["event_id"]
+
+
+def test_reopening_a_closed_mission_does_not_bring_back_the_voided_round():
+    events, _ = open_mission_round("delivered")
+    events += [ev("world_accept"), ev("world_reopen")]
+    view = derive(REGISTRY, "Mission", events)
+    assert (view["status"], view["round"]) == ("in_progress", None)
+    again = ev("world_commit_mission", candidate=True, guards={"parent_goal_confirmed": True}, by={"self"})
+    assert admit(REGISTRY, "Mission", events, again)["opens_round"] is True
+
+
+def test_withdrawing_a_reopen_back_into_closed_voids_the_round_opened_after_it():
+    events = history("Mission", "closed")
+    reopen = ev("world_reopen")
+    events += [reopen, ev("world_commit_mission", candidate=True)]
+    assert derive(REGISTRY, "Mission", events)["round"] is not None
+    result = admit(REGISTRY, "Mission", events, withdraw(reopen, by={"parent"}))
+    assert (result["status"], result["ends_round"], result["round"]) == ("closed", True, None)

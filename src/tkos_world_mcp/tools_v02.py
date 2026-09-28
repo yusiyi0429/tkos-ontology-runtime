@@ -119,8 +119,8 @@ TOOLS: dict[str, tuple[str, dict[str, Any]]] = {
         "正在处理的不能重复提出；已处置的不再提出，复发用新的组件 id，在 content 里引用原问题。",
         _schema(_ISSUE, ["issue_ref"])),
     "world_route_issue": (
-        "路由问题（动作 world_route_issue）：issue_ref 是问题组件的组件引用，to_principal_id 是承接人——须是人，且在主受"
-        "影响对象所在的域持角色；待路由的问题进入已路由，已路由的可以改路由。承接与处置由承接人本人经 HTTP 记。",
+        "路由问题（动作 world_route_issue）：issue_ref 是问题组件的组件引用，to_principal_id 是承接人——须是 scope 内"
+        "有效的人（持任一生效指派），不限单元；待路由的问题进入已路由，已路由的可以改路由。承接与处置由承接人本人经 HTTP 记。",
         _schema({**_ISSUE, "to_principal_id": {**_OBJECT_ID, "description": "承接人（人）的 principal id"}},
                 ["issue_ref", "to_principal_id"])),
     "world_return_issue": (

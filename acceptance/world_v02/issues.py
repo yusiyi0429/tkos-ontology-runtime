@@ -9,7 +9,8 @@ DRI 是单元 a 的 DRI），其下一条指派给 ic_a 的 Task。单元里的 
   当前路由的承接人、已承接的承接人）；六类处置各一条，进入状态按登记。
 - 拒绝（错误码，prepare 与 commit 两个入口上库快照都不变）：处理中与已处置的重复提出、非承接人承接或处置、Agent
   承接与处置、不在主干上的人与没有该域角色的 Agent 提出、非路由者非承接人退回、状态表没列的组合、缺理由的处置、
-  承接人不是人或在该域没有角色、issue_ref 指向的不是快照里的问题组件、带目标或代记。
+  承接人不是 scope 内有效的人、issue_ref 指向的不是快照里的问题组件、带目标或代记。
+- 承接人不限单元（#69，补 44）：路由给另一单元的 DRI，他本人承接、退回形成与处置都放行；另一 scope 的人与 Agent 仍被拒。
 - 事件：每个动作恰好一条 0.2 的 Issue 记录事件，subject_refs 是问题组件的组件引用与 Mission 的对象引用，路由的
   detail 写承接人，处置写 disposition 与理由；不出修订、不改任何对象行，Mission 与 Task 的生命周期始终不变。
 - 同键重放返回原回执；更正可以指向 Issue 事件，取事件给出被更正关系，问题的状态不变；复发用新 id 并引用原问题。
@@ -78,7 +79,8 @@ def issues(book, h, f, flow, trunk):
     first = snapshot('第 1 周（#61）', t1, [
         component('iss-main', main_question, responsible_hint=actor_id['owner_a']),
         *[component(f'iss-d{n}', f'处置 {name} 的问题') for n, (name, _) in enumerate(DISPOSITIONS, 1)],
-        component('iss-x', '拒绝用例的问题'), component('iss-quiet', '只记在快照里、从没提出的问题')],
+        component('iss-x', '拒绝用例的问题'), component('iss-quiet', '只记在快照里、从没提出的问题'),
+        component('iss-cross', '要不要请单元 b 接手客户对接？')],
         progress={'components': [{'id': 'todo:61', 'type': 'progress_item', 'text': '搭环境'}]})
 
     def ref(snap, cid):
@@ -300,6 +302,42 @@ def issues(book, h, f, flow, trunk):
     check('an_escalated_issue_is_routed_again_and_the_ceo_owns_it',
           routed_to_ceo and at_state(ceo_owned, 'owned', route_target=actor_id['ceo'], owner=actor_id['ceo']))
 
+    # 承接人不限单元（#69，补 44）：单元 b 的 DRI 在单元 a（主受影响对象所在的域）不持任何角色。路由给他，他本人承接、
+    # 退回形成、再承接后处置都放行（承接、处置与退回形成按 scope 判权）；另一 scope 的人是 NOT_FOUND，Agent 与别的人
+    # 仍按记录者类别被拒。
+    cross = ref(first, 'iss-cross')
+    issue('agent_a', 'world_raise_issue', cross)
+    to_b = issue('agent_a', 'world_route_issue', cross, {'to_principal_id': actor_id['b']})
+    routed_to_b = at_state(to_b, 'routed', route_target=actor_id['b'], cid='iss-cross')
+    owned_b = issue('b', 'world_own_issue', cross)
+    check('an_issue_is_routed_to_a_person_of_another_unit_who_owns_it_in_person',
+          routed_to_b
+          and at_state(owned_b, 'owned', route_target=actor_id['b'], owner=actor_id['b'], cid='iss-cross')
+          and str(event_row(owned_b['result']['event_id'])['principal_id']) == actor_id['b'])
+    across = {'disposition': 'current_layer_action', 'content': {'text': '单元 b 接手对接'}}
+    deny('foreign_ceo', 'world_dispose_issue', cross, {'NOT_FOUND'}, across)
+    deny('owner_a2', 'world_dispose_issue', cross, {'FORBIDDEN'}, across)
+    deny('a', 'world_dispose_issue', cross, {'FORBIDDEN'}, across)
+    check('a_person_outside_the_scope_or_other_than_the_owner_does_not_dispose_an_issue_owned_across_units')
+    back_b = issue('b', 'world_return_issue', cross, {'content': {'text': '单元 b 缺客户资料，退回补齐。'}})
+    check('the_owner_from_another_unit_returns_the_issue_to_forming',
+          at_state(back_b, 'forming', cid='iss-cross')
+          and str(event_row(back_b['result']['event_id'])['principal_id']) == actor_id['b'])
+    issue('agent_a', 'world_raise_issue', cross)
+    issue('agent_a', 'world_route_issue', cross, {'to_principal_id': actor_id['b']})
+    deny('foreign_ceo', 'world_own_issue', cross, {'NOT_FOUND'})
+    deny('agent_a', 'world_own_issue', cross, {'FORBIDDEN'}, declare=False)
+    deny('c', 'world_own_issue', cross, {'FORBIDDEN'})
+    check('a_person_outside_the_scope_or_an_agent_does_not_own_an_issue_routed_across_units')
+    issue('b', 'world_own_issue', cross)
+    disposed_b = issue('b', 'world_dispose_issue', cross, across)
+    row = event_row(disposed_b['result']['event_id'])
+    check('the_owner_from_another_unit_disposes_the_issue',
+          at_state(disposed_b, 'disposed', cid='iss-cross')
+          and (row['kind'], row['disposition'], row['content']['text']) == ('issue.disposed', 'current_layer_action',
+                                                                            '单元 b 接手对接')
+          and str(row['principal_id']) == actor_id['b'])
+
     # ---------------------------------------------------------------- 状态表没列的组合、提出与路由的拒绝
     x = ref(first, 'iss-x')
     issue('agent_a', 'world_raise_issue', x)
@@ -308,10 +346,10 @@ def issues(book, h, f, flow, trunk):
     deny('owner_a', 'world_dispose_issue', x, {'INVALID_STATE'},
          {'disposition': 'no_action_close', 'content': {'text': '不处理'}})
     check('owning_returning_or_disposing_a_pending_issue_is_invalid_state')
-    # 承接人：Agent、在单元 a 没有角色的另一单元 DRI、没有任何指派的人、不存在的身份。
-    for principal in (actor_id['agent_a'], actor_id['b'], f['bystander_principal_id'], uid()):
+    # 承接人是 scope 内有效的人（补 44）：Agent、没有任何指派的人、不存在的身份、另一 scope 的人都不行。
+    for principal in (actor_id['agent_a'], f['bystander_principal_id'], uid(), actor_id['foreign_ceo']):
         deny('a', 'world_route_issue', x, {'INVALID_REQUEST'}, {'to_principal_id': principal}, says='person')
-    check('an_issue_is_routed_only_to_a_person_holding_a_role_in_its_domain')
+    check('an_issue_is_routed_only_to_an_active_person_of_the_scope')
     routed_x = issue('a', 'world_route_issue', x, {'to_principal_id': actor_id['owner_a']})
     deny('owner_a', 'world_dispose_issue', x, {'INVALID_STATE'},
          {'disposition': 'no_action_close', 'content': {'text': '不处理'}})

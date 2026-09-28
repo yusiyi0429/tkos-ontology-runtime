@@ -11,7 +11,8 @@
 终止、形成锚定（#60），Strategy 的指定本轮、Agreement、确认生效与再确认（#59）；其余门随各自的票接入。
 
 Issue（契约第 13 节）：问题是主受影响对象快照里的问题组件，身份是（主受影响对象，组件 id）。动作不带目标，以 issue_ref
-指明问题；判权在主受影响对象所在的域按激活策略判，承接与处置只由人记，然后按登记 issue.lifecycle 的状态表与记录者
+指明问题；提出与路由在主受影响对象所在的域按激活策略判，承接、处置与退回形成按 scope 判（补 44，承接人是 scope 内
+有效的人、不限单元），承接与处置只由人记，然后按登记 issue.lifecycle 的状态表与记录者
 （raiser、router、route_target、owner、router_or_owner）判这条事件现在能不能记。Issue 事件只推动 Issue 自己的状态，
 不出修订、不动任何对象行（补 13、35）。
 
@@ -245,12 +246,14 @@ class WorldExecution(ActionExecution):
 
     def revise(self, object_type: str, current: dict[str, Any]) -> None:
         """合并修订（契约第 12 节）：建对象时写的关系引用只能改钉到同一对象的另一版本（同 0.1）；例外是周期目标的依据
-        复盘，直接修订时可以改指另一条快照或清空（补 7：草稿期可以改指，正式内容只在草稿直接修订，见 check_revisable；
-        是否已确认由形成锚定判），候选写回时仍只能改钉。组件台账记下这一版的新增与删除，只由服务写的字段沿用当前版本。"""
+        复盘，直接修订时可以改指另一条快照或清空（补 7：草稿期可以改指，正式内容只在草稿直接修订，见 check_revisable），
+        对象有了正式内容以后一轮重走的候选也可以改指（补 45）；是否已确认由形成锚定判。草稿期承诺带的候选仍只能改钉。
+        组件台账记下这一版的新增与删除，只由服务写的字段沿用当前版本。"""
         before = models.written_form(object_type, current)
+        repointable = self.kind == "world_revise_object" or self.target["lifecycle_status"] == "confirmed"
         for relation in world_registry.object_spec(object_type)["relation_fields"]:
             field = relation["field"]
-            if relation["relation"] == "based_on_review" and self.kind == "world_revise_object":
+            if relation["relation"] == "based_on_review" and repointable:
                 continue
             if field in before and ([models.parse_ref(text)["object_id"] for text in models.listed(before[field])]
                                     != [models.parse_ref(text)["object_id"] for text in models.listed(self.written[field])]):
@@ -464,14 +467,19 @@ class WorldExecution(ActionExecution):
 
     # ------------------------------------------------------------ issues
     def authorize_issue(self) -> None:
-        """Issue 的五个动作（契约第 9、13 节，补 36、37）。issue_ref 所在的对象须是本 scope 的 world 对象（否则 404）；
-        快照与主体同域，判权在这个域按激活策略判，承接与处置只由人记——Agent 持角色也不能记（不在 Agent 面上）；再过
-        协议闸门。然后校验载荷（422）：Agent 的写入声明、issue_ref 钉到某条状态快照 issues 块里现存的问题组件、内容里
-        的引用、路由的承接人。最后按登记 issue.lifecycle 的状态表判：状态不允许是 INVALID_STATE（正在处理与已处置的
-        问题不再提出），记录者不符是 FORBIDDEN。"""
+        """Issue 的五个动作（契约第 9、13 节，补 36、37、44）。issue_ref 所在的对象须是本 scope 的 world 对象（否则 404）；
+        快照与主体同域。提出与路由在这个域按激活策略判；承接、处置与退回形成按 scope 判（登记 authorization 为 scope，
+        同决 13 的 Agreement）：调用者在 scope 内有生效指派即可，承接人可以在别的单元，是不是承接人、路由者由下面的
+        记录者类别判。承接与处置只由人记——Agent 持角色也不能记（不在 Agent 面上）；再过协议闸门。然后校验载荷（422）：
+        Agent 的写入声明、issue_ref 钉到某条状态快照 issues 块里现存的问题组件、内容里的引用、路由的承接人。最后按登记
+        issue.lifecycle 的状态表判：状态不允许是 INVALID_STATE（正在处理与已处置的问题不再提出），记录者不符是
+        FORBIDDEN。"""
         carrier = head_and_binding(self.conn, self.ctx, models.parse_ref(self.params["issue_ref"])["object_id"])[0]
         self.domain_id = carrier["domain_id"]
-        self.action_assignments = db.authorize_domain(self.conn, self.ctx, self.domain_id, self.kind)
+        if world_registry.action_spec(self.kind)["authorization"] == "scope":
+            self.action_assignments = db._assignments(self.conn, self.ctx)  # scope 内没有生效指派的调用者是 403
+        else:
+            self.action_assignments = db.authorize_domain(self.conn, self.ctx, self.domain_id, self.kind)
         if self.ctx.principal_type != "human" and self.kind not in world_registry.registry()["agent_face"]["writes"]:
             _fail("FORBIDDEN", "An issue is owned and disposed by a person; an Agent does not record it even with "
                                "the role.")
@@ -511,10 +519,10 @@ class WorldExecution(ActionExecution):
 
     def issue_recorders(self, primary_id: str,
                         events: list[dict[str, Any]]) -> dict[str, tuple[dict[str, Any], str | None]]:
-        """调用者对这个问题满足的记录者类别（登记 recorders，补 36）→（让他满足的那条角色指派，经哪个对象的 responsible
-        属性成立）：raiser 与 router 是在主受影响对象所在域持 AGENT 的 Agent（MF），或主受影响对象主干上的责任人；
-        route_target 是当前路由指定的承接人本人，owner 是已承接的承接人本人，两者都只能是人，用到的是他在该域经激活
-        策略判权的那条指派；router_or_owner 是 router 或 owner。"""
+        """调用者对这个问题满足的记录者类别（登记 recorders，补 36、44）→（让他满足的那条角色指派，经哪个对象的
+        responsible 属性成立）：raiser 与 router 是在主受影响对象所在域持 AGENT 的 Agent（MF），或主受影响对象主干上的
+        责任人；route_target 是当前路由指定的承接人本人，owner 是已承接的承接人本人，两者都只能是人，用到的是这个动作
+        判权时他按 id 排在最前的那条指派（承接、处置按 scope 判，不限单元）；router_or_owner 是 router 或 owner。"""
         current = db._assignments(self.conn, self.ctx)
         agent = next((row for row in current if self.ctx.principal_type == "agent" and row["role"] == "AGENT"
                       and row["domain_id"] == self.domain_id), None)
@@ -536,17 +544,17 @@ class WorldExecution(ActionExecution):
         return found
 
     def check_route_target(self) -> None:
-        """路由指定一名承接人（契约第 13 节）：本 scope 启用的人，且当前在主受影响对象所在的域持角色——承接与处置在
-        这个域按激活策略判权。不是则 INVALID_REQUEST（同被指派者不持角色）。"""
+        """路由指定一名承接人（契约第 13 节，补 44）：scope 内有效的人——启用的人类身份，当前有任一生效的角色指派，
+        不限单元（承接与处置按 scope 判权）。不是则 INVALID_REQUEST（同被指派者不持角色）。"""
         if self.conn.execute(
                 """SELECT 1 FROM gov_principals p
                     WHERE p.scope_id=%s AND p.principal_id=%s AND p.active AND p.principal_type='human'
                       AND EXISTS (SELECT 1 FROM gov_role_assignments a
-                                   WHERE a.scope_id=p.scope_id AND a.principal_id=p.principal_id AND a.domain_id=%s
-                                     AND a.active AND a.valid_from<=clock_timestamp()
+                                   WHERE a.scope_id=p.scope_id AND a.principal_id=p.principal_id AND a.active
+                                     AND a.valid_from<=clock_timestamp()
                                      AND (a.valid_to IS NULL OR clock_timestamp()<a.valid_to))""",
-                (self.ctx.scope_id, self.params["to_principal_id"], self.domain_id)).fetchone() is None:
-            _invalid("An issue is routed to a person holding a role in the domain of its primary affected object.")
+                (self.ctx.scope_id, self.params["to_principal_id"])).fetchone() is None:
+            _invalid("An issue is routed to an active person of this scope.")
 
     # ------------------------------------------------------------ assign and lifecycle
     def authorize_responsibility(self) -> None:
@@ -674,7 +682,7 @@ class WorldExecution(ActionExecution):
             recorders["gate_role"] = (sorted(self.action_assignments, key=lambda row: row["assignment_id"])[0], None)
         event = {"event_id": "pending", "action": self.kind, "outcome": self.params.get("outcome"),
                  "disposition": None, "supersedes_event_id": self.params.get("supersedes_event_id"),
-                 "candidate": self.candidate is not None, "guards": self.guard_facts(object_type),
+                 "candidate": self.candidate is not None, "guards": self.guard_facts(object_type, proposed),
                  "recorders": set(recorders)}
         try:
             self.effect = world_lifecycle.admit(world_registry.registry(), object_type,
@@ -697,10 +705,10 @@ class WorldExecution(ActionExecution):
         else:
             self.payload = None
 
-    def guard_facts(self, object_type: str) -> dict[str, bool]:
+    def guard_facts(self, object_type: str, proposed: dict[str, Any] | None = None) -> dict[str, bool]:
         """这条门事件的守卫事实（登记 guards）：Mission 立项的承诺与确认接受查父周期目标（goal_ref）当前处于已确认；
         关注标记查这个 Mission 还没有标过（once，每个 Mission 只标一次）；周期目标的承诺与确认接受查形成锚定（见
-        formation_anchors）。"""
+        formation_anchors，proposed 是这条请求带的候选写回后的那一版）。"""
         if object_type == "Mission":
             goal = self.current_object(self.target["object_id"])["payload"]["goal_ref"]["object_id"]
             status = lifecycle(self.conn, self.ctx, {"object_id": goal, "object_type": "PeriodGoal"})["status"]
@@ -710,21 +718,27 @@ class WorldExecution(ActionExecution):
                 (self.ctx.scope_id, models.CONTRACT_VERSION, self.target["object_id"])).fetchone() is not None
             return {"parent_goal_confirmed": status == "confirmed", "once": not marked}
         if object_type == "PeriodGoal":
-            return {"formation_anchors": self.formation_anchors()}
+            return {"formation_anchors": self.formation_anchors(proposed)}
         if self.kind == "world_agree_strategy" and self.agreement is not None:
             return self.agreement["guards"]
         return {}
 
-    def formation_anchors(self) -> bool:
-        """周期目标的形成锚定（契约第 10.3 节，补 24）：按目标的最新修订，goal_ref 指向的长期目标当前处于已确认（已终止、
-        草稿都不是有效的长期目标）；review_ref 指向的快照当前是已确认复盘（它是公司复盘由建对象与修订判），没有 review_ref
-        时本 scope 还没有任何已确认的公司复盘（第一个周期）。承诺带的候选只能把 goal_ref 改钉到同一长期目标的另一版本、
-        不能改指 review_ref，所以按最新修订判即是按要形成的内容判。"""
-        payload = self.current_object(self.target["object_id"])["payload"]
+    def formation_anchors(self, proposed: dict[str, Any] | None) -> bool:
+        """周期目标的形成锚定（契约第 10.3 节，补 24、45）：按要形成的内容判，goal_ref 指向的长期目标当前处于已确认（已终止、
+        草稿都不是有效的长期目标）；review_ref 指向的快照当前是已确认复盘（它是公司复盘由建对象、修订与候选判），没有
+        review_ref 时本 scope 还没有任何已确认的公司复盘（第一个周期）。要形成的内容：这条承诺带候选时是候选写回后的那一版
+        （proposed）；一轮进行中确认时，review_ref 取这一轮留存的候选里的（一轮的候选可以改指 review_ref，补 45，没给则
+        沿用）；其余是最新修订。goal_ref 只能改钉到同一长期目标的另一版本，按哪一版判都一样。"""
+        payload = proposed or self.current_object(self.target["object_id"])["payload"]
         goal = {"object_id": payload["goal_ref"]["object_id"], "object_type": "LongTermGoal"}
         if lifecycle(self.conn, self.ctx, goal)["status"] != "confirmed":
             return False
         review = payload.get("review_ref")
+        current = None if proposed is not None else lifecycle(self.conn, self.ctx, self.target)["round"]
+        if current is not None and current["candidate_event_id"] is not None:
+            carried = self.carried_candidate(current["candidate_event_id"])[1]
+            if "review_ref" in carried:
+                review = carried["review_ref"] and models.parse_ref(carried["review_ref"])
         if review is None:
             return confirmed_company_review(self.conn, self.ctx) is None
         return review_confirmed(self.conn, self.ctx, review["object_id"])
@@ -1054,6 +1068,7 @@ class WorldExecution(ActionExecution):
         # 让调用者成为责任人的指派可以在上一级对象的域（例如公司域的 CEO），不必在本动作的域。
         # 外部事件按 scope 判权，不看各域策略，只要调用者仍在 scope 内有生效指派。
         # Agreement 同样只要求在 scope 内有生效指派（决 13）；本轮指定是已记的事件，同一事务里不会变。
+        # Issue 的承接、处置与退回形成也按 scope 判（补 44）。
         if world_registry.action_spec(self.kind)["authorization"] in {"scope", "scope_and_designation"}:
             db._assignments(self.conn, self.ctx)
         else:
@@ -1063,7 +1078,7 @@ class WorldExecution(ActionExecution):
             _fail("FORBIDDEN", "A required assignment is not currently valid.")
         if self.kind == "world_assign":  # 责任关系一并复核：被指派者此刻仍持对应角色
             self.check_assignee()
-        if self.kind == "world_route_issue":  # 承接人此刻仍是在该域持角色的人
+        if self.kind == "world_route_issue":  # 承接人此刻仍是 scope 内有效的人
             self.check_route_target()
         if self.kind == "world_assign_strategy_round":  # 被指定的人此刻仍是 scope 内有效的人
             self.check_designees()

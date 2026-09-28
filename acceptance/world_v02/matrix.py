@@ -114,6 +114,14 @@ def topic_cells(registry=REGISTRY):
     for object_type in rounds:
         for key, text in round_cells.items():
             withdrawal[f'round:{object_type}:{key}'] = f'{TYPE_NAMES[object_type]}：{text}'
+        # 一轮进行中进入终态即作废，撤回那条事件则连同候选恢复（#69，补 47，登记 rounds.voided_in）。
+        states = {item['id']: item['display_name'] for item in registry['lifecycles'][object_type]['states']}
+        for state in rounds[object_type].get('voided_in', []):
+            withdrawal[f'round:{object_type}:voided_in:{state}'] = (
+                f'{TYPE_NAMES[object_type]}：一轮进行中进入{states[state]}，这一轮作废，候选不写回、正式内容不变')
+        if rounds[object_type].get('voided_in'):
+            withdrawal[f'round:{object_type}:restored_by_withdrawal'] = (
+                f'{TYPE_NAMES[object_type]}：撤回让它进入终态的那条事件，作废的一轮连同候选原样恢复（同撤回一条退回）')
     cells['withdrawal_and_rounds'] = withdrawal
     cells['components_and_refs'] = {
         'components:id_from_writer_or_service': '组件 id 由写入者给或由服务生成',
@@ -177,6 +185,7 @@ def topic_cells(registry=REGISTRY):
         'issue:same_issue_across_snapshots': '后续快照带同一个 id 是同一个问题',
         'issue:recurrence_under_new_id': '已处置的不再提出，复发用新 id 并引用原问题',
         'issue:escalated_and_rerouted': '转交或上报后回到待路由、再路由与承接',
+        'issue:owner_across_units': '承接人不限单元：另一单元的人承接、退回与处置（按 scope 判权），scope 外的人与 Agent 仍被拒',
         'issue:correction': '更正可以指向 Issue 事件，问题的状态不变',
         'issue:business_objects_unchanged': 'Issue 动作不出修订、不改任何业务对象与生命周期',
         'issue:events_listed': '取事件列出 Issue 事件（主受影响对象与快照）',
@@ -222,6 +231,8 @@ NOT_APPLICABLE = {
     'round:LongTermGoal:one_round_at_a_time': _LTG_NO_ROUND + '，不存在「一轮未完再开」。',
     'round:LongTermGoal:returned_round_is_void': _LTG_NO_ROUND + '；已确认时的退回被拒见 '
                                                  'long_term_goal_a_confirmed_goal_is_confirmed_again_only_with_a_candidate。',
+    'round:LongTermGoal:voided_in:terminated': _LTG_NO_ROUND + '，终止时没有可作废的一轮（#69）。',
+    'round:LongTermGoal:restored_by_withdrawal': _LTG_NO_ROUND + '，撤回终止也没有可恢复的一轮（#69）。',
 }
 
 
@@ -684,6 +695,14 @@ CHECKS = {
         'only_the_ceo_in_person_marks_a_core_battle_and_an_agent_holding_the_ceo_role_cannot':
             R('world_mark_core_battle') + L(M, 'established>established:world_mark_core_battle', 'refused'),
         'a_mark_leaves_the_decisions_to_the_owner_and_the_dri_and_survives_a_write_back': ('round:Mission:write_back',),
+        'mission_a_round_open_when_the_mission_is_accepted_is_void_and_nothing_is_written_back':
+            ('round:Mission:voided_in:closed',) + P('world_accept') + R('world_confirm_mission'),
+        'mission_withdrawing_the_acceptance_restores_the_round_which_is_then_written_back':
+            ('round:Mission:restored_by_withdrawal', 'round:Mission:write_back'),
+        'mission_a_round_open_when_the_mission_is_cancelled_is_void_and_nothing_is_written_back':
+            ('round:Mission:voided_in:cancelled',) + P('world_cancel'),
+        'mission_withdrawing_the_cancellation_restores_the_round_and_cancelling_again_voids_it':
+            ('round:Mission:restored_by_withdrawal', 'round:Mission:voided_in:cancelled') + R('world_confirm_mission'),
     },
     'delegation': {
         'a_delegation_is_granted_by_a_person_in_person_to_an_agent_of_the_scope_for_its_families_domains_and_a_'
@@ -851,8 +870,21 @@ CHECKS = {
             P('world_route_issue', 'world_own_issue') + ('issue:escalated_and_rerouted',),
         'owning_returning_or_disposing_a_pending_issue_is_invalid_state':
             R('world_own_issue', 'world_return_issue', 'world_dispose_issue'),
-        'an_issue_is_routed_only_to_a_person_holding_a_role_in_its_domain':
+        'an_issue_is_routed_only_to_an_active_person_of_the_scope':
             R('world_route_issue') + ('issue:request_refusals',),
+        'an_issue_is_routed_to_a_person_of_another_unit_who_owns_it_in_person':
+            P('world_route_issue', 'world_own_issue') + L(I, 'routed>owned:world_own_issue', 'enter')
+            + ('issue:owner_across_units',),
+        'a_person_outside_the_scope_or_other_than_the_owner_does_not_dispose_an_issue_owned_across_units':
+            R('world_dispose_issue') + L(I, 'owned>disposed:world_dispose_issue:current_layer_action', 'refused')
+            + ('issue:owner_across_units',),
+        'the_owner_from_another_unit_returns_the_issue_to_forming':
+            P('world_return_issue') + L(I, 'owned>forming:world_return_issue', 'enter') + ('issue:owner_across_units',),
+        'a_person_outside_the_scope_or_an_agent_does_not_own_an_issue_routed_across_units':
+            R('world_own_issue') + L(I, 'routed>owned:world_own_issue', 'refused') + ('issue:owner_across_units',),
+        'the_owner_from_another_unit_disposes_the_issue':
+            P('world_dispose_issue') + L(I, 'owned>disposed:world_dispose_issue:current_layer_action', 'enter')
+            + ('issue:owner_across_units', 'issue:raise_route_own_dispose'),
         'disposing_a_routed_issue_that_is_not_owned_is_invalid_state': R('world_dispose_issue'),
         'a_person_not_responsible_up_the_spine_of_the_primary_affected_object_does_not_raise':
             R('world_raise_issue') + L(I, 'not_raised>pending_routing:world_raise_issue', 'refused'),
@@ -910,7 +942,12 @@ CHECKS = {
             P('world_confirm_review') + ('read:records:confirmed_review',),
         'formation_a_review_ref_to_a_confirmed_company_review_anchors_the_period_goal':
             P('world_commit_period_goal', 'world_confirm_period_goal'),
-        'a_re_run_candidate_does_not_re_point_review_ref': R('world_commit_period_goal'),
+        'a_re_run_candidate_re_pointing_review_ref_to_an_unconfirmed_review_is_refused_by_the_formation_guard':
+            R('world_commit_period_goal'),
+        'a_first_period_goal_without_review_ref_opens_no_round_once_the_scope_has_a_confirmed_review_unless_it_names_one':
+            R('world_commit_period_goal'),
+        'a_first_period_goal_re_runs_with_a_candidate_re_pointing_review_ref_to_a_confirmed_review_and_it_is_written_back':
+            P('world_commit_period_goal', 'world_confirm_period_goal') + ('round:PeriodGoal:write_back',),
         'formation_once_the_scope_has_a_confirmed_company_review_a_goal_without_review_ref_is_refused':
             R('world_commit_period_goal') + L(PG, 'draft>committed:world_commit_period_goal', 'refused'),
         'the_latest_as_of_confirmed_company_review_is_the_scopes_confirmed_review': ('read:records:confirmed_review',),
@@ -963,6 +1000,15 @@ CHECKS = {
             P('world_cancel') + ('delegation:passes:lifecycle',),
         'recording_on_behalf_of_someone_without_a_delegation_is_refused': ('delegation:refused:recorder_not_the_delegate',),
         'replaying_a_review_confirmation_returns_the_original_receipt': ('duplicates:same_key_same_request',),
+        'period_goal_a_round_open_when_it_is_closed_by_review_is_void_and_nothing_is_written_back':
+            ('round:PeriodGoal:voided_in:closed',) + P('world_confirm_review') + R('world_confirm_period_goal'),
+        'period_goal_withdrawing_the_closing_review_restores_the_round_which_is_then_written_back':
+            ('round:PeriodGoal:restored_by_withdrawal', 'round:PeriodGoal:write_back'),
+        'period_goal_a_round_open_when_it_is_cancelled_is_void_and_nothing_is_written_back':
+            ('round:PeriodGoal:voided_in:cancelled',) + P('world_cancel'),
+        'period_goal_withdrawing_the_cancellation_restores_the_round_and_cancelling_again_voids_it':
+            ('round:PeriodGoal:restored_by_withdrawal', 'round:PeriodGoal:voided_in:cancelled')
+            + R('world_confirm_period_goal'),
     },
     'strategy_gates': {
         'strategy_the_trunk_strategy_is_a_draft_without_formal_content_or_a_round':
@@ -1059,6 +1105,8 @@ CHECKS = {
         'carried_issues_are_never_trimmed',
         'once_the_affected_object_records_a_gate_event_the_issue_is_no_longer_carried',
         'forming_a_period_goal_carries_a_pending_issue_on_its_units_long_term_goal',
+        'forming_a_period_goal_carries_a_pending_issue_on_its_responsibility_unit',
+        'once_a_period_goal_of_the_unit_records_a_gate_event_the_units_issue_is_no_longer_carried_and_others_stay',
         'after_a_company_review_is_confirmed_forming_a_period_goal_carries_it_pinned_to_its_snapshot',
         'with_a_later_confirmed_review_the_latest_by_as_of_is_carried',
         'forming_a_period_goal_carries_the_units_confirmed_long_term_goals_and_not_terminated_drafts_or_its_own',
@@ -1094,8 +1142,9 @@ UNVERIFIED = [
     '冻结：锁版前不冻结（ADR-0009），不钉提交、不生成冻结检查点，world_v02_accepted 恒为 false。',
     '并发写、API 进程重启恢复、事务中途故障注入：没有驱动。',
     '最终复核：判权与提交之间指派、委托、被指定的人自然失效的路径没有在 HTTP 上驱动（纯函数与无库测试覆盖一部分）。',
-    '一轮重走未结束时 Mission 被验收关闭或取消、周期目标被复盘确认关闭或取消：契约没写这种组合，待定。',
-    'Issue 只以 Mission 为主受影响对象驱动；责任单元、长期目标、周期目标与 Strategy 的问题没有在 HTTP 上驱动。',
+    '一轮进行中撤回重开回到已关闭（其间开的一轮作废）、重开不恢复作废的一轮：只在纯函数测试里核对（#69）。',
+    'Issue 的状态表只以 Mission 为主受影响对象逐格驱动；长期目标与责任单元的问题只驱动了形成时带入（#64、#69），'
+    '周期目标与 Strategy 的问题没有在 HTTP 上驱动；责任单元上的问题不因别的单元的周期目标记门事件而失效，没有驱动。',
     'CLI 的 0.2 面、MCP 的列对象与三个问题工具只在无库测试里打假 HTTP 核对。',
     '0.1 视图只驱动了长期目标与快照；取事件、取上下文、取子对象没有 0.2 视图参数。',
     '代记 Mission 的生命周期动作、代记撤回、代记指定本轮与 Strategy 的确认与再确认：机制同其余代记，由无库测试核对。',

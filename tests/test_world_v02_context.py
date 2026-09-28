@@ -875,7 +875,8 @@ def test_a_period_goal_carries_the_latest_confirmed_company_review_its_units_eff
         "## 六问指引", "## 形成时带入", "## 为什么", "## 做什么", "## 谁负责", "## 现在怎样", "## 发生了什么", "## 凭什么"]
     parts = carried_markdown(result)
     assert parts[0] == ("形成周期目标时必须看到、不必须采用：本 scope 最近的已确认公司复盘、本单元有效的长期目标，以及处置为"
-                        "带入下次形成或立即重开、此后主受影响对象还没记过门事件的问题。")
+                        "带入下次形成或立即重开、此后主受影响对象还没记过门事件的问题（主受影响对象是责任单元的，看本单元的"
+                        "周期目标此后有没有记过门事件）。")
     assert parts[1].splitlines() == [
         f"### 已确认的公司复盘《九月公司复盘》 `{REVIEW_SNAPSHOT}@1`（截至 2026-09-30T15:59:59Z）",
         f"确认事件 `event:{REVIEW_EVENT}`（CEO 记，2026-10-01T02:00:00Z）",

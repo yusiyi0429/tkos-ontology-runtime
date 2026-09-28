@@ -1867,7 +1867,8 @@ def mission_lifecycle(book, h, f, flow, trunk):
     记，交付由 Owner 记，验收通过、退回、重开、取消由 DRI 记；状态表的每一格经 HTTP 走一条，未列出的组合、错记录者、
     撤回与重复各有拒绝，库快照不变。关注标记只由 CEO 本人记、每个 Mission 一次、只置 core_battle，不改生命周期与
     决定权。上层关闭、取消不改变下层，Task 全部关闭不关 Mission。#54 转来的补验：进行中、已交付、调整中由 Owner 带
-    候选开轮、DRI 写回，状态不变；已关闭、已取消拒绝直接修订。Mission 都挂在本场景新建并确认的周期目标下。"""
+    候选开轮、DRI 写回，状态不变；已关闭、已取消拒绝直接修订。#69：一轮进行中被验收关闭或取消，这一轮作废，撤回那条
+    事件则连同候选恢复（补 47）。Mission 都挂在本场景新建并确认的周期目标下。"""
     check = book.check
     made = trunk['made']
     actor_id = {name: actor['principal_id'] for name, actor in f['actors'].items()}
@@ -2170,6 +2171,56 @@ def mission_lifecycle(book, h, f, flow, trunk):
           and after['business']['attributes']['core_battle'] is True
           and blocks_of(after)['play']['text'] == '关注期间改打法'
           and after['records']['lifecycle'] == stage('in_progress', restarted))
+
+    # ================================================================ 一轮进行中验收关闭或取消（#69，补 47）
+    # 进入已关闭、已取消时进行中的一轮作废，同退回：候选不写回、正式内容不变，DRI 再确认被拒；撤回那条事件，这一轮
+    # 连同候选原样回来（同撤回一条退回），DRI 确认接受照常写回；再取消又作废。
+    def voided(oid, formed_view, expected_stage):
+        after = view(oid)
+        return (after['records']['lifecycle'] == expected_stage and after['business']['round'] is None
+                and after['business']['version'] == formed_view['business']['version']
+                and after['business']['formal'] == formed_view['business']['formal']
+                and blocks_of(after)['play'] == blocks_of(formed_view)['play'])
+
+    def restored(oid, opened, candidate, expected_stage):
+        now = view(oid)
+        return (now['records']['lifecycle'] == expected_stage and now['business']['round'] is not None
+                and now['business']['round']['opened_by_event_id'] == opened['event_id']
+                and now['business']['round']['candidate'] == candidate)
+
+    closing = mission('一轮中验收关闭')
+    walk_to(closing, 'delivered')
+    formed_view = view(closing)
+    candidate = {'blocks': {'play': {'text': 'Play 候选：验收前改核心路径'}}}
+    opened = act('owner_a', 'world_commit_mission', closing, {'payload': candidate})
+    accepted = act('a', 'world_accept', closing)
+    deny('a', 'world_confirm_mission', closing, {'INVALID_STATE'}, {'outcome': 'accepted'})
+    check('mission_a_round_open_when_the_mission_is_accepted_is_void_and_nothing_is_written_back',
+          voided(closing, formed_view, stage('closed', accepted)))
+    back = act('a', 'world_accept', closing, withdrawal(accepted))
+    was_restored = restored(closing, opened, candidate, stage('delivered', back))
+    written = act('a', 'world_confirm_mission', closing, {'outcome': 'accepted'})
+    after = view(closing)
+    check('mission_withdrawing_the_acceptance_restores_the_round_which_is_then_written_back',
+          was_restored and after['business']['round'] is None
+          and blocks_of(after)['play']['text'] == 'Play 候选：验收前改核心路径'
+          and written['version'] == formed_view['business']['version'] + 1
+          and after['records']['lifecycle'] == stage('delivered', back))
+
+    dropped = mission('一轮中取消')
+    walk_to(dropped, 'in_progress')
+    formed_view = view(dropped)
+    candidate = {'blocks': {'play': {'text': 'Play 候选：取消前改核心路径'}}}
+    opened = act('owner_a', 'world_commit_mission', dropped, {'payload': candidate})
+    cancelled = act('a', 'world_cancel', dropped)
+    check('mission_a_round_open_when_the_mission_is_cancelled_is_void_and_nothing_is_written_back',
+          voided(dropped, formed_view, stage('cancelled', cancelled)))
+    back = act('a', 'world_cancel', dropped, withdrawal(cancelled))
+    was_restored = restored(dropped, opened, candidate, stage('in_progress', back))
+    again = act('a', 'world_cancel', dropped)
+    deny('a', 'world_confirm_mission', dropped, {'INVALID_STATE'}, {'outcome': 'accepted'})
+    check('mission_withdrawing_the_cancellation_restores_the_round_and_cancelling_again_voids_it',
+          was_restored and voided(dropped, formed_view, stage('cancelled', again)))
 
 
 def delegation(book, h, f, flow, trunk):

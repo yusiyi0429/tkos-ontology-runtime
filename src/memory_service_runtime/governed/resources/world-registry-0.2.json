@@ -178,7 +178,7 @@
    "action": "world_own_issue",
    "agent_face": false,
    "agent_note": null,
-   "authorization": "policy",
+   "authorization": "scope",
    "candidate": false,
    "class": "record",
    "delegable": null,
@@ -193,7 +193,7 @@
    "action": "world_dispose_issue",
    "agent_face": false,
    "agent_note": null,
-   "authorization": "policy",
+   "authorization": "scope",
    "candidate": false,
    "class": "record",
    "delegable": null,
@@ -208,7 +208,7 @@
    "action": "world_return_issue",
    "agent_face": true,
    "agent_note": "作为路由者",
-   "authorization": "policy",
+   "authorization": "scope",
    "candidate": false,
    "class": "record",
    "delegable": null,
@@ -1806,7 +1806,10 @@
     ],
     "candidate_carried_by": "world_confirm_long_term_goal",
     "closed_by": "world_confirm_long_term_goal",
-    "opened_by": null
+    "opened_by": null,
+    "voided_in": [
+     "terminated"
+    ]
    },
    "states": [
     {
@@ -1891,7 +1894,11 @@
     ],
     "candidate_carried_by": "world_commit_mission",
     "closed_by": "world_confirm_mission",
-    "opened_by": "world_commit_mission"
+    "opened_by": "world_commit_mission",
+    "voided_in": [
+     "closed",
+     "cancelled"
+    ]
    },
    "states": [
     {
@@ -2154,7 +2161,11 @@
     ],
     "candidate_carried_by": "world_commit_period_goal",
     "closed_by": "world_confirm_period_goal",
-    "opened_by": "world_commit_period_goal"
+    "opened_by": "world_commit_period_goal",
+    "voided_in": [
+     "closed",
+     "cancelled"
+    ]
    },
    "states": [
     {
@@ -2275,7 +2286,8 @@
     ],
     "candidate_carried_by": "world_assign_strategy_round",
     "closed_by": "world_confirm_strategy",
-    "opened_by": "world_assign_strategy_round"
+    "opened_by": "world_assign_strategy_round",
+    "voided_in": []
    },
    "states": [
     {
@@ -3467,7 +3479,7 @@
    "id": "router"
   },
   {
-   "description": "路由事件指定的承接人本人（人）",
+   "description": "路由事件指定的承接人本人（人，scope 内有效的人，不限单元）",
    "id": "route_target"
   },
   {

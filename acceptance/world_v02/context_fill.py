@@ -11,7 +11,9 @@ Owner。从周期目标与 Mission 出发经 HTTP 取上下文，核对：Why �
 门事件」已经让问题自然失效，只在草稿或一轮里才带的话，立即重开的问题在对象重开之前就看不到了。在周期目标下另建一条
 Mission，Co-Agent 写带问题组件的快照、提出并路由给 Owner，Owner 承接后处置为带入下次形成：从这条 Mission 取上下文
 看到「形成时带入」（计入覆盖、预算再紧也不裁）；Owner 记承诺（门事件）之后不再带入。再给单元长期目标写带问题的
-快照，DRI 处置为立即重开：从本单元的周期目标取上下文带入它。CEO 写并确认一条公司复盘，从周期目标取上下文带入它
+快照，DRI 处置为立即重开：从本单元的周期目标取上下文带入它。#69（补 46）：给责任单元写带问题的快照，DRI 处置为带入
+下次形成，从本单元的周期目标取上下文带入它；CEO 再确认这条周期目标（本单元的周期目标记了门事件）之后不再带入，长期目标
+上的问题照旧带入。CEO 写并确认一条公司复盘，从周期目标取上下文带入它
 （钉到快照修订，材料不带）；再确认一条时点更晚的与一条时点更早、确认更晚的，带入的是时点最新的那条。本单元新建一条
 确认的、一条确认后终止的与一条草稿的长期目标：只带入已确认的（与列对象按域核对），不带周期目标自己 goal_ref 指的那条。
 """
@@ -266,6 +268,29 @@ def context_fill(book, h, f, flow, trunk):
           and f"### 待带入的问题 `{goal_issue}`：长期目标的衡量要不要改？"
           in sections(from_goal['context_pack']['markdown'])['形成时带入']
           and flow.context('outsider', pid, question)['context_pack'] == from_goal['context_pack'])
+
+    # 责任单元上的问题（#69，补 46）：责任单元没有门，改看本单元任一周期目标在处置之后有没有记门事件。CEO 再确认本单元
+    # 的周期目标之后不再带入；长期目标上的问题照旧带入（它的长期目标没记门事件）。
+    unit = made['ResponsibilityUnit']['object_id']
+    scene = {'scene': latest(unit), 'trigger': 'Co-Agent 周检（#69）', 'human_acceptance': {'required': False}}
+    unit_snapshot = snapshot_with_issue(latest(unit), 'unit_state', 'fill-u-iss', '单元边界要不要调整？')
+    unit_issue = f"{unit_snapshot['ref']}#issues/fill-u-iss"
+    rolled_unit = dispose(unit_issue, 'a', 'roll_forward', '边界调整放到下个周期目标里定')
+    with_unit = flow.context('agent_a', pid, question)['context_pack']
+    unit_carried = with_unit['carried']['issues']
+    check('forming_a_period_goal_carries_a_pending_issue_on_its_responsibility_unit',
+          [item['issue_ref']['ref'] for item in unit_carried] == [goal_issue, unit_issue]
+          and unit_carried[1]['primary']['object_id'] == unit
+          and unit_carried[1]['primary']['object_type'] == 'ResponsibilityUnit'
+          and unit_carried[1]['disposition']['id'] == 'roll_forward'
+          and unit_carried[1]['disposed_by']['event_id'] == rolled_unit['event_id']
+          and f"### 待带入的问题 `{unit_issue}`：单元边界要不要调整？" in sections(with_unit['markdown'])['形成时带入'])
+    regate = flow.gate('ceo', 'world_reconfirm_period_goal', pid, {})['result']
+    after_regate = flow.context('agent_a', pid, question)['context_pack']
+    check('once_a_period_goal_of_the_unit_records_a_gate_event_the_units_issue_is_no_longer_carried_and_others_stay',
+          regate['event_id'] in {event['event_id'] for event in flow.events('outsider', pid)['events']}
+          and [item['issue_ref']['ref'] for item in after_regate['carried']['issues']] == [goal_issue]
+          and f"`{unit_issue}`" not in sections(after_regate['markdown'])['形成时带入'])
 
     # ---------------------------------------------------------------- 第二段：形成周期目标时带入公司复盘与有效的长期目标
     # 进来时 scope 里已有前面 goal_closure 场景确认的公司复盘；这里写的快照时点都更晚。

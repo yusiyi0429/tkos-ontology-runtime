@@ -58,7 +58,7 @@ HTTP 面的返回（包括拒绝）原样打到标准输出，JSON 缩进打印�
 
 - 修订、开始、交付要 `--target`，取 `get` 返回的 `business` 组里的 `object_id`、`revision_id` 与 `object_version`（作 `expected_version`）。开始的目标是已成立的 Mission（Agent 作为 Owner 的 Agent，须在它所在的域持 AGENT）或指派给自己的 Activity；交付的目标是自己负责的 Activity。撤回自己记的开始或交付，`--params` 带 `{"outcome": "withdrawn", "supersedes_event_id": …}`。
 - 写入声明的 `scene` 可以是任一业务对象；写状态快照的 `payload` 是 0.2 的外壳（`payload_type`、`source_event_refs` 等，见契约第 7 节）。
-- 提出问题、路由问题、退回形成（#61，契约第 13 节）不带 `--target`：`--params` 里以 `issue_ref`（问题组件的组件引用 `<快照 id>@<版本>#issues/<组件 id>`）指明问题，路由另带 `to_principal_id`（承接人，须是在主受影响对象所在域持角色的人），可选 `content` 写进事件。Agent 作为 MF（在主受影响对象所在域持 AGENT）记这三个动作。
+- 提出问题、路由问题、退回形成（#61，契约第 13 节）不带 `--target`：`--params` 里以 `issue_ref`（问题组件的组件引用 `<快照 id>@<版本>#issues/<组件 id>`）指明问题，路由另带 `to_principal_id`（承接人，须是 scope 内有效的人，不限单元），可选 `content` 写进事件。Agent 作为 MF（在主受影响对象所在域持 AGENT）记这三个动作。
 - 门、指派、建关系、建对象、关注标记、问题的承接与处置不在 `act` 的动作里；代记只走 HTTP，`--params` 带 `on_behalf_of` 在发请求之前以用法错误拒绝。
 
 ```sh

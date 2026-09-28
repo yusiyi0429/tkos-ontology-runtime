@@ -61,6 +61,12 @@ def test_topic_cells_follow_the_registry_enumerations():
     assert {f"delegation:passes:{item['id']}" for item in REGISTRY['delegation']['families']} <= named
     rounds = [t for t, spec in REGISTRY['lifecycles'].items() if spec.get('rounds')]
     assert {cell.split(':')[1] for cell in named if cell.startswith('round:')} == set(rounds)
+    # 一轮进行中进入终态即作废，撤回那条事件则恢复（#69，登记 rounds.voided_in）：每个作废的状态一格，每个类型一格恢复。
+    voiding = {t: REGISTRY['lifecycles'][t]['rounds']['voided_in'] for t in rounds}
+    assert {cell for cell in named if ':voided_in:' in cell} == {
+        f'round:{t}:voided_in:{state}' for t, states in voiding.items() for state in states} != set()
+    assert {cell for cell in named if cell.endswith(':restored_by_withdrawal')} == {
+        f'round:{t}:restored_by_withdrawal' for t, states in voiding.items() if states}
 
 
 def test_each_check_is_listed_once_and_only_names_cells_of_the_matrix():

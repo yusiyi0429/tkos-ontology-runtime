@@ -111,14 +111,14 @@
 | 动作 | 另外的参数 | 谁能记 | 状态 |
 |-|-|-|-|
 | 提出 `world_raise_issue` | 可选 `content`；Agent 必带写入声明 | 在主受影响对象所在域持 AGENT 的 Agent（天枢服务主体即是），或主受影响对象及其主干以上的责任人 | 未提出、形成中 → 待路由 |
-| 路由 `world_route_issue` | `to_principal_id`（承接人，须是人），其余同提出 | 同提出 | 待路由 → 已路由；已路由可改路由 |
+| 路由 `world_route_issue` | `to_principal_id`（承接人：scope 内有效的人，不限单元），其余同提出 | 同提出 | 待路由 → 已路由；已路由可改路由 |
 | 承接 `world_own_issue` | 可选 `content`，不带写入声明 | 当前路由指定的承接人本人 | 已路由 → 已承接 |
 | 处置 `world_dispose_issue` | `disposition`（六类之一），`content.text` 写理由（必填） | 已承接的承接人本人 | 四类进已处置；`route_escalate` 回待路由；`pushback` 进形成中 |
 | 退回形成 `world_return_issue` | 同提出 | 路由者或本轮承接人 | 已路由、已承接 → 形成中 |
 
 - 回执 `result` 带 `event_id`、`subject_refs`（第一条是问题组件，第二条是主受影响对象）与 `issue`：`{primary_affected_object_id, component_id, status, display_name}`。Issue 动作不出修订，不改变业务对象的生命周期。
-- 错误：`issue_ref` 所在对象不在本 scope 是 404；在主受影响对象所在域没有角色、Agent 承接或处置、记录者不符是 403；正在处理或已处置的问题再提出、状态不允许是 409；参数不对（含带 `target`、缺理由、处置不在六类、Agent 缺声明、`issue_ref` 不是快照 issues 块里的问题组件、承接人不在该域持角色）是 422。
-- **承接人目前须在主受影响对象所在的域持角色**，所以上报给 CEO 可以，转给别的单元的人会被拒（可能变，待定）。
+- 错误：`issue_ref` 所在对象不在本 scope 是 404；提出、路由时在主受影响对象所在域没有角色，承接、处置、退回形成时在 scope 内没有生效指派，Agent 承接或处置，记录者不符，都是 403；正在处理或已处置的问题再提出、状态不允许是 409；参数不对（含带 `target`、缺理由、处置不在六类、Agent 缺声明、`issue_ref` 不是快照 issues 块里的问题组件、承接人不是 scope 内有效的人）是 422。
+- **承接人不限单元**（2026-09-29 定，契约补 44）：承接人是 scope 内有效的人（启用的人，持任一生效指派），不必在主受影响对象所在的域持角色，转给别的单元的人可以；承接、处置与退回形成按 scope 判权。提出与路由仍在主受影响对象所在的域判。
 - 取对象的 `records.open_issues` 列出主受影响对象是它、提出过还没处置的问题：`{component_id, issue_ref, text, core_question, responsible_hint, as_of, lifecycle, route_target, owner}`。
 - 天枢服务主体可以提出、路由、退回形成；承接与处置只能由承接人本人记，第一版不可代记（是否纳入代记，三方会上提，可能变）。
 - 正在处理的问题不能重复提出；已处置的不再提出，复发用新 id 并在内容里引用原问题。处置为「带入下次形成」「立即重开」的问题，在下一次相关的形成时由取上下文带出（第十项）。
@@ -223,7 +223,7 @@
 - 引用细到组件；Why 沿单元长期目标的 `goal_ref` 多取一跳到公司级长期目标（`context_pack.layers[i].hop`，只带定义类块），Strategy 与 Company 也进「为什么」。
 - 渲染的 Markdown 以六问为节：开头「六问指引」，然后「为什么」「做什么」「谁负责」「现在怎样」「发生了什么」「凭什么」。事件行写成「X 记」或「X 代 Y 记」，指派另写「指派给 Z」。
 - **形成时带入**：出发对象是有门的类型（Strategy、长期目标、周期目标、Mission）时，`context_pack.carried` 带出必须看到、不必须采用的内容，Markdown 在六问指引之后单出一节「## 形成时带入」，这一节不被预算裁剪（所以预算很紧时 `over_budget` 会是 true）。
-  - 待带入的问题：处置为「带入下次形成」或「立即重开」、此后主受影响对象还没记过门事件的问题。从周期目标出发带本单元（责任单元、本单元的长期目标与周期目标）的，从其他有门对象出发带它本身的。每项 `{issue_ref, primary, text, core_question, disposition, disposed_by, reason}`。
+  - 待带入的问题：处置为「带入下次形成」或「立即重开」、此后主受影响对象还没记过门事件的问题；主受影响对象是责任单元的，本单元任一周期目标此后记了门事件就不再带入（2026-09-29 定，契约补 46）。从周期目标出发带本单元（责任单元、本单元的长期目标与周期目标）的，从其他有门对象出发带它本身的。每项 `{issue_ref, primary, text, core_question, disposition, disposed_by, reason}`。
   - 从周期目标出发另带：本 scope 最近的已确认公司复盘 `company_review`（按 `as_of` 取最新，快照外壳加 results、gaps、causes、key_changes、implications 五块，没有时为 null、Markdown 写一句缺口），以及本单元有效（已确认、未终止）的长期目标 `long_term_goals`（对象头加定义类块引用；`goal_ref` 指的那条已在「为什么」里，不重复）。
   - 出发对象没有门（Task、Activity、责任单元、Company）时 `carried` 为 null。
 - 包比 0.1 大：验收里从 Activity 出发的包约 11000 字，接近默认预算；月度计划这类从周期目标出发的取法，建议按对接说明给到 20000。

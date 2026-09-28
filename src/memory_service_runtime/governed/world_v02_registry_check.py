@@ -6,7 +6,7 @@
 - 块与组件：块允许的组件类型已登记，每个组件类型至少有一个块允许；payload 的主体与类型的 payload 对得上。
 - 状态表（各类型与 Issue）：状态已声明且都可达；转移的动作存在、以该类型为目标；守卫、记录者（``by``）、
   处置已定义；结果是动作允许的；终态只经重开离开；没有重复转移。
-- 一轮与正式段：有门类型都有 ``formal_on`` 与 ``rounds``，其中的动作与状态存在；每种处置都有转移。
+- 一轮与正式段：有门类型都有 ``formal_on`` 与 ``rounds``，其中的动作与状态（可开轮的、进入即作废的）存在；每种处置都有转移。
 - 关系、委托动作族与 Agent 面里的动作存在。
 """
 from __future__ import annotations
@@ -114,7 +114,7 @@ def check(registry: dict[str, Any]) -> list[str]:
         if spec["formal_on"] is not None and spec["formal_on"] not in states:
             errors.append(f"{name}: formal_on {spec['formal_on']} is not declared")
         rounds = spec["rounds"] or {}
-        for state in rounds.get("allowed_in", []):
+        for state in rounds.get("allowed_in", []) + rounds.get("voided_in", []):
             if state not in states:
                 errors.append(f"{name}: round state {state} is not declared")
         for key in ("opened_by", "agreed_by", "closed_by", "candidate_carried_by"):

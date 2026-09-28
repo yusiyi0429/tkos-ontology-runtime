@@ -21,6 +21,9 @@ recorders：记录者对这个对象满足的记录者类别（登记 ``recorder
   一轮未完不能再开，只有 Strategy 未齐时重新指定是换成新的一轮；走到 ``formal_on`` 写回候选，退回初始段
   则本轮作废；长期目标这类没有开轮动作的，带候选的确认一步写回。Strategy 一轮已补齐且不带候选时，
   再确认结束本轮。
+- 一轮进行中对象进入 ``rounds.voided_in`` 的状态（已关闭、已取消、已终止）时，这一轮作废，同退回：候选不写回、
+  正式内容不变。撤回让它进入该状态的那条事件，同撤回一条退回：上一段连同这一轮原样回来；撤回回到这类状态时，
+  其间开的一轮同样作废。
 
 admit 返回记下后所处的状态，与这条事件对正式内容指针的作用：成为正式、收回正式、开轮、写回、结束本轮，
 以及要写回的候选来自哪条事件；另给 ``by``：这条事件按哪类记录者被准入（撤回取原转移的），服务据此记下用到的指派。
@@ -55,6 +58,7 @@ class _Replay:
         self.rounds = spec.get("rounds") or {}
         self.round_actions = {self.rounds[key] for key in ("opened_by", "agreed_by", "closed_by", "candidate_carried_by")
                               if self.rounds.get(key)}
+        self.voided_in = set(self.rounds.get("voided_in") or [])
         created = next((event["event_id"] for event in events if event["action"] == "world_create_object"), None)
         # 状态的历史，撤回时回到上一段：{state, producer（推出它的事件）, transition, candidate（这一段里待写回的
         # 形成期候选来自哪条事件）}
@@ -118,6 +122,10 @@ class _Replay:
         if found["to"] != top["state"]:
             top = {"state": found["to"], "producer": event["event_id"], "transition": found}
             self.stages.append(top)
+            if found["to"] in self.voided_in and self.round is not None:
+                top["voided_round"] = self.round  # 撤回这条事件时原样回来
+                self.round = None  # 进入终态：进行中的一轮作废，同退回
+                effect["ends_round"] = True
         top["candidate"] = candidate
         if found["to"] == self.spec.get("formal_on") and self.formal_by is None:
             self.formal_by = event["event_id"]
@@ -142,8 +150,13 @@ class _Replay:
         if admitting and producing["by"] not in event["recorders"]:
             raise Refused("recorder", f"The withdrawal is recorded by {producing['by']}, like the original.")
         effect["by"] = producing["by"]
-        self.stages.pop()  # 上一段连同它的候选原样回来，只是改由撤回事件推出
+        popped = self.stages.pop()  # 上一段连同它的候选原样回来，只是改由撤回事件推出
         self.stages[-1]["producer"] = event["event_id"]
+        if popped.get("voided_round") is not None:
+            self.round = popped["voided_round"]  # 进入终态时作废的一轮随上一段原样回来
+        elif self.stages[-1]["state"] in self.voided_in and self.round is not None:
+            self.round = None  # 撤回回到终态：其间开的一轮作废
+            effect["ends_round"] = True
         if self.formal_by == original["event_id"]:
             self.formal_by = None
             effect["unmakes_formal"] = True

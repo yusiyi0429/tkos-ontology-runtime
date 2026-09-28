@@ -138,6 +138,13 @@ def test_a_round_naming_an_unknown_action_is_caught(registry):
     assert any("world_commit_goal" in error for error in broken(registry, edit))
 
 
+def test_a_round_voided_in_an_undeclared_state_is_caught(registry):
+    def edit(reg):
+        reg["lifecycles"]["Mission"]["rounds"]["voided_in"] = ["closed", "archived"]
+
+    assert any("Mission" in error and "archived" in error for error in broken(registry, edit))
+
+
 def test_a_gated_type_without_formal_stage_is_caught(registry):
     def edit(reg):
         reg["lifecycles"]["Mission"]["formal_on"] = None

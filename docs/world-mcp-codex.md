@@ -86,7 +86,7 @@ TKOS_WORLD_MCP_LOG_DIR = "artifacts/world-mcp-runs"
 | `world_start` | 动作 `world_start` | `target`（已成立的 Mission，作为 Owner 的 Agent；或指派给自己的 Activity），可选 `content`；撤回带 `outcome: "withdrawn"` 与 `supersedes_event_id`；`declaration`，可选 `idempotency_key` |
 | `world_deliver` | 动作 `world_deliver` | `target`（自己负责的 Activity），其余同 `world_start` |
 | `world_raise_issue` | 动作 `world_raise_issue` | `issue_ref`（问题组件的组件引用 `<快照 id>@<版本>#issues/<组件 id>`），可选 `content`；`declaration`，可选 `idempotency_key` |
-| `world_route_issue` | 动作 `world_route_issue` | `issue_ref`、`to_principal_id`（承接人，须是在主受影响对象所在域持角色的人），其余同 `world_raise_issue` |
+| `world_route_issue` | 动作 `world_route_issue` | `issue_ref`、`to_principal_id`（承接人，须是 scope 内有效的人，不限单元），其余同 `world_raise_issue` |
 | `world_return_issue` | 动作 `world_return_issue` | 同 `world_raise_issue`（作为路由者退回形成，`content` 写要补齐什么） |
 
 与 0.1 的差别：

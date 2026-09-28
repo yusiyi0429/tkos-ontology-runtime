@@ -39,12 +39,20 @@ def test_the_five_issue_actions_are_the_ones_of_the_registered_issue_table():
 
 
 @pytest.mark.parametrize("action", sorted(MINIMAL))
-def test_an_issue_action_is_implemented_as_a_targetless_policy_authorized_record_event(action):
+def test_an_issue_action_is_implemented_as_a_targetless_record_event(action):
     spec = ACTIONS[action]
     assert action in models.ACTION_PARAMS and models.ACTION_TARGETS[action] == frozenset()
-    assert spec["class"] == "record" and spec["authorization"] == "policy" and spec["target_types"] == []
+    assert spec["class"] == "record" and spec["target_types"] == []
     assert spec["event_kind"].startswith("issue.") and spec["delegable"] is None  # 第一版不可代记
     assert "on_behalf_of" not in models.ACTION_PARAMS[action].model_fields
+
+
+def test_raising_and_routing_follow_the_policy_and_owning_disposing_and_returning_the_scope():
+    """补 44（#69）：提出与路由在主受影响对象所在的域按激活策略判；承接、处置与退回形成按 scope 判（同决 13 的
+    Agreement），承接人可以是另一单元的人，记录者类别仍由服务判。"""
+    assert {action: ACTIONS[action]["authorization"] for action in MINIMAL} == {
+        "world_raise_issue": "policy", "world_route_issue": "policy", "world_own_issue": "scope",
+        "world_dispose_issue": "scope", "world_return_issue": "scope"}
 
 
 @pytest.mark.parametrize("action", sorted(MINIMAL))

@@ -5,6 +5,9 @@
 prepare 与 commit 驱动；拒绝在两个入口上核对库快照不变；事件、回执与修订行用只读 SQL 独立核对。复盘确认的目标是
 快照：快照不修订、对象行不前进，目标的期望版本取列对象头里的 object_version（本场景给每条快照一个独有的周期，按
 类型与周期列出它）。
+
+#69 另补两处：一轮重走的候选可以改指 review_ref（补 45），首期没带 review_ref 的周期目标由此开轮并写回；一轮进行中
+周期目标被复盘确认关闭或被取消，这一轮作废，撤回那条事件则连同候选恢复（补 47）。
 """
 from __future__ import annotations
 
@@ -258,10 +261,37 @@ def goal_closure(book, h, f, flow, trunk, event_kinds):
     accepted = act('ceo', 'world_confirm_period_goal', sid, {'outcome': 'accepted'})
     check('formation_a_review_ref_to_a_confirmed_company_review_anchors_the_period_goal',
           life(sid) == {'status': 'confirmed', 'display_name': '已确认', 'event_id': accepted['event_id']})
-    deny('a', 'world_commit_period_goal', sid, {'INVALID_REQUEST'},
+    # 一轮重走的候选可以改指 review_ref（#69，补 45），形成锚定按候选判：改指还没确认的复盘被守卫拒。
+    deny('a', 'world_commit_period_goal', sid, {'INVALID_STATE'},
          {'payload': {'review_ref': review2['ref'], 'blocks': {'realization_logic': {'text': '改'}}}},
-         says='re-pinned to another version')
-    check('a_re_run_candidate_does_not_re_point_review_ref')
+         says='formation_anchors')
+    check('a_re_run_candidate_re_pointing_review_ref_to_an_unconfirmed_review_is_refused_by_the_formation_guard')
+
+    # 首期没带 review_ref 的周期目标（第一个周期形成的 fid）：scope 有了已确认的公司复盘之后，候选不给 review_ref 时
+    # 守卫不成立；候选改指已确认的复盘则开轮，CEO 确认接受时写回，生命周期与推出它的事件不变。
+    realization = {'text': '第二个月加一场客户复盘会'}
+    deny('a', 'world_commit_period_goal', fid, {'INVALID_STATE'},
+         {'payload': {'blocks': {'realization_logic': realization}}}, says='formation_anchors')
+    check('a_first_period_goal_without_review_ref_opens_no_round_once_the_scope_has_a_confirmed_review_unless_it_names_one')
+    before = view(fid)['business']
+    opened = act('a', 'world_commit_period_goal', fid,
+                 {'payload': {'review_ref': review1['ref'], 'blocks': {'realization_logic': realization}}})
+    during = view(fid)
+    rewritten = act('ceo', 'world_confirm_period_goal', fid, {'outcome': 'accepted'})
+    after = view(fid)
+    relations = {item['field']: item for item in after['business']['relations']}
+    kept = {'status': 'confirmed', 'display_name': '已确认', 'event_id': formed['event_id']}
+    check('a_first_period_goal_re_runs_with_a_candidate_re_pointing_review_ref_to_a_confirmed_review_and_it_is_written_back',
+          during['records']['lifecycle'] == kept == after['records']['lifecycle']
+          and during['business']['round']['opened_by_event_id'] == opened['event_id']
+          and during['business']['round']['candidate']['review_ref'] == review1['ref']
+          and during['business']['version'] == before['version'] and after['business']['round'] is None
+          and relations['review_ref']['value']['ref'] == review1['ref']
+          and {block['id']: block for block in after['business']['blocks']}['realization_logic']['text']
+          == realization['text']
+          and rewritten['version'] == before['version'] + 1
+          and after['business']['formal'] == {'lifecycle_status': 'confirmed',
+                                              'effective_revision_id': rewritten['revision_id']})
 
     # 草稿期改指：scope 有了已确认的公司复盘后，不带 review_ref 的周期目标承诺被拒；改指未确认的仍被拒，改指已确认的放行。
     third = period_goal('1 月目标（收口）', '2032-01', goal)
@@ -446,3 +476,64 @@ def goal_closure(book, h, f, flow, trunk, event_kinds):
     check('replaying_a_review_confirmation_returns_the_original_receipt',
           flow.commit('ceo', body)['receipt_id'] == first_commit['receipt_id']
           and kinds_of(first_commit['receipt_id']) == ['review.confirmed'])
+
+    # ================================================================ 一轮进行中关闭或取消（#69，补 47）
+    # 进入已关闭、已取消时进行中的一轮作废，同退回：候选不写回、正式内容不变；撤回那条事件，这一轮连同候选原样回来
+    # （同撤回一条退回），CEO 确认接受照常写回；再取消又作废。
+    def formed_goal(title, period):
+        oid = period_goal(title, period, goal, review1)['object_id']
+        act('a', 'world_commit_period_goal', oid)
+        act('ceo', 'world_confirm_period_goal', oid, {'outcome': 'accepted'})
+        return oid
+
+    def logic(read):
+        return {block['id']: block for block in read['business']['blocks']}['realization_logic']['value']
+
+    def voided(oid, formed_view, stage):
+        after = view(oid)
+        return (after['records']['lifecycle'] == stage and after['business']['round'] is None
+                and after['business']['version'] == formed_view['business']['version']
+                and after['business']['formal'] == formed_view['business']['formal']
+                and logic(after) == logic(formed_view) is None)
+
+    def restored(oid, opened, candidate, stage):
+        now = view(oid)
+        return (now['records']['lifecycle'] == stage and now['business']['round']['opened_by_event_id'] == opened
+                and now['business']['round']['candidate'] == candidate)
+
+    closing_goal = formed_goal('6 月目标（一轮中复盘关闭）', '2032-06')
+    formed_view = view(closing_goal)
+    candidate = {'blocks': {'realization_logic': {'text': '候选：月中加一场复盘会'}}}
+    opened = act('a', 'world_commit_period_goal', closing_goal, {'payload': candidate})
+    end = snapshot('a', closing_goal, 'goal_state', 90, {'progress': {'text': '期末：达成'}})
+    closed = review_act('ceo', end)['result']
+    deny('ceo', 'world_confirm_period_goal', closing_goal, {'INVALID_STATE'}, {'outcome': 'accepted'})
+    check('period_goal_a_round_open_when_it_is_closed_by_review_is_void_and_nothing_is_written_back',
+          voided(closing_goal, formed_view, {'status': 'closed', 'display_name': '已关闭', 'event_id': closed['event_id']}))
+    back = act('ceo', REVIEW, end['object_id'], {'outcome': 'withdrawn', 'supersedes_event_id': closed['event_id']},
+               end['target'])
+    was_restored = restored(closing_goal, opened['event_id'], candidate,
+                            {'status': 'confirmed', 'display_name': '已确认', 'event_id': back['event_id']})
+    written = act('ceo', 'world_confirm_period_goal', closing_goal, {'outcome': 'accepted'})
+    check('period_goal_withdrawing_the_closing_review_restores_the_round_which_is_then_written_back',
+          was_restored and view(closing_goal)['business']['round'] is None
+          and logic(view(closing_goal))['text'] == '候选：月中加一场复盘会'
+          and written['version'] == formed_view['business']['version'] + 1
+          and life(closing_goal) == {'status': 'confirmed', 'display_name': '已确认', 'event_id': back['event_id']})
+
+    dropped_goal = formed_goal('7 月目标（一轮中取消）', '2032-07')
+    formed_view = view(dropped_goal)
+    candidate = {'blocks': {'realization_logic': {'text': '候选：换一个渠道'}}}
+    opened = act('a', 'world_commit_period_goal', dropped_goal, {'payload': candidate})
+    cancelled = act('ceo', 'world_cancel', dropped_goal)
+    check('period_goal_a_round_open_when_it_is_cancelled_is_void_and_nothing_is_written_back',
+          voided(dropped_goal, formed_view,
+                 {'status': 'cancelled', 'display_name': '已取消', 'event_id': cancelled['event_id']}))
+    back = act('ceo', 'world_cancel', dropped_goal, {'outcome': 'withdrawn', 'supersedes_event_id': cancelled['event_id']})
+    was_restored = restored(dropped_goal, opened['event_id'], candidate,
+                            {'status': 'confirmed', 'display_name': '已确认', 'event_id': back['event_id']})
+    again = act('ceo', 'world_cancel', dropped_goal)
+    deny('ceo', 'world_confirm_period_goal', dropped_goal, {'INVALID_STATE'}, {'outcome': 'accepted'})
+    check('period_goal_withdrawing_the_cancellation_restores_the_round_and_cancelling_again_voids_it',
+          was_restored and voided(dropped_goal, formed_view,
+                                  {'status': 'cancelled', 'display_name': '已取消', 'event_id': again['event_id']}))

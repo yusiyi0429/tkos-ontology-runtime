@@ -128,6 +128,22 @@ python3 $SRC/deploy/world-lab/smoke.py https://world-lab.tokenkingos.com $LAB/ou
 - `tianshu-coagent.token`（走安全渠道，不进文档、不进聊天）。
 - 十月的周期目标与 Mission 由人经 HTTP 或工作台录入后，把对象 id 追加给他们。
 
+## 8.5 换版本（已在跑的实例）
+
+数据卷、scope、凭证与清单都不动，只换镜像。按第 1 节取新包、校验并加载、把源码解到新的 `releases/$REL/`，然后：
+
+```bash
+OLD=/srv/tokenhub/apps/tkos-world-lab/releases/<旧发布号>
+cp -p $LAB/.env $LAB/.env.bak-$(date +%Y%m%d)
+sed -i -E "s#^((RUNTIME_API|RUNTIME_WORKER|POSTGRES|MINIO|MINIO_MC)_IMAGE=tkos/[a-z-]+):.*#\1:$REL-amd64#" $LAB/.env
+sudo mkdir -m 700 -p $SRC/deploy/offline-release/private
+sudo cp -a $OLD/deploy/offline-release/private/minio-app-* $SRC/deploy/offline-release/private/   # 带属主 10001:0 与 440
+cd $SRC/deploy/offline-release && ./start-offline.sh $LAB/.env                                   # 迁移只补新的；容器按新镜像重建
+python3 $SRC/deploy/world-lab/smoke.py https://world-lab.tokenkingos.com $LAB/out
+```
+
+Nginx 配置不随版本变时不用动（`cmp` 一下 `$SRC/deploy/world-lab/nginx/world-lab.conf`）。`.env` 改了镜像标签，归档里的 `compose.env` 也要同步。回滚：换回备份的 `.env`，用旧发布目录的 `start-offline.sh` 重跑（旧镜像留在本机镜像库里）。
+
 ## 9. 清空重建
 
 联调数据要清时，停掉并删卷，删掉 `out/`，从第 3 步重来（只对 world-lab 这个项目做，生产实例不受影响）：
@@ -158,6 +174,6 @@ cd /tmp/tkos-secrets && git add -A && git commit -m "world-lab: 联调实例的 
 
 已核（2026-09-28 本机预演）：用同一份 compose、同标签的三个基础镜像、本文的 env 模板与两个脚本，在 amd64 仿真下跑通第 3 步、第 4–5 步（连跑两遍，第二遍全部跳过或报已安装）与第 7 步冒烟（对 127.0.0.1 端口）。
 
-已核（2026-09-28 主机部署，当时用本机按提交 a759c64 自建的两个镜像与 v0.3.0 离线包的三个基础镜像，尚未改用第 1 节的 v0.5.0 离线包）：第 1–5 步与第 7 步本机口冒烟（10 项全过）；uid 10001 写 `out/` 与 chown 回收正常；MinIO 应用密钥文件必须 10001:0、440（见第 2 步）。scp 传 76 MB 镜像包途中断过一次，改用 `rsync --partial` 续传。
+已核（2026-09-28 主机部署，先用本机按提交 a759c64 自建的两个镜像与 v0.3.0 离线包的三个基础镜像起栈；同日 16:50 按第 1 节与 8.5 换成 v0.5.0 离线包：包摘要与 Release 一致、`verify_bundle.py --load` 通过、迁移应用 0 个、数据卷沿用、对域名冒烟全过，容器镜像为 `v0.5.0-amd64`、版本 0.5.0、源码提交 72897d2）：第 1–5 步与第 7 步本机口冒烟（10 项全过）；uid 10001 写 `out/` 与 chown 回收正常；MinIO 应用密钥文件必须 10001:0、440（见第 2 步）。scp 传 76 MB 镜像包途中断过一次，改用 `rsync --partial` 续传。
 
 已核（2026-09-28 主机，第 6–7 步）：证书以 webroot 签发（Let's Encrypt，ecdsa，到期 2026-12-27），`certbot renew --dry-run` 成功；HTTP 301 到 HTTPS；对域名冒烟全过；从外网看 `/v1/health` 200、`/openapi.json` 含五条 world 路由；同机 memory-api 仍 200。

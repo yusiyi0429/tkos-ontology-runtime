@@ -19,6 +19,7 @@ import time
 from psycopg.conninfo import conninfo_to_dict
 from psycopg.types.json import Jsonb
 
+from acceptance.composition_a2_independent.storage import immutable_owner_probe
 from acceptance.method_independent.fixture import uid
 from acceptance.method_independent.harness import MethodHarness
 from acceptance.protocol_a1_independent.support import now, public_json, safe_traceback_frames, source_manifest
@@ -31,7 +32,7 @@ from .fixture import (CONTRACT, PROFILE, REGISTRY, SUPPORT, action_roles, instal
 V01, V02 = 'tkos.world/0.1', 'tkos.world/0.2'
 MIGRATION = '0039_world_v02.sql'
 SCENARIOS = ['migration', 'control_plane', 'company', 'objects', 'rejections', 'coexistence', 'references',
-             'revise_relate', 'state_events', 'assign_lifecycle', 'gates', 'revocation']
+             'revise_relate', 'state_events', 'assign_lifecycle', 'gates', 'context_packs', 'revocation']
 EVENT_KINDS = {item['kind']: item for item in json.loads(REGISTRY.read_text())['event_kinds']}
 OBJECTS = {item['type']: item for item in json.loads(REGISTRY.read_text())['objects']}
 TYPES = ['Company', 'Strategy', 'ResponsibilityUnit', 'LongTermGoal', 'PeriodGoal', 'Mission', 'Task', 'Activity']
@@ -1550,6 +1551,294 @@ def state_events(book, h, f, flow, trunk, foreign):
               for e in event_rows()))
 
 
+def context_packs(book, h, f, flow, trunk, foreign):
+    """#56：从 Activity 出发取上下文（0.2）。沿主干取块与组件、执行链上的快照外壳与近期事件；验收条件以组件引用、
+    事件以事件引用返回，包里每条钉定的引用都能按版本读回；生命周期、正式内容与责任人同 0.2 读投影；预算、裁剪、
+    覆盖、检索计划、落表与默认值同 0.1；同一世界状态两次调用结果相同；scope 外 404；0.1 对象仍按 0.1 取。"""
+    check = book.check
+    made = trunk['made']
+    scope, foreign_scope = f['scope_id'], f['foreign_scope_id']
+    actor_id = {name: actor['principal_id'] for name, actor in f['actors'].items()}
+    question = {'question': '这条 Activity 为什么做、做什么、谁负责、现在怎样？'}
+
+    def declared(ref, trigger):
+        return {'scene': ref, 'trigger': trigger, 'human_acceptance': {'required': False}}
+
+    def act(actor, kind, oid, params):
+        return flow.commit(actor, flow.prepare(actor, flow.targeted(kind, oid, params)))['result']
+
+    def packs(scope_id=scope):
+        return h.sql({'scope_id': scope_id}, 'SELECT * FROM gov_world_context_packs WHERE scope_id=%s '
+                                             'ORDER BY created_at, context_pack_id', (scope_id,))
+
+    # 在主干 Mission 下建一条带验收条件的 Task 与它的 Activity：Mission 的 Owner 指派 Task，Task 的责任人把 Activity
+    # 指派给 Agent；Agent 开始执行，记一次以 Task 的验收条件与 Activity 为主体的评审，再写两条引用它的快照。
+    mission = flow.read('outsider', made['Mission']['object_id'])
+    criterion = blocks_of(mission)['acceptance']['components'][0]['ref']
+    task = flow.create('a', 'Task', 'a', {
+        'title': '上下文 Task', 'parent_ref': f"{mission['object_id']}@{mission['business']['version']}", 'blocks': {
+            'definition': {'text': '把 0.2 的取上下文接给执行 Agent。'},
+            'acceptance': {'text': '两条验收。', 'components': [
+                {'id': 'ctx-ac1', 'type': 'acceptance_criterion', 'text': '引用细到组件', 'refs': [criterion]},
+                {'id': 'ctx-ac2', 'type': 'acceptance_criterion', 'text': '事件以事件引用给出'}]},
+            'plan': {'components': [{'id': 'ctx-p1', 'type': 'plan_item', 'text': '先写测试',
+                                     'attributes': {'responsible': actor_id['ic_a']}}]}}})['result']
+    act('owner_a', 'world_assign', task['object_id'], {'principal_id': actor_id['ic_a']})
+    activity = flow.create('a', 'Activity', 'a', {'title': '上下文 Activity', 'parent_ref': task['ref'], 'blocks': {
+        'instruction': {'text': '按验收条件实现取上下文。', 'refs': [task['ref'] + '#acceptance/ctx-ac1']}}})['result']
+    act('ic_a', 'world_assign', activity['object_id'], {'principal_id': actor_id['agent_a']})
+    started = act('agent_a', 'world_start', activity['object_id'], {'declaration': declared(activity['ref'], '开工')})
+    # 评审与快照的时点都落在开始之后、此刻之前，这样都不算迟记。
+    base = at(flow.events('outsider', activity['object_id'])['events'][-1]['occurred_at'])
+    while datetime.now(timezone.utc) < base + timedelta(seconds=4):
+        time.sleep(0.2)
+    t_review, t_first, t_second = (utc(base + timedelta(seconds=n)) for n in (1, 2, 3))
+    review = flow.record('agent_a', {'category': 'review', 'occurred_at': t_review,
+                                     'subject_refs': [task['ref'] + '#acceptance/ctx-ac1', activity['ref']],
+                                     'content': {'text': '评审组件级引用的做法'},
+                                     'declaration': declared(activity['ref'], '评审')})['result']
+    source = f"event:{review['event_id']}"
+
+    def snapshot(as_of, text):
+        return flow.refresh('agent_a', {
+            'title': '上下文 Activity 进展', 'subject_ref': activity['ref'], 'as_of': as_of,
+            'payload_type': 'execution_state', 'source_event_refs': [source],
+            'blocks': {'progress': {'text': text}, 'issues': {'components': [
+                {'id': 'ctx-iss-1', 'type': 'issue', 'text': '裁剪以块为单位',
+                 'attributes': {'core_question': '裁块时组件要不要单独留？'}}]}}},
+            declared(activity['ref'], '每日同步'))['result']
+
+    first_snapshot, latest_snapshot = snapshot(t_first, '写完了测试'), snapshot(t_second, '接好了路由')
+
+    before = len(packs())
+    first = flow.context('agent_a', activity['object_id'], question)
+    pack, plan, coverage = first['context_pack'], first['plan'], first['coverage']
+    layers, markdown = pack['layers'], pack['markdown']
+    spine = ['Activity', 'Task', 'Mission', 'PeriodGoal', 'LongTermGoal', 'ResponsibilityUnit', 'Strategy', 'Company']
+    projected = {layer['object']['object_id']: flow.read('outsider', layer['object']['object_id']) for layer in layers}
+    check('the_0_2_context_walks_the_spine_from_the_activity_up_to_the_company_reading_each_latest_version',
+          first['contract_version'] == V02 and pack['contract_version'] == V02
+          and [layer['object']['object_type'] for layer in layers] == spine
+          and all(layer['object']['ref'] == f"{oid}@{projected[oid]['business']['version']}"
+                  and layer['object']['pinned']['revision_id'] == projected[oid]['business']['revision_id']
+                  for layer in layers for oid in [layer['object']['object_id']])
+          and [step['field'] for step in plan['walked']] == ['parent_ref', 'parent_ref', 'goal_ref', 'goal_ref',
+                                                             'parent_ref', 'architecture_ref', 'parent_ref']
+          and all(step['read'] == layers[index + 1]['object']['ref'] for index, step in enumerate(plan['walked']))
+          and plan['walked'][0]['pinned'] == task['ref']
+          and plan['walked'][5]['pinned'] == made['Strategy']['ref'] + '#responsibility_structure/unit-a')
+
+    task_layer = layers[1]
+    acceptance = {block['id']: block for block in task_layer['blocks']}['acceptance']
+    read_back = {c['id']: c for c in blocks_of(projected[task['object_id']])['acceptance']['components']}
+    task_business = projected[task['object_id']]['business']
+    check('acceptance_criteria_come_back_as_component_references_pinned_to_the_version_read',
+          [c['ref'] for c in acceptance['components']]
+          == [f"{task_layer['object']['ref']}#acceptance/{cid}" for cid in ('ctx-ac1', 'ctx-ac2')]
+          and all(c['pinned'] == {'object_id': task['object_id'], 'object_version': task_business['version'],
+                                  'revision_id': task_business['revision_id'], 'block': 'acceptance',
+                                  'component': c['id'], 'ref': c['ref']}
+                  and c['text'] == read_back[c['id']]['text'] and f"`{c['ref']}`" in markdown
+                  for c in acceptance['components'])
+          and acceptance['components'][0]['refs'][0]['ref'] == criterion
+          and all({'ref': c['ref']} in coverage['basis']['evidence'] for c in acceptance['components']))
+
+    events = [event for layer in layers for event in layer['events']]
+    placed = [layer['level'] for layer in layers for event in layer['events'] if event['event_id'] == review['event_id']]
+    check('events_come_back_as_event_references_once_at_the_nearest_level',
+          events and all(event['ref'] == f"event:{event['event_id']}" and f"（事件 `{event['ref']}`" in markdown
+                         for event in events)
+          and coverage['happened']['evidence'] == [{'ref': event['ref']} for event in events]
+          and placed == [0] and started['event_id'] in [event['event_id'] for event in layers[0]['events']]
+          and layers[0]['object']['lifecycle']['event_id'] == started['event_id']
+          and f"生命周期：进行中（事件 `event:{started['event_id']}`）" in markdown)
+
+    # 跨链关系只列引用、不展开：周期目标依赖 11 月目标与主干 Mission（#51 建的），Mission 一层列出被周期目标引用。
+    goal_layer, mission_layer = layers[3], layers[2]
+    depends = [ref['ref'] for relation in goal_layer['relations'] if relation['field'] == 'depends_on'
+               for ref in relation['refs']]
+    shown = {(item['from'], item['field'], item['to']) for item in plan['shown_not_followed']}
+    check('cross_chain_relations_are_listed_as_references_and_not_followed',
+          len(depends) == 2 and {(goal_layer['object']['ref'], 'depends_on', ref) for ref in depends} <= shown
+          and (goal_layer['object']['ref'], 'depends_on', mission_layer['object']['ref']) in shown
+          and [(item['field'], item['source']['ref']) for item in mission_layer['referenced_by']]
+          == [('depends_on', goal_layer['object']['ref'])]
+          and depends[0].split('@')[0] not in {layer['object']['object_id'] for layer in layers}
+          and f"depends_on：`{depends[0]}`、`{depends[1]}`" in markdown
+          and f"被 `{goal_layer['object']['ref']}` 以 depends_on 引用" in markdown)
+
+    def pins(value, found):
+        """包里钉定的引用：带修订 id 的对象、块与组件引用，与事件引用。"""
+        if isinstance(value, dict):
+            if {'object_id', 'object_version', 'revision_id', 'block', 'component', 'ref'} <= set(value):
+                found['objects'].append(value)
+            elif 'event_id' in value and value.get('ref') == f"event:{value['event_id']}":
+                found['events'].add(value['event_id'])
+            for item in value.values():
+                pins(item, found)
+        elif isinstance(value, list):
+            for item in value:
+                pins(item, found)
+        return found
+
+    versions = {}
+
+    def reads_back(pinned):
+        key = (pinned['object_id'], pinned['object_version'])
+        if key not in versions:
+            versions[key] = flow.read('outsider', pinned['object_id'], version=pinned['object_version'])
+        view = versions[key].get('business', versions[key])
+        form = (f"{pinned['object_id']}@{pinned['object_version']}" + (f"#{pinned['block']}" if pinned['block'] else '')
+                + (f"/{pinned['component']}" if pinned['component'] else ''))
+        block = next((b for b in view['blocks'] if b['id'] == pinned['block']), None)
+        return (view['revision_id'] == pinned['revision_id'] and pinned['ref'] == form
+                and (pinned['block'] is None or block is not None)
+                and (pinned['component'] is None or any(c['id'] == pinned['component'] for c in block['components'])))
+
+    found = pins(pack, {'objects': [], 'events': set()})
+    stored = {str(row['event_id']) for row in flow.rows(
+        'SELECT event_id FROM gov_world_events WHERE scope_id=%s AND contract_version=%s AND event_id = ANY(%s::uuid[])',
+        (scope, V02, sorted(found['events'])))}
+    listed = {layer['object']['object_id']: {e['event_id'] for e in flow.events('outsider', layer['object']['object_id'])['events']}
+              for layer in layers if layer['events']}
+    check('every_reference_in_the_pack_is_pinned_and_reads_back',
+          any(p['component'] for p in found['objects']) and review['event_id'] in found['events']
+          and all(reads_back(pinned) for pinned in found['objects']) and stored == found['events']
+          and all(event['event_id'] in listed[layer['object']['object_id']] for layer in layers for event in layer['events']))
+
+    state = layers[0]['state']
+    issue = {block['id']: block for block in state['blocks']}['issues']['components'][0]
+    check('the_latest_snapshot_comes_back_as_its_shell_view_marked_unconfirmed',
+          state['ref'] == latest_snapshot['ref'] and state['unconfirmed'] is True and state['as_of'] == t_second
+          and state['payload_type']['id'] == 'execution_state'
+          and state['generator']['principal_id'] == actor_id['agent_a']
+          and state['source_event_refs'] == [{'event_id': review['event_id'], 'ref': source}]
+          and state['subject_ref']['object_id'] == activity['object_id']
+          and issue['ref'] == f"{latest_snapshot['ref']}#issues/ctx-iss-1"
+          and issue['pinned']['revision_id'] == latest_snapshot['revision_id']
+          and f"最新状态快照（未经确认，截至 {t_second}） `{latest_snapshot['ref']}`" in markdown
+          and layers[2]['state']['ref'] == projected[mission['object_id']]['records']['latest_state']['ref']
+          and [layer['state'] is not None for layer in layers] == [True, False, True] + [False] * 5)
+
+    check('lifecycle_formal_content_and_responsibility_follow_the_0_2_read_projection',
+          all(layer['object']['lifecycle'] == view['records']['lifecycle']
+              and layer['object']['formal'] == (view['business']['formal']['lifecycle_status'] == 'confirmed'
+                                                if OBJECTS[layer['object']['object_type']]['gated'] else None)
+              and layer['object']['responsible'] == view['identity']['responsible']
+              for layer in layers for view in [projected[layer['object']['object_id']]])
+          and layers[0]['object']['lifecycle']['status'] == 'in_progress'
+          and layers[1]['object']['lifecycle']['status'] == 'assigned'
+          and [p['principal_id'] for p in layers[0]['object']['responsible']['principals']] == [actor_id['agent_a']]
+          and layers[0]['object']['responsible']['source'] == 'attribute'
+          and layers[3]['object']['responsible']['source'] == 'role'
+          and '责任人（来自属性 responsible）：' in markdown and '责任人（来自角色 DOMAIN_DRI）：' in markdown)
+
+    refs = set()
+    pins_and_refs = [pack]
+    while pins_and_refs:  # 包里出现过的全部业务形式引用
+        value = pins_and_refs.pop()
+        if isinstance(value, dict):
+            refs.update([value['ref']] if isinstance(value.get('ref'), str) else [])
+            pins_and_refs.extend(value.values())
+        elif isinstance(value, list):
+            pins_and_refs.extend(value)
+    check('coverage_answers_the_six_questions_from_what_the_pack_holds',
+          list(coverage) == ['why', 'what', 'who', 'now', 'happened', 'basis']
+          and all(answer['answered'] and answer['gap'] is None for answer in coverage.values())
+          and all(item['ref'] in refs for answer in coverage.values() for item in answer['evidence'])
+          and coverage['what']['evidence'] == [{'ref': f"{layers[0]['object']['ref']}#instruction"}]
+          and coverage['who']['evidence'] == [{'ref': layers[0]['object']['ref']}]
+          and coverage['now']['evidence'] == [{'ref': latest_snapshot['ref']}, {'ref': layers[2]['state']['ref']}])
+
+    rows = packs()
+    row = rows[-1]
+    check('each_call_writes_exactly_one_context_pack_row_holding_what_was_returned_with_the_0_1_defaults',
+          len(rows) == before + 1 and str(row['context_pack_id']) == first['context_pack_id']
+          and str(row['principal_id']) == actor_id['agent_a'] and str(row['object_id']) == activity['object_id']
+          and row['question'] == question['question'] and row['pack'] == pack and row['plan'] == plan
+          and row['coverage'] == coverage and row['budget'] == first['budget']
+          and {k: first['budget'][k] for k in ('max_chars', 'max_events_per_object', 'recent_days')}
+          == {'max_chars': 12000, 'max_events_per_object': 10, 'recent_days': 30}
+          and first['budget']['used_chars'] == len(markdown)
+          and first['budget']['estimated_tokens'] == -(-len(markdown) // 2)
+          and set(plan) == {'walked', 'shown_not_followed', 'taken', 'trimmed', 'state_and_events_from_levels',
+                            'over_budget'}
+          and plan['state_and_events_from_levels'] == [0, 1, 2])
+
+    second = flow.context('outsider', activity['object_id'], question)
+    check('two_calls_on_the_same_world_state_return_the_same_pack_plan_and_coverage',
+          second['context_pack'] == pack and second['plan'] == plan and second['coverage'] == coverage
+          and second['context_pack_id'] != first['context_pack_id'] and len(packs()) == before + 2)
+
+    # ------------------------------------------------------------ budget（同 0.1）
+    mission_level = layers[2]
+    check('the_per_object_event_cap_keeps_the_newest_ten_events_and_records_the_rest',
+          len(mission_level['events']) == 10
+          and [at(e['occurred_at']) for e in mission_level['events']]
+          == sorted((at(e['occurred_at']) for e in mission_level['events']), reverse=True)
+          and any(entry['reason'] == 'over_level_cap' and entry['level'] == 2 for entry in plan['trimmed']))
+    tight = flow.context('agent_a', activity['object_id'], {**question, 'budget': {'max_chars': len(markdown) // 2}})
+    over = [entry for entry in tight['plan']['trimmed'] if entry['reason'] == 'over_budget']
+    when = {event['ref']: at(event['occurred_at']) for event in events}
+    over_events = [entry['key'] for entry in over if entry['kind'] == 'event']
+    rest = [entry['level'] for entry in over if entry['kind'] != 'event']
+    check('a_tight_budget_trims_old_events_first_then_the_farthest_levels_and_records_why',
+          over[:len(over_events)] == [entry for entry in over if entry['kind'] == 'event']
+          and [when[key] for key in over_events] == sorted(when[key] for key in over_events)
+          and rest and rest == sorted(rest, reverse=True) and 0 not in rest
+          and tight['budget']['used_chars'] == len(tight['context_pack']['markdown'])
+          and tight['budget']['over_budget'] is (tight['budget']['used_chars'] > len(markdown) // 2))
+    tiny = flow.context('agent_a', activity['object_id'], {**question, 'budget': {'max_chars': 10}})
+    check('the_current_object_keeps_its_blocks_and_latest_snapshot_under_any_budget',
+          all(result['context_pack']['layers'][0]['blocks'] == layers[0]['blocks']
+              and result['context_pack']['layers'][0]['state'] == layers[0]['state'] for result in (tight, tiny))
+          and tiny['budget']['over_budget'] is True and tiny['plan']['over_budget'] is True
+          and all(layer['blocks'] == [] and layer['events'] == [] for layer in tiny['context_pack']['layers'][1:])
+          and not tiny['coverage']['why']['answered'])
+    capped = flow.context('agent_a', activity['object_id'], {**question, 'budget': {'max_events_per_object': 1}})
+    check('a_per_object_cap_of_one_keeps_the_newest_event_of_each_level',
+          [layer['events'] for layer in capped['context_pack']['layers']]
+          == [layer['events'][:1] for layer in layers])
+    recent = flow.context('agent_a', activity['object_id'], {**question, 'recent_days': 1})
+    start = at(recent['budget']['window_start'])
+    recent_events = [e for layer in recent['context_pack']['layers'] for e in layer['events']]
+    check('recent_events_start_at_the_requested_window',
+          recent_events and all(at(e['occurred_at']) >= start for e in recent_events)
+          and {e['event_id'] for e in recent_events} <= {e['event_id'] for e in events} | {
+              e['key'].split(':', 1)[1] for e in plan['trimmed'] if e['kind'] == 'event'})
+
+    # ------------------------------------------------------------ other starting point, refusals, 0.1, append-only
+    from_snapshot = flow.context('agent_a', first_snapshot['object_id'], question)
+    snap_layers = from_snapshot['context_pack']['layers']
+    check('starting_from_a_snapshot_takes_its_subject_as_the_current_object_and_that_snapshot_as_its_state',
+          from_snapshot['context_pack']['start'] == first_snapshot['ref']
+          and snap_layers[0]['object']['object_id'] == activity['object_id']
+          and snap_layers[0]['state']['ref'] == first_snapshot['ref'] != latest_snapshot['ref']
+          and [layer['object']['object_type'] for layer in snap_layers] == spine
+          and from_snapshot['coverage']['now']['evidence'][0] == {'ref': first_snapshot['ref']})
+
+    count, foreign_count = len(packs()), len(packs(foreign_scope))
+    refused = [flow.context('foreign_ceo', activity['object_id'], question, expected=404)['error']['code'],
+               flow.context('agent_a', uid(), question, expected=404)['error']['code'],
+               flow.context('agent_a', activity['object_id'], {'question': '  '}, expected=422)['error']['code'],
+               flow.context('agent_a', activity['object_id'], {**question, 'recent_days': 3_000_000},
+                            expected=422)['error']['code']]
+    check('an_identity_outside_the_scope_an_unknown_object_and_bad_requests_are_refused_and_write_nothing',
+          refused == ['NOT_FOUND', 'NOT_FOUND', 'INVALID_REQUEST', 'INVALID_REQUEST']
+          and len(packs()) == count and len(packs(foreign_scope)) == foreign_count)
+
+    old = flow.context('foreign_ceo', foreign['object']['object_id'], question)
+    check('a_0_1_object_still_gets_the_0_1_context',
+          'contract_version' not in old and 'contract_version' not in old['context_pack']
+          and old['context_pack']['start'] == foreign['object']['ref']
+          and isinstance(old['context_pack']['layers'][0]['object']['responsible'], list)
+          and 'hops' in old['plan'] and '## 六问指引' in old['context_pack']['markdown']
+          and len(packs(foreign_scope)) == foreign_count + 1)
+    check('a_0_2_context_pack_row_cannot_be_changed_even_by_the_owner',
+          immutable_owner_probe(h, f, table='gov_world_context_packs', column='question', key_column='context_pack_id',
+                                key=first['context_pack_id'])['owner_write_rejected'])
+
+
 def revocation(book, h, f, flow, command):
     """撤掉 CEO 的公司域指派后，原 0.2 命令不能重放成成功（重放按 0.2 回执的规则复核）。"""
     ceo = f['actors']['ceo']
@@ -1600,6 +1889,8 @@ def run(book, h, source, upgrade_evidence):
             assign_lifecycle(book, h, f, flow, trunk)
         with scenario('gates'):
             gates(book, h, f, flow, trunk)
+        with scenario('context_packs'):
+            context_packs(book, h, f, flow, trunk, foreign)
         with scenario('revocation'):
             revocation(book, h, f, flow, made['command'])
     finally:

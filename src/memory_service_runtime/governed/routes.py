@@ -134,10 +134,13 @@ def world_object_events(object_id: uuid.UUID, token: Annotated[str, Depends(bear
 @router.post("/world/objects/{object_id}/context")
 def world_object_context(object_id: uuid.UUID, body: WorldContextRequest, response: Response,
                          token: Annotated[str, Depends(bearer)]):
-    """取上下文（票 #25）：每次调用在同一事务里落一行上下文包。"""
-    from . import world_v01_context
+    """取上下文（票 #25、#56）：按对象绑定的契约版本分派，0.1 对象的输出不变；每次调用在同一事务里落一行上下文包。"""
+    from . import world_v01_context, world_v02_context, world_v02_readers
     with db.transaction(token) as (conn, ctx):
-        result = world_v01_context.build(conn, ctx, str(object_id), body)
+        if world_v02_readers.bound_contract(conn, ctx, str(object_id)) == world_v02_readers.CONTRACT_VERSION:
+            result = world_v02_context.build(conn, ctx, str(object_id), body)
+        else:
+            result = world_v01_context.build(conn, ctx, str(object_id), body)
     response.headers["Cache-Control"] = "no-store"
     return result
 

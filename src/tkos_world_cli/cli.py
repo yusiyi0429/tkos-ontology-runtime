@@ -1,0 +1,141 @@
+"""tkos-world：在命令行里读写业务世界（tkos.world/0.1），HTTP 面的薄封装。
+
+持一枚凭证，把子命令转发到现有 HTTP 面，返回原样打到标准输出；不连数据库、不判权、不补目标、不重试。
+能做什么由凭证的身份决定，由 HTTP 面判权；这里只把对象 id 校验成 UUID（要拼进路径），其余交给 HTTP 面校验。
+
+读：get、state、events、children 对应 /v1/world/objects/{id} 的四个读投影，context 是取上下文（每次调用落一行）。
+写：act <动作> 先 prepare 再 commit，同一条命令、同一个幂等键；--prepare-only 只做 prepare。参数与目标按契约
+原样给 JSON（字面量、@文件或 - 读标准输入）。target 取自 get 返回的 object_id、revision_id 与 object_version
+（作 expected_version），不在写入时替调用方重新取：那样会绕过版本检查。
+
+退出码：0 成功；1 HTTP 面拒绝或不可达；2 用法或环境变量不对。
+环境变量：TKOS_WORLD_API_URL（HTTP 面的地址）、TKOS_WORLD_TOKEN（Bearer 凭证，不从命令行参数读）。
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import os
+from pathlib import Path
+import sys
+from typing import Any
+import uuid
+
+import httpx
+
+CONTRACT_VERSION = "tkos.world/0.1"
+# 子命令 -> (路径后缀, 查询参数)。
+_READS = {"get": ("", "version"), "state": ("/state", "as_of"), "events": ("/events", "since"),
+          "children": ("/children", None)}
+
+
+def _object_id(value: str) -> str:
+    try:
+        return str(uuid.UUID(value))
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"not an object id: {value!r}") from None
+
+
+def _json(value: str) -> Any:
+    """JSON 参数：字面量、@文件，或 - 读标准输入。"""
+    try:
+        if value == "-":
+            return json.loads(sys.stdin.read())
+        return json.loads(Path(value[1:]).read_text(encoding="utf-8") if value.startswith("@") else value)
+    except (OSError, ValueError) as exc:
+        raise argparse.ArgumentTypeError(f"not JSON ({exc.__class__.__name__}): {value[:80]!r}") from None
+
+
+def _parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="tkos-world", description="tkos.world/0.1 业务世界的命令行（HTTP 面的薄封装）。"
+        "环境变量 TKOS_WORLD_API_URL 给 HTTP 面的地址，TKOS_WORLD_TOKEN 给凭证。")
+    commands = parser.add_subparsers(dest="command", required=True, metavar="<command>")
+    get = commands.add_parser("get", help="取对象：块、属性、关系引用、生命周期、最新状态快照")
+    get.add_argument("object_id", type=_object_id)
+    get.add_argument("--version", type=int, help="取指定修订")
+    state = commands.add_parser("state", help="取状态：as_of 不晚于该时点的最新状态快照，未经确认")
+    state.add_argument("object_id", type=_object_id)
+    state.add_argument("--as-of", help="带时区的时刻")
+    events = commands.add_parser("events", help="取事件：以该对象为主体、occurred_at 不早于 since 的事件")
+    events.add_argument("object_id", type=_object_id)
+    events.add_argument("--since", help="带时区的时刻")
+    children = commands.add_parser("children", help="取子对象")
+    children.add_argument("object_id", type=_object_id)
+    context = commands.add_parser("context", help="取上下文：从该对象沿主干向上组装上下文包，每次调用落一行")
+    context.add_argument("object_id", type=_object_id)
+    context.add_argument("--question", required=True, help="要回答的问题，只做记录，不影响返回的内容")
+    context.add_argument("--max-chars", type=int, help="渲染后 Markdown 的字符数上限")
+    context.add_argument("--max-events-per-object", type=int, help="每个对象的事件条数上限")
+    context.add_argument("--recent-days", type=int, help="近期事件的天数")
+    act = commands.add_parser("act", help="执行动作：先 prepare 再 commit")
+    act.add_argument("action_type", help="动作名，例如 world_create_object、world_revise_object")
+    act.add_argument("--params", type=_json, required=True, help="动作参数 JSON：字面量、@文件或 -（标准输入）")
+    act.add_argument("--target", type=_json, help="目标 JSON {object_id, revision_id, expected_version}；不落在对象上的动作不给")
+    act.add_argument("--reason", required=True, help="写入理由，进审计")
+    act.add_argument("--idempotency-key", help="幂等键，不给则生成；重放同一条命令时带上原来的键")
+    act.add_argument("--prepare-only", action="store_true", help="只做 prepare，不提交")
+    return parser
+
+
+def _read(http: httpx.Client, args: argparse.Namespace) -> httpx.Response:
+    path = f"/v1/world/objects/{args.object_id}"
+    if args.command == "context":
+        budget = {key: getattr(args, key) for key in ("max_chars", "max_events_per_object")
+                  if getattr(args, key) is not None}
+        body = {"question": args.question, "budget": budget or None, "recent_days": args.recent_days}
+        return http.post(path + "/context", json={key: value for key, value in body.items() if value is not None})
+    suffix, query = _READS[args.command]
+    value = getattr(args, query) if query else None
+    return http.get(path + suffix, params={query: value} if value is not None else None)
+
+
+def _print(response: httpx.Response) -> None:
+    try:
+        print(json.dumps(response.json(), ensure_ascii=False, indent=2))
+    except ValueError:
+        print(response.text)
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = _parser().parse_args(argv)
+    url, token = os.environ.get("TKOS_WORLD_API_URL", "").strip(), os.environ.get("TKOS_WORLD_TOKEN", "").strip()
+    if not url or not token:
+        print("tkos-world needs TKOS_WORLD_API_URL and TKOS_WORLD_TOKEN.", file=sys.stderr)
+        return 2
+    committing = None  # 已发出 commit 时的幂等键：此后不可达，写入可能已经提交
+    try:
+        with httpx.Client(base_url=url.rstrip("/"), headers={"Authorization": f"Bearer {token}"}, timeout=60) as http:
+            if args.command != "act":
+                response = _read(http, args)
+            else:
+                body = {"action_type": args.action_type, "contract_version": CONTRACT_VERSION, "target": args.target,
+                        "expected_versions": [], "idempotency_key": args.idempotency_key or f"world-cli-{uuid.uuid4()}",
+                        "reason": args.reason, "params": args.params}
+                response = http.post("/v1/actions/prepare", json=body)
+                if response.status_code == 200 and not args.prepare_only:
+                    try:
+                        versions = response.json().get("expected_versions")
+                    except (ValueError, AttributeError):
+                        versions = None
+                    if not isinstance(versions, list):
+                        _print(response)
+                        print("tkos-world: prepare answered without expected_versions; nothing committed.",
+                              file=sys.stderr)
+                        return 1
+                    committing = body["idempotency_key"]
+                    response = http.post("/v1/actions", json={**body, "expected_versions": versions})
+    except (httpx.HTTPError, httpx.InvalidURL) as exc:
+        hint = (f"; the write may have been committed, replay it with --idempotency-key {committing}"
+                if committing else "")
+        print(f"tkos-world: HTTP API unreachable ({exc.__class__.__name__}){hint}.", file=sys.stderr)
+        return 1
+    _print(response)
+    if response.status_code >= 400:
+        print(f"tkos-world: HTTP {response.status_code}", file=sys.stderr)
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

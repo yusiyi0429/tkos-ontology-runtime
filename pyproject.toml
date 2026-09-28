@@ -29,6 +29,7 @@ tkos-memory-worker-health = "memory_service_runtime.cli:health_main"
 tkos-memory-task-enqueue = "memory_service_runtime.cli:enqueue_main"
 tkos-governed-control = "memory_service_runtime.governed.control:main"
 tkos-world-mcp = "tkos_world_mcp.cli:main"
+tkos-world = "tkos_world_cli.cli:main"
 
 [dependency-groups]
 dev = [
@@ -55,6 +56,7 @@ packages = [
     "src/memory_service_runtime",
     "src/adapter",
     "src/tkos_world_mcp",
+    "src/tkos_world_cli",
 ]
 
 [tool.hatch.build.hooks.custom]

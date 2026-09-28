@@ -207,7 +207,7 @@ rm -rf /tmp/tkos-secrets
 | `eo-coagent` | E&O Co-Agent | eo：AGENT |
 | `exec-agent` | 执行 Agent | eo：AGENT |
 
-第 2 步由它生成主机上的 `spec.json`，三个人的 `display_name` 在主机上改成真名。真名只出现在主机的 `spec.json`、库里的主体与事件、tkos-secrets 的归档里；仓库里的样例、计划与测试一律用占位（「CEO」「E&O DRI」「E&O Mission Owner」）。已经按旧名单（`spec.example.json`）供给过的实验 scope 随第 9 或 9.5 节的重建换名单；不要在同一个库里删掉 `out/` 重新供给，那样旧 scope 与它的凭证还留在库里。
+第 2 步由它生成主机上的 `spec.json`（构建提交要含本节的文件），三个人的 `display_name` 在主机上改成真名。真名只出现在主机的 `spec.json`、库里的主体与事件、tkos-secrets 的归档里；仓库里的样例、计划与测试一律用占位（「CEO」「E&O DRI」「E&O Mission Owner」）。已经按旧名单（`spec.example.json`）供给过的实验 scope 随第 9 或 9.5 节的重建换名单；不要在同一个库里删掉 `out/` 重新供给，那样旧 scope 与它的凭证还留在库里。
 
 **播种计划** `seed-eo-2026-10.json`（33 步）只写主体与域的键，id 与显示名运行时取 `ids.json`：
 
@@ -233,7 +233,7 @@ rm -rf /tmp/tkos-secrets
 
 计划的前置按这九段写，比 0.2 本身严。0.2 只要求：E&O 长期目标确认后才能承诺、确认十月周期目标；十月周期目标确认后才能承诺、确认 Mission；Owner 被指派后才能承诺 Mission、在它下面建 Task（经 Mission 的 `responsible` 成为主干上一级的责任人）；登记委托时 scope 里已有 Company。责任单元的 DRI 按角色解析，不用指派。
 
-**命令**：主机没有仓库检出，脚本只用标准库，在本机仓库检出里经域名跑（同 `smoke.py --mcp-cli`）。`<out>` 用第 10 节归档里实验 scope 的那份（`ids.json` 与凭证）；状态文件 `seed-eo-state.json` 写在同一目录，回执、事件与对象 id 都在里面，重跑沿用，每段跑完推回 tkos-secrets（段与段隔了时间就每段重新克隆、跑完删掉）。幂等键固定为 `world-02-eo-seed:<步骤>`；提交前请求先记进状态文件，中断后重跑原样重发，已提交的拿回原回执。状态文件丢了，重跑会停在第一个门步骤的 IDEMPOTENCY_CONFLICT（不会记两次），从 tkos-secrets 取回再跑。实验 scope 重建后，旧状态文件随第 10 节的整目录替换一起作废（脚本拒绝另一个 scope 的状态文件）。
+**命令**：主机没有仓库检出，脚本只用标准库，在本机仓库检出里经域名跑（同 `smoke.py --mcp-cli`）。`<out>` 用第 10 节归档里实验 scope 的那份（`ids.json` 与凭证）；状态文件 `seed-eo-state.json` 写在同一目录，回执、事件与对象 id 都在里面，重跑沿用，每段跑完推回 tkos-secrets（段与段隔了时间就每段重新克隆、跑完删掉）。幂等键固定为 `world-02-eo-seed:<步骤>`；提交前请求先记进状态文件，中断后重跑原样重发，已提交的拿回原回执。状态文件丢了，重跑时建对象与代录说明拿回原回执（同键同请求），第一个门步骤在 prepare 就被拒（对象已经过了那一步），不会记两次；从 tkos-secrets 取回状态文件再跑。实验 scope 重建后，旧状态文件随第 10 节的整目录替换一起作废（脚本拒绝另一个 scope 的状态文件）。
 
 ```bash
 git clone https://github.com/VanillaCoca/tkos-secrets.git /tmp/tkos-secrets
@@ -270,6 +270,8 @@ rm -rf /tmp/tkos-secrets
 
 2026-09-29 P2 全部合入后按第 9.5 节换到 f7afcb2 重建（#65 的 8f4bdc1 只加验收代码，镜像不变）：冒烟本机口 94 项、域名 83 项、本机 `--mcp-cli` 92 项全过（MCP 工具清单十三个），归档见第 10 节。
 
+第 11 节的本机预演（2026-09-29，#69 合入之后）：`build_images.py` 对 15f6ff8（a66f9c9 加上第 11 节的名单与播种）构建 arm64，项目 `tkos-world-02-rehearsal`、端口 8051，迁移到重写后的 0039。实验 scope 按 `spec.eo.example.json` 供给、签 6 枚凭证；九段按 ceo → eo-dri → ceo → eo-dri → ceo → eo-dri → eo-owner → eo-dri → eo-owner 跑完（CEO 与 Owner 各段代录、operator eo-dri，DRI 本人），33 步全部提交，每段的「下一步」都对，最后「全部完成」；代录说明 5 条（CEO 4、2、2 条，Owner 3、9 条）。读回：两个长期目标与十月周期目标已确认，三个 Mission 已成立、Owner 是 eo-owner，8 个 Task 按 3、3、2 挂在各自的 Mission 下、未指派，Strategy 仍是草稿，三条委托在 E&O 域生效（CEO 那条另覆盖公司域）；33 条事件的记录者都是本人的主体，代录的门事件带代录句；每条代录说明由 eo-dri 记，refs 与主体正好覆盖那一段的事件与对象，不是迟记。九段整体重跑一步不做、不补记，库里仍是 17 个对象、38 条事件、38 张回执；删掉状态文件再跑前三段，建对象与代录说明拿回原回执，第一个门步骤在 prepare 被拒（INVALID_STATE），库里没多一条。之后 `smoke.py --probe-only` 对实验 scope 10 项全过（6 个主体），对它跑完整冒烟在读凭证之前 FAIL；另供给冒烟 scope 跑完整冒烟两遍都过，实验 scope 的计数不变。预演栈已 `down -v`，含密钥的目录已删。
+
 主机上踩到的坑：经 `ssh … 'bash -s' <<EOS` 远程跑脚本时，`docker compose exec -T` 同样会吃掉 stdin，把后面的脚本当输入读走，要接 `</dev/null`（`run -T` 已在脚本里这样做）；但别给管道的下游加：`gunzip -c … | docker load </dev/null` 会让 `docker load` 读到空输入、什么都不加载，之后 compose 转去 Docker Hub 拉镜像超时。远程脚本里先解到文件再 `docker load -i`。本机对域名跑冒烟时遇到过一次连接超时，重跑即过。
 
-未验证：并发写下的外部引用唯一性；大数据量下列对象的性能。
+未验证：并发写下的外部引用唯一性；大数据量下列对象的性能；第 11 节在主机实例上实跑（真名、经域名 HTTPS、状态文件放在 tkos-secrets）；天枢凭这三条委托实际代记。

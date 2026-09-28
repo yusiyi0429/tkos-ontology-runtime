@@ -328,7 +328,8 @@ class Seeder:
 
     def submit(self, key: str, who: str, operator: str | None, build) -> dict:
         """prepare 再 commit，返回回执。提交前把请求体记进 state 的 pending：中断后重跑原样重发，已提交的拿回原回执；
-        重发不成（原请求没提交、之后对象又变了）就丢掉它，重新 prepare。成功后由调用者记下结果并清掉 pending。"""
+        重发被拒（4xx：原请求没提交、之后对象又变了）就丢掉它，重新 prepare；服务端错误（5xx）留着它，稍后重跑。
+        成功后由调用者记下结果并清掉 pending。"""
         pending = self.state["pending"].get(key)
         if pending is not None:
             if (pending["who"], pending["operator"]) != (who, operator):
@@ -336,6 +337,8 @@ class Seeder:
             status, receipt = self.call("POST", "/v1/actions", pending["body"], who)
             if committed(status, receipt):
                 return receipt
+            if status >= 500:
+                fail(f"重发 {key}：服务端 {status}，稍后重跑（记下的请求留着）")
             print(f"     上次中断的 {key} 没有提交（{status}），重新 prepare", flush=True)
             del self.state["pending"][key]
             self.save()

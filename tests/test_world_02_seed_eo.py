@@ -288,6 +288,7 @@ class FakeWorld:
         self.receipts: dict[tuple, tuple] = {}
         self.posts: list[tuple] = []
         self.lose_next_response = False
+        self.next_commit_status: int | None = None  # 下一次 commit 不执行，直接回这个状态码
 
     def __call__(self, method, path, body=None, who=None):
         if method == "GET":
@@ -297,6 +298,9 @@ class FakeWorld:
         self.posts.append((path, who, body["idempotency_key"]))
         if path.endswith("/prepare"):
             return 200, {"expected_versions": []}
+        if self.next_commit_status is not None:
+            status, self.next_commit_status = self.next_commit_status, None
+            return status, {"error": {"code": "SIMULATED"}}
         key = (who, body["idempotency_key"])
         if key in self.receipts:
             sent, receipt = self.receipts[key]
@@ -378,11 +382,44 @@ def test_a_commit_whose_answer_was_lost_is_resent_as_is_and_not_recorded_twice(w
     assert list(state["pending"]) == [seed.KEY_PREFIX + "company"] and state["steps"] == {}
     with pytest.raises(SystemExit):
         run(out, "ceo")  # 上次是代录时中断的：换成本人执行要先按同样的方式重跑
+    fake.next_commit_status = 503
+    with pytest.raises(SystemExit):
+        run(out, "ceo", "eo-dri")  # 重发时服务端错误：记下的请求留着
+    assert list(json.loads((out / seed.STATE_FILE).read_text(encoding="utf-8"))["pending"]) == [seed.KEY_PREFIX + "company"]
     run(out, "ceo", "eo-dri")
     state = json.loads((out / seed.STATE_FILE).read_text(encoding="utf-8"))
     assert state["pending"] == {} and len(state["steps"]) == 4 and len(state["notes"]) == 1
     assert [key for path, _, key in fake.posts if path.endswith("/prepare")].count(seed.KEY_PREFIX + "company") == 1
     assert sum(1 for (_, key) in fake.receipts if key == seed.KEY_PREFIX + "company") == 1
+
+
+def test_a_resend_the_service_refuses_was_never_committed_and_is_prepared_again(world) -> None:
+    out, fake = world
+    run(out, "ceo")
+    run(out, "eo-dri")
+    fake.lose_next_response = True
+    with pytest.raises(SystemExit):
+        run(out, "ceo")  # 确认公司级长期目标提交了但回应丢了
+    fake.receipts = {key: value for key, value in fake.receipts.items()
+                     if key[1] != seed.KEY_PREFIX + "confirm_company_goal"}  # 假装它其实没提交
+    fake.next_commit_status = 409  # 原样重发被拒（例如对象此后又变了）
+    run(out, "ceo")
+    state = json.loads((out / seed.STATE_FILE).read_text(encoding="utf-8"))
+    assert state["pending"] == {} and {"confirm_company_goal", "confirm_eo_goal"} <= set(state["steps"])
+    assert [key for path, _, key in fake.posts if path.endswith("/prepare")].count(
+        seed.KEY_PREFIX + "confirm_company_goal") == 2
+
+
+def test_the_proxy_sentence_can_be_reworded_and_a_bad_template_is_refused(world) -> None:
+    out, fake = world
+    seeder = seed.Seeder("http://127.0.0.1:1", out, PLAN, "经{person}同意，由{operator}代为录入")
+    assert seeder.content_text("ceo", "eo-dri") == "E&O 十月起点播种。经CEO同意，由E&O DRI代为录入"
+    assert seeder.content_text("eo-dri", None) == "E&O 十月起点播种"
+    with pytest.raises(SystemExit):
+        seed.Seeder("http://127.0.0.1:1", out, PLAN, "由{someone}录入").segment("ceo", "eo-dri", dry_run=False)
+    with pytest.raises(SystemExit):
+        run(out, "ceo", "ceo")  # 代录人不能是本人
+    assert fake.posts == []
 
 
 def test_a_dry_run_lists_the_segment_and_writes_nothing(world, capsys) -> None:

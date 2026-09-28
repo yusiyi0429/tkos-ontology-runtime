@@ -200,6 +200,8 @@ rm -rf /tmp/tkos-secrets
 
 主机（2026-09-29，会话代跑）：先按 88d765e 走完第 1–8 步，#63 合入后按第 9.5 节换到 c003b03 重建，再按第 10 节归档（tkos-secrets 998d0d0）。c003b03 上：两个 scope 各签 9 枚凭证（90 天）；实验 scope 的 `--probe-only` 在本机口与域名都过；冒烟 scope 的完整冒烟本机口 94 项、域名 83 项全过（第二遍沿用骨架）；本机仓库检出对域名跑 `--mcp-cli` 92 项全过（CLI 三项、MCP 四项，工具清单十个）；库里有 `ix_gov_world_external_refs`，列对象经域名返回 200、未知参数 422。证书 webroot、ecdsa，到期 2026-12-27，续期演练成功。world-lab 全程 200。
 
-主机上踩到的坑：经 `ssh … 'bash -s' <<EOS` 远程跑脚本时，`docker compose exec -T` 同样会吃掉 stdin，把后面的脚本当输入读走，要接 `</dev/null`（`run -T` 已在脚本里这样做）。本机对域名跑冒烟时遇到过一次连接超时，重跑即过。
+2026-09-29 P2 全部合入后按第 9.5 节换到 f7afcb2 重建（#65 的 8f4bdc1 只加验收代码，镜像不变）：冒烟本机口 94 项、域名 83 项、本机 `--mcp-cli` 92 项全过（MCP 工具清单十三个），归档见第 10 节。
+
+主机上踩到的坑：经 `ssh … 'bash -s' <<EOS` 远程跑脚本时，`docker compose exec -T` 同样会吃掉 stdin，把后面的脚本当输入读走，要接 `</dev/null`（`run -T` 已在脚本里这样做）；但别给管道的下游加：`gunzip -c … | docker load </dev/null` 会让 `docker load` 读到空输入、什么都不加载，之后 compose 转去 Docker Hub 拉镜像超时。远程脚本里先解到文件再 `docker load -i`。本机对域名跑冒烟时遇到过一次连接超时，重跑即过。
 
 未验证：并发写下的外部引用唯一性；大数据量下列对象的性能。

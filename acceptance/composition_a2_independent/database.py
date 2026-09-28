@@ -21,6 +21,7 @@ from psycopg.conninfo import conninfo_to_dict, make_conninfo
 
 from acceptance.protocol_a1_independent.support import Environment, private_json, public_json
 from acceptance.protocol_a1_independent.database import source_migrate
+from acceptance.execution_a3_independent.database import grants
 
 BASE = '2e385a20a47228fe451557614fe5efab5e8118eb'
 MUTABLE_A1 = {'gov_scopes', 'gov_principals', 'gov_credentials', 'gov_role_assignments',
@@ -37,22 +38,6 @@ def socket_sql(container: str, database: str, statement: str):
         input=statement, text=True, capture_output=True, timeout=30)
     if run.returncode:
         raise AssertionError('local PostgreSQL administration failed; no credential/log output emitted')
-
-
-def grants(environment: Environment, mutable_extra: set[str] | None = None):
-    app = conninfo_to_dict(environment.values['APP_DATABASE_URL'])['user']
-    mutable = MUTABLE_A1 | (mutable_extra or set())
-    with psycopg.connect(environment.values['MIGRATION_DATABASE_URL']) as conn:
-        for (table,) in conn.execute("SELECT tablename FROM pg_tables WHERE schemaname='public'"):
-            if table.startswith('gov_'):
-                conn.execute(sql.SQL('REVOKE INSERT, UPDATE, DELETE ON TABLE public.{} FROM {}').format(
-                    sql.Identifier(table), sql.Identifier(app)))
-                privilege = 'SELECT' if table in CONTROL else 'SELECT, INSERT, UPDATE' if table in mutable else 'SELECT, INSERT'
-            else:
-                privilege = 'SELECT' if table == 'schema_migrations' else 'SELECT, INSERT, UPDATE, DELETE'
-            conn.execute(sql.SQL('GRANT '+privilege+' ON TABLE public.{} TO {}').format(
-                sql.Identifier(table), sql.Identifier(app)))
-        conn.execute(sql.SQL('GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO {}').format(sql.Identifier(app)))
 
 
 def create(args):

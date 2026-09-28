@@ -1,5 +1,8 @@
 """Shared constants and application grants for local Method acceptance databases.
 
+Application-role privileges come from the release rules via
+``acceptance.execution_a3_independent.database.grants``.
+
 Creating and upgrading an isolated Method database is done by
 ``acceptance/method_v05/database.py``: it takes the endpoint from the base env and
 checks that it is the isolated acceptance container's published port. The
@@ -7,10 +10,6 @@ original create/upgrade helpers here pinned 54350 and exact migration lists, so
 they were removed. Imports do no work.
 """
 from __future__ import annotations
-
-import psycopg
-from psycopg import sql
-from psycopg.conninfo import conninfo_to_dict
 
 from acceptance.execution_a3_independent.database import grants
 
@@ -24,8 +23,5 @@ METHOD_TABLES = METHOD_MUTABLE | {
 }
 
 
-def method_grants(env):
-    grants(env, BASE_MUTABLE | METHOD_MUTABLE)
-    app = conninfo_to_dict(env.values['APP_DATABASE_URL'])['user']
-    with psycopg.connect(env.values['MIGRATION_DATABASE_URL']) as conn:
-        conn.execute(sql.SQL('REVOKE INSERT ON gov_method_agent_bindings FROM {}').format(sql.Identifier(app)))
+# Method 表的应用角色权限同样由发布规则给出（gov_method_agent_bindings 只读），不再单独收窄。
+method_grants = grants

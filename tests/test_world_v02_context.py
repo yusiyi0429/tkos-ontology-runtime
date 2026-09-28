@@ -1,9 +1,12 @@
-"""tkos.world/0.2 的取上下文（票 #56，契约第 15.3 节）：组件级引用与事件引用，0.2 的生命周期、正式内容、快照外壳
-与责任人；预算、裁剪、六问覆盖、检索计划与落表沿用 0.1（票 #25）。不连数据库。
+"""tkos.world/0.2 的取上下文（票 #56、#64，契约第 15.3 节）：组件级引用与事件引用，0.2 的生命周期、正式内容、快照外壳
+与责任人；预算、裁剪、六问覆盖、检索计划与落表沿用 0.1（票 #25）。#64 第一段：单元长期目标沿 goal_ref 多取一跳到
+公司级长期目标，Why 追到公司级长期目标、Strategy 与 Company；Markdown 开头是六问指引、以六问为节；事件行写出
+记录者、被代记的人与被指派者。不连数据库。
 
 覆盖判定是纯函数；组装在假连接上的一条 0.2 主干上做：读投影里取对象、快照与事件的三个入口换成按下表查的替身，
 生命周期与责任人走 0.2 读侧的真代码，由假连接按语句应答。HTTP 路径（从 Activity 出发、引用逐条读回、scope 外
-404、落表、确定性、0.1 对象不变）在 acceptance/world_v02 的 context 场景里。
+404、落表、确定性、0.1 对象不变；从单元周期目标出发的 Why、代记事件行）在 acceptance/world_v02 的 context_packs
+与 context_fill 场景里。
 """
 from __future__ import annotations
 
@@ -77,19 +80,20 @@ def test_a_question_the_pack_cannot_answer_is_a_gap_with_its_reason():
 
 
 # ------------------------------------------------------------ build：假连接上的一条 0.2 主干
-# Activity → Task → Mission → 周期目标 → 单元长期目标 → 责任单元（架构引用指到责任单元条目）→ Strategy → Company。
-# Mission、周期目标与长期目标已正式；Activity 与 Mission 各有一条快照，Task 没有；事件七条。
+# Activity → Task → Mission → 周期目标 → 单元长期目标 → 责任单元（架构引用指到责任单元条目）→ Strategy → Company；
+# 单元长期目标的 goal_ref 指向公司级长期目标（主干之外多取的一跳）。Mission、周期目标与两条长期目标已正式；
+# Activity 与 Mission 各有一条快照，Task 没有；事件八条，Mission 的确认由天枢代 DRI 记。
 def uid(n: int) -> str:
     return f"00000000-0000-4000-8000-{n:012d}"
 
 
 COMPANY, STRATEGY, UNIT, GOAL, PERIOD, MISSION, TASK, ACTIVITY = (uid(n) for n in range(1, 9))
-OTHER_GOAL, OTHER_MISSION = uid(10), uid(11)
+COMPANY_GOAL, OTHER_GOAL, OTHER_MISSION = uid(9), uid(10), uid(11)
 SNAP_ACTIVITY, SNAP_MISSION = uid(21), uid(23)
-CEO, DRI, OWNER, IC, AGENT = (uid(n) for n in range(31, 36))
+CEO, DRI, OWNER, IC, AGENT, TIANSHU = (uid(n) for n in range(31, 37))
 CREATED, ASSIGNED, CONFIRMED, MET, STARTED, LATE, REFRESHED, CORRECTED = (uid(n) for n in range(41, 49))
 PEOPLE = {CEO: ("CEO", "human"), DRI: ("E&O DRI", "human"), OWNER: ("Mission Owner", "human"),
-          IC: ("方案 IC", "human"), AGENT: ("E&O Agent", "agent")}
+          IC: ("方案 IC", "human"), AGENT: ("E&O Agent", "agent"), TIANSHU: ("天枢", "agent")}
 ROLES = {("company", "CEO"): [CEO], ("eo", "CEO"): [CEO], ("eo", "DOMAIN_DRI"): [DRI]}
 
 
@@ -127,10 +131,16 @@ OBJECTS = {
            {"title": "E&O", "unit_kind": "domain", "external_refs": [],
             "architecture_ref": pin(STRATEGY, 1, "responsibility_structure", "unit-eo")},
            {"definition": value("本体与 Context Runtime")}),
+    COMPANY_GOAL: ("LongTermGoal", "company", 1, "confirmed",
+                   {"title": "公司三年目标", "scope": "company", "horizon": "2028", "external_refs": [],
+                    "parent_ref": pin(COMPANY), "goal_ref": None},
+                   {"outcome": value(components=[part("cg-o1", "outcome", "成为企业经营系统的首选")]),
+                    "constraint": value("公司级目标自己的约束")}),
     GOAL: ("LongTermGoal", "eo", 1, "confirmed",
            {"title": "E&O 六个月目标", "scope": "unit", "horizon": "六个月", "external_refs": [], "parent_ref": pin(UNIT),
-            "goal_ref": None},
-           {"outcome": value(components=[part("lt-o1", "outcome", "建立 Enterprise Context")])}),
+            "goal_ref": pin(COMPANY_GOAL)},
+           {"outcome": value(components=[part("lt-o1", "outcome", "建立 Enterprise Context",
+                                              refs=[pin(COMPANY_GOAL, 1, "outcome", "cg-o1")])])}),
     PERIOD: ("PeriodGoal", "eo", 1, "confirmed",
              {"title": "E&O 10 月", "period": "2026-10", "external_refs": [], "goal_ref": pin(GOAL), "review_ref": None,
               "depends_on": []},
@@ -221,7 +231,10 @@ def event(event_id, kind, principal, occurred_at, subjects, *, text=None, late=F
 EVENTS = [
     event(CREATED, "object.created", DRI, "2026-09-22T00:00:00Z", [pin(ACTIVITY, 1)]),
     event(ASSIGNED, "assign", IC, "2026-09-22T01:00:00Z", [pin(ACTIVITY, 2)], detail={"principal_id": AGENT}),
-    event(CONFIRMED, "confirm", DRI, "2026-09-22T02:00:00Z", [pin(MISSION, 2)], outcome="accepted"),
+    event(CONFIRMED, "confirm", TIANSHU, "2026-09-22T02:00:00Z", [pin(MISSION, 2)], outcome="accepted",
+          on_behalf_of={"principal_id": DRI, "display_name": "E&O DRI"},
+          external_confirmation={"external_record_id": "tianshu:confirm:1",
+                                 "external_confirmed_at": "2026-09-22T01:55:00Z"}),
     event(MET, "event.recorded", IC, "2026-09-23T02:23:00Z", [pin(TASK, 2, "acceptance", "ac-1"), pin(ACTIVITY, 2)],
           category="meeting", text="评审方案"),
     event(STARTED, "start", AGENT, "2026-09-23T03:00:00Z", [pin(ACTIVITY, 2)]),
@@ -240,6 +253,7 @@ LIFECYCLE = {
     PERIOD: [(uid(55), "world_create_object"), (uid(56), "world_commit_period_goal"),
              (uid(57), "world_confirm_period_goal", "accepted")],
     GOAL: [(uid(58), "world_create_object"), (uid(59), "world_confirm_long_term_goal", "accepted")],
+    COMPANY_GOAL: [(uid(61), "world_create_object"), (uid(62), "world_confirm_long_term_goal", "accepted")],
     STRATEGY: [(uid(60), "world_create_object")],
 }
 
@@ -314,6 +328,17 @@ def section(markdown: str, ref: str) -> list[str]:
                 ).splitlines()
 
 
+def sections(markdown: str) -> dict[str, str]:
+    """以「## 」起头的各节：节名 -> 节里的正文（去掉首尾空行）。"""
+    return {part.split("\n", 1)[0]: (part.split("\n", 1) + [""])[1].strip("\n")
+            for part in ("\n" + markdown).split("\n## ")[1:]}
+
+
+def heads(body: str) -> list[str]:
+    """一节里逐条内容的首行（条目之间空一行）。"""
+    return [chunk.splitlines()[0] for chunk in body.split("\n\n") if chunk]
+
+
 def test_the_context_walks_the_0_2_spine_and_pins_each_step(world):
     result = build(world)
     layers = result["context_pack"]["layers"]
@@ -343,17 +368,17 @@ def test_each_component_is_cited_in_component_form_pinned_to_the_revision_read(w
     assert acceptance["value"]["components"] == acceptance["components"]
     markdown = result["context_pack"]["markdown"]
     assert section(markdown, f"{TASK}@2#acceptance") == [
-        f"### 验收标准 `{TASK}@2#acceptance`",
+        f"### Task·验收标准 `{TASK}@2#acceptance`",
         f"- 验收条件 `{TASK}@2#acceptance/ac-1`：方案评审通过",
         f"  引用：`{MISSION}@2#acceptance/m-ac1`",
         f"- 验收条件 `{TASK}@2#acceptance/ac-2`：演示通过"]
     # 块自己的文字、引用与组件都在；组件的类型属性按登记的显示名写出。
     assert section(markdown, f"{ACTIVITY}@2#instruction") == [
-        f"### 执行指令 `{ACTIVITY}@2#instruction`", "按评审意见改材料", f"引用：`{TASK}@2#acceptance/ac-1`"]
+        f"### Activity·执行指令 `{ACTIVITY}@2#instruction`", "按评审意见改材料", f"引用：`{TASK}@2#acceptance/ac-1`"]
     assert section(markdown, f"{MISSION}@2#execution_plan") == [
-        f"### 执行计划 `{MISSION}@2#execution_plan`", f"- 计划条目 `{MISSION}@2#execution_plan/plan-1`：搭环境",
+        f"### Mission·执行计划 `{MISSION}@2#execution_plan`", f"- 计划条目 `{MISSION}@2#execution_plan/plan-1`：搭环境",
         f"  责任人（只作记录）：`{OWNER}`"]
-    assert section(markdown, f"{TASK}@2#constraint") == [f"### 约束 `{TASK}@2#constraint`", "当前没有约束"]
+    assert section(markdown, f"{TASK}@2#constraint") == [f"### Task·约束 `{TASK}@2#constraint`", "当前没有约束"]
 
 
 def test_events_are_cited_by_event_reference_newest_first_and_once_at_the_nearest_level(world):
@@ -363,14 +388,13 @@ def test_events_are_cited_by_event_reference_newest_first_and_once_at_the_neares
         [STARTED, MET, ASSIGNED, CREATED], [], [CORRECTED, REFRESHED, CONFIRMED, LATE]]
     assert all(item["ref"] == f"event:{item['event_id']}" for layer in layers for item in layer["events"])
     lines = result["context_pack"]["markdown"].splitlines()
-    assert f"- 2026-09-23T02:23:00Z 外部事件·会议（事件 `event:{MET}`）：评审方案" in lines
-    assert f"- 2026-09-22T02:00:00Z 确认·接受（事件 `event:{CONFIRMED}`）" in lines
+    assert f"- 2026-09-23T02:23:00Z Activity 外部事件·会议（事件 `event:{MET}`，方案 IC 记）：评审方案" in lines
     # 迟记与更正、撤回所指的原事件照取事件写出。
-    assert f"- 2026-09-21T00:00:00Z 外部事件·会议（事件 `event:{LATE}`，迟记）：立项前沟通" in lines
-    assert (f"- 2026-09-24T12:30:00Z 外部事件·更正（事件 `event:{CORRECTED}`，原事件 `event:{LATE}`）：沟通会的日期记错了"
-            in lines)
-    # 表头的生命周期也以事件引用指出推出它的事件。
-    assert section(result["context_pack"]["markdown"], f"{ACTIVITY}@2")[1] == f"生命周期：进行中（事件 `event:{STARTED}`）"
+    assert f"- 2026-09-21T00:00:00Z Mission 外部事件·会议（事件 `event:{LATE}`，Mission Owner 记，迟记）：立项前沟通" in lines
+    assert (f"- 2026-09-24T12:30:00Z Mission 外部事件·更正（事件 `event:{CORRECTED}`，Mission Owner 记，"
+            f"原事件 `event:{LATE}`）：沟通会的日期记错了" in lines)
+    # 生命周期也以事件引用指出推出它的事件。
+    assert f"- 当前对象 Activity 生命周期：进行中（事件 `event:{STARTED}`）" in lines
 
 
 def test_the_latest_snapshot_is_its_shell_view_marked_unconfirmed(world):
@@ -385,7 +409,7 @@ def test_the_latest_snapshot_is_its_shell_view_marked_unconfirmed(world):
     assert [(item["ref"], item["pinned"]) for item in issues["components"]] == [
         (f"{SNAP_ACTIVITY}@1#issues/iss-1", cited(SNAP_ACTIVITY, 1, "issues", "iss-1"))]
     assert section(result["context_pack"]["markdown"], f"{SNAP_ACTIVITY}@1") == [
-        f"### 最新状态快照（未经确认，截至 2026-09-24T10:00:00Z） `{SNAP_ACTIVITY}@1`",
+        f"### Activity 的最新状态快照（未经确认，截至 2026-09-24T10:00:00Z） `{SNAP_ACTIVITY}@1`",
         f"payload：执行状态；周期：2026-10；生成者：E&O Agent；来源事件：`event:{MET}`",
         f"#### 进展 `{SNAP_ACTIVITY}@1#progress`",
         f"- 进展条目 `{SNAP_ACTIVITY}@1#progress/todo:17`：改了一半",
@@ -422,10 +446,26 @@ def test_responsible_follows_the_read_projection_and_names_its_source(world):
     assert layers[3]["object"]["responsible"] == {
         "source": "role", "role": "DOMAIN_DRI",
         "principals": [{"principal_id": DRI, "principal_type": "human", "display_name": "E&O DRI"}]}
-    markdown = result["context_pack"]["markdown"]
-    assert section(markdown, f"{ACTIVITY}@2")[2] == "责任人（来自属性 responsible）：E&O Agent"
-    assert section(markdown, f"{PERIOD}@1")[1:] == ["生命周期：已确认（事件 `event:" + uid(57) + "`）",
-                                                    "责任人（来自角色 DOMAIN_DRI）：E&O DRI", "正式内容：已确认"]
+    parts = sections(result["context_pack"]["markdown"])
+    # 「谁负责」逐层写出责任人与来源，「现在怎样」逐层写出生命周期与正式内容。
+    assert parts["谁负责"].splitlines() == [
+        f"- 当前对象 Activity《改建模材料》 `{ACTIVITY}@2` 责任人（来自属性 responsible）：E&O Agent",
+        f"- 上溯第 1 层 Task《方案设计》 `{TASK}@2` 责任人（来自属性 responsible）：方案 IC",
+        f"- 上溯第 2 层 Mission《Agent 真实可用》 `{MISSION}@2` 责任人（来自属性 responsible）：Mission Owner",
+        f"- 上溯第 3 层 周期目标《E&O 10 月》 `{PERIOD}@1` 责任人（来自角色 DOMAIN_DRI）：E&O DRI",
+        f"- 上溯第 4 层 长期目标《E&O 六个月目标》 `{GOAL}@1` 责任人（来自角色 CEO）：CEO",
+        f"- 上溯第 5 层 责任单元《E&O》 `{UNIT}@1` 责任人（来自角色 DOMAIN_DRI）：E&O DRI",
+        f"- 上溯第 6 层 战略《总体战略》 `{STRATEGY}@1` 责任人（来自角色 CEO）：CEO",
+        f"- 上溯第 7 层 公司《词元云集》 `{COMPANY}@1` 责任人（来自角色 CEO）：CEO"]
+    assert parts["现在怎样"].split("\n\n")[0].splitlines() == [
+        f"- 当前对象 Activity 生命周期：进行中（事件 `event:{STARTED}`）",
+        f"- 上溯第 1 层 Task 生命周期：已指派（事件 `event:{uid(52)}`）",
+        f"- 上溯第 2 层 Mission 生命周期：已成立（事件 `event:{CONFIRMED}`），正式内容：已确认",
+        f"- 上溯第 3 层 周期目标 生命周期：已确认（事件 `event:{uid(57)}`），正式内容：已确认",
+        f"- 上溯第 4 层 长期目标 生命周期：已确认（事件 `event:{uid(59)}`），正式内容：已确认",
+        "- 上溯第 5 层 责任单元 生命周期：无（只有版本）",
+        f"- 上溯第 6 层 战略 生命周期：草稿（事件 `event:{uid(60)}`），正式内容：尚未确认",
+        "- 上溯第 7 层 公司 生命周期：无（只有版本）"]
 
 
 def test_cross_chain_relations_are_listed_and_not_followed(world):
@@ -438,8 +478,9 @@ def test_cross_chain_relations_are_listed_and_not_followed(world):
     assert result["plan"]["shown_not_followed"] == [
         {"from": f"{MISSION}@2", "field": "contributes_to", "to": f"{OTHER_GOAL}@1"},
         {"from": f"{OTHER_MISSION}@1", "field": "depends_on", "to": f"{MISSION}@2"}]
-    assert "跨链关系（只列引用，不展开）：\n" + f"contributes_to：`{OTHER_GOAL}@1`\n被 `{OTHER_MISSION}@1` 以 depends_on 引用" \
-        in result["context_pack"]["markdown"]
+    # 跨链关系跟着它那一层放在「为什么」一节，在该层的定义类块之前。
+    assert (f"Mission 的跨链关系（只列引用，不展开）：\ncontributes_to：`{OTHER_GOAL}@1`\n"
+            f"被 `{OTHER_MISSION}@1` 以 depends_on 引用") in sections(result["context_pack"]["markdown"])["为什么"].split("\n\n")
 
 
 def test_coverage_cites_components_blocks_and_events_that_the_pack_holds(world):
@@ -465,7 +506,7 @@ def test_the_defaults_and_the_budget_record_follow_0_1(world):
     assert result["budget"] == {"max_chars": 12000, "max_events_per_object": 10, "recent_days": 30,
                                 "window_start": "2026-08-25T00:00:00Z", "used_chars": len(markdown),
                                 "estimated_tokens": math.ceil(len(markdown) / 2), "over_budget": False}
-    assert markdown.startswith(f"# 上下文\n\n问题：为什么要做这条 Activity？\n\n出发对象：`{ACTIVITY}@2`\n\n## 当前对象：")
+    assert markdown.startswith(f"# 上下文\n\n问题：为什么要做这条 Activity？\n\n出发对象：`{ACTIVITY}@2`\n\n## 六问指引\n")
     assert result["plan"]["trimmed"] == [] and result["plan"]["over_budget"] is False
 
 
@@ -528,6 +569,187 @@ def test_an_unknown_object_is_not_found_and_records_nothing(world):
     with pytest.raises(GovernedError) as error:
         build(world, start=uid(77))
     assert error.value.code == "NOT_FOUND" and world.inserted is None
+
+
+# ------------------------------------------------------------ #64 第一段：Why 多取一跳、按六问组织、事件行写人
+def test_a_unit_goal_takes_one_hop_along_goal_ref_to_the_company_goals_definition_blocks(world):
+    result = build(world)
+    layers = result["context_pack"]["layers"]
+    assert [layer["object"]["object_type"] for layer in layers] == registry.registry()["spine"]  # 主干本身不变
+    hop = layers[4]["hop"]
+    assert (hop["field"], hop["label"], hop["object"]["ref"], hop["object"]["pinned"], hop["object"]["formal"],
+            hop["object"]["lifecycle"]["status"]) == (
+        "goal_ref", "公司级长期目标", f"{COMPANY_GOAL}@1", cited(COMPANY_GOAL), True, "confirmed")
+    # 只取定义类块：公司级目标自己的约束不随这一跳进来；空块照样读标准句；组件钉到所读修订。
+    assert [(block["ref"], block["text"]) for block in hop["blocks"]] == [
+        (f"{COMPANY_GOAL}@1#outcome", ""), (f"{COMPANY_GOAL}@1#measures", "当前没有衡量")]
+    assert [(item["ref"], item["pinned"]) for item in hop["blocks"][0]["components"]] == [
+        (f"{COMPANY_GOAL}@1#outcome/cg-o1", cited(COMPANY_GOAL, 1, "outcome", "cg-o1"))]
+    assert [layer["hop"] for layer in layers if layer["level"] != 4] == [None] * 7
+    assert result["plan"]["hops"] == [{"from": f"{GOAL}@1", "field": "goal_ref", "pinned": f"{COMPANY_GOAL}@1",
+                                       "read": f"{COMPANY_GOAL}@1"}]
+    assert {"kind": "hop", "level": 4, "key": f"hop:{COMPANY_GOAL}@1"} in result["plan"]["taken"]
+    markdown = result["context_pack"]["markdown"]
+    assert section(markdown, f"{COMPANY_GOAL}@1") == [
+        f"### 沿 goal_ref 多取一跳：公司级长期目标《公司三年目标》 `{COMPANY_GOAL}@1`",
+        f"生命周期：已确认（事件 `event:{uid(62)}`）", "责任人（来自角色 CEO）：CEO", "正式内容：已确认",
+        f"#### 结果 `{COMPANY_GOAL}@1#outcome`", f"- 结果 `{COMPANY_GOAL}@1#outcome/cg-o1`：成为企业经营系统的首选",
+        f"#### 衡量 `{COMPANY_GOAL}@1#measures`", "当前没有衡量"]
+    assert "公司级目标自己的约束" not in markdown
+    # 这一跳的组件是 Why 的依据；公司级目标已确认，它的正式块也算凭什么。
+    assert {"ref": f"{COMPANY_GOAL}@1#outcome/cg-o1"} in result["coverage"]["why"]["evidence"]
+    assert {"ref": f"{COMPANY_GOAL}@1#outcome/cg-o1"} in result["coverage"]["basis"]["evidence"]
+
+
+def test_why_from_a_unit_period_goal_reaches_the_company_goal_the_strategy_and_the_company(world):
+    result = build(world, start=PERIOD, question="这个周期目标为什么要做？")
+    assert [layer["object"]["object_type"] for layer in result["context_pack"]["layers"]] == \
+        registry.registry()["spine"][3:]
+    # 覆盖：由近及远，单元长期目标、多取一跳的公司级长期目标、责任单元、Strategy、Company 的块或组件。
+    assert result["coverage"]["why"]["evidence"] == [
+        {"ref": f"{GOAL}@1#outcome/lt-o1"}, {"ref": f"{COMPANY_GOAL}@1#outcome/cg-o1"}, {"ref": f"{UNIT}@1#definition"},
+        {"ref": f"{STRATEGY}@1#choices"}, {"ref": f"{STRATEGY}@1#responsibility_structure"},
+        {"ref": f"{STRATEGY}@1#responsibility_structure/unit-eo"}, {"ref": f"{COMPANY}@1#identity"}]
+    parts = sections(result["context_pack"]["markdown"])
+    assert parts["六问指引"].splitlines()[1] == (
+        f"- 为什么：长期目标 `{GOAL}@1#outcome` → 公司级长期目标 `{COMPANY_GOAL}@1#outcome` → "
+        f"责任单元 `{UNIT}@1#definition` → 战略 `{STRATEGY}@1#choices`、`{STRATEGY}@1#responsibility_structure` → "
+        f"公司 `{COMPANY}@1#identity`")
+    assert heads(parts["为什么"]) == [
+        f"### 长期目标·结果 `{GOAL}@1#outcome`", f"### 长期目标·衡量 `{GOAL}@1#measures`",
+        f"### 沿 goal_ref 多取一跳：公司级长期目标《公司三年目标》 `{COMPANY_GOAL}@1`",
+        f"### 责任单元·定义 `{UNIT}@1#definition`", f"### 责任单元·边界 `{UNIT}@1#boundary`",
+        f"### 战略·战略选择 `{STRATEGY}@1#choices`", f"### 战略·路径 `{STRATEGY}@1#path`",
+        f"### 战略·关键假设 `{STRATEGY}@1#assumptions`", f"### 战略·能力 `{STRATEGY}@1#capabilities`",
+        f"### 战略·责任结构 `{STRATEGY}@1#responsibility_structure`", f"### 公司·身份 `{COMPANY}@1#identity`"]
+
+
+def test_the_markdown_opens_with_the_guide_and_takes_the_six_questions_as_its_sections(world):
+    markdown = build(world)["context_pack"]["markdown"]
+    assert [line for line in markdown.splitlines() if line.startswith("## ")] == [
+        "## 六问指引", "## 为什么", "## 做什么", "## 谁负责", "## 现在怎样", "## 发生了什么", "## 凭什么"]
+    parts = sections(markdown)
+    # 为什么：当前对象之上各层（由近及远）的跨链关系与定义类块，单元长期目标之后是多取的一跳，一直到 Company。
+    assert heads(parts["为什么"]) == [
+        f"### Task·定义 `{TASK}@2#definition`", f"### Task·验收标准 `{TASK}@2#acceptance`",
+        "Mission 的跨链关系（只列引用，不展开）：",
+        f"### Mission·定义 `{MISSION}@2#definition`", f"### Mission·验收标准 `{MISSION}@2#acceptance`",
+        f"### Mission·打法 `{MISSION}@2#play`",
+        f"### 周期目标·结果 `{PERIOD}@1#outcome`", f"### 周期目标·实现逻辑 `{PERIOD}@1#realization_logic`",
+        f"### 周期目标·验收标准 `{PERIOD}@1#acceptance`",
+        f"### 长期目标·结果 `{GOAL}@1#outcome`", f"### 长期目标·衡量 `{GOAL}@1#measures`",
+        f"### 沿 goal_ref 多取一跳：公司级长期目标《公司三年目标》 `{COMPANY_GOAL}@1`",
+        f"### 责任单元·定义 `{UNIT}@1#definition`", f"### 责任单元·边界 `{UNIT}@1#boundary`",
+        f"### 战略·战略选择 `{STRATEGY}@1#choices`", f"### 战略·路径 `{STRATEGY}@1#path`",
+        f"### 战略·关键假设 `{STRATEGY}@1#assumptions`", f"### 战略·能力 `{STRATEGY}@1#capabilities`",
+        f"### 战略·责任结构 `{STRATEGY}@1#responsibility_structure`", f"### 公司·身份 `{COMPANY}@1#identity`"]
+    # 做什么：当前对象的定义类块，与各层的计划类块。
+    assert heads(parts["做什么"]) == [f"### Activity·执行指令 `{ACTIVITY}@2#instruction`", f"### Task·计划 `{TASK}@2#plan`",
+                                      f"### Mission·执行计划 `{MISSION}@2#execution_plan`"]
+    # 现在怎样：各层的生命周期，然后是各层的最新状态快照。
+    assert heads(parts["现在怎样"])[1:] == [
+        f"### Activity 的最新状态快照（未经确认，截至 2026-09-24T10:00:00Z） `{SNAP_ACTIVITY}@1`",
+        f"### Mission 的最新状态快照（未经确认，截至 2026-09-24T11:00:00Z） `{SNAP_MISSION}@1`"]
+    # 发生了什么：各层的事件，由近及远，每层新的在前。
+    assert [line.split("（事件 `")[1].split("`")[0] for line in parts["发生了什么"].split("\n\n")] == [
+        f"event:{event_id}" for event_id in (STARTED, MET, ASSIGNED, CREATED, CORRECTED, REFRESHED, CONFIRMED, LATE)]
+    # 凭什么：各层的约束类块。
+    assert heads(parts["凭什么"]) == [f"### {name}·约束 `{oid}@{version}#constraint`" for name, oid, version in (
+        ("Activity", ACTIVITY, 2), ("Task", TASK, 2), ("Mission", MISSION, 2), ("周期目标", PERIOD, 1),
+        ("长期目标", GOAL, 1), ("责任单元", UNIT, 1), ("战略", STRATEGY, 1), ("公司", COMPANY, 1))]
+
+
+def test_the_guide_answers_each_question_by_pointing_at_what_the_pack_holds(world):
+    assert sections(build(world)["context_pack"]["markdown"])["六问指引"].splitlines() == [
+        "按问题给出处，内容在下文各节。",
+        f"- 为什么：Task `{TASK}@2#definition`、`{TASK}@2#acceptance` → Mission `{MISSION}@2#definition`、"
+        f"`{MISSION}@2#acceptance` → 周期目标 `{PERIOD}@1#outcome`、`{PERIOD}@1#acceptance` → 长期目标 `{GOAL}@1#outcome` → "
+        f"公司级长期目标 `{COMPANY_GOAL}@1#outcome` → 责任单元 `{UNIT}@1#definition` → 战略 `{STRATEGY}@1#choices`、"
+        f"`{STRATEGY}@1#responsibility_structure` → 公司 `{COMPANY}@1#identity`",
+        f"- 做什么：当前对象 `{ACTIVITY}@2#instruction`；Task `{TASK}@2#plan`；Mission `{MISSION}@2#execution_plan`",
+        f"- 谁负责：当前对象 `{ACTIVITY}@2`：E&O Agent，指派事件 `event:{ASSIGNED}`（2026-09-22T01:00:00Z，方案 IC 指派给 "
+        f"E&O Agent）；Task `{TASK}@2`：方案 IC；Mission `{MISSION}@2`：Mission Owner",
+        f"- 现在怎样：当前对象 进行中（事件 `event:{STARTED}`）；最新快照 当前对象 `{SNAP_ACTIVITY}@1`、Mission "
+        f"`{SNAP_MISSION}@1`（快照都未经确认）",
+        f"- 发生了什么：外部事件 `event:{MET}`（会议）、`event:{CORRECTED}`（更正）、`event:{LATE}`（会议）；另有 5 条门、"
+        "生命周期与其余记录事件",
+        f"- 凭什么：验收标准与约束 `{TASK}@2#acceptance`、`{MISSION}@2#acceptance`、`{MISSION}@2#constraint`、"
+        f"`{PERIOD}@1#acceptance`；上层已确认 Mission `{MISSION}@2`、周期目标 `{PERIOD}@1`、长期目标 `{GOAL}@1`、"
+        f"公司级长期目标 `{COMPANY_GOAL}@1`"]
+
+
+def test_event_lines_name_the_recorder_the_person_recorded_on_behalf_of_and_the_assignee(world):
+    result = build(world)
+    lines = result["context_pack"]["markdown"].splitlines()
+    # 代记：记录者（天枢）与被代记的人（DRI）都写名字。
+    assert f"- 2026-09-22T02:00:00Z Mission 确认·接受（事件 `event:{CONFIRMED}`，天枢 代 E&O DRI 记）" in lines
+    # 指派另写被指派者；本人记的只写记录者。
+    assert f"- 2026-09-22T01:00:00Z Activity 指派（事件 `event:{ASSIGNED}`，方案 IC 记，指派给 E&O Agent）" in lines
+    assert f"- 2026-09-23T03:00:00Z Activity 开始（事件 `event:{STARTED}`，E&O Agent 记）" in lines
+    # 名字也留在包里的事件上：记录者与被代记的人照取事件给出，指派事件另带被指派者，其余为空。
+    events = {item["event_id"]: item for layer in result["context_pack"]["layers"] for item in layer["events"]}
+    assert (events[CONFIRMED]["principal"]["display_name"], events[CONFIRMED]["on_behalf_of"]) == (
+        "天枢", {"principal_id": DRI, "display_name": "E&O DRI"})
+    assert events[ASSIGNED]["assignee"] == {"principal_id": AGENT, "principal_type": "agent", "display_name": "E&O Agent"}
+    assert all(item["assignee"] is None for key, item in events.items() if key != ASSIGNED)
+
+
+def test_trimming_keeps_the_0_1_order_with_the_hop_after_its_levels_relations_and_before_its_blocks(world):
+    """同 0.1：最旧的事件先裁，再从最远层起逐层裁跨链关系、多取的一跳、块（约束、计划、定义类块由后往前）、快照；
+    当前对象的块与最新快照不裁。按六问分节不改变这个顺序。"""
+    result = build(world, budget={"max_chars": 10})
+
+    def blocks(oid, version, *ids):
+        return [f"block:{oid}@{version}#{block}" for block in ids]
+    assert [entry["key"] for entry in result["plan"]["trimmed"]] == [
+        *[f"event:{event_id}" for event_id in (LATE, CREATED, ASSIGNED, CONFIRMED, MET, STARTED, REFRESHED, CORRECTED)],
+        *blocks(COMPANY, 1, "constraint", "identity"),
+        *blocks(STRATEGY, 1, "constraint", "responsibility_structure", "capabilities", "assumptions", "path", "choices"),
+        *blocks(UNIT, 1, "constraint", "boundary", "definition"),
+        f"hop:{COMPANY_GOAL}@1", *blocks(GOAL, 1, "constraint", "measures", "outcome"),
+        *blocks(PERIOD, 1, "constraint", "acceptance", "realization_logic", "outcome"),
+        "relations:2", *blocks(MISSION, 2, "constraint", "execution_plan", "play", "acceptance", "definition"),
+        f"snapshot:{SNAP_MISSION}@1",
+        *blocks(TASK, 2, "constraint", "plan", "acceptance", "definition")]
+    assert {entry["reason"] for entry in result["plan"]["trimmed"]} == {"over_budget"}
+    assert result["context_pack"]["layers"][4]["hop"] is None and result["plan"]["hops"] != []
+
+
+@pytest.mark.parametrize("share", [0.8, 0.5, 0.3, 0])
+def test_the_guide_counts_toward_the_budget_and_points_only_at_what_the_pack_still_holds(world, share):
+    whole = build(world)["budget"]["used_chars"]
+    result = build(world, budget={"max_chars": max(10, int(whole * share))})
+    markdown = result["context_pack"]["markdown"]
+    guide = sections(markdown)["六问指引"]
+    # 推出当前生命周期的事件一直在「现在怎样」里，指引可以指它；其余裁掉的内容指引都不再指。
+    stage = f"event:{result['context_pack']['layers'][0]['object']['lifecycle']['event_id']}"
+    gone = [entry["key"] if entry["kind"] == "event" else entry["key"].split(":", 1)[1]
+            for entry in result["plan"]["trimmed"] if entry["kind"] in {"block", "hop", "snapshot", "event"}]
+    assert gone and not [ref for ref in gone if f"`{ref}" in guide and ref != stage]
+    assert f"`{stage}`" in sections(markdown)["现在怎样"]
+    assert result["budget"]["used_chars"] == len(markdown)
+    assert result["budget"]["over_budget"] is (len(markdown) > result["budget"]["max_chars"])
+
+
+def test_starting_from_the_company_the_empty_sections_and_the_guide_name_their_gaps(world):
+    parts = sections(build(world, start=COMPANY, question="公司是做什么的？")["context_pack"]["markdown"])
+    assert parts["为什么"] == "主干上层没有取到非空的定义类块" and parts["发生了什么"] == "窗口内没有取到事件"
+    assert parts["六问指引"].splitlines()[1:] == [
+        "- 为什么：（缺口）主干上层没有取到非空的定义类块", f"- 做什么：当前对象 `{COMPANY}@1#identity`",
+        f"- 谁负责：当前对象 `{COMPANY}@1`：CEO", "- 现在怎样：（缺口）当前对象没有生命周期，也没有取到状态快照",
+        "- 发生了什么：（缺口）窗口内没有取到事件", f"- 凭什么：文档链接在块 `{COMPANY}@1#identity`"]
+
+
+def test_formation_carry_ins_have_their_own_section_after_the_guide_and_are_never_trimmed(world, monkeypatch):
+    """形成时带入的挂接点（第二段接通）：第一段一律不带入；带入的每一项自成一条，放在六问指引之后、「为什么」
+    之前，预算再紧也不裁。"""
+    assert "## 形成时带入" not in build(world)["context_pack"]["markdown"]
+    monkeypatch.setattr(context, "_carried_in", lambda conn, ctx, layer: [
+        {"ref": f"{SNAP_MISSION}@1", "object_id": SNAP_MISSION, "text": f"### 带入的内容 `{SNAP_MISSION}@1`"}])
+    markdown = build(world, budget={"max_chars": 10})["context_pack"]["markdown"]
+    assert [line for line in markdown.splitlines() if line.startswith("## ")][:3] == [
+        "## 六问指引", "## 形成时带入", "## 为什么"]
+    assert sections(markdown)["形成时带入"] == f"### 带入的内容 `{SNAP_MISSION}@1`"
 
 
 # ------------------------------------------------------------ HTTP：按对象绑定的契约版本分派

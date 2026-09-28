@@ -55,7 +55,9 @@ TOOLS: dict[str, tuple[str, dict[str, Any]]] = {
         TOOLS_V01["world_get_object"][1]),
     "world_get_context": (
         "取上下文（POST /v1/world/objects/{object_id}/context）：从该对象沿主干向上组装上下文，返回上下文包 id、"
-        "Markdown（沿主干分层列块与组件、最新状态快照与近期事件；引用细到组件 `对象@版本#块/组件`，事件写成 "
+        "Markdown（开头的六问指引按问题给出处，下文以六问为节：为什么（上层的定义类块，单元长期目标多取一跳到公司级"
+        "长期目标，直到 Strategy 与 Company）、做什么、谁负责、现在怎样（生命周期与最新状态快照）、发生了什么（近期"
+        "事件，写出记录者、被代记的人与被指派者）、凭什么（约束）；引用细到组件 `对象@版本#块/组件`，事件写成 "
         "`event:<事件 id>`）、六问覆盖与预算裁剪摘要，每次调用落一行。question 只做记录，不改变返回的内容：同一问题"
         "取一次即可；budget.trimmed 为空说明没裁，调大预算也不会多出内容。",
         TOOLS_V01["world_get_context"][1]),

@@ -27,6 +27,7 @@ from acceptance.runtime.client import Client
 from acceptance.world_v01.fixture import ROOT, _grant, _seed_actor, register_world, revoke_assignment, seed_world
 from acceptance.world_v01.flow import Flow as V01Flow
 from .agent_face import mcp_end_to_end
+from .context_fill import context_fill
 from .goal_closure import goal_closure
 from .issues import issues
 from .listing import list_objects
@@ -39,7 +40,7 @@ MIGRATION = '0039_world_v02.sql'
 SCENARIOS = ['migration', 'control_plane', 'company', 'objects', 'rejections', 'coexistence', 'references',
              'revise_relate', 'state_events', 'assign_lifecycle', 'gates', 'context_packs', 'mission_lifecycle',
              'delegation', 'mcp_end_to_end', 'list_objects', 'issues', 'goal_closure', 'strategy_gates',
-             'revocation']
+             'context_fill', 'revocation']
 EVENT_KINDS = {item['kind']: item for item in json.loads(REGISTRY.read_text())['event_kinds']}
 OBJECTS = {item['type']: item for item in json.loads(REGISTRY.read_text())['objects']}
 TYPES = ['Company', 'Strategy', 'ResponsibilityUnit', 'LongTermGoal', 'PeriodGoal', 'Mission', 'Task', 'Activity']
@@ -1774,7 +1775,7 @@ def context_packs(book, h, f, flow, trunk, foreign):
           == {'max_chars': 12000, 'max_events_per_object': 10, 'recent_days': 30}
           and first['budget']['used_chars'] == len(markdown)
           and first['budget']['estimated_tokens'] == -(-len(markdown) // 2)
-          and set(plan) == {'walked', 'shown_not_followed', 'taken', 'trimmed', 'state_and_events_from_levels',
+          and set(plan) == {'walked', 'hops', 'shown_not_followed', 'taken', 'trimmed', 'state_and_events_from_levels',
                             'over_budget'}
           and plan['state_and_events_from_levels'] == [0, 1, 2])
 
@@ -1846,6 +1847,7 @@ def context_packs(book, h, f, flow, trunk, foreign):
           and old['context_pack']['start'] == foreign['object']['ref']
           and isinstance(old['context_pack']['layers'][0]['object']['responsible'], list)
           and 'hops' in old['plan'] and '## 六问指引' in old['context_pack']['markdown']
+          and '## 当前对象：' in old['context_pack']['markdown']
           and len(packs(foreign_scope)) == foreign_count + 1)
     check('a_0_2_context_pack_row_cannot_be_changed_even_by_the_owner',
           immutable_owner_probe(h, f, table='gov_world_context_packs', column='question', key_column='context_pack_id',
@@ -2509,6 +2511,8 @@ def run(book, h, source, upgrade_evidence):
             goal_closure(book, h, f, flow, trunk, EVENT_KINDS)
         with scenario('strategy_gates'):
             strategy_gates(book, h, f, flow, trunk)
+        with scenario('context_fill'):
+            context_fill(book, h, f, flow, trunk)
         with scenario('revocation'):
             revocation(book, h, f, flow, made['command'])
     finally:

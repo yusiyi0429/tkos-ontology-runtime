@@ -32,7 +32,8 @@ from .fixture import (CONTRACT, PROFILE, REGISTRY, SUPPORT, action_roles, instal
 V01, V02 = 'tkos.world/0.1', 'tkos.world/0.2'
 MIGRATION = '0039_world_v02.sql'
 SCENARIOS = ['migration', 'control_plane', 'company', 'objects', 'rejections', 'coexistence', 'references',
-             'revise_relate', 'state_events', 'assign_lifecycle', 'gates', 'context_packs', 'revocation']
+             'revise_relate', 'state_events', 'assign_lifecycle', 'gates', 'context_packs', 'mission_lifecycle',
+             'revocation']
 EVENT_KINDS = {item['kind']: item for item in json.loads(REGISTRY.read_text())['event_kinds']}
 OBJECTS = {item['type']: item for item in json.loads(REGISTRY.read_text())['objects']}
 TYPES = ['Company', 'Strategy', 'ResponsibilityUnit', 'LongTermGoal', 'PeriodGoal', 'Mission', 'Task', 'Activity']
@@ -1839,6 +1840,316 @@ def context_packs(book, h, f, flow, trunk, foreign):
                                 key=first['context_pack_id'])['owner_write_rejected'])
 
 
+def mission_lifecycle(book, h, f, flow, trunk):
+    """#55：Mission 成立之后按 0.2 状态表执行——开始由 Owner 或 Owner 的 Agent（在 Mission 所在域持 AGENT、带写入声明）
+    记，交付由 Owner 记，验收通过、退回、重开、取消由 DRI 记；状态表的每一格经 HTTP 走一条，未列出的组合、错记录者、
+    撤回与重复各有拒绝，库快照不变。关注标记只由 CEO 本人记、每个 Mission 一次、只置 core_battle，不改生命周期与
+    决定权。上层关闭、取消不改变下层，Task 全部关闭不关 Mission。#54 转来的补验：进行中、已交付、调整中由 Owner 带
+    候选开轮、DRI 写回，状态不变；已关闭、已取消拒绝直接修订。Mission 都挂在本场景新建并确认的周期目标下。"""
+    check = book.check
+    made = trunk['made']
+    actor_id = {name: actor['principal_id'] for name, actor in f['actors'].items()}
+    names = {state['id']: state['display_name']
+             for state in json.loads(REGISTRY.read_text())['lifecycles']['Mission']['states']}
+    ladder = [('owner_a', 'world_commit_mission', {}), ('a', 'world_confirm_mission', {'outcome': 'accepted'}),
+              ('owner_a', 'world_start', {}), ('owner_a', 'world_deliver', {}), ('a', 'world_reject', {})]
+    open_states = ['draft', 'committed', 'established', 'in_progress', 'delivered', 'adjusting']
+
+    def act(actor, kind, oid, params=None):
+        return flow.commit(actor, flow.prepare(actor, flow.targeted(kind, oid, params or {})))['result']
+
+    def deny(actor, kind, oid, codes, params=None, says=None):
+        flow.deny(actor, flow.targeted(kind, oid, params or {}), codes=codes, says=says)
+
+    def deny_revise(actor, oid, patch, codes, says=None, declaration=None):
+        params = {'payload': patch, **({'declaration': declaration} if declaration else {})}
+        flow.deny(actor, flow.targeted('world_revise_object', oid, params), codes=codes, says=says)
+
+    def as_agent(oid):
+        """Owner 的 Agent 记开始带写入声明（契约第 9.3 节、补 15）。"""
+        return {'declaration': {'scene': f'{oid}@1', 'trigger': '按执行计划推进', 'human_acceptance': {'required': False}}}
+
+    def withdrawal(result):
+        return {'outcome': 'withdrawn', 'supersedes_event_id': result['event_id']}
+
+    def view(oid):
+        return flow.read('outsider', oid)
+
+    def life(oid):
+        return view(oid)['records']['lifecycle']
+
+    def stage(state, result):
+        return {'status': state, 'display_name': names[state], 'event_id': result['event_id']}
+
+    def event(result):
+        return flow.rows('SELECT e.*, r.action_type FROM gov_world_events e JOIN gov_action_receipts r '
+                         'ON r.scope_id=e.scope_id AND r.receipt_id=e.action_id WHERE e.scope_id=%s AND e.event_id=%s',
+                         (f['scope_id'], result['event_id']))[0]
+
+    def pinned_to_latest(result, oid):
+        business = view(oid)['business']
+        return event(result)['subject_refs'] == [{'object_id': oid, 'object_version': business['version'],
+                                                  'revision_id': business['revision_id'], 'block': None,
+                                                  'component': None}]
+
+    def plan(oid):
+        return [(c['id'], c['text']) for c in blocks_of(view(oid))['execution_plan']['components']]
+
+    goal = flow.create('a', 'PeriodGoal', 'a', {'title': '执行目标（#55）', 'period': '2026-10',
+                                               'goal_ref': made['LongTermGoal.unit']['ref']})['result']
+    act('a', 'world_commit_period_goal', goal['object_id'])
+    act('ceo', 'world_confirm_period_goal', goal['object_id'], {'outcome': 'accepted'})
+
+    def mission(title):
+        """挂在已确认周期目标下、已指派 Owner 的草稿 Mission。"""
+        oid = flow.create('a', 'Mission', 'a', {
+            'title': title, 'goal_ref': goal['ref'],
+            'blocks': {'play': {'text': 'Play 核心路径：两场试点。'},
+                       'execution_plan': {'components': [{'id': 'p1', 'type': 'plan_item', 'text': '搭环境'}]}}}
+        )['result']['object_id']
+        flow.assign('a', oid, actor_id['owner_a'])
+        return oid
+
+    def walk_to(oid, state):
+        for actor, kind, params in ladder[:open_states.index(state)]:
+            act(actor, kind, oid, params)
+        assert life(oid)['status'] == state
+
+    # ================================================================ 主线：立项、开始、交付、退回、验收、重开、取消
+    # 立项三格 #54 已在 gates 场景逐项验过，这里在主线上各走一条，整张表在本场景里齐全。
+    main = mission('执行主线')
+    committed = act('owner_a', 'world_commit_mission', main)
+    check('mission_walk_draft_commit_to_committed', life(main) == stage('committed', committed))
+    returned = act('a', 'world_confirm_mission', main, {'outcome': 'returned'})
+    check('mission_walk_committed_confirm_returned_to_draft', life(main) == stage('draft', returned))
+    act('owner_a', 'world_commit_mission', main)
+    established = act('a', 'world_confirm_mission', main, {'outcome': 'accepted'})
+    check('mission_walk_committed_confirm_accepted_to_established', life(main) == stage('established', established))
+    deny('owner_a', 'world_deliver', main, {'INVALID_STATE'})
+    deny('a', 'world_accept', main, {'INVALID_STATE'})
+    deny('a', 'world_reopen', main, {'INVALID_STATE'})
+    check('mission_an_established_mission_is_not_delivered_accepted_or_reopened_before_it_starts')
+
+    # 开始：Owner，或在 Mission 所在域持 AGENT 的 Agent（带写入声明）；DRI、单元里另一位 Owner、IC、持 DRI 角色的
+    # Agent 都不能记。
+    deny('a', 'world_start', main, {'FORBIDDEN'})
+    deny('owner_a2', 'world_start', main, {'FORBIDDEN'})
+    deny('ic_a', 'world_start', main, {'FORBIDDEN'})
+    deny('agent', 'world_start', main, {'FORBIDDEN'}, as_agent(main))
+    check('mission_only_the_owner_or_an_agent_holding_agent_in_its_domain_starts_it')
+    deny('agent_a', 'world_start', main, {'INVALID_REQUEST'})
+    check('mission_the_owners_agent_starts_it_only_with_a_declaration')
+    started = act('agent_a', 'world_start', main, as_agent(main))
+    row = event(started)
+    check('mission_established_start_to_in_progress_by_the_owners_agent',
+          life(main) == stage('in_progress', started) and row['kind'] == 'start'
+          and EVENT_KINDS['start']['class'] == 'lifecycle' and row['contract_version'] == V02
+          and row['outcome'] is None and str(row['principal_id']) == actor_id['agent_a']
+          and row['action_type'] == 'world_start' and pinned_to_latest(started, main)
+          and started['declaration']['scene']['ref'] == f'{main}@1' and 'responsible_through' not in started)
+
+    # 撤回同 #53：只撤推出当前状态的那条，由原转移的记录者类别记；撤回事件不能再撤。
+    deny('a', 'world_start', main, {'FORBIDDEN'}, withdrawal(started))
+    check('mission_a_withdrawn_start_is_recorded_by_the_owner_or_its_agent_not_the_dri')
+    back = act('agent_a', 'world_start', main, {**as_agent(main), **withdrawal(started)})
+    check('mission_withdrawing_the_start_returns_to_established_and_keeps_the_original',
+          life(main) == stage('established', back) and event(back)['outcome'] == 'withdrawn'
+          and str(event(back)['supersedes_event_id']) == started['event_id'] and event(started)['kind'] == 'start')
+    read = {item['event_id']: item for item in flow.events('outsider', main)['events']}
+    check('mission_reading_events_shows_the_start_withdrawn_by_the_withdrawal',
+          read[started['event_id']]['withdrawn_by'] == [back['event_id']]
+          and read[back['event_id']]['action'] == 'world_start' and read[back['event_id']]['class'] == 'lifecycle')
+    deny('owner_a', 'world_start', main, {'INVALID_STATE'}, withdrawal(back))
+    check('mission_a_withdrawal_cannot_be_withdrawn')
+    started = act('owner_a', 'world_start', main)
+    check('mission_established_start_to_in_progress_by_the_owner',
+          life(main) == stage('in_progress', started) and started['responsible_through'] == main
+          and str(event(started)['principal_id']) == actor_id['owner_a'])
+    deny('owner_a', 'world_start', main, {'INVALID_STATE'})
+    check('mission_a_repeated_start_is_refused')
+
+    def rerun(state, producer, text):
+        """#54 转来的补验：在 state 段由 Owner 带候选开轮、DRI 接受写回；生命周期与推出它的事件不变，执行计划取当前值。"""
+        kept = plan(main)
+        opened = act('owner_a', 'world_commit_mission', main, {'payload': {'blocks': {'play': {'text': text}}}})
+        during = view(main)
+        rewritten = act('a', 'world_confirm_mission', main, {'outcome': 'accepted'})
+        after = view(main)
+        check(f'mission_{state}_a_round_opened_by_the_owner_is_written_back_by_the_dri_and_the_stage_stays',
+              during['records']['lifecycle'] == stage(state, producer)
+              and during['business']['round']['opened_by_event_id'] == opened['event_id']
+              and during['business']['round']['stage'] == 'committed'
+              and after['records']['lifecycle'] == stage(state, producer) and after['business']['round'] is None
+              and blocks_of(after)['play']['text'] == text and plan(main) == kept
+              and rewritten['version'] == during['business']['version'] + 1
+              and after['business']['formal'] == {'lifecycle_status': 'confirmed',
+                                                  'effective_revision_id': rewritten['revision_id']})
+
+    rerun('in_progress', started, 'Play 核心路径变化：先打样再复制。')
+
+    # Task 全部关闭不自动关闭 Mission（补 19）。
+    def task(title):
+        oid = flow.create('owner_a', 'Task', 'a', {'title': title,
+                                                   'parent_ref': f"{main}@{view(main)['business']['version']}"})
+        oid = oid['result']['object_id']
+        flow.assign('owner_a', oid, actor_id['ic_a'])
+        act('ic_a', 'world_start', oid)
+        return oid
+
+    tasks = [task('准备环境'), task('约客户')]
+    for oid in tasks:
+        act('ic_a', 'world_deliver', oid)
+        act('owner_a', 'world_accept', oid)
+    check('mission_all_its_tasks_closed_leaves_the_mission_in_progress',
+          [life(oid)['status'] for oid in tasks] == ['closed', 'closed'] and life(main) == stage('in_progress', started))
+    running = task('写部署脚本')  # 进行中：看上层关闭、取消之后它不变
+    running_life = life(running)
+
+    # 交付只由 Owner：Owner 的 Agent 与 DRI 都不能记；重复交付被拒。
+    deny('agent_a', 'world_deliver', main, {'FORBIDDEN'}, as_agent(main))
+    deny('a', 'world_deliver', main, {'FORBIDDEN'})
+    check('mission_only_the_owner_delivers_it_and_the_owners_agent_does_not')
+    content = {'text': '交付说明', 'refs': [goal['ref']], 'artifacts': ['https://example.test/mission-delivery']}
+    delivered = act('owner_a', 'world_deliver', main, {'content': content})
+    row = event(delivered)
+    check('mission_in_progress_deliver_to_delivered',
+          life(main) == stage('delivered', delivered) and row['kind'] == 'deliver'
+          and str(row['principal_id']) == actor_id['owner_a'] and row['content']['text'] == '交付说明'
+          and row['content']['refs'][0]['object_id'] == goal['object_id'] and pinned_to_latest(delivered, main))
+    deny('owner_a', 'world_deliver', main, {'INVALID_STATE'})
+    check('mission_a_repeated_delivery_is_refused')
+    rerun('delivered', delivered, 'Play 核心路径变化：交付后补一场复盘。')
+
+    # 验收与退回只由 DRI：Owner 的 Agent（不在 Agent 面上）、Owner、单元里另一位 Owner、另一单元的 DRI 都不能。
+    deny('agent_a', 'world_accept', main, {'FORBIDDEN'}, as_agent(main))
+    deny('owner_a', 'world_accept', main, {'FORBIDDEN'})
+    deny('owner_a2', 'world_accept', main, {'FORBIDDEN'})
+    deny('b', 'world_accept', main, {'FORBIDDEN'})
+    deny('owner_a', 'world_reject', main, {'FORBIDDEN'})
+    check('mission_only_the_dri_accepts_or_rejects_the_delivery')
+    rejected = act('a', 'world_reject', main, {'content': {'text': '缺客户签字'}})
+    check('mission_delivered_reject_to_adjusting',
+          life(main) == stage('adjusting', rejected) and event(rejected)['content']['text'] == '缺客户签字')
+    deny('a', 'world_accept', main, {'INVALID_STATE'})
+    check('mission_an_adjusting_mission_is_delivered_again_before_it_is_accepted')
+    rerun('adjusting', rejected, 'Play 核心路径变化：按退回意见补签字环节。')
+    redelivered = act('owner_a', 'world_deliver', main)
+    check('mission_adjusting_deliver_to_delivered', life(main) == stage('delivered', redelivered))
+    accepted = act('a', 'world_accept', main)
+    check('mission_delivered_accept_to_closed', life(main) == stage('closed', accepted)
+          and str(event(accepted)['principal_id']) == actor_id['a'])
+    deny('owner_a', 'world_accept', main, {'FORBIDDEN'}, withdrawal(accepted))
+    back = act('a', 'world_accept', main, withdrawal(accepted))
+    check('mission_withdrawing_the_acceptance_returns_to_delivered', life(main) == stage('delivered', back))
+    deny('owner_a', 'world_deliver', main, {'INVALID_STATE'}, withdrawal(redelivered))
+    check('mission_an_earlier_event_cannot_be_withdrawn')
+    accepted = act('a', 'world_accept', main)
+    check('mission_closing_the_mission_leaves_its_tasks_as_they_were',
+          life(main) == stage('closed', accepted) and life(running) == running_life
+          and [life(oid)['status'] for oid in tasks] == ['closed', 'closed'])
+
+    # 已关闭：不再交付、取消、开轮、标记与再指派；拒绝直接修订（#54 转来的补验）。
+    unattended = {'scene': f'{main}@1', 'trigger': '周会同步执行计划', 'human_acceptance': {'required': False}}
+    step = {'blocks': {'execution_plan': {'components': [{'id': 'p9', 'type': 'plan_item', 'text': '收尾'}]}}}
+    deny('owner_a', 'world_deliver', main, {'INVALID_STATE'})
+    deny('a', 'world_cancel', main, {'INVALID_STATE'})
+    deny('owner_a', 'world_commit_mission', main, {'INVALID_STATE'}, {'payload': {'blocks': {'play': {'text': 'x'}}}})
+    deny('ceo', 'world_mark_core_battle', main, {'INVALID_STATE'})
+    deny('a', 'world_assign', main, {'INVALID_STATE'}, {'principal_id': actor_id['owner_a2']})
+    check('mission_a_closed_mission_is_not_delivered_cancelled_re_run_marked_or_reassigned')
+    deny_revise('owner_a', main, step, {'INVALID_STATE'}, says='closed, cancelled')
+    deny_revise('owner_a', main, {'external_refs': [{'system': 'tianshu', 'id': 'm-55'}]}, {'INVALID_STATE'})
+    deny_revise('agent_a', main, step, {'INVALID_STATE'}, declaration=unattended)
+    check('mission_a_closed_mission_is_not_revised_directly')
+    reopened = act('a', 'world_reopen', main, {'content': {'text': '客户追加一场'}})
+    check('mission_closed_reopen_to_in_progress', life(main) == stage('in_progress', reopened))
+    deny('owner_a', 'world_cancel', main, {'FORBIDDEN'})
+    deny('agent_a', 'world_cancel', main, {'FORBIDDEN'}, as_agent(main))
+    check('mission_only_the_dri_cancels_it')
+    cancelled = act('a', 'world_cancel', main, {'content': {'text': '客户预算取消'}})
+    back = act('a', 'world_cancel', main, withdrawal(cancelled))
+    check('mission_withdrawing_the_cancellation_restores_in_progress', life(main) == stage('in_progress', back))
+    cancelled = act('a', 'world_cancel', main)
+    check('mission_cancelling_the_mission_leaves_its_tasks_as_they_were',
+          life(main) == stage('cancelled', cancelled) and life(running) == running_life
+          and [life(oid)['status'] for oid in tasks] == ['closed', 'closed'])
+    deny('a', 'world_cancel', main, {'INVALID_STATE'})
+    deny('a', 'world_reopen', main, {'INVALID_STATE'})
+    deny('owner_a', 'world_start', main, {'INVALID_STATE'})
+    deny('ceo', 'world_mark_core_battle', main, {'INVALID_STATE'})
+    check('mission_a_cancelled_mission_is_not_cancelled_reopened_started_or_marked')
+    deny_revise('owner_a', main, step, {'INVALID_STATE'}, says='closed, cancelled')
+    deny_revise('agent_a', main, step, {'INVALID_STATE'}, declaration=unattended)
+    check('mission_a_cancelled_mission_is_not_revised_directly')
+
+    # ================================================================ 关注标记与取消：六个非终态各一个 Mission
+    for state in open_states:
+        oid = mission(f'关注与取消于{state}')
+        walk_to(oid, state)
+        before = view(oid)
+        if state == 'committed':  # 同键重放返回原回执，只有一条事件
+            body = flow.prepare('ceo', flow.targeted('world_mark_core_battle', oid, {}))
+            receipt = flow.commit('ceo', body)
+            replay = flow.commit('ceo', deepcopy(body))
+            rows = flow.rows('SELECT kind FROM gov_world_events WHERE scope_id=%s AND action_id=%s',
+                             (f['scope_id'], receipt['receipt_id']))
+            check('a_mark_writes_exactly_one_event_and_replaying_it_returns_the_original_receipt',
+                  replay['receipt_id'] == receipt['receipt_id'] and [r['kind'] for r in rows] == ['core_battle.marked'])
+            mark = receipt['result']
+        else:
+            mark = act('ceo', 'world_mark_core_battle', oid,
+                       {'content': {'text': '关注：影响 Q4 回款'}} if state == 'draft' else None)
+        after = view(oid)
+        check(f'mission_{state}_mark_core_battle_keeps_the_stage_its_producer_and_the_owner',
+              after['records']['lifecycle'] == before['records']['lifecycle']
+              and not before['business']['attributes']['core_battle']
+              and after['business']['attributes']['core_battle'] is True
+              and after['business']['attributes']['responsible'] == actor_id['owner_a']
+              and after['identity']['responsible'] == before['identity']['responsible']
+              and mark['version'] == before['business']['version'] + 1)
+        if state == 'draft':
+            row = event(mark)
+            check('a_mark_is_one_record_event_by_the_ceo_pinned_to_the_revision_that_sets_core_battle',
+                  row['kind'] == 'core_battle.marked' and EVENT_KINDS['core_battle.marked']['class'] == 'record'
+                  and row['contract_version'] == V02 and row['outcome'] is None and row['detail'] is None
+                  and str(row['principal_id']) == actor_id['ceo'] and row['action_type'] == 'world_mark_core_battle'
+                  and row['subject_refs'][0]['revision_id'] == mark['revision_id']
+                  and row['content']['text'] == '关注：影响 Q4 回款'
+                  and after['business']['formal'] == {'lifecycle_status': 'draft', 'effective_revision_id': None})
+            deny('ceo', 'world_mark_core_battle', oid, {'INVALID_STATE'}, says='once')
+            check('a_mission_is_marked_a_core_battle_only_once')
+            deny('ceo', 'world_mark_core_battle', oid, {'INVALID_REQUEST'}, withdrawal(mark))
+            check('a_mark_is_a_record_event_and_is_not_withdrawn')
+        if state == 'established':
+            check('marking_an_established_mission_moves_the_effective_revision_with_the_new_revision',
+                  after['business']['formal'] == {'lifecycle_status': 'confirmed',
+                                                  'effective_revision_id': mark['revision_id']})
+        cancelled = act('a', 'world_cancel', oid)
+        check(f'mission_{state}_cancel_to_cancelled', life(oid) == stage('cancelled', cancelled))
+    deny('owner_a', 'world_start', mission('未立项'), {'INVALID_STATE'})
+    check('mission_a_draft_mission_does_not_start')
+
+    # 只由 CEO 本人记：DRI、Owner、持 CEO 角色的 Agent 都不能；标记不改决定权，一轮重走写回后标记仍在。
+    watched = mission('核心战役（关注）')
+    walk_to(watched, 'established')
+    formed = life(watched)
+    deny('a', 'world_mark_core_battle', watched, {'FORBIDDEN'})
+    deny('owner_a', 'world_mark_core_battle', watched, {'FORBIDDEN'})
+    deny('agent_ceo_a', 'world_mark_core_battle', watched, {'FORBIDDEN'}, says='recorded by a person')
+    check('only_the_ceo_in_person_marks_a_core_battle_and_an_agent_holding_the_ceo_role_cannot')
+    opened = act('owner_a', 'world_commit_mission', watched, {'payload': {'blocks': {'play': {'text': '关注期间改打法'}}}})
+    act('ceo', 'world_mark_core_battle', watched)
+    marked = view(watched)
+    act('a', 'world_confirm_mission', watched, {'outcome': 'accepted'})
+    restarted = act('owner_a', 'world_start', watched)
+    after = view(watched)
+    check('a_mark_leaves_the_decisions_to_the_owner_and_the_dri_and_survives_a_write_back',
+          marked['records']['lifecycle'] == formed and marked['business']['round']['opened_by_event_id'] == opened['event_id']
+          and after['business']['attributes']['core_battle'] is True
+          and blocks_of(after)['play']['text'] == '关注期间改打法'
+          and after['records']['lifecycle'] == stage('in_progress', restarted))
+
+
 def revocation(book, h, f, flow, command):
     """撤掉 CEO 的公司域指派后，原 0.2 命令不能重放成成功（重放按 0.2 回执的规则复核）。"""
     ceo = f['actors']['ceo']
@@ -1866,6 +2177,8 @@ def run(book, h, source, upgrade_evidence):
     f['actors']['agent_company'] = _seed_actor(h.env, f, 'AGENT', f['domains']['company'], principal_type='agent')
     # 单元 a 里另一位持 OWNER 的人：Mission 的承诺只由它的 Owner 本人记（#54）。
     f['actors']['owner_a2'] = _seed_actor(h.env, f, 'OWNER', f['domains']['a'])
+    # 单元 a 里持 CEO 角色的 Agent：关注标记只由人记，Agent 持角色也不能记（#55）。
+    f['actors']['agent_ceo_a'] = _seed_actor(h.env, f, 'CEO', f['domains']['a'], principal_type='agent')
     with scenario('control_plane'):
         control_plane(book, h, source, f)
     process, url, _ = h.start_api(source)
@@ -1891,6 +2204,8 @@ def run(book, h, source, upgrade_evidence):
             gates(book, h, f, flow, trunk)
         with scenario('context_packs'):
             context_packs(book, h, f, flow, trunk, foreign)
+        with scenario('mission_lifecycle'):
+            mission_lifecycle(book, h, f, flow, trunk)
         with scenario('revocation'):
             revocation(book, h, f, flow, made['command'])
     finally:

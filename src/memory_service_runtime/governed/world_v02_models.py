@@ -708,10 +708,17 @@ class WorldV02ConfirmCandidateParams(WorldV02ConfirmParams):
     payload: Optional[dict[str, Any]] = None
 
 
-# 本票接入的门动作 -> 目标类型（门按目标类型拆名，ADR-0005）；再确认、复盘确认、Strategy 与关注标记随各自的票。
+class WorldV02MarkCoreBattleParams(StrictModel):
+    """关注标记（契约第 9.1、10.4 节，方案 A）：目标是 Mission，可选内容写进事件（例如关注的理由）。它是记录事件，
+    不撤回、不带候选，core_battle 由服务置；只由人记，不带写入声明。"""
+    content: Optional[_block_model((), False)] = None
+
+
+# 已接入的门动作 -> 目标类型（门按目标类型拆名，ADR-0005）；再确认、复盘确认与 Strategy 随各自的票。关注标记
+# 是记录事件，但和门一样由持策略角色（CEO）的人记，按目标类型拆名，所以也列在这里（#55）。
 GATE_ACTIONS = {"world_commit_period_goal": "PeriodGoal", "world_confirm_period_goal": "PeriodGoal",
                 "world_confirm_long_term_goal": "LongTermGoal", "world_commit_mission": "Mission",
-                "world_confirm_mission": "Mission"}
+                "world_confirm_mission": "Mission", "world_mark_core_battle": "Mission"}
 
 # 本进程已实现的 0.2 动作与可建类型。支持登记只能在这之内收窄，不能扩大（与协议支持集合同理）。
 ACTION_PARAMS = {"world_create_object": WorldV02CreateObjectParams, "world_revise_object": WorldV02ReviseObjectParams,
@@ -720,18 +727,19 @@ ACTION_PARAMS = {"world_create_object": WorldV02CreateObjectParams, "world_revis
                  **{action: WorldV02LifecycleParams for action in LIFECYCLE_ACTIONS},
                  "world_commit_period_goal": WorldV02CommitParams, "world_commit_mission": WorldV02CommitParams,
                  "world_confirm_period_goal": WorldV02ConfirmParams, "world_confirm_mission": WorldV02ConfirmParams,
-                 "world_confirm_long_term_goal": WorldV02ConfirmCandidateParams}
+                 "world_confirm_long_term_goal": WorldV02ConfirmCandidateParams,
+                 "world_mark_core_battle": WorldV02MarkCoreBattleParams}
 BUSINESS_TYPES = frozenset({"Company", "Strategy", "ResponsibilityUnit", "LongTermGoal", "PeriodGoal", "Mission",
                             "Task", "Activity"})
 # 状态快照只经 world_refresh_state 写入，建对象在服务里先拒绝它。
 CREATABLE = BUSINESS_TYPES | {"StateSnapshot"}
 # 动作 -> 允许的目标类型；空集表示该动作不带 target。状态快照不修订，只有带跨链关系字段的类型能建关系。
-# 生命周期动作本票只接 Task 与 Activity（Mission 随票 #55，长期目标与周期目标的取消随票 #60）。
+# 生命周期动作接 Mission、Task 与 Activity（Mission 随票 #55）；长期目标与周期目标的取消随票 #60。
 ACTION_TARGETS: dict[str, frozenset[str]] = {
     "world_create_object": frozenset(), "world_revise_object": BUSINESS_TYPES,
     "world_relate": frozenset({"PeriodGoal", "Mission", "Task"}),
     "world_refresh_state": frozenset(), "world_record_event": frozenset(),
     "world_assign": frozenset({"ResponsibilityUnit", "Mission", "Task", "Activity"}),
-    **{action: frozenset({"Task", "Activity"}) for action in LIFECYCLE_ACTIONS},
+    **{action: frozenset({"Mission", "Task", "Activity"}) for action in LIFECYCLE_ACTIONS},
     **{action: frozenset({target}) for action, target in GATE_ACTIONS.items()},
 }

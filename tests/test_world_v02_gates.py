@@ -37,7 +37,7 @@ def test_the_five_gates_of_this_ticket_are_implemented_on_their_registered_targe
 
 def test_the_gates_of_later_tickets_are_not_implemented_yet():
     for action in ("world_reconfirm_period_goal", "world_reconfirm_long_term_goal", "world_confirm_review",
-                   "world_mark_core_battle", "world_agree_strategy", "world_confirm_strategy"):
+                   "world_agree_strategy", "world_confirm_strategy"):  # 关注标记随票 #55 接入
         assert action not in models.ACTION_PARAMS
 
 

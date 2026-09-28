@@ -6,11 +6,12 @@
 闸门；然后校验载荷，按主干判断调用者是不是有权的责任人（从新对象的主干上一级找起，同 0.1），之后才
 钉定其余引用、核对对象放在哪个域与挂在谁下面、写入声明。已接通八类业务对象的建对象、合并修订与建关系，
 写状态快照与记外部事件，指派与 Task、Activity 的六个生命周期动作（#53），周期目标、长期目标与 Mission 立项的
-承诺与确认（#54）；其余门随各自的票接入。
+承诺与确认（#54），Mission 的六个生命周期动作与关注标记（#55）；其余门随各自的票接入。
 
 指派、生命周期动作与门的判权（契约第 9.2 节）：激活策略列角色（门按目标类型拆名，ADR-0005），之后由服务算出
-调用者对目标满足的记录者类别（self、parent、gate_role）与守卫事实，连同目标的事件交给生命周期引擎 admit 判状态、
-守卫与记录者。记录者不符是 FORBIDDEN，状态表或守卫不允许是 INVALID_STATE。
+调用者对目标满足的记录者类别（self、self_or_agent、parent、gate_role）与守卫事实，连同目标的事件交给生命周期引擎
+admit 判状态、守卫与记录者。记录者不符是 FORBIDDEN，状态表或守卫不允许是 INVALID_STATE。关注标记是记录事件，
+但和门一样只由持策略角色（CEO）的人记，走门的判权，写入时只置 core_battle。
 
 有门对象的修订规则（契约第 12 节）：正式块、正式属性与建对象时写的关系只在草稿直接修订；有了正式内容以后经一轮
 重走改——承诺或长期目标的确认带候选（合并补丁），确认接受时写回，活动内容取写回时的当前值。活动块与活动属性在
@@ -309,9 +310,9 @@ class WorldExecution(ActionExecution):
 
     # ------------------------------------------------------------ assign and lifecycle
     def authorize_responsibility(self) -> None:
-        """指派与生命周期动作（契约第 9、10.5、10.6、11 节）：目标须是本 scope 的 world 对象（否则 404），按激活
+        """指派与生命周期动作（契约第 9、10.4–10.6、11 节）：目标须是本 scope 的 world 对象（否则 404），按激活
         策略判权后过目标动作闸门；Agent 只做 Agent 面上的动作并带写入声明；然后校验参数，最后按状态表与责任关系
-        判这条事件现在能不能记。"""
+        判这条事件现在能不能记。Mission 的开始可由 Owner 的 Agent 记（记录者类别 self_or_agent）。"""
         self.target = head_and_binding(self.conn, self.ctx, self.request.target.object_id)[0]
         self.domain_id = self.target["domain_id"]
         self.action_assignments = db.authorize_domain(self.conn, self.ctx, self.domain_id, self.kind)
@@ -325,6 +326,7 @@ class WorldExecution(ActionExecution):
         self.content = content and {**content, "refs": [self.pin(text) for text in content["refs"]]}
         recorders = self.recorders()
         object_type = self.target["object_type"]
+        lifecycles = world_registry.registry()["lifecycles"]
         if self.kind == "world_assign":
             # 逐级指派、不越级（契约第 9.2 节）：只由上一级责任人记；被指派者须已在该域持对应角色。
             if "parent" not in recorders:
@@ -333,13 +335,12 @@ class WorldExecution(ActionExecution):
                                    "the Task's responsible an Activity.")
             self.assignee = self.params["principal_id"]
             self.check_assignee()
-        if object_type in world_registry.registry()["lifecycles"] and object_type not in {"Task", "Activity"}:
+        if self.kind == "world_assign" and object_type in lifecycles and object_type not in {"Task", "Activity"}:
             # Mission 的状态表里没有指派；已关闭、已取消的不能再指派（补 16）。
-            spec = world_registry.registry()["lifecycles"][object_type]
-            if lifecycle(self.conn, self.ctx, self.target)["status"] in spec["terminal"]:
+            if lifecycle(self.conn, self.ctx, self.target)["status"] in lifecycles[object_type]["terminal"]:
                 _fail("INVALID_STATE", "A closed or cancelled object is not assigned again.")
             by = "parent"
-        elif object_type in {"Task", "Activity"}:
+        elif object_type in lifecycles:
             event = {"event_id": "pending", "action": self.kind, "outcome": self.params.get("outcome"),
                      "disposition": None, "supersedes_event_id": self.params.get("supersedes_event_id"),
                      "candidate": False, "guards": {}, "recorders": set(recorders)}
@@ -356,7 +357,8 @@ class WorldExecution(ActionExecution):
 
     def recorders(self) -> dict[str, tuple[dict[str, Any], str | None]]:
         """调用者对目标满足的记录者类别（登记 recorders，契约第 9.2 节）→（让他满足的那条角色指派，经哪个对象的
-        responsible 属性成立）：self 是目标的责任人，parent 是主干上一级的责任人。"""
+        responsible 属性成立）：self 是目标的责任人，parent 是主干上一级的责任人；self_or_agent 是目标的责任人，
+        或在目标所在域持 AGENT 的 Agent（Mission 的「Owner 的 Agent」，补 15）。"""
         current = db._assignments(self.conn, self.ctx)
         node = self.current_object(self.target["object_id"])
         found = {}
@@ -365,6 +367,10 @@ class WorldExecution(ActionExecution):
             if used is not None:
                 by_attribute = world_registry.object_spec(level["object_type"])["responsible"]["source"] == "attribute"
                 found[category] = (used, level["object_id"] if by_attribute else None)
+        agent = next((row for row in current if self.ctx.principal_type == "agent" and row["role"] == "AGENT"
+                      and row["domain_id"] == node["domain_id"]), None)
+        if "self" in found or agent is not None:
+            found["self_or_agent"] = found.get("self") or (agent, None)
         return found
 
     def check_assignee(self) -> None:
@@ -388,7 +394,8 @@ class WorldExecution(ActionExecution):
         """门动作（契约第 9、10.2–10.4、11、12 节）：目标须是本 scope 的 world 对象（否则 404），角色按激活策略判
         （ADR-0005），门事件只由人记——Agent 持有角色也不能记；再过目标动作闸门。然后校验事件内容与候选（合并补丁，
         只含正式内容），最后连同守卫事实与调用者满足的记录者类别交给生命周期引擎，判这条门事件现在能不能记。
-        要写回的候选：这条请求带来的（长期目标带候选的确认），或此前那条承诺留存的（确认接受时）。"""
+        要写回的候选：这条请求带来的（长期目标带候选的确认），或此前那条承诺留存的（确认接受时）。
+        关注标记（契约第 10.4 节）同样走这里：只由持 CEO 角色的人记，守卫 once，不带候选。"""
         self.target = head_and_binding(self.conn, self.ctx, self.request.target.object_id)[0]
         self.domain_id = self.target["domain_id"]
         self.action_assignments = db.authorize_domain(self.conn, self.ctx, self.domain_id, self.kind)
@@ -429,12 +436,17 @@ class WorldExecution(ActionExecution):
             self.payload = None
 
     def guard_facts(self, object_type: str) -> dict[str, bool]:
-        """这条门事件的守卫事实（登记 guards）：Mission 立项的承诺与确认接受查父周期目标（goal_ref）当前处于已确认。
+        """这条门事件的守卫事实（登记 guards）：Mission 立项的承诺与确认接受查父周期目标（goal_ref）当前处于已确认；
+        关注标记查这个 Mission 还没有标过（once，每个 Mission 只标一次）。
         周期目标的形成锚定（goal_ref 的长期目标已确认、review_ref 指向已确认的公司复盘）随票 #60 实现，本票先当它成立。"""
         if object_type == "Mission":
             goal = self.current_object(self.target["object_id"])["payload"]["goal_ref"]["object_id"]
             status = lifecycle(self.conn, self.ctx, {"object_id": goal, "object_type": "PeriodGoal"})["status"]
-            return {"parent_goal_confirmed": status == "confirmed"}
+            marked = self.conn.execute(
+                """SELECT 1 FROM gov_world_events WHERE scope_id=%s AND contract_version=%s
+                     AND kind='core_battle.marked' AND subject_refs->0->>'object_id'=%s LIMIT 1""",
+                (self.ctx.scope_id, models.CONTRACT_VERSION, self.target["object_id"])).fetchone() is not None
+            return {"parent_goal_confirmed": status == "confirmed", "once": not marked}
         if object_type == "PeriodGoal":
             return {"formation_anchors": True}
         return {}
@@ -681,6 +693,8 @@ class WorldExecution(ActionExecution):
             return self.assign()
         if self.kind in models.LIFECYCLE_ACTIONS:
             return self.record_lifecycle()
+        if self.kind == "world_mark_core_battle":
+            return self.mark_core_battle()
         if self.kind in models.GATE_ACTIONS:
             return self.record_gate()
         return self.new_revision()
@@ -719,6 +733,17 @@ class WorldExecution(ActionExecution):
         obj = self.bump(self.target)
         return self.written_result(obj, revision, outcome=self.params.get("outcome"), content=self.content,
                                    supersedes_event_id=self.params.get("supersedes_event_id"))
+
+    def mark_core_battle(self) -> dict[str, Any]:
+        """关注标记只置 core_battle（契约第 10.4 节，方案 A）：出新修订写这一只由服务写的属性，生效指针原先等于最新
+        修订的随之移动（同指派）；不改生命周期、责任人与正式内容指针的状态。事件钉到新修订。"""
+        obj, latest = self.target, self.target_revision_row()
+        revision = self.insert_revision(obj, {**latest["payload"], "core_battle": True},
+                                        version=latest["object_version"] + 1)
+        moves = obj["effective_revision_id"] == obj["latest_revision_id"]
+        obj = self.bump(obj, latest=revision["revision_id"],
+                        effective=revision["revision_id"] if moves else obj["effective_revision_id"])
+        return self.written_result(obj, revision, content=self.content)
 
     def record_gate(self) -> dict[str, Any]:
         """记门事件并按它的作用挪正式内容指针（契约第 12 节末条）：第一次进入正式段时对象行改为 confirmed、生效指针

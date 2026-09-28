@@ -26,7 +26,7 @@ def test_the_assignment_and_the_six_lifecycle_actions_are_implemented():
     assert {"world_assign", *LIFECYCLE} <= set(models.ACTION_PARAMS)
     assert models.ACTION_TARGETS["world_assign"] == {"ResponsibilityUnit", "Mission", "Task", "Activity"}
     for action in LIFECYCLE:  # Mission 随票 #55，长期目标与周期目标的取消随票 #60
-        assert models.ACTION_TARGETS[action] == {"Task", "Activity"}
+        assert {"Task", "Activity"} <= models.ACTION_TARGETS[action]
 
 
 def test_the_targets_stay_within_the_registered_target_types():

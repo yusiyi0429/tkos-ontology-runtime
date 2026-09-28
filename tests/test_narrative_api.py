@@ -259,7 +259,7 @@ def test_provider_redirect_is_not_followed(monkeypatch):
         visited.append(str(request.url))
         return httpx.Response(307, headers={"location": "https://unexpected.test/steal"})
     client = httpx.Client
-    monkeypatch.setattr(api.httpx, "Client", lambda **kwargs: client(transport=httpx.MockTransport(respond), **kwargs))
+    monkeypatch.setattr(httpx, "Client", lambda **kwargs: client(transport=httpx.MockTransport(respond), **kwargs))
     with pytest.raises(httpx.HTTPStatusError):
         api._provider_json("https://configured.test/chat/completions", "synthetic-secret", {}, 1)
     assert visited == ["https://configured.test/chat/completions"]

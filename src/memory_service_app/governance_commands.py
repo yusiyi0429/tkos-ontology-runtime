@@ -13,6 +13,7 @@ from pydantic import ValidationError
 
 from memory_service_runtime.governed import db, method_access, method_readers, service, workspace_service, dashboard
 from memory_service_runtime.governed.governance import HUMAN_ACTIONS, human_actions_for
+from memory_service_runtime.governed.method_versions import FORMAL_GOVERNANCE_VERSIONS
 from memory_service_runtime.governed.models import ActionRequest
 from memory_service_runtime.governed.workspace_models import WorkspaceCommand
 from memory_service_runtime.governed.errors import GovernedError
@@ -106,7 +107,7 @@ def parse(body):
     if version == 'tkos.method/0.3':
         if action not in HUMAN_ACTIONS:
             raise GovernedError('FORBIDDEN')
-    elif version in {'tkos.method/0.4', 'tkos.method/0.5'}:
+    elif version in FORMAL_GOVERNANCE_VERSIONS:
         if action not in human_actions_for(version):
             raise GovernedError('FORBIDDEN')
     else:

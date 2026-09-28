@@ -3,12 +3,12 @@ from __future__ import annotations
 
 from typing import Annotated, Any
 
-import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query
 import psycopg
 
 from memory_service.context_graph import context_pack, query
 from memory_service.context_graph.query_contracts import NoCurrentGenerationError, RetrievalBudgets
+from memory_service_runtime import provider_http
 
 from adapter.contracts import GkDynamic
 from adapter.deps import get_conn
@@ -23,28 +23,23 @@ class _ArkMultimodalEmbedder:
     """Adapt Ark's multimodal embeddings endpoint to memory_service's protocol."""
 
     def __init__(self, settings: Settings) -> None:
-        self._url = settings.memory_embedding_base_url.rstrip("/") + "/embeddings/multimodal"
-        self._headers = {"Authorization": f"Bearer {settings.memory_embedding_api_key}"}
+        self._url = provider_http.checked_base_url(settings.memory_embedding_base_url) + "/embeddings/multimodal"
+        self._key = settings.memory_embedding_api_key
         self._model = settings.memory_embedding_model
 
     def embed(self, texts: list[str]) -> list[list[float]]:
         try:
-            vectors: list[list[float]] = []
-            with httpx.Client(timeout=60) as client:
-                for text in texts:
-                    response = client.post(
+            return [
+                _embedding_from_response(
+                    provider_http.post_json(
                         self._url,
-                        headers=self._headers,
-                        json={
-                            "model": self._model,
-                            "input": [{"type": "text", "text": text}],
-                        },
+                        self._key,
+                        {"model": self._model, "input": [{"type": "text", "text": text}]},
+                        60,
                     )
-                    response.raise_for_status()
-                    vectors.append(_embedding_from_response(response.json()))
-            return vectors
-        except EmbeddingUnavailableError:
-            raise
+                )
+                for text in texts
+            ]
         except Exception as exc:
             # Do not include exception text: compatible clients sometimes echo request
             # headers or URLs, and the API key must never reach an HTTP error detail.
@@ -76,7 +71,12 @@ def _build_embedder(settings: Settings) -> _ArkMultimodalEmbedder:
         raise EmbeddingUnavailableError(
             "MEMORY_EMBEDDING_API_KEY/BASE_URL/MODEL 配置不完整，无法执行语义检索"
         )
-    return _ArkMultimodalEmbedder(settings)
+    try:
+        return _ArkMultimodalEmbedder(settings)
+    except ValueError as exc:
+        raise EmbeddingUnavailableError(
+            "MEMORY_EMBEDDING_BASE_URL 必须是 https（本机可用 http），且不能带凭据、查询串或片段"
+        ) from exc
 
 
 @router.get("/dynamic", response_model=GkDynamic)

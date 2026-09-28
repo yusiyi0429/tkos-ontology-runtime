@@ -8,7 +8,7 @@ import httpx
 import psycopg
 from psycopg.rows import dict_row
 
-from memory_service_runtime.config import env_value
+from memory_service_runtime.config import db_connect_timeout, env_value
 from memory_service_runtime.governed import db, protocol
 from memory_service_runtime.governed.errors import GovernedError
 from memory_service_runtime.handlers import TaskExecutionError
@@ -36,7 +36,8 @@ def governance_dispatch(task) -> dict:
     payload = task.payload
     try:
         scope_id, receipt_id = str(payload["scope_id"]), str(payload["receipt_id"])
-        with psycopg.connect(env_value("DATABASE_URL", required=True), row_factory=dict_row, connect_timeout=5) as conn:
+        with psycopg.connect(env_value("DATABASE_URL", required=True), row_factory=dict_row,
+                             connect_timeout=db_connect_timeout()) as conn:
             # Independent dispatch connection: declare the runtime capability
             # before the first gov_scopes read (0018 restrictive policies hide
             # identity/scope rows from pre-A1 binaries, stopping them here).
@@ -57,12 +58,10 @@ def governance_dispatch(task) -> dict:
                                      (scope_id, principal_id)).fetchone()
             if principal is None or not principal["active"]:
                 raise TaskExecutionError("governance_effect_permission_revoked", retryable=False)
-            assignments = conn.execute(
-                "SELECT * FROM gov_role_assignments WHERE scope_id=%s AND principal_id=%s AND active AND valid_from<=clock_timestamp() AND (valid_to IS NULL OR valid_to>clock_timestamp())",
-                (scope_id, principal_id),
-            ).fetchall()
+            # No assignments snapshot: object_row and authorize_domain re-read
+            # the principal's current assignments themselves.
             ctx = db.AuthContext(scope_id, scope["tenant_id"], scope["company_id"], principal_id,
-                                 principal["principal_type"], int(scope["auth_epoch"]), db.jsonable(assignments))
+                                 principal["principal_type"], int(scope["auth_epoch"]), [])
             required = receipt["result"].get("required_assignment_ids", [])
             if not required or sorted(required) != sorted(payload.get("required_assignment_ids", [])):
                 raise TaskExecutionError("governance_effect_authority_invalid", retryable=False)

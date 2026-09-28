@@ -4,6 +4,7 @@ from __future__ import annotations
 import os
 from typing import Any, Callable, Mapping
 
+from memory_service_runtime import object_store
 from memory_service_runtime.config import RuntimeConfigError, env_value
 from memory_service_runtime.repository import RuntimeTask
 
@@ -27,15 +28,6 @@ def system_noop(task: RuntimeTask) -> dict[str, Any]:
     }
 
 
-def _boolean(value: str, *, name: str) -> bool:
-    normalized = value.strip().lower()
-    if normalized in ("1", "true", "yes", "on"):
-        return True
-    if normalized in ("0", "false", "no", "off"):
-        return False
-    raise RuntimeConfigError(f"{name} 必须是 true/false")
-
-
 def object_store_preflight(
     task: RuntimeTask,
     *,
@@ -45,55 +37,13 @@ def object_store_preflight(
     """Read only MinIO/S3 immutability settings; never create or mutate a bucket."""
     source = os.environ if environ is None else environ
     try:
-        endpoint = env_value(
-            "TKOS_OBJECT_STORE_ENDPOINT", environ=source, required=True
-        )
         bucket = env_value("TKOS_OBJECT_STORE_BUCKET", environ=source, required=True)
-        access_key = env_value(
-            "TKOS_OBJECT_STORE_ACCESS_KEY", environ=source, required=True
-        )
-        secret_key = env_value(
-            "TKOS_OBJECT_STORE_SECRET_KEY", environ=source, required=True
-        )
-        region = env_value(
-            "TKOS_OBJECT_STORE_REGION", environ=source, default="us-east-1"
-        )
-        verify_tls = _boolean(
-            source.get("TKOS_OBJECT_STORE_VERIFY_TLS", "true"),
-            name="TKOS_OBJECT_STORE_VERIFY_TLS",
-        )
+        connection = object_store.settings(source)
     except RuntimeConfigError as exc:
         raise TaskExecutionError("object_store_config_invalid", retryable=False) from exc
 
     try:
-        if client_factory is None:
-            from botocore.config import Config
-            from botocore.session import get_session
-
-            config = Config(
-                signature_version="s3v4",
-                connect_timeout=3,
-                read_timeout=5,
-                retries={"max_attempts": 2, "mode": "standard"},
-                s3={"addressing_style": "path"},
-            )
-            client = get_session().create_client(
-                "s3",
-                endpoint_url=endpoint,
-                region_name=region,
-                aws_access_key_id=access_key,
-                aws_secret_access_key=secret_key,
-                verify=verify_tls,
-                config=config,
-            )
-        else:
-            client = client_factory(
-                endpoint=endpoint,
-                region=region,
-                access_key=access_key,
-                secret_key=secret_key,
-                verify_tls=verify_tls,
-            )
+        client = (client_factory or object_store.create_client)(**connection)
 
         from memory_service.context_graph.snapshot_storage import probe_immutability
 

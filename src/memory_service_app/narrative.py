@@ -14,12 +14,10 @@ import json
 import os
 from types import SimpleNamespace
 from typing import Annotated, Any
-from urllib.parse import urlsplit
 import uuid
 
 from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
-import httpx
 from pgvector.psycopg import register_vector
 import psycopg
 from psycopg.rows import dict_row
@@ -27,10 +25,11 @@ from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, field_validato
 
 from memory_service.context_graph import context_pack, query
 from memory_service.context_graph.query_contracts import RetrievalBudgets
-from memory_service_runtime.config import env_value
+from memory_service_runtime.config import db_connect_timeout, env_value
 from memory_service_runtime.governed import db, narrative_facts, protocol
 from memory_service_runtime.governed.errors import GovernedError
 from memory_service_runtime.governed.routes import bearer
+from memory_service_runtime.provider_http import checked_base_url, post_json as _provider_json
 
 
 router = APIRouter(prefix="/v1/context-graph", tags=["narrative"])
@@ -145,30 +144,11 @@ def _resolve_domain(conn, ctx, body: NarrativeRequest, config: Config) -> str:
 
 
 def _endpoint(name: str) -> str:
-    value = env_value(name, required=True).rstrip("/")
-    parsed = urlsplit(value)
-    if parsed.scheme not in {"http", "https"} or not parsed.hostname or parsed.username or parsed.password or parsed.query or parsed.fragment:
-        raise unavailable()
-    if parsed.scheme == "http" and parsed.hostname not in {"localhost", "127.0.0.1", "::1"}:
-        raise unavailable()
-    return value
-
-
-def _provider_json(url: str, key: str, payload: dict, timeout: float) -> dict:
-    # Never follow a redirect with service credentials; never expose provider
-    # response/error text, including credentials echoed by an upstream.
-    with httpx.Client(timeout=timeout, trust_env=False, follow_redirects=False) as client:
-        with client.stream("POST", url, headers={"Authorization": f"Bearer {key}"}, json=payload) as response:
-            response.raise_for_status()
-            data = bytearray()
-            for chunk in response.iter_bytes():
-                data.extend(chunk)
-                if len(data) > 2_000_000:
-                    raise unavailable()
-    result = json.loads(data)
-    if not isinstance(result, dict):
-        raise unavailable()
-    return result
+    value = env_value(name, required=True)
+    try:
+        return checked_base_url(value)
+    except ValueError:
+        raise unavailable() from None
 
 
 class Embedder:
@@ -201,7 +181,7 @@ class Compressor:
 
 @contextmanager
 def _legacy_connection():
-    with psycopg.connect(env_value("DATABASE_URL", required=True), connect_timeout=5, row_factory=dict_row) as conn:
+    with psycopg.connect(env_value("DATABASE_URL", required=True), connect_timeout=db_connect_timeout(), row_factory=dict_row) as conn:
         register_vector(conn)
         conn.commit()  # Type discovery only; query.execute_query requires IDLE.
         yield conn

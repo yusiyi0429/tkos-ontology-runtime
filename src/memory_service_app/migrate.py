@@ -26,6 +26,8 @@ import re
 
 import psycopg
 
+from memory_service_runtime.config import RuntimeConfigError, db_connect_timeout
+
 MIGRATIONS_DIR = Path(__file__).parent / "migrations"
 _NAME = re.compile(r"(\d{4})_[a-z0-9_]+\.sql\Z")
 _HISTORICAL_DUPLICATES = {"0028": 2}
@@ -92,7 +94,10 @@ def main() -> None:
     database_url = os.environ.get("DATABASE_URL", "").strip()
     if not database_url:
         raise SystemExit("DATABASE_URL 未设置")
-    timeout = int(os.environ.get("DB_CONNECT_TIMEOUT", "5"))
+    try:
+        timeout = db_connect_timeout()
+    except RuntimeConfigError as exc:
+        raise SystemExit(str(exc)) from exc
     try:
         applied = migrate(database_url, connect_timeout=timeout)
     except MigrationError as exc:

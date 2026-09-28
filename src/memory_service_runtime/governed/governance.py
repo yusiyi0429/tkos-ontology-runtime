@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, Query, Response
 
 from . import db, method_access, method_readers, workspace_readers, dashboard
 from .errors import GovernedError
+from .method_versions import FORMAL_GOVERNANCE_VERSIONS
 from .routes import bearer
 
 router = APIRouter(prefix='/v1/governance', tags=['governance-workbench'])
@@ -360,7 +361,7 @@ def human_actions_for(version):
 def method_object_actions(conn, ctx, obj):
     """Allowlisted human actions for one 0.4 / 0.5 object with current availability."""
     version = obj['protocol']['contract_version']
-    if version not in {'tkos.method/0.4', 'tkos.method/0.5'}:
+    if version not in FORMAL_GOVERNANCE_VERSIONS:
         return {'items': []}
     from .method_models import registry
     _params, targets, _payloads = registry(version)
@@ -388,7 +389,7 @@ def method_object_actions(conn, ctx, obj):
 
 def actions(conn, ctx, object_id):
     obj = method_readers.object_state(conn, ctx, object_id)
-    if obj['protocol']['contract_version'] in {'tkos.method/0.4', 'tkos.method/0.5'}:
+    if obj['protocol']['contract_version'] in FORMAL_GOVERNANCE_VERSIONS:
         return method_object_actions(conn, ctx, obj)
     kind = obj['object_type']
     if kind == 'CandidateSet':
@@ -446,7 +447,7 @@ def method_tasks(conn, ctx, after=None, limit=25):
             if exc.code in {'NOT_FOUND', 'FORBIDDEN'}:
                 continue
             raise
-        if obj['protocol']['contract_version'] not in {'tkos.method/0.4', 'tkos.method/0.5'}:
+        if obj['protocol']['contract_version'] not in FORMAL_GOVERNANCE_VERSIONS:
             continue
         offered_all = method_object_actions(conn, ctx, obj)['items']
         offered = [item for item in offered_all if item['allowed']]
@@ -474,7 +475,7 @@ def method_tasks(conn, ctx, after=None, limit=25):
 
 def window(conn, ctx, window_id):
     obj = method_readers.object_state(conn, ctx, window_id)
-    if obj['protocol']['contract_version'] in {'tkos.method/0.4', 'tkos.method/0.5'}:
+    if obj['protocol']['contract_version'] in FORMAL_GOVERNANCE_VERSIONS:
         # 0.4 windows are Method objects; no 0.1 monthly scene is involved.
         return {'identity': workspace_readers.identity(conn, ctx), 'object': obj,
                 'monthly': None, 'scenes': [],
@@ -516,7 +517,7 @@ def tasks(conn, ctx, after=None, limit=25):
         # （已被新窗口取代）已办结。进行中的窗口本人此刻无可办动作（等 Co-agent 收拢、等他人承诺或激活）也照列。
         if phase not in {'open', 'closed', 'resolved'}:
             continue
-        if obj['protocol']['contract_version'] in {'tkos.method/0.4', 'tkos.method/0.5'}:
+        if obj['protocol']['contract_version'] in FORMAL_GOVERNANCE_VERSIONS:
             # 标签写对象自己的规则版本（'tkos.method/0.4' -> '0.4 人工确认事项'）。
             version = obj['protocol']['contract_version'].rsplit('/', 1)[-1]
             items.append({'object_id': obj['object_id'],

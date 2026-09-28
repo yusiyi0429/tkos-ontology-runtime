@@ -10,26 +10,22 @@ Runtime 提供 Clark 现有月度核对、周进展和会议工作面的 Runtime
 
 已合并的 `tkos.method/0.4` 把 CEO Agent 立项、Agreement 全体精确确认与多 PCO 候选整组激活纳入正式链，并新增 `tkos.workspace/0.2` 独立来源场景（无业务锚点的会议／文档／本人选定对话、来源版本与更正、精确分享、默认私有）。同期新增本机**治理工作台**：有权本人以个人会话办理白名单动作，Runtime 只负责权限、版本、正式效力与回执。该增量纳入 v0.4.0，迁移头到 0028；0.1/0.2/0.3 对象保留原协议绑定与原生效规则。
 
-已合并的 `tkos.world/0.1`（[PR #30](https://github.com/yusiyi0429/tkos-ontology-runtime/pull/30)）是独立的业务世界模型协议，按 CEO《企业业务世界建模框架》把公司表达为九类一级对象、内容块、少量关系，以及所有对象共有的状态快照与事件；同时提供按主干组装上下文的 Context Runtime 和给 Agent 的 MCP 入口。它与 `tkos.method` 并存，语义互不改写。迁移头到 0036；0037 是随后追加的授权修复，收回只读角色在三张只增表上的写权。该协议尚未进入任何 Release，也没有部署。
+已合并的 `tkos.world/0.1`（[PR #30](https://github.com/yusiyi0429/tkos-ontology-runtime/pull/30)）是独立的业务世界模型协议，按 CEO《企业业务世界建模框架》把公司表达为九类一级对象、内容块、少量关系，以及所有对象共有的状态快照与事件；同时提供按主干组装上下文的 Context Runtime 和给 Agent 的 MCP 入口。它与 `tkos.method` 并存，语义互不改写。迁移头到 0036；0037 是随后追加的授权修复，收回只读角色在三张只增表上的写权。该协议已纳入 v0.5.0；Clark 尚未接线，未做生产部署。
 
 ## 当前交付状态
 
-当前功能 Release 为 **[v0.4.0](https://github.com/yusiyi0429/tkos-ontology-runtime/releases/tag/v0.4.0)**，在 v0.3.0 之上新增 Method 0.4 正式链、`tkos.workspace/0.2` 独立来源场景、本机治理工作台，以及本体地图内的实际记录入口。
+当前功能 Release 为 **[v0.5.0](https://github.com/yusiyi0429/tkos-ontology-runtime/releases/tag/v0.5.0)**，在 v0.4.0 之上新增 `tkos.world/0.1` 业务世界模型与 Context Runtime、`tkos-world-mcp`、`tkos.method/0.5`（本体 v0.7 对齐）、凭证有效期与轮换吊销，以及两份外部评估后的整改（#32）。迁移头到 0038。
 
-本次交付 wheel、源码包、**amd64/arm64 完整五镜像离线包**及 SHA256 校验和，详见[发布说明](docs/releases/v0.4.0.md)。v0.3.0 的[发布说明](docs/releases/v0.3.0.md)与[离线验收](docs/releases/v0.3.0-offline-acceptance.md)作为上一版证据保留。
+本次交付 wheel、源码包、**amd64/arm64 完整五镜像离线包**及 SHA256 校验和，详见[发布说明](docs/releases/v0.5.0.md)与[离线验收](docs/releases/v0.5.0-offline-acceptance.md)。从本版起，tag、包版本、离线包文件名与镜像标签统一用同一个版本号（`v0.5.0`，镜像为 `<仓库>:v0.5.0-<架构>`）。v0.4.0 的[发布说明](docs/releases/v0.4.0.md)与[离线验收](docs/releases/v0.4.0-offline-acceptance.md)作为上一版证据保留，其中含 Method 0.4、治理工作台与业务主线四栏的验证表。
 
 | 验证范围 | 结果 |
 | --- | --- |
-| Method 0.4 ＋ workspace 0.2 本地受控链 | 浏览器人类链与受控 Co-agent HTTP/DB 均由 root 独立执行，见[交付报告](docs/method-04-delivery-report.md)、[合并前复核](docs/acceptance/method04-premerge.md) |
-| 治理工作台真实 HTTP／数据库 | **23/23**（基于 Method 0.3 的 `acea4d4`，不覆盖 0.4/0.5 的办理页）：三个独立会话、跨身份日志隐藏、CAS、关窗竞争、本人核对不生效、DRI 不能确认、CEO 整组确认；另真实浏览器三 profile 与重启复核，见[验收](docs/acceptance/runtime-governance-workbench.md) |
-| Method 0.3 实际 HTTP／PostgreSQL／MinIO 增量 | **35/35**：Architecture、State、Problem、Agent 立项、原子移交、权限与恢复、M1B 回归 |
-| Method 0.2 独立回归 | **22/22**：生命周期、关窗竞争、候选原子性与旧版共存 |
-| Python 回归 | 主回归 **941 passed、2 skipped**（应用角色）；旧叙述集成另 **14 passed**（owner 角色） |
-| 迁移与构建 | 空库迁移至 **0028** 及重复执行 **1 passed**；wheel／sdist 构建通过 |
-| 前端回归 | **184 passed／23 个文件**；类型检查、生产构建与资源清单校验通过。不代表 Clark 浏览器验收 |
-| 伙伴接线／Clark 浏览器／真实模型 | **尚未验证／尚未验证／未运行** |
-
-业务主线四栏视图的浏览器渲染尚未由人核对；其四栏逻辑已按真实隔离数据逐状态复演，级联与空态结论见[发布说明](docs/releases/v0.4.0.md)。
+| Python 回归 | 应用角色 **1462 passed**；迁移所有者 **42 passed**（含空库迁移至 0038 与重放） |
+| 前端回归 | **214 passed／26 个文件**；类型检查、生产构建与资源清单校验通过。不代表 Clark 浏览器验收 |
+| 双架构离线包 | arm64 **24/24**（原生）、amd64 **24/24**（仿真），各自空卷启动：迁移至 0038、FORCE RLS、证据版本化与保留、真实治理动作、world 0.1 控制面安装与 HTTP 冒烟、Worker 任务 |
+| v0.4.0 → v0.5.0 升级（arm64） | **6/6**：只补上 0029–0038，升级前的数据、证据与回执仍可读 |
+| 协议独立验收（沿用最近一次运行） | world 0.1 **248/248**（`d261eb9`）、Method 0.5 **27/27**、Method 0.4 **68/68**、v0.2 运行时 **20/20**（`a6d1efa`） |
+| 伙伴接线／Clark 浏览器／真实模型／生产部署 | **尚未验证／尚未验证／未运行／未进行** |
 
 验收使用隔离数据库、独立合成身份和受控 Agent 输入。详见 [0.3 验收报告](docs/runtime-anchors-v03-acceptance.md)、[机器检查清单](docs/acceptance/anchors-v03-summary.json) 和 [复跑入口](acceptance/anchors_v03/README.md)。企业身份、历史对象跨版本接续、生产迁移与部署另行安排。
 
@@ -37,7 +33,7 @@ Runtime 提供 Clark 现有月度核对、周进展和会议工作面的 Runtime
 
 ## World 0.1：业务世界模型与 Context Runtime
 
-`tkos.world/0.1` 在 main 上，未发布、未部署；Clark 尚未接线。
+`tkos.world/0.1` 已纳入 v0.5.0；Clark 尚未接线，未做生产部署。给 Agent 侧联调的独立实例按 [deploy/world-lab/](deploy/world-lab/README.md) 部署，不计作生产部署。
 
 - **对象**：九类一级对象。
   - 公司、战略、责任单元、长期目标、周期目标、Mission、Task、Activity、状态快照。
@@ -63,13 +59,13 @@ Runtime 提供 Clark 现有月度核对、周进展和会议工作面的 Runtime
 | 冻结后差异复验（#32） | 在 `d261eb9` 上重跑同一矩阵：**248/248**、12/12、4/4。覆盖冻结后的 MCP 与取上下文调整、迁移 0037 与 0038 及 #32 各批次的内核改动，见 [复验检查点](docs/world-v01-recheck-checkpoint.md) |
 | Python 回归 | 验收时（`0a6736a`）应用角色 **1329 passed、2 skipped**，迁移所有者 **15 passed**，见验收报告。此后每个提交由 [CI](.github/workflows/ci.yml) 按[同一组命令](#测试)执行 |
 | E&O 九月回放静态截面实验（不作为验收门） | 第二轮（#32，gpt-6-sol）四组对照：F（固定上下文作答）召回 1.00、回答引用的覆盖 0.67，每次 1.3 万字符，是全量塞入的 0.16 倍；A（遍历 + 取上下文）召回 1.00、覆盖 0.57，每次 2.9 万字符（第一轮 11.8 万）；A0（纯遍历）召回只有 0.56；B（固定取上下文，不作答）经 MCP 的返回由 5.6 万字符降到 1.3 万。各组可追溯 100%、反例 0。「A 不高于 B」按现有定义谁都过不了，口径待定；Why 各组仍弱。见 [第二轮报告](docs/world-v01-experiment-round2.md)、[第一轮报告](docs/world-v01-experiment-report.md) 与 [播种与标准答案审阅稿](docs/world-v01-eo-september-review.md) |
-| Clark 接线、真实部署 | **尚未进行** |
+| Clark 接线、生产部署 | **尚未进行**（Agent 侧联调实例不计） |
 
 实验报告里的调整建议 1–4 与 6 已在 #32 批次 D 落到代码并重跑：取上下文经 MCP 只给包 id、Markdown、覆盖与预算摘要，Why 沿 `goal_ref` 多取一跳，Markdown 开头按问题给出处，事件行写出人名，跑器分 B、A、A0 三组。关键回答的内容对不对，由 E&O DRI 人工核验，结果另补。播种、实验跑器与指标在 `experiments/world_v01/`。main 上是压缩合并的 `7e42004`；文档里引用的逐票提交（`0a6736a`、`d5b158e`、`3fdbe83`、`2d2dca7`、`fdaeeab`）在标签 `world-v0.1-tickets`，也就是 PR #30 的分支头。
 
 ## 评估整改（#32）
 
-2026-09-24 的两份外部评估（外部专家、Codex）逐条核实后，按批次 A–E 整改，追踪票 [#32](https://github.com/yusiyi0429/tkos-ontology-runtime/issues/32)。版本号改为 `0.5.0.dev0`；未发布、未部署。
+2026-09-24 的两份外部评估（外部专家、Codex）逐条核实后，按批次 A–E 整改，追踪票 [#32](https://github.com/yusiyi0429/tkos-ontology-runtime/issues/32)。已纳入 v0.5.0；未做生产部署。
 
 | 验证范围 | 结果 |
 | --- | --- |
@@ -263,7 +259,7 @@ python3 acceptance/runtime/infra.py up
 
 ## 部署与来源
 
-离线发布说明见 [v0.4.0 发布说明](docs/releases/v0.4.0.md)；历史版本见 [v0.3.0](docs/releases/v0.3.0.md) 与 [v0.2.1](docs/releases/v0.2.1.md)。AMD64 与 ARM64 分包均包含 Runtime API、Worker、PostgreSQL 17＋pgvector、MinIO Server 和 MinIO Client 五类镜像；Clark 与宿主机 Nginx 不在包内。镜像中的 Method 控制面输入位于 `/opt/tkos/docs/`；发布版本与生产切换分别验收。v0.2.0 只包含 AMD64 API／Worker，已由 v0.2.1 替代。
+离线发布说明见 [v0.5.0 发布说明](docs/releases/v0.5.0.md) 与[离线验收](docs/releases/v0.5.0-offline-acceptance.md)；历史版本见 [v0.4.0](docs/releases/v0.4.0.md)、[v0.3.0](docs/releases/v0.3.0.md) 与 [v0.2.1](docs/releases/v0.2.1.md)。AMD64 与 ARM64 分包均包含 Runtime API、Worker、PostgreSQL 17＋pgvector、MinIO Server 和 MinIO Client 五类镜像；Clark 与宿主机 Nginx 不在包内。镜像中的 Method 控制面输入位于 `/opt/tkos/docs/`；发布版本与生产切换分别验收。v0.2.0 只包含 AMD64 API／Worker，已由 v0.2.1 替代。
 
 代码可构建 API/Worker 镜像，远程试点还需要环境初始化和部署验收，见 [部署边界](docs/deployment.md)。根目录没有可直接投产的 Compose；历史 Memory 模板仅保留在 `deploy/legacy-memory/`。
 

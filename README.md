@@ -50,6 +50,7 @@ Runtime 提供 Clark 现有月度核对、周进展和会议工作面的 Runtime
   - 取事件：`…/events?since=`。
   - 取上下文：`POST …/context`。沿主干组装分层上下文包，同时给出检索计划、覆盖与预算裁剪记录，并落表留存。
 - **MCP**：`tkos-world-mcp` 是 stdio MCP server，作为 HTTP 面的薄壳，四读三写，先接 Codex CLI。它在可选依赖组 `mcp` 里，基础安装不带。配置与运行日志见 [Codex 接入说明](docs/world-mcp-codex.md)。
+- **CLI**：`tkos-world` 是给人和脚本用的命令行，作为 HTTP 面的薄封装，覆盖四个读投影、取上下文与任意动作（prepare 再 commit），权限由 HTTP 面按凭证判定。它在基础安装里，用法见 [CLI 说明](docs/world-cli.md)。
 
 契约见 [tkos-world-0.1.md](docs/contracts/tkos-world-0.1.md)，登记与 profile 钉定见 [world 登记](docs/contracts/world-registry-0.1.json) 与 [world profile](docs/contracts/world-profile-0.1.json)，支持登记见 [runtime-world-support-0.1.json](docs/runtime-world-support-0.1.json)。契约、登记或 profile 以后再改，都要追加重钉迁移。
 
@@ -185,6 +186,7 @@ WorkItem 固定承诺版本、指定 DRI、指定验收人及标准。Deliverabl
 | `acceptance/method_v05/` | Method 0.5 本体对齐链隔离验收 |
 | `acceptance/world_v01/` | World 0.1 独立验收矩阵与冻结检查点 |
 | `src/tkos_world_mcp/` | World 0.1 的 stdio MCP server（`tkos-world-mcp`） |
+| `src/tkos_world_cli/` | World 0.1 的命令行（`tkos-world`） |
 | `experiments/world_v01/` | E&O 九月回放的播种、标准答案与静态截面实验 |
 | `acceptance/governance_workbench/` | 本机治理工作台会话、权限与真实 HTTP/数据库验收 |
 | `acceptance/method_independent/` | M1A＋M1B 完整 API、权限、并发、恢复与历史兼容验收 |

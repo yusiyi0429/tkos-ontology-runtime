@@ -2,8 +2,8 @@
 
 读权限同 0.1（契约第 15.1 节）：scope 内有任一生效角色指派的责任主体可读该 scope 的全部
 world 对象，不走域级 read 策略；非 world 对象一律 NOT_FOUND，授权先于任何协议错误。
-读投影按三层分组：``business``、``identity``、``records``。本票只到 Company 需要的部分：
-组件、台账、一轮、委托、快照、复盘与问题随各自的票接入，在此之前给空值。
+读投影按三层分组：``business``、``identity``、``records``。``business`` 给块、组件、组件台账与关系，
+引用同时给钉定结构与业务形式；生命周期、一轮、委托、快照、复盘与问题随各自的票接入，在此之前给空值。
 """
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from typing import Any
 from . import db, protocol
 from . import world_v02_registry as world_registry
 from .errors import GovernedError
-from .world_v02_models import CONTRACT_VERSION, citation
+from .world_v02_models import CONTRACT_VERSION, citation, cite
 
 # 空块的标准句在投影层配置（契约第 4 节）。
 EMPTY_BLOCK_SENTENCE = "当前没有{name}"
@@ -43,20 +43,38 @@ def readable(conn: Any, ctx: Any, object_id: str) -> tuple[dict[str, Any], dict[
     return head, metadata
 
 
+def cited(pinned: Any) -> Any:
+    """钉定引用读回时同时给出钉定结构与业务形式（契约第 5 节）；列表逐项处理，空值原样。"""
+    if isinstance(pinned, list):
+        return [cited(item) for item in pinned]
+    if pinned is None:
+        return None
+    return {**pinned, "ref": cite(pinned)}
+
+
 def block_view(object_id: str, version: int, spec: dict[str, Any], value: dict[str, Any] | None) -> dict[str, Any]:
-    """一个块读回的样子：带块类别与组件，空块渲染标准句（契约第 3.2、4 节）。"""
+    """一个块读回的样子：带块类别；块内与组件里的引用同时给出两种形式，组件另给自己的组件引用；
+    空块渲染标准句（契约第 3.2、4、5 节）。"""
+    components = [{**item, "scope": cited(item["scope"]), "refs": cited(item["refs"]),
+                   "ref": citation(object_id, version, spec["id"], item["id"])}
+                  for item in (value["components"] if value is not None else [])]
     return {"id": spec["id"], "display_name": spec["display_name"], "kind": spec["kind"], "class": spec["class"],
-            "value": value, "empty": value is None,
+            "value": value and {**value, "components": components, "refs": cited(value["refs"])},
+            "empty": value is None,
             "text": EMPTY_BLOCK_SENTENCE.format(name=spec["display_name"]) if value is None else value["text"],
-            "components": value["components"] if value is not None else [],
-            "ref": citation(object_id, version, spec["id"])}
+            "components": components, "ref": citation(object_id, version, spec["id"])}
 
 
-def responsible_principals(conn: Any, ctx: Any, head: dict[str, Any]) -> list[dict[str, Any]]:
-    """按角色解析的责任人（契约第 3.3 节）：当前在对象所在域持该角色、启用的人。"""
+def responsible_principals(conn: Any, ctx: Any, head: dict[str, Any], payload: dict[str, Any]) -> list[dict[str, Any]]:
+    """责任人（契约第 3.3 节）：按角色解析的是当前在对象所在域持该角色、启用的人；按属性解析的是
+    responsible 属性上的身份，还没指派时为空。"""
     rule = world_registry.object_spec(head["object_type"])["responsible"]
-    if rule["source"] != "role":
-        raise NotImplementedError("responsibility by attribute arrives with world 0.2 assignments")
+    if rule["source"] == "attribute":
+        if payload.get("responsible") is None:
+            return []
+        return [db.jsonable(row) for row in conn.execute(
+            """SELECT principal_id, principal_type, display_name FROM gov_principals
+                WHERE scope_id=%s AND principal_id=%s""", (ctx.scope_id, payload["responsible"])).fetchall()]
     return [db.jsonable(row) for row in conn.execute(
         """SELECT DISTINCT p.principal_id, p.principal_type, p.display_name
              FROM gov_role_assignments a JOIN gov_principals p
@@ -71,8 +89,6 @@ def responsible_principals(conn: Any, ctx: Any, head: dict[str, Any]) -> list[di
 def object_view(head: dict[str, Any], revision: dict[str, Any], metadata: dict[str, Any], *,
                 responsible: list[dict[str, Any]]) -> dict[str, Any]:
     spec = world_registry.object_spec(head["object_type"])
-    if head["object_type"] in world_registry.registry()["lifecycles"]:
-        raise NotImplementedError("world 0.2 lifecycles are read once the lifecycle engine is wired")
     payload, version = revision["payload"], revision["object_version"]
     category = world_registry.category(spec["category"])
     business = {
@@ -83,16 +99,16 @@ def object_view(head: dict[str, Any], revision: dict[str, Any], metadata: dict[s
         "object_version": head["object_version"], "title": payload["title"],
         "attributes": {attribute["id"]: payload.get(attribute["id"]) for attribute in spec["attributes"]
                        if attribute["id"] != "title"},
-        "relations": [],
+        "relations": [{"field": field["field"], "relation": field["relation"], "value": cited(payload.get(field["field"]))}
+                      for field in spec["relation_fields"]],
         "blocks": [block_view(head["object_id"], version, block, payload["blocks"][block["id"]])
                    for block in spec["blocks"]],
-        "component_ledger": [],
+        "component_ledger": payload.get("component_ledger", []),
         "formal": {"lifecycle_status": head["lifecycle_status"], "effective_revision_id": head["effective_revision_id"]},
         "round": None,
     }
-    rule = spec["responsible"]
-    identity = {"responsible": {"source": rule["source"], "role": rule["role"], "principals": responsible},
-                "delegations": []}
+    identity = {"responsible": {**spec["responsible"], "principals": responsible}, "delegations": []}
+    # 生命周期读回随票 #53、#54。
     records = {"lifecycle": None, "latest_state": None, "confirmed_review": None, "open_issues": []}
     return {"object_id": head["object_id"], "business": business, "identity": identity, "records": records,
             "protocol": metadata}
@@ -109,7 +125,8 @@ def read_object(conn: Any, ctx: Any, object_id: str, version: int | None = None)
                            (ctx.scope_id, head["object_id"], version)).fetchone()
     if row is None:
         raise GovernedError("NOT_FOUND")
-    return object_view(head, db.jsonable(row), metadata, responsible=responsible_principals(conn, ctx, head))
+    revision = db.jsonable(row)
+    return object_view(head, revision, metadata, responsible=responsible_principals(conn, ctx, head, revision["payload"]))
 
 
 def is_receipt(row: dict[str, Any]) -> bool:
@@ -121,7 +138,7 @@ def authorize_receipt(conn: Any, ctx: Any, row: dict[str, Any], *, replay: bool 
     """读 0.2 回执按 world 读规则：调用者在 scope 内有生效指派，回执涉及的对象仍是 world 对象。
 
     重放是再次执行成功，另按当前权限复核：必须是原调用者，动作当时用到的指派仍然有效，
-    且调用者在该域仍有这个动作的角色。
+    且调用者在该域仍有这个动作的角色；经某对象的 responsible 属性成为责任人的，该属性仍须指向他。
     """
     ids = {str(item["object_id"]) for item in row["object_versions"]}
     if row["target_object_id"]:
@@ -136,3 +153,9 @@ def authorize_receipt(conn: Any, ctx: Any, row: dict[str, Any], *, replay: bool 
     if any(aid not in current for aid in row["result"].get("required_assignment_ids", [])):
         raise GovernedError("FORBIDDEN", "An assignment this command relied on is no longer valid.")
     db.authorize_domain(conn, ctx, row["result"]["domain_id"], row["action_type"])
+    through = row["result"].get("responsible_through")
+    if through is not None and db.jsonable(conn.execute(
+            """SELECT r.payload->>'responsible' AS responsible FROM gov_objects o JOIN gov_object_revisions r
+                 ON r.scope_id=o.scope_id AND r.revision_id=o.latest_revision_id
+                WHERE o.scope_id=%s AND o.object_id=%s""", (ctx.scope_id, through)).fetchone())["responsible"] != ctx.principal_id:
+        raise GovernedError("FORBIDDEN", "The responsibility this command relied on has moved to someone else.")

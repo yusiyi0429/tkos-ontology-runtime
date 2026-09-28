@@ -28,8 +28,11 @@ from .fixture import (CONTRACT, PROFILE, REGISTRY, SUPPORT, action_roles, instal
 
 V01, V02 = 'tkos.world/0.1', 'tkos.world/0.2'
 MIGRATION = '0039_world_v02.sql'
-SCENARIOS = ['migration', 'control_plane', 'company', 'rejections', 'coexistence', 'revocation']
+SCENARIOS = ['migration', 'control_plane', 'company', 'objects', 'rejections', 'coexistence', 'references',
+             'revocation']
 EVENT_KINDS = {item['kind']: item for item in json.loads(REGISTRY.read_text())['event_kinds']}
+OBJECTS = {item['type']: item for item in json.loads(REGISTRY.read_text())['objects']}
+TYPES = ['Company', 'Strategy', 'ResponsibilityUnit', 'LongTermGoal', 'PeriodGoal', 'Mission', 'Task', 'Activity']
 
 
 class Book:
@@ -140,7 +143,7 @@ def control_plane(book, h, source, f):
     registered = rows("SELECT * FROM gov_protocol_support_registry WHERE scope_id=%s AND protocol_id='tkos.world'")
     check('the_0_2_support_registry_lists_only_the_implemented_actions_and_types',
           [(r['contract_version'], r['content']['actions'], r['content']['object_types']) for r in registered]
-          == [(V02, ['world_create_object'], ['Company'])] and registered[0]['content'] == support)
+          == [(V02, ['world_create_object'], sorted(TYPES))] and registered[0]['content'] == support)
     activation = rows('SELECT DISTINCT ON (domain_id) content FROM gov_activation_policies WHERE scope_id=%s '
                       'ORDER BY domain_id, policy_seq DESC')
     check('every_domain_has_an_activation_policy_granting_the_implemented_0_2_actions',
@@ -193,7 +196,7 @@ def company(book, h, f, flow):
           and str(events[0]['action_id']) == receipt['receipt_id'] and str(events[0]['event_id']) == made['event_id']
           and str(events[0]['principal_id']) == f['actors']['ceo']['principal_id']
           and events[0]['subject_refs'] == [{'object_id': made['object_id'], 'object_version': 1,
-                                             'revision_id': made['revision_id'], 'block': None}])
+                                             'revision_id': made['revision_id'], 'block': None, 'component': None}])
     receipts = flow.rows('SELECT receipt_id FROM gov_action_receipts WHERE scope_id=%s', (f['scope_id'],))
     check('exactly_one_receipt_is_written_for_the_creation', [str(r['receipt_id']) for r in receipts] == [receipt['receipt_id']])
     binding = flow.rows('SELECT * FROM gov_object_protocol_bindings WHERE scope_id=%s AND object_id=%s',
@@ -237,6 +240,215 @@ def company(book, h, f, flow):
     return {'company': made, 'command': body}
 
 
+def blocks_of(view):
+    return {block['id']: block for block in view['business']['blocks']}
+
+
+def objects(book, h, f, flow, company):
+    """#50：沿主干建出其余七类对象，块里带组件，引用四种形式各有；每类读回块、组件、台账与钉定引用。
+    单元 a 的 DRI 建单元以下的对象，CEO 建公司域的对象与责任单元；人带的写入声明按 Agent 的规则校验。"""
+    check = book.check
+    made = {'Company': company}
+
+    def create(actor, object_type, domain, payload, declaration=None):
+        made[object_type if object_type not in made else object_type + '.unit'] = result = flow.create(
+            actor, object_type, domain, payload, declaration)['result']
+        return result, flow.read(actor, result['object_id'])
+
+    strategy, strategy_view = create('ceo', 'Strategy', 'company', {
+        'title': '2026 战略', 'parent_ref': company['ref'],
+        'blocks': {'choices': {'text': '聚焦企业经营系统。'},
+                   'assumptions': {'components': [{'type': 'assumption', 'text': '客户愿意为可追溯付费。'}]},
+                   'responsibility_structure': {'text': '两个战场。', 'components': [
+                       {'id': 'unit-a', 'type': 'unit_entry', 'text': '战场 A'},
+                       {'type': 'unit_entry', 'text': '战场 B'}]}}})
+    structure = blocks_of(strategy_view)['responsibility_structure']
+    generated = structure['components'][1]['id']
+    assumption = blocks_of(strategy_view)['assumptions']['components'][0]['id']
+    check('components_keep_the_writers_id_or_get_one_from_the_service',
+          [c['id'] for c in structure['components']] == ['unit-a', generated] and generated != assumption
+          and all(len(cid) == 36 for cid in (generated, assumption))
+          and structure['components'][0] == {
+              'id': 'unit-a', 'type': 'unit_entry', 'scope': None, 'text': '战场 A', 'refs': [], 'artifacts': [],
+              'attributes': {}, 'ref': strategy['object_id'] + '@1#responsibility_structure/unit-a'})
+    check('the_component_ledger_is_kept_from_creation',
+          strategy_view['business']['component_ledger'] == [
+              {'id': assumption, 'type': 'assumption', 'block': 'assumptions', 'added_in_version': 1,
+               'removed_in_version': None},
+              {'id': 'unit-a', 'type': 'unit_entry', 'block': 'responsibility_structure', 'added_in_version': 1,
+               'removed_in_version': None},
+              {'id': generated, 'type': 'unit_entry', 'block': 'responsibility_structure', 'added_in_version': 1,
+               'removed_in_version': None}])
+    strategy_event = str(flow.rows('SELECT event_id FROM gov_world_events WHERE scope_id=%s AND action_id=%s',
+                                   (f['scope_id'], flow.receipts[-1]['receipt_id']))[0]['event_id'])
+
+    unit, unit_view = create('ceo', 'ResponsibilityUnit', 'a', {
+        'title': '战场 A', 'unit_kind': 'battlefield',
+        'architecture_ref': strategy['ref'] + '#responsibility_structure/unit-a',
+        'blocks': {'definition': {'text': '负责 A 客户群。'}}})
+    architecture = unit_view['business']['relations'][0]
+    check('a_responsibility_unit_is_defined_by_a_unit_entry_pinned_by_component',
+          architecture['field'] == 'architecture_ref' and architecture['value'] == {
+              'object_id': strategy['object_id'], 'object_version': 1, 'revision_id': strategy['revision_id'],
+              'block': 'responsibility_structure', 'component': 'unit-a',
+              'ref': strategy['ref'] + '#responsibility_structure/unit-a'})
+
+    company_goal, company_goal_view = create('ceo', 'LongTermGoal', 'company', {
+        'title': '公司三年目标', 'scope': 'company', 'horizon': '2028', 'parent_ref': company['ref'],
+        'blocks': {'measures': {'components': [{'id': 'sc-1', 'type': 'success_criterion', 'text': '年收入过亿'}]}}})
+    unit_goal, unit_goal_view = create('a', 'LongTermGoal', 'a', {
+        'title': '战场 A 长期目标', 'scope': 'unit', 'horizon': '2027', 'parent_ref': unit['ref'],
+        'goal_ref': company_goal['ref'],
+        'blocks': {'outcome': {'components': [{'id': 'ua-o1', 'type': 'outcome', 'text': 'A 客户群收入过半',
+                                               'refs': [company_goal['ref'] + '#measures/sc-1']}]}}})
+    outcome = blocks_of(unit_goal_view)['outcome']['components'][0]
+    check('a_component_reference_is_read_back_in_both_forms',
+          outcome['refs'] == [{'object_id': company_goal['object_id'], 'object_version': 1,
+                               'revision_id': company_goal['revision_id'], 'block': 'measures', 'component': 'sc-1',
+                               'ref': company_goal['ref'] + '#measures/sc-1'}])
+
+    # 人带写入声明：场景是责任单元（0.1 只认 Mission、Task）。
+    scene_unit = {'scene': unit['ref'], 'trigger': '周期形成', 'human_acceptance': {'required': False}}
+    goal, goal_view = create('a', 'PeriodGoal', 'a', {
+        'title': '10 月目标', 'period': '2026-10', 'goal_ref': unit_goal['ref'],
+        'blocks': {'outcome': {'components': [{'id': 'pg-o1', 'type': 'outcome', 'text': '签 3 家',
+                                               'refs': [unit_goal['ref'] + '#outcome/ua-o1']}]},
+                   'realization_logic': {'text': '靠两场试点。',
+                                         'refs': [unit_goal['ref'] + '#measures', f'event:{strategy_event}',
+                                                  strategy['ref']]},
+                   'acceptance': {'components': [{'id': 'pg-ac1', 'type': 'acceptance_criterion', 'text': '合同签署'}]}}},
+        scene_unit)
+    logic = blocks_of(goal_view)['realization_logic']['value']['refs']
+    check('object_block_and_event_references_are_pinned_and_read_back_in_both_forms',
+          logic == [{'object_id': unit_goal['object_id'], 'object_version': 1, 'revision_id': unit_goal['revision_id'],
+                     'block': 'measures', 'component': None, 'ref': unit_goal['ref'] + '#measures'},
+                    {'event_id': strategy_event, 'ref': f'event:{strategy_event}'},
+                    {'object_id': strategy['object_id'], 'object_version': 1, 'revision_id': strategy['revision_id'],
+                     'block': None, 'component': None, 'ref': strategy['ref']}])
+    check('a_whole_block_reference_in_the_0_1_form_still_works_in_a_0_2_object',
+          logic[0]['ref'] == unit_goal['ref'] + '#measures' and blocks_of(unit_goal_view)['measures']['empty'])
+    check('a_declared_scene_may_be_a_responsibility_unit',
+          goal['declaration']['scene']['ref'] == unit['ref'] and goal['declaration']['scene']['block'] is None)
+
+    scene_goal = {'scene': goal['ref'], 'trigger': 'Mission 立项',
+                  'human_acceptance': {'required': True, 'acceptor': f['actors']['ceo']['principal_id']}}
+    mission, mission_view = create('a', 'Mission', 'a', {
+        'title': '试点一', 'goal_ref': goal['ref'],
+        'blocks': {'acceptance': {'components': [{'type': 'acceptance_criterion', 'text': '客户签字',
+                                                  'refs': [goal['ref'] + '#acceptance/pg-ac1'],
+                                                  'scope': goal['ref']}]},
+                   'execution_plan': {'components': [{'id': 'plan-1', 'type': 'plan_item', 'text': '搭环境',
+                                                      'attributes': {'responsible': f['actors']['owner_a']['principal_id']}}]}}},
+        scene_goal)
+    check('a_declared_scene_may_be_a_period_goal', mission['declaration']['scene']['ref'] == goal['ref']
+          and mission['declaration']['human_acceptance']['acceptor'] == f['actors']['ceo']['principal_id'])
+    mission_blocks = blocks_of(mission_view)
+    check('a_plan_item_keeps_its_responsible_as_a_record_and_the_execution_plan_is_an_activity_block',
+          mission_blocks['execution_plan']['class'] == 'activity'
+          and mission_blocks['execution_plan']['components'][0]['attributes']
+          == {'responsible': f['actors']['owner_a']['principal_id']}
+          and mission_view['business']['attributes']['responsible'] is None)
+    check('a_component_scope_is_pinned_as_an_object_reference',
+          mission_blocks['acceptance']['components'][0]['scope']['ref'] == goal['ref'])
+    check('responsibility_by_attribute_is_named_as_such_and_empty_until_assigned',
+          mission_view['identity']['responsible'] == {'source': 'attribute', 'roles': {'human': 'OWNER'},
+                                                     'principals': []})
+
+    task, task_view = create('a', 'Task', 'a', {
+        'title': '准备演示', 'parent_ref': mission['ref'],
+        'blocks': {'acceptance': {'components': [{'type': 'acceptance_criterion', 'text': '演示通过',
+                                                  'refs': [mission_blocks['acceptance']['components'][0]['ref']]}]},
+                   'plan': {'components': [{'type': 'plan_item', 'text': '写脚本'}]}}})
+    activity, activity_view = create('a', 'Activity', 'a', {
+        'title': '录屏', 'parent_ref': task['ref'],
+        'blocks': {'instruction': {'text': '按脚本录屏。', 'refs': [task['ref'] + '#plan']}}})
+    check('the_activity_is_marked_as_a_candidate_type',
+          activity_view['business']['candidate'] is True and task_view['business']['candidate'] is False)
+
+    views = {'Strategy': strategy_view, 'ResponsibilityUnit': unit_view, 'LongTermGoal': unit_goal_view,
+             'PeriodGoal': goal_view, 'Mission': mission_view, 'Task': task_view, 'Activity': activity_view}
+    check('each_of_the_seven_types_reads_back_blocks_components_ledger_and_pinned_relations',
+          all(view['business']['object_type'] == object_type and view['protocol']['interpretation_status'] == 'world_v0_2'
+              and [b['id'] for b in view['business']['blocks']] == [b['id'] for b in OBJECTS[object_type]['blocks']]
+              and sorted(e['id'] for e in view['business']['component_ledger'])
+              == sorted(c['id'] for b in view['business']['blocks'] for c in b['components'])
+              and all(r['value'] is None or all('ref' in item and 'revision_id' in item for item in
+                                                (r['value'] if isinstance(r['value'], list) else [r['value']]))
+                      for r in view['business']['relations'])
+              for object_type, view in views.items()))
+    events = flow.rows("SELECT kind, contract_version, subject_refs FROM gov_world_events WHERE scope_id=%s", (f['scope_id'],))
+    check('every_creation_wrote_one_0_2_object_created_event_pinned_to_its_first_revision',
+          len(events) == 9  # Company 与主干上的八个对象（长期目标公司级、单元级各一）
+          and all(e['kind'] == 'object.created' and e['contract_version'] == V02
+                  and e['subject_refs'][0]['component'] is None for e in events))
+    return {'made': made, 'strategy_event': strategy_event, 'assumption': assumption}
+
+
+def references(book, h, f, flow, trunk, foreign):
+    """#50 的拒绝（在 0.1 对照 scope 建出对象之后跑）：不存在的对象、版本、块、组件、事件，scope 外的对象与事件，
+    非责任单元条目的架构引用，组件的各类违约，Agent 建对象，建对象写快照；错误码正确且库快照不变。"""
+    check = book.check
+    made = trunk['made']
+    mission, task, strategy = made['Mission'], made['Task'], made['Strategy']
+
+    def deny_task(codes, *, actor='a', refs=None, parent=None, blocks=None, declaration=None, **payload):
+        definition = {'text': '做事', 'refs': refs} if refs is not None else {'text': '做事'}
+        flow.deny_create(actor, 'Task', 'a', {'title': 'T', 'parent_ref': parent or mission['ref'],
+                                             'blocks': blocks or {'definition': definition}, **payload},
+                         declaration, codes=codes)
+
+    missing = uid()
+    deny_task({'INVALID_REQUEST'}, parent=f'{missing}@1')
+    check('a_reference_to_an_object_that_does_not_exist_is_refused')
+    deny_task({'INVALID_REQUEST'}, refs=[mission['object_id'] + '@9'])
+    check('a_reference_to_a_version_that_does_not_exist_is_refused')
+    deny_task({'INVALID_REQUEST'}, refs=[mission['ref'] + '#no_such_block'])
+    check('a_reference_to_a_block_the_type_does_not_have_is_refused')
+    deny_task({'INVALID_REQUEST'}, refs=[mission['ref'] + '#execution_plan/no-such-item'])
+    check('a_reference_to_a_component_not_present_in_that_version_is_refused')
+    deny_task({'INVALID_REQUEST'}, refs=[f'event:{missing}'])
+    check('a_reference_to_an_event_that_does_not_exist_is_refused')
+    deny_task({'INVALID_REQUEST'}, refs=[foreign['object']['ref']])
+    check('a_reference_to_an_object_of_another_scope_is_refused_as_missing')
+    deny_task({'INVALID_REQUEST'}, refs=[f"event:{foreign['event_id']}"])
+    check('a_reference_to_an_event_of_another_scope_is_refused_as_missing')
+
+    for architecture in (strategy['ref'], strategy['ref'] + '#responsibility_structure',
+                         strategy['ref'] + f"#assumptions/{trunk['assumption']}"):
+        flow.deny_create('ceo', 'ResponsibilityUnit', 'b', {'title': 'B', 'unit_kind': 'domain',
+                                                             'architecture_ref': architecture}, codes={'INVALID_REQUEST'})
+    check('an_architecture_reference_that_is_not_a_unit_entry_is_refused')
+
+    deny_task({'INVALID_REQUEST'}, blocks={'acceptance': {'components': [{'id': 'x', 'type': 'acceptance_criterion'}]},
+                                           'plan': {'components': [{'id': 'x', 'type': 'plan_item'}]}})
+    check('a_component_id_repeated_within_the_object_is_refused')
+    deny_task({'INVALID_REQUEST'}, blocks={'acceptance': {'components': [{'type': 'plan_item', 'text': 'x'}]}})
+    check('a_component_type_the_block_does_not_allow_is_refused')
+    deny_task({'INVALID_REQUEST'}, blocks={'plan': {'components': [{'type': 'plan_item',
+                                                                    'attributes': {'responsible': missing}}]}})
+    check('a_plan_item_responsible_that_is_no_principal_of_the_scope_is_refused')
+    deny_task({'INVALID_REQUEST'}, blocks={'plan': {'components': [{'type': 'plan_item', 'scope': f"event:{trunk['strategy_event']}"}]}})
+    check('a_component_scope_is_an_object_reference')
+    flow.deny_create('a', 'PeriodGoal', 'a', {'title': 'P', 'period': '2026-11', 'goal_ref': made['LongTermGoal.unit']['ref'],
+                                             'review_ref': made['Company']['ref']}, codes={'INVALID_REQUEST'})
+    check('a_period_goal_review_reference_is_not_open_yet')
+    deny_task({'INVALID_REQUEST'}, declaration={'scene': mission['ref'] + '#acceptance', 'trigger': 'x',
+                                                'human_acceptance': {'required': False}})
+    check('a_declared_scene_is_an_object_reference')
+
+    flow.deny_create('agent_a', 'Activity', 'a', {'title': 'A', 'parent_ref': task['ref']},
+                     {'scene': task['ref'], 'trigger': 'x', 'human_acceptance': {'required': False}}, codes={'FORBIDDEN'})
+    check('an_agent_does_not_create_objects')
+    deny_task({'FORBIDDEN'}, actor='ic_a')
+    check('creation_rights_stay_as_in_0_1')
+    flow.deny_create('ceo', 'Task', 'b', {'title': 'T', 'parent_ref': mission['ref']}, codes={'INVALID_REQUEST'})
+    check('domain_placement_stays_as_in_0_1')
+    flow.deny_create('ceo', 'ResponsibilityUnit', 'a', {'title': 'A2', 'unit_kind': 'domain',
+                                                        'architecture_ref': strategy['ref'] + '#responsibility_structure/unit-a'},
+                     codes={'INVALID_STATE'}, prepare=False)
+    check('a_domain_has_exactly_one_responsibility_unit')
+
+
 def rejections(book, h, f, flow, made):
     """拒绝：无权角色、多余字段、错期望版本、0.2 请求打到 0.1 默认的 scope，错误码正确且库快照不变。"""
     check = book.check
@@ -258,13 +470,13 @@ def rejections(book, h, f, flow, made):
     check('an_empty_block_cannot_pose_as_content')
     flow.deny('ceo', flow.command('world_create_object', params(
         blocks={'identity': {'text': 'x', 'components': [{'type': 'outcome', 'text': 'y'}]}})), codes={'INVALID_REQUEST'})
-    check('components_are_refused_until_they_are_implemented')
+    check('a_component_in_a_block_that_takes_none_is_refused')
     flow.deny('ceo', flow.command('world_create_object', params(external_refs=[{'system': 'tianshu'}])),
               codes={'INVALID_REQUEST'})
     check('an_external_ref_without_an_id_is_refused')
-    flow.deny('ceo', flow.command('world_create_object', params(object_type='Strategy')),
+    flow.deny('ceo', flow.command('world_create_object', params(object_type='StateSnapshot')),
               codes={'ACTION_NOT_SUPPORTED_FOR_PROTOCOL'})
-    check('an_object_type_not_yet_implemented_under_0_2_is_refused')
+    check('a_state_snapshot_is_not_written_by_creating_an_object')
     flow.deny('ceo', flow.command('world_create_object', params('Second company')), codes={'INVALID_STATE'}, prepare=False)
     check('a_scope_has_exactly_one_company')
     stale = flow.command('world_create_object', params('Stale company'),
@@ -307,6 +519,9 @@ def coexistence(book, h, f, flow):
                                                           'payload': {'title': 'x'}}, contract=V01),
               codes={'PROTOCOL_BINDING_CONFLICT'})
     check('a_0_1_request_to_a_scope_defaulting_to_0_2_is_refused')
+    return {'object': made, 'event_id': str(h.sql({'scope_id': f['foreign_scope_id']},
+                                                  'SELECT event_id FROM gov_world_events WHERE scope_id=%s',
+                                                  (f['foreign_scope_id'],))[0]['event_id'])}
 
 
 def revocation(book, h, f, flow, command):
@@ -339,10 +554,14 @@ def run(book, h, source, upgrade_evidence):
     try:
         with scenario('company'):
             made = company(book, h, f, flow)
+        with scenario('objects'):
+            trunk = objects(book, h, f, flow, made['company'])
         with scenario('rejections'):
             rejections(book, h, f, flow, made['company'])
         with scenario('coexistence'):
-            coexistence(book, h, f, flow)
+            foreign = coexistence(book, h, f, flow)
+        with scenario('references'):
+            references(book, h, f, flow, trunk, foreign)
         with scenario('revocation'):
             revocation(book, h, f, flow, made['command'])
     finally:

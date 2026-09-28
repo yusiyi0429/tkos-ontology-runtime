@@ -4,7 +4,7 @@
   "can_write": true,
   "evidence_upload": false,
   "actions": ["world_create_object"],
-  "object_types": ["Company"],
+  "object_types": ["Activity", "Company", "LongTermGoal", "Mission", "PeriodGoal", "ResponsibilityUnit", "Strategy", "Task"],
   "readonly_compat": ["tkos.world/0.2"],
   "notes": "World 0.2 support registry content; lists only the actions and object types implemented so far."
 }

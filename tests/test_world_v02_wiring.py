@@ -167,8 +167,8 @@ def test_a_company_payload_takes_the_0_2_block_value_and_stores_empty_blocks_as_
     {"title": "E&O", "blocks": {"identity": {"text": "x", "note": "y"}}},  # 块值只有四个字段
     {"title": "E&O", "blocks": {"identity": {"text": "   "}}},              # 空内容不能冒充非空块
     {"title": "E&O", "blocks": {"identity": {"text": "x", "artifacts": ["ftp://example.test/a"]}}},
-    {"title": "E&O", "blocks": {"identity": {"text": "x", "components": [{"type": "outcome", "text": "y"}]}}},
-    {"title": "E&O", "blocks": {"identity": {"text": "x", "refs": ["event:0b5a7e2c-7d4f-4c1e-9a55-3a4f1c2d9e01"]}}},
+    {"title": "E&O", "blocks": {"identity": {"text": "x", "components": [{"type": "outcome", "text": "y"}]}}},  # 身份块不带组件
+    {"title": "E&O", "blocks": {"identity": {"text": "x", "refs": ["0b5a7e2c-7d4f-4c1e-9a55-3a4f1c2d9e01@1#Bad"]}}},
     {"title": "E&O", "external_refs": [{"system": "tianshu"}]},             # 外部引用缺 id
     {"title": "E&O", "external_refs": [{"system": " ", "id": "1"}]},        # system 不能只有空白
     {"title": "E&O", "external_refs": [{"system": "t", "id": "1", "url": "ftp://x"}]},
@@ -205,8 +205,8 @@ def test_the_same_action_name_parses_under_the_version_it_declares():
     {"target": {"object_id": DOMAIN, "revision_id": DOMAIN, "expected_version": 1}},
     {"params": {"domain_id": DOMAIN, "object_type": "Company", "payload": {"title": "x"}, "extra": 1}},
     {"params": {"domain_id": DOMAIN, "object_type": "Constraint", "payload": {"title": "x"}}},
-    {"params": {"domain_id": DOMAIN, "object_type": "Company", "payload": {"title": "x"},  # 声明随票 #50 开放
-                "declaration": {"scene": DOMAIN + "@1", "trigger": "x", "human_acceptance": {"required": False}}}},
+    {"params": {"domain_id": DOMAIN, "object_type": "Company", "payload": {"title": "x"},  # 场景只用对象形式
+                "declaration": {"scene": DOMAIN + "@1#identity", "trigger": "x", "human_acceptance": {"required": False}}}},
 ])
 def test_a_world_0_2_request_outside_its_envelope_is_refused(overrides):
     from memory_service_runtime.governed.models import ActionRequest

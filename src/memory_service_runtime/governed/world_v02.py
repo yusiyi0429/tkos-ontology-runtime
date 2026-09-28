@@ -5,11 +5,16 @@
 重放与读回执据此分派。授权先于协议错误：先按激活策略判权，Agent 不在建对象的 Agent 面上，再过协议
 闸门；然后校验载荷，按主干判断调用者是不是有权的责任人（从新对象的主干上一级找起，同 0.1），之后才
 钉定其余引用、核对对象放在哪个域与挂在谁下面、写入声明。已接通八类业务对象的建对象、合并修订与建关系，
-写状态快照与记外部事件，指派与 Task、Activity 的六个生命周期动作（#53）；门随各自的票接入。
+写状态快照与记外部事件，指派与 Task、Activity 的六个生命周期动作（#53），周期目标、长期目标与 Mission 立项的
+承诺与确认（#54）；其余门随各自的票接入。
 
-指派与生命周期动作的判权（契约第 9.2 节）：激活策略列角色的并集，之后由服务算出调用者对目标满足的记录者类别
-（self、parent），连同目标的事件交给生命周期引擎 admit 判状态与记录者。记录者不符是 FORBIDDEN，状态表不允许
-是 INVALID_STATE。
+指派、生命周期动作与门的判权（契约第 9.2 节）：激活策略列角色（门按目标类型拆名，ADR-0005），之后由服务算出
+调用者对目标满足的记录者类别（self、parent、gate_role）与守卫事实，连同目标的事件交给生命周期引擎 admit 判状态、
+守卫与记录者。记录者不符是 FORBIDDEN，状态表或守卫不允许是 INVALID_STATE。
+
+有门对象的修订规则（契约第 12 节）：正式块、正式属性与建对象时写的关系只在草稿直接修订；有了正式内容以后经一轮
+重走改——承诺或长期目标的确认带候选（合并补丁），确认接受时写回，活动内容取写回时的当前值。活动块与活动属性在
+终态之外直接修订，下级责任人与在对象所在域持 AGENT 的 Agent 也可以。
 """
 from __future__ import annotations
 
@@ -58,6 +63,8 @@ class WorldExecution(ActionExecution):
             self.authorize_record_event()
         elif self.kind in {"world_revise_object", "world_relate"}:
             self.authorize_target()
+        elif self.kind in models.GATE_ACTIONS:
+            self.authorize_gate()
         else:
             self.authorize_responsibility()
 
@@ -104,8 +111,8 @@ class WorldExecution(ActionExecution):
     # ------------------------------------------------------------ revise and relate
     def authorize_target(self) -> None:
         """修订与建关系（契约第 6、9、12 节）：目标须是本 scope 的 world 对象（否则 404），按激活策略判权，
-        不在 Agent 面上的动作 Agent 不能做，再过目标动作闸门；然后校验补丁与写入声明，最后判调用者是不是
-        该对象或其主干上某一级的责任人（同 0.1）。有门对象按状态与块类别的修订规则随票 #54。"""
+        不在 Agent 面上的动作 Agent 不能做，再过目标动作闸门；然后校验补丁与写入声明，再判调用者能不能改（建关系
+        同 0.1；修订按块类别，见 reviser），修订有门对象时最后按生命周期判修订规则（见 check_revisable）。"""
         self.target, _ = head_and_binding(self.conn, self.ctx, self.request.target.object_id)
         self.domain_id = self.target["domain_id"]
         self.action_assignments = db.authorize_domain(self.conn, self.ctx, self.domain_id, self.kind)
@@ -123,13 +130,47 @@ class WorldExecution(ActionExecution):
             except ValueError as exc:
                 _invalid(f"The revision does not satisfy this world 0.2 object type: {exc}.")
         self.require_declaration(object_type)
-        used = self.responsible_up_the_spine(self.target["object_id"])
+        if self.kind == "world_revise_object":
+            used = self.reviser(object_type)
+        else:
+            used = self.responsible_up_the_spine(self.target["object_id"])
         self.required_assignments.add(used["assignment_id"])
         if self.kind == "world_revise_object":
+            self.check_revisable(object_type)
             self.revise(object_type, current)
         else:
             self.relate(object_type, current)
         self.declaration = self.pinned_declaration()
+
+    def reviser(self, object_type: str) -> dict[str, Any]:
+        """谁能直接修订（契约第 3.2、12 节）：该对象或其主干上某一级的责任人（同 0.1）；有门对象只改活动块与活动
+        属性时，另有下级责任人与在对象所在域持 AGENT 的 Agent（Co-Agent）。返回让调用者有权的那条指派。"""
+        used = self.responsible_up_the_spine(self.target["object_id"], required=False)
+        if (used is None and world_registry.object_spec(object_type)["gated"]
+                and not models.touches_formal(object_type, self.params["payload"])):
+            current = db._assignments(self.conn, self.ctx)
+            used = next((row for row in current if self.ctx.principal_type == "agent" and row["role"] == "AGENT"
+                         and row["domain_id"] == self.domain_id), None) or self.responsible_below(
+                self.target["object_id"], current)
+        if used is None:
+            _fail("FORBIDDEN", "Only a responsible person up the spine writes this object; the activity blocks and "
+                               "attributes of a gated object also a responsible below it or an Agent of its domain.")
+        return used
+
+    def check_revisable(self, object_type: str) -> None:
+        """有门对象的修订规则（契约第 12 节）：终态（已关闭、已取消、已终止）不再直接修订；正式块、正式属性与建对象
+        时写的关系只在初始段（草稿）直接修订——已承诺时先由确认人退回，有正式内容后经一轮重走改；活动块与活动属性
+        在终态之外都可以直接修订（补 31）。无门对象随时可改（同 0.1）。"""
+        spec = world_registry.registry()["lifecycles"].get(object_type)
+        if not world_registry.object_spec(object_type)["gated"] or spec is None:
+            return
+        status = lifecycle(self.conn, self.ctx, self.target)["status"]
+        if status in spec["terminal"]:
+            _fail("INVALID_STATE", "A closed, cancelled or terminated object is not revised.")
+        if models.touches_formal(object_type, self.params["payload"]) and status != spec["initial"]:
+            _fail("INVALID_STATE", "Formal blocks and attributes of a gated object are revised directly only while it "
+                                   "is a draft: a commitment is returned by its confirmer first, and formal content "
+                                   "changes through a re-run of the gate.")
 
     def require_declaration(self, object_type: str | None = None) -> None:
         """写入声明只对 Agent 强制（契约第 9.3 节）；Agent 的修订触及正式块、正式属性时必须要求人工验收，
@@ -342,6 +383,86 @@ class WorldExecution(ActionExecution):
         if role is None or not holds_role(self.conn, self.ctx, self.assignee, self.domain_id, role):
             _invalid("The assignee does not hold the role this assignment needs in the object's domain.")
 
+    # ------------------------------------------------------------ gates
+    def authorize_gate(self) -> None:
+        """门动作（契约第 9、10.2–10.4、11、12 节）：目标须是本 scope 的 world 对象（否则 404），角色按激活策略判
+        （ADR-0005），门事件只由人记——Agent 持有角色也不能记；再过目标动作闸门。然后校验事件内容与候选（合并补丁，
+        只含正式内容），最后连同守卫事实与调用者满足的记录者类别交给生命周期引擎，判这条门事件现在能不能记。
+        要写回的候选：这条请求带来的（长期目标带候选的确认），或此前那条承诺留存的（确认接受时）。"""
+        self.target = head_and_binding(self.conn, self.ctx, self.request.target.object_id)[0]
+        self.domain_id = self.target["domain_id"]
+        self.action_assignments = db.authorize_domain(self.conn, self.ctx, self.domain_id, self.kind)
+        if self.ctx.principal_type != "human":
+            _fail("FORBIDDEN", "A gate event is recorded by a person; an Agent does not record it even with the role.")
+        self.protocol_context = protocol.gate_target_action(
+            self.conn, self.ctx.scope_id, self.target["object_id"], self.kind, self.request.contract_version)
+        object_type = self.target["object_type"]
+        content = self.params.get("content")
+        self.content = content and {**content, "refs": [self.pin(text) for text in content["refs"]]}
+        latest = self.target_revision_row()
+        self.next_version = latest["object_version"] + 1
+        self.candidate = models.with_component_ids(self.params["payload"]) if "payload" in self.params else None
+        proposed = None
+        if self.candidate is not None:  # 按修订的规则校验、钉定；这条请求就写回时，写回的正是这一版
+            proposed = self.candidate_revision(object_type, latest["payload"], latest["payload"], self.candidate)
+        recorders = self.recorders()
+        recorders["gate_role"] = (sorted(self.action_assignments, key=lambda row: row["assignment_id"])[0], None)
+        event = {"event_id": "pending", "action": self.kind, "outcome": self.params.get("outcome"),
+                 "disposition": None, "supersedes_event_id": self.params.get("supersedes_event_id"),
+                 "candidate": self.candidate is not None, "guards": self.guard_facts(object_type),
+                 "recorders": set(recorders)}
+        try:
+            self.effect = world_lifecycle.admit(world_registry.registry(), object_type,
+                                                lifecycle_events(self.conn, self.ctx, self.target["object_id"]), event)
+        except world_lifecycle.Refused as exc:
+            _fail("FORBIDDEN" if exc.reason == "recorder" else "INVALID_STATE", str(exc))
+        used, through = recorders[self.effect["by"]]
+        self.required_assignments.add(used["assignment_id"])
+        self.responsible_through = through
+        source = self.effect["candidate_event_id"]
+        if source == "pending":
+            self.payload = proposed
+        elif source is not None:
+            base, carried = self.carried_candidate(source)
+            self.payload = self.candidate_revision(object_type, base, latest["payload"], carried, conflict=True)
+        else:
+            self.payload = None
+
+    def guard_facts(self, object_type: str) -> dict[str, bool]:
+        """这条门事件的守卫事实（登记 guards）：Mission 立项的承诺与确认接受查父周期目标（goal_ref）当前处于已确认。
+        周期目标的形成锚定（goal_ref 的长期目标已确认、review_ref 指向已确认的公司复盘）随票 #60 实现，本票先当它成立。"""
+        if object_type == "Mission":
+            goal = self.current_object(self.target["object_id"])["payload"]["goal_ref"]["object_id"]
+            status = lifecycle(self.conn, self.ctx, {"object_id": goal, "object_type": "PeriodGoal"})["status"]
+            return {"parent_goal_confirmed": status == "confirmed"}
+        if object_type == "PeriodGoal":
+            return {"formation_anchors": True}
+        return {}
+
+    def candidate_revision(self, object_type: str, base: dict[str, Any], latest: dict[str, Any], candidate: Any, *,
+                           conflict: bool = False) -> dict[str, Any]:
+        """候选写回后的那一版（契约第 12 节，补 33）：正式内容取 base 合并候选，活动内容与只由服务写的字段取 latest 的
+        当前值，按修订的规则校验、钉定引用，版本号接在 latest 之后。候选本身不合契约是 INVALID_REQUEST；留存的候选
+        写回时已对不上此后的组件台账（conflict）是 INVALID_STATE，由确认人退回、重新承诺。"""
+        try:
+            self.written = models.written_back(object_type, base, candidate, latest)
+        except ValueError as exc:
+            if conflict:
+                _fail("INVALID_STATE", f"The committed candidate no longer fits the object ({exc}); "
+                                       "return it and commit again.")
+            _invalid(f"The candidate does not satisfy this world 0.2 object type: {exc}.")
+        self.revise(object_type, latest)
+        return self.payload
+
+    def carried_candidate(self, event_id: str) -> tuple[dict[str, Any], Any]:
+        """此前那条承诺留存的候选（事件 detail）与它所钉的修订：承诺不出修订，钉的是承诺时的最新修订。"""
+        row = db.jsonable(self.conn.execute(
+            """SELECT e.detail, r.payload FROM gov_world_events e
+                 JOIN gov_object_revisions r
+                   ON r.scope_id=e.scope_id AND r.revision_id=(e.subject_refs->0->>'revision_id')::uuid
+                WHERE e.scope_id=%s AND e.event_id=%s""", (self.ctx.scope_id, event_id)).fetchone())
+        return row["payload"], row["detail"]["candidate"]
+
     # ------------------------------------------------------------ references
     def pin(self, text: str) -> dict[str, Any]:
         """把业务形式的引用解析并钉住（契约第 5 节）：对象形式钉到本 scope 某个 0.2 world 对象的某个修订，
@@ -477,9 +598,9 @@ class WorldExecution(ActionExecution):
             role = None
         return next((row for row in current if row["domain_id"] == node["domain_id"] and row["role"] == role), None)
 
-    def responsible_up_the_spine(self, object_id: str) -> dict[str, Any]:
+    def responsible_up_the_spine(self, object_id: str, *, required: bool = True) -> dict[str, Any] | None:
         """调用者须是从 object_id 起沿主干向上某一级的责任人（同 0.1），返回让他成为责任人的那条指派；
-        经 responsible 属性成立时记下该对象，重放时复核。"""
+        经 responsible 属性成立时记下该对象，重放时复核。不是时 FORBIDDEN（required 为假时返回 None）。"""
         current = db._assignments(self.conn, self.ctx)
         while object_id is not None:
             node = self.current_object(object_id)
@@ -489,7 +610,33 @@ class WorldExecution(ActionExecution):
                     self.responsible_through = node["object_id"]
                 return used
             object_id = self.spine_parent(node)
-        _fail("FORBIDDEN", "Only a responsible person up the spine writes this object.")
+        if required:
+            _fail("FORBIDDEN", "Only a responsible person up the spine writes this object.")
+        return None
+
+    def responsible_below(self, object_id: str, current: list[dict[str, Any]]) -> dict[str, Any] | None:
+        """下级责任人（契约第 3.2 节）：调用者是主干上位于 object_id 之下某个对象的责任人，逐层往下找；是则返回让他
+        成为责任人的那条指派，经 responsible 属性成立时记下该对象，重放时复核。"""
+        spine = [(spec["type"], spec["spine_parent_field"]) for spec in world_registry.registry()["objects"]
+                 if spec["spine_parent_field"]]
+        level = [object_id]
+        while level:
+            rows = [db.jsonable(row) for row in self.conn.execute(
+                """SELECT o.object_id, o.object_type, o.domain_id, r.payload
+                     FROM gov_objects o JOIN gov_object_revisions r
+                       ON r.scope_id=o.scope_id AND r.revision_id=o.latest_revision_id
+                    WHERE o.scope_id=%s AND (""" + " OR ".join(
+                    ["(o.object_type=%s AND r.payload->%s->>'object_id' = ANY(%s))"] * len(spine)) + """)
+                    ORDER BY o.object_id""",
+                (self.ctx.scope_id, *[value for pair in spine for value in (*pair, level)])).fetchall()]
+            for node in rows:
+                used = self.responsibility_assignment(node, current)
+                if used is not None:
+                    if world_registry.object_spec(node["object_type"])["responsible"]["source"] == "attribute":
+                        self.responsible_through = node["object_id"]
+                    return used
+            level = [row["object_id"] for row in rows]
+        return None
 
     def check_versions(self) -> None:
         """锁定并核对期望版本。world 读按 scope（契约第 15.1 节），不走内核 object_row 的域级读策略。"""
@@ -534,6 +681,8 @@ class WorldExecution(ActionExecution):
             return self.assign()
         if self.kind in models.LIFECYCLE_ACTIONS:
             return self.record_lifecycle()
+        if self.kind in models.GATE_ACTIONS:
+            return self.record_gate()
         return self.new_revision()
 
     def record_event(self) -> dict[str, Any]:
@@ -569,6 +718,27 @@ class WorldExecution(ActionExecution):
         revision = self.target_revision_row()
         obj = self.bump(self.target)
         return self.written_result(obj, revision, outcome=self.params.get("outcome"), content=self.content,
+                                   supersedes_event_id=self.params.get("supersedes_event_id"))
+
+    def record_gate(self) -> dict[str, Any]:
+        """记门事件并按它的作用挪正式内容指针（契约第 12 节末条）：第一次进入正式段时对象行改为 confirmed、生效指针
+        挪到被确认的修订，撤回这条确认时回到 draft、生效指针清空。写回候选出一个新修订，最新与生效指针一起移过去，
+        门事件钉这一修订、不另记 object.revised；其余门事件钉当前最新修订。带候选的门事件把候选（合并补丁，新组件的
+        id 已定下）留存在 detail，确认接受时从它写回。"""
+        obj, effect = self.target, self.effect
+        status, latest, effective = obj["lifecycle_status"], obj["latest_revision_id"], obj["effective_revision_id"]
+        if self.payload is not None:
+            revision = self.insert_revision(obj, self.payload, version=self.next_version)
+            latest = effective = revision["revision_id"]
+        else:
+            revision = self.target_revision_row()
+        if effect["makes_formal"]:
+            status, effective = "confirmed", latest
+        if effect["unmakes_formal"]:
+            status, effective = "draft", None
+        obj = self.bump(obj, status=status, latest=latest, effective=effective)
+        return self.written_result(obj, revision, outcome=self.params.get("outcome"), content=self.content,
+                                   detail=None if self.candidate is None else {"candidate": self.candidate},
                                    supersedes_event_id=self.params.get("supersedes_event_id"))
 
     def create_world_object(self, object_type: str) -> dict[str, Any]:

@@ -449,6 +449,59 @@ def touches_formal(object_type: str, patch: dict[str, Any]) -> bool:
             or any(block_id in formal_blocks for block_id in patch.get("blocks", {})))
 
 
+# ------------------------------------------------------------------ candidate and write-back (契约第 12 节)
+def _formal_fields(object_type: str) -> list[str]:
+    """随正式块走门、客户端可写的顶层字段：正式属性与建对象时写的关系字段（只经 world_relate 写的关系与依据复盘
+    不在内，它们只由服务写）。"""
+    spec = world_registry.object_spec(object_type)
+    return ([attribute["id"] for attribute in spec["attributes"]
+             if attribute["class"] == "formal" and attribute["set_by"] is None]
+            + [relation["field"] for relation in spec["relation_fields"] if _written_by_client(relation)])
+
+
+def _formal_blocks(object_type: str) -> list[str]:
+    return [block["id"] for block in world_registry.object_spec(object_type)["blocks"] if block["class"] == "formal"]
+
+
+def check_candidate(object_type: str, patch: Any) -> None:
+    """候选是合并补丁，只含正式块、正式属性与建对象时写的关系：活动块与活动属性直接修订、不走候选，只由服务写的
+    字段不经候选写。违反抛 ValueError。"""
+    if not isinstance(patch, dict) or not isinstance(patch.get("blocks", {}), dict):
+        raise ValueError("a candidate is a revision patch: an object, and its blocks, if given, an object")
+    others = ([key for key in patch if key != "blocks" and key not in _formal_fields(object_type)]
+              + [block for block in patch.get("blocks", {}) if block not in _formal_blocks(object_type)])
+    if others:
+        raise ValueError(f"a candidate carries only formal blocks and formal attributes, not {', '.join(others)}")
+
+
+def with_component_ids(patch: Any) -> Any:
+    """候选里没有 id 的新组件先定下 id（UUID 文本）再留存：同一份候选无论写回几次，组件都是同一个 id。
+    给了 id 的、删除标记与形状不对的原样留给合并去判。"""
+    if not isinstance(patch, dict) or not isinstance(patch.get("blocks"), dict):
+        return patch
+
+    def component(item: Any) -> Any:
+        if isinstance(item, dict) and item.get("id") is None and "removed" not in item:
+            return {**item, "id": str(uuid4())}
+        return item
+    blocks = {block_id: {**block, "components": [component(item) for item in block["components"]]}
+              if isinstance(block, dict) and isinstance(block.get("components"), list) else block
+              for block_id, block in patch["blocks"].items()}
+    return {**patch, "blocks": blocks}
+
+
+def written_back(object_type: str, base: dict[str, Any], patch: Any, latest: dict[str, Any]) -> dict[str, Any]:
+    """写回的内容（契约第 12 节，补 33）：候选是对它所钉的修订 base 的合并补丁；正式块、正式属性与建对象时写的关系
+    取 base 合并候选的结果，活动块与活动属性取写回时最新修订 latest 的当前值（只由服务写的字段在存储时另取
+    latest 的当前值）。组件按 latest 的台账核对（删除后不复用、不换块、不换类型）。返回写入形式；违反抛 ValueError。"""
+    check_candidate(object_type, patch)
+    proposed = merge_revision(object_type, base, patch)
+    written = {**written_form(object_type, latest), **{field: proposed[field] for field in _formal_fields(object_type)}}
+    written["blocks"] = {**written["blocks"], **{block: proposed["blocks"][block] for block in _formal_blocks(object_type)}}
+    _check_ledger(latest["component_ledger"], written["blocks"])
+    return validate_input(object_type, written)
+
+
 # ------------------------------------------------------------ state snapshots
 def payload_spec(payload_type: str) -> dict[str, Any]:
     return next(item for item in world_registry.registry()["state"]["payload_types"] if item["id"] == payload_type)
@@ -621,11 +674,53 @@ class WorldV02LifecycleParams(StrictModel):
 
 LIFECYCLE_ACTIONS = ("world_start", "world_deliver", "world_accept", "world_reject", "world_reopen", "world_cancel")
 
+
+class _GateParams(StrictModel):
+    """门动作（契约第 9.1 节）：content 是事件内容（例如退回理由、候选稿的链接），撤回带 outcome withdrawn 并以
+    supersedes_event_id 引用原事件。候选 payload 是合并补丁，只随承诺与长期目标接受的确认提交。门只由人记，
+    不带写入声明；0.2 没有阶段。"""
+    content: Optional[_block_model((), False)] = None
+    supersedes_event_id: Optional[CanonicalUUID] = None
+
+    @model_validator(mode="after")
+    def withdrawal_names_the_original(self) -> "_GateParams":
+        outcome = getattr(self, "outcome", None)
+        if (outcome == "withdrawn") != (self.supersedes_event_id is not None):
+            raise ValueError("a withdrawal, and only a withdrawal, references the event it withdraws")
+        if getattr(self, "payload", None) is not None and outcome not in (None, "accepted"):
+            raise ValueError("a candidate travels only with a commitment or an accepting confirmation")
+        return self
+
+
+class WorldV02CommitParams(_GateParams):
+    """承诺（周期目标、Mission）：可带候选，也可不带（补 30）；只在撤回时带结果。"""
+    outcome: Optional[Literal["withdrawn"]] = None
+    payload: Optional[dict[str, Any]] = None
+
+
+class WorldV02ConfirmParams(_GateParams):
+    """确认（周期目标、Mission）：必带结果——接受、退回或撤回。"""
+    outcome: Literal["accepted", "returned", "withdrawn"]
+
+
+class WorldV02ConfirmCandidateParams(WorldV02ConfirmParams):
+    """长期目标的确认：没有承诺门，接受时可以带候选（第 10.2 节）。"""
+    payload: Optional[dict[str, Any]] = None
+
+
+# 本票接入的门动作 -> 目标类型（门按目标类型拆名，ADR-0005）；再确认、复盘确认、Strategy 与关注标记随各自的票。
+GATE_ACTIONS = {"world_commit_period_goal": "PeriodGoal", "world_confirm_period_goal": "PeriodGoal",
+                "world_confirm_long_term_goal": "LongTermGoal", "world_commit_mission": "Mission",
+                "world_confirm_mission": "Mission"}
+
 # 本进程已实现的 0.2 动作与可建类型。支持登记只能在这之内收窄，不能扩大（与协议支持集合同理）。
 ACTION_PARAMS = {"world_create_object": WorldV02CreateObjectParams, "world_revise_object": WorldV02ReviseObjectParams,
                  "world_relate": WorldV02RelateParams, "world_refresh_state": WorldV02RefreshStateParams,
                  "world_record_event": WorldV02RecordEventParams, "world_assign": WorldV02AssignParams,
-                 **{action: WorldV02LifecycleParams for action in LIFECYCLE_ACTIONS}}
+                 **{action: WorldV02LifecycleParams for action in LIFECYCLE_ACTIONS},
+                 "world_commit_period_goal": WorldV02CommitParams, "world_commit_mission": WorldV02CommitParams,
+                 "world_confirm_period_goal": WorldV02ConfirmParams, "world_confirm_mission": WorldV02ConfirmParams,
+                 "world_confirm_long_term_goal": WorldV02ConfirmCandidateParams}
 BUSINESS_TYPES = frozenset({"Company", "Strategy", "ResponsibilityUnit", "LongTermGoal", "PeriodGoal", "Mission",
                             "Task", "Activity"})
 # 状态快照只经 world_refresh_state 写入，建对象在服务里先拒绝它。
@@ -638,4 +733,5 @@ ACTION_TARGETS: dict[str, frozenset[str]] = {
     "world_refresh_state": frozenset(), "world_record_event": frozenset(),
     "world_assign": frozenset({"ResponsibilityUnit", "Mission", "Task", "Activity"}),
     **{action: frozenset({"Task", "Activity"}) for action in LIFECYCLE_ACTIONS},
+    **{action: frozenset({target}) for action, target in GATE_ACTIONS.items()},
 }

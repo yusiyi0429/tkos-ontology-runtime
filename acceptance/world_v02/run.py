@@ -31,7 +31,7 @@ from .fixture import (CONTRACT, PROFILE, REGISTRY, SUPPORT, action_roles, instal
 V01, V02 = 'tkos.world/0.1', 'tkos.world/0.2'
 MIGRATION = '0039_world_v02.sql'
 SCENARIOS = ['migration', 'control_plane', 'company', 'objects', 'rejections', 'coexistence', 'references',
-             'revise_relate', 'state_events', 'assign_lifecycle', 'revocation']
+             'revise_relate', 'state_events', 'assign_lifecycle', 'gates', 'revocation']
 EVENT_KINDS = {item['kind']: item for item in json.loads(REGISTRY.read_text())['event_kinds']}
 OBJECTS = {item['type']: item for item in json.loads(REGISTRY.read_text())['objects']}
 TYPES = ['Company', 'Strategy', 'ResponsibilityUnit', 'LongTermGoal', 'PeriodGoal', 'Mission', 'Task', 'Activity']
@@ -599,6 +599,393 @@ def assign_lifecycle(book, h, f, flow, trunk):
           revised['responsible_through'] == activity
           and revised['declaration']['human_acceptance']['acceptor'] == actor_id['ic_a']
           and revised['declaration']['scene']['ref'] == made['PeriodGoal']['ref'])
+
+
+def gates(book, h, f, flow, trunk):
+    """#54：周期目标、长期目标与 Mission 立项各走一遍承诺、确认接受、确认退回与撤回，读回生命周期与正式内容指针；
+    带候选的确认接受写回新修订（活动内容取当前值），不带候选接受当时的最新修订；一轮重走开轮、退回作废、写回
+    且状态不变，一轮未完不能再开；写回过后让对象成为正式的那条确认不能撤回；Mission 立项查父周期目标已确认；
+    有门对象的块类别修订规则（正式块只在草稿直接改，活动块由责任人、下级责任人与 Co-Agent 直接改）；门只由人记。
+    周期目标的形成锚定随票 #60，本场景里它当作成立。"""
+    check = book.check
+    made = trunk['made']
+    actor_id = {name: actor['principal_id'] for name, actor in f['actors'].items()}
+    scope = f['scope_id']
+
+    def gate(actor, kind, oid, params=None):
+        return flow.commit(actor, flow.prepare(actor, flow.targeted(kind, oid, params or {})))['result']
+
+    def deny(actor, kind, oid, codes, params=None, says=None):
+        flow.deny(actor, flow.targeted(kind, oid, params or {}), codes=codes, says=says)
+
+    def deny_revise(actor, oid, patch, codes, says=None, declaration=None):
+        params = {'payload': patch, **({'declaration': declaration} if declaration else {})}
+        flow.deny(actor, flow.targeted('world_revise_object', oid, params), codes=codes, says=says)
+
+    def view(oid):
+        return flow.read('outsider', oid)
+
+    def life(oid):
+        return view(oid)['records']['lifecycle']
+
+    def formal(oid):
+        return view(oid)['business']['formal']
+
+    def event(event_id):
+        return flow.rows('SELECT e.*, r.action_type FROM gov_world_events e JOIN gov_action_receipts r '
+                         'ON r.scope_id=e.scope_id AND r.receipt_id=e.action_id WHERE e.scope_id=%s AND e.event_id=%s',
+                         (scope, event_id))[0]
+
+    def pinned_to(result):
+        """事件钉到的修订：门事件、写回与否都钉在回执给出的那一版。"""
+        return event(result['event_id'])['subject_refs'][0]['revision_id'] == result['revision_id']
+
+    def content_of(oid, *blocks):
+        """几个块的文字与组件（id、类型、文字），比较正式内容用。"""
+        read = blocks_of(view(oid))
+        return {b: (read[b]['text'], [(c['id'], c['type'], c['text']) for c in read[b]['components']]) for b in blocks}
+
+    def withdraw(actor, kind, oid, original):
+        return gate(actor, kind, oid, {'outcome': 'withdrawn', 'supersedes_event_id': original['event_id']})
+
+    unit_goal, company_goal, unit = made['LongTermGoal.unit'], made['LongTermGoal'], made['ResponsibilityUnit']
+
+    # ================================================================ 周期目标
+    pg = flow.create('a', 'PeriodGoal', 'a', {
+        'title': '11 月目标（门）', 'period': '2026-11', 'goal_ref': unit_goal['ref'],
+        'external_refs': [{'system': 'tianshu', 'id': 'pg-54'}],
+        'blocks': {'outcome': {'components': [{'id': 'g-o1', 'type': 'outcome', 'text': '签 3 家'}]},
+                   'acceptance': {'components': [{'id': 'g-ac1', 'type': 'acceptance_criterion', 'text': '合同签署'}]}}}
+    )['result']
+    pid = pg['object_id']
+    born = life(pid)
+    check('a_period_goal_is_born_a_draft_without_formal_content',
+          born['status'] == 'draft' and born['event_id'] == pg['event_id']
+          and formal(pid) == {'lifecycle_status': 'draft', 'effective_revision_id': None}
+          and view(pid)['business']['round'] is None)
+
+    # 门只由人记：持 DRI 角色的 Agent 也不能承诺；确认只由 CEO；门不带写入声明；确认必带结果；候选只含正式内容。
+    deny('agent', 'world_commit_period_goal', pid, {'FORBIDDEN'}, says='recorded by a person')
+    deny('a', 'world_confirm_period_goal', pid, {'FORBIDDEN'}, {'outcome': 'accepted'})
+    check('period_goal_a_gate_is_recorded_by_a_person_holding_the_gate_role_and_an_agent_with_the_role_is_refused')
+    deny('ceo', 'world_confirm_period_goal', pid, {'INVALID_STATE'}, {'outcome': 'accepted'})
+    check('period_goal_nothing_committed_cannot_be_confirmed')
+    deny('a', 'world_commit_period_goal', pid, {'INVALID_REQUEST'},
+         {'declaration': {'scene': pg['ref'], 'trigger': 'x', 'human_acceptance': {'required': False}}})
+    deny('ceo', 'world_confirm_period_goal', pid, {'INVALID_REQUEST'})
+    deny('a', 'world_commit_period_goal', pid, {'INVALID_REQUEST'},
+         {'payload': {'external_refs': [{'system': 'tianshu', 'id': 'pg-x'}]}}, says='only formal blocks')
+    deny('a', 'world_commit_period_goal', pid, {'INVALID_REQUEST'},
+         {'payload': {'blocks': {'acceptance': {'components': [{'id': 'g-o1', 'type': 'acceptance_criterion'}]}}}})
+    check('period_goal_a_gate_takes_no_declaration_a_confirmation_needs_its_outcome_and_a_candidate_only_formal_content')
+
+    # 承诺、撤回承诺；再承诺、退回。
+    committed = gate('a', 'world_commit_period_goal', pid)
+    row = event(committed['event_id'])
+    check('period_goal_draft_commit_to_committed_with_a_gate_event_pinned_to_the_latest_revision',
+          life(pid) == {'status': 'committed', 'display_name': '已承诺', 'event_id': committed['event_id']}
+          and row['kind'] == 'commit' and EVENT_KINDS['commit']['class'] == 'gate' and row['contract_version'] == V02
+          and row['outcome'] is None and row['detail'] is None and str(row['principal_id']) == actor_id['a']
+          and row['action_type'] == 'world_commit_period_goal' and committed['version'] == pg['version']
+          and pinned_to(committed) and committed['revision_id'] == pg['revision_id']
+          and formal(pid) == {'lifecycle_status': 'draft', 'effective_revision_id': None})
+    withdrawn = withdraw('a', 'world_commit_period_goal', pid, committed)
+    check('period_goal_withdrawing_the_commitment_returns_to_draft_and_keeps_the_original',
+          life(pid) == {'status': 'draft', 'display_name': '草稿', 'event_id': withdrawn['event_id']}
+          and event(withdrawn['event_id'])['outcome'] == 'withdrawn'
+          and str(event(withdrawn['event_id'])['supersedes_event_id']) == committed['event_id']
+          and event(committed['event_id'])['kind'] == 'commit')
+    gate('a', 'world_commit_period_goal', pid)
+    returned = gate('ceo', 'world_confirm_period_goal', pid, {'outcome': 'returned', 'content': {'text': '验收标准不可测'}})
+    check('period_goal_committed_confirm_returned_to_draft_with_the_reason_in_the_event',
+          life(pid) == {'status': 'draft', 'display_name': '草稿', 'event_id': returned['event_id']}
+          and event(returned['event_id'])['outcome'] == 'returned'
+          and event(returned['event_id'])['content']['text'] == '验收标准不可测'
+          and formal(pid) == {'lifecycle_status': 'draft', 'effective_revision_id': None})
+
+    # 带候选承诺；已承诺时正式内容不能直接改，活动属性照改；CEO 接受时写回候选，活动属性取当前值。
+    candidate = {'title': '11 月目标（门，候选）', 'blocks': {
+        'outcome': {'text': '签 5 家'},
+        'acceptance': {'components': [{'type': 'acceptance_criterion', 'text': '回款到账'}]}}}
+    committed = gate('a', 'world_commit_period_goal', pid, {'payload': candidate})
+    kept = event(committed['event_id'])['detail']['candidate']
+    new_id = kept['blocks']['acceptance']['components'][0]['id']
+    check('period_goal_a_commitment_keeps_its_candidate_in_the_event_with_ids_for_new_components',
+          life(pid)['status'] == 'committed' and committed['version'] == pg['version']
+          and kept == {**candidate, 'blocks': {**candidate['blocks'], 'acceptance': {'components': [
+              {'id': new_id, 'type': 'acceptance_criterion', 'text': '回款到账'}]}}}
+          and len(new_id) == 36 and view(pid)['business']['round'] is None)
+    deny_revise('a', pid, {'title': '直接改'}, {'INVALID_STATE'}, 'revised directly only while it is a draft')
+    check('period_goal_committed_formal_content_is_not_revised_directly')
+    refs = [{'system': 'tianshu', 'id': 'pg-54'}, {'system': 'tianshu', 'id': 'pg-54-b', 'url': None}]
+    before_confirm = flow.revise('a', pid, {'external_refs': refs})['result']
+    check('period_goal_committed_activity_attributes_are_revised_directly',
+          before_confirm['version'] == pg['version'] + 1 and life(pid)['status'] == 'committed')
+    confirmed = gate('ceo', 'world_confirm_period_goal', pid, {'outcome': 'accepted'})
+    written = view(pid)
+    outcome, acceptance = blocks_of(written)['outcome'], blocks_of(written)['acceptance']
+    check('period_goal_confirm_accepted_writes_back_the_candidate_and_keeps_the_current_activity_attributes',
+          life(pid) == {'status': 'confirmed', 'display_name': '已确认', 'event_id': confirmed['event_id']}
+          and confirmed['version'] == before_confirm['version'] + 1 == written['business']['version']
+          and written['business']['title'] == candidate['title'] and outcome['text'] == '签 5 家'
+          and [c['id'] for c in outcome['components']] == ['g-o1']
+          and [(c['id'], c['text']) for c in acceptance['components']] == [('g-ac1', '合同签署'), (new_id, '回款到账')]
+          and written['business']['attributes']['external_refs'] == [{**refs[0], 'url': None}, refs[1]]
+          and pinned_to(confirmed))
+    check('period_goal_the_first_formal_confirmation_points_formal_content_at_the_written_back_revision',
+          formal(pid) == {'lifecycle_status': 'confirmed', 'effective_revision_id': confirmed['revision_id']})
+    formal_content = content_of(pid, 'outcome', 'acceptance', 'realization_logic')
+
+    # 撤回让内容成为正式的那条确认：正式内容收回；再确认时承诺的候选原样写回（组件同一批 id）。
+    withdrawn = withdraw('ceo', 'world_confirm_period_goal', pid, confirmed)
+    check('period_goal_withdrawing_the_formal_confirmation_takes_formal_content_back',
+          life(pid) == {'status': 'committed', 'display_name': '已承诺', 'event_id': withdrawn['event_id']}
+          and formal(pid) == {'lifecycle_status': 'draft', 'effective_revision_id': None}
+          and view(pid)['business']['revision_id'] == confirmed['revision_id'])
+    confirmed = gate('ceo', 'world_confirm_period_goal', pid, {'outcome': 'accepted'})
+    check('period_goal_confirming_again_writes_the_committed_candidate_back_as_it_was',
+          life(pid)['event_id'] == confirmed['event_id']
+          and confirmed['version'] == written['business']['version'] + 1
+          and content_of(pid, 'outcome', 'acceptance', 'realization_logic') == formal_content
+          and formal(pid) == {'lifecycle_status': 'confirmed', 'effective_revision_id': confirmed['revision_id']})
+    formal_confirmation = confirmed
+
+    # 一轮重走：有正式内容后正式块不能直接改；开轮要带候选、状态不变；一轮未完不能再开；开轮的承诺不能撤回；
+    # 退回则候选作废；再开一轮由 CEO 接受写回，状态与推出它的事件不变。
+    deny_revise('a', pid, {'blocks': {'realization_logic': {'text': '直接改'}}}, {'INVALID_STATE'}, 're-run of the gate')
+    check('period_goal_with_formal_content_formal_blocks_change_only_through_a_re_run')
+    deny('a', 'world_commit_period_goal', pid, {'INVALID_STATE'}, says='carries the candidate')
+    check('period_goal_a_re_run_commitment_carries_a_candidate')
+    rerun = {'blocks': {'realization_logic': {'text': '先两场试点，再复制到三家。'}}}
+    opened = gate('a', 'world_commit_period_goal', pid, {'payload': rerun})
+    business = view(pid)['business']
+    check('period_goal_a_re_run_opens_without_changing_the_stage_and_business_shows_the_round',
+          life(pid) == {'status': 'confirmed', 'display_name': '已确认', 'event_id': formal_confirmation['event_id']}
+          and business['round'] == {'opened_by_event_id': opened['event_id'], 'stage': 'committed',
+                                    'display_name': '已承诺', 'candidate_event_id': opened['event_id'],
+                                    'candidate': rerun}
+          and business['formal'] == {'lifecycle_status': 'confirmed',
+                                     'effective_revision_id': formal_confirmation['revision_id']}
+          and opened['version'] == formal_confirmation['version'])
+    deny('a', 'world_commit_period_goal', pid, {'INVALID_STATE'}, {'payload': rerun}, says='still open')
+    check('period_goal_a_round_cannot_open_while_one_is_unfinished')
+    deny('a', 'world_commit_period_goal', pid, {'INVALID_STATE'},
+         {'outcome': 'withdrawn', 'supersedes_event_id': opened['event_id']})
+    check('period_goal_the_commitment_of_a_round_cannot_be_withdrawn')
+    back = gate('ceo', 'world_confirm_period_goal', pid, {'outcome': 'returned', 'content': {'text': '实现逻辑还不清楚'}})
+    check('period_goal_a_returned_round_is_void_and_nothing_is_written_back',
+          view(pid)['business']['round'] is None and back['version'] == formal_confirmation['version']
+          and life(pid)['event_id'] == formal_confirmation['event_id']
+          and content_of(pid, 'outcome', 'acceptance', 'realization_logic') == formal_content)
+    rerun = {'blocks': {'realization_logic': {'text': '两场试点后复制到三家。'}, 'constraint': {'text': '预算 20 万'}}}
+    opened = gate('a', 'world_commit_period_goal', pid, {'payload': rerun})
+    rewritten = gate('ceo', 'world_confirm_period_goal', pid, {'outcome': 'accepted'})
+    written = view(pid)
+    check('period_goal_the_confirmer_accepting_the_round_writes_it_back_and_the_stage_stays',
+          life(pid) == {'status': 'confirmed', 'display_name': '已确认', 'event_id': formal_confirmation['event_id']}
+          and rewritten['version'] == formal_confirmation['version'] + 1 and written['business']['round'] is None
+          and blocks_of(written)['realization_logic']['text'] == '两场试点后复制到三家。'
+          and blocks_of(written)['constraint']['text'] == '预算 20 万'
+          and content_of(pid, 'outcome', 'acceptance') == {k: formal_content[k] for k in ('outcome', 'acceptance')}
+          and written['business']['formal'] == {'lifecycle_status': 'confirmed',
+                                                'effective_revision_id': rewritten['revision_id']}
+          and pinned_to(rewritten) and str(event(opened['event_id'])['subject_refs'][0]['revision_id'])
+          == formal_confirmation['revision_id'])
+    deny('ceo', 'world_confirm_period_goal', pid, {'INVALID_STATE'},
+         {'outcome': 'withdrawn', 'supersedes_event_id': formal_confirmation['event_id']}, says='rewritten')
+    check('period_goal_once_a_round_wrote_back_the_confirmation_that_made_it_formal_cannot_be_withdrawn')
+    flow.deny('ceo', flow.targeted('world_confirm_period_goal', pid, {'outcome': 'accepted'}), codes={'INVALID_STATE'})
+    check('period_goal_no_round_open_no_confirmation')
+
+    # ================================================================ 长期目标
+    ltg = flow.create('a', 'LongTermGoal', 'a', {
+        'title': '战场 A 三年目标（门）', 'scope': 'unit', 'horizon': '2028', 'parent_ref': unit['ref'],
+        'goal_ref': company_goal['ref'],
+        'blocks': {'measures': {'components': [{'id': 'l-sc1', 'type': 'success_criterion', 'text': '三年签 20 家'}]}}}
+    )['result']
+    lid = ltg['object_id']
+    deny('a', 'world_confirm_long_term_goal', lid, {'FORBIDDEN'}, {'outcome': 'accepted'})
+    deny('ceo', 'world_confirm_long_term_goal', lid, {'INVALID_REQUEST'},
+         {'outcome': 'returned', 'payload': {'horizon': '2029'}})
+    deny('ceo', 'world_confirm_long_term_goal', lid, {'INVALID_REQUEST'},
+         {'outcome': 'accepted', 'payload': {'external_refs': []}}, says='only formal blocks')
+    check('long_term_goal_only_the_ceo_confirms_and_a_candidate_travels_only_with_an_acceptance_of_formal_content')
+    back = gate('ceo', 'world_confirm_long_term_goal', lid, {'outcome': 'returned', 'content': {'text': '衡量太粗'}})
+    check('long_term_goal_draft_confirm_returned_stays_a_draft_and_keeps_its_producer',
+          life(lid) == {'status': 'draft', 'display_name': '草稿', 'event_id': ltg['event_id']}
+          and event(back['event_id'])['outcome'] == 'returned' and back['version'] == ltg['version'])
+    candidate = {'horizon': '2029', 'blocks': {'measures': {'components': [
+        {'type': 'success_criterion', 'text': '三年签 30 家'}, {'id': 'l-sc1', 'removed': True}]}}}
+    confirmed = gate('ceo', 'world_confirm_long_term_goal', lid, {'outcome': 'accepted', 'payload': candidate})
+    written = view(lid)
+    measures = blocks_of(written)['measures']['components']
+    check('long_term_goal_draft_confirm_accepted_with_a_candidate_writes_it_back_and_makes_it_formal',
+          life(lid) == {'status': 'confirmed', 'display_name': '已确认', 'event_id': confirmed['event_id']}
+          and confirmed['version'] == ltg['version'] + 1 and written['business']['attributes']['horizon'] == '2029'
+          and [c['text'] for c in measures] == ['三年签 30 家']
+          and event(confirmed['event_id'])['detail']['candidate']['blocks']['measures']['components'][0]['id']
+          == measures[0]['id']
+          and formal(lid) == {'lifecycle_status': 'confirmed', 'effective_revision_id': confirmed['revision_id']}
+          and pinned_to(confirmed))
+    withdrawn = withdraw('ceo', 'world_confirm_long_term_goal', lid, confirmed)
+    check('long_term_goal_withdrawing_the_formal_confirmation_takes_formal_content_back',
+          life(lid) == {'status': 'draft', 'display_name': '草稿', 'event_id': withdrawn['event_id']}
+          and formal(lid) == {'lifecycle_status': 'draft', 'effective_revision_id': None})
+    latest = flow.revise('ceo', lid, {'title': '战场 A 三年目标（门，改）'})['result']
+    confirmed = gate('ceo', 'world_confirm_long_term_goal', lid, {'outcome': 'accepted'})
+    check('long_term_goal_a_confirmation_without_candidate_makes_the_then_latest_revision_formal',
+          life(lid)['event_id'] == confirmed['event_id'] and confirmed['version'] == latest['version']
+          and confirmed['revision_id'] == latest['revision_id']
+          and formal(lid) == {'lifecycle_status': 'confirmed', 'effective_revision_id': latest['revision_id']})
+    formal_confirmation = confirmed
+    deny_revise('ceo', lid, {'horizon': '2030'}, {'INVALID_STATE'}, 're-run of the gate')
+    moved = flow.revise('ceo', lid, {'external_refs': [{'system': 'tianshu', 'id': 'ltg-54'}]})['result']
+    check('long_term_goal_confirmed_formal_attributes_are_not_revised_directly_and_activity_attributes_are',
+          formal(lid) == {'lifecycle_status': 'confirmed', 'effective_revision_id': moved['revision_id']}
+          and life(lid)['event_id'] == formal_confirmation['event_id'])
+    deny('ceo', 'world_confirm_long_term_goal', lid, {'INVALID_STATE'}, {'outcome': 'accepted'})
+    deny('ceo', 'world_confirm_long_term_goal', lid, {'INVALID_STATE'}, {'outcome': 'returned'})
+    check('long_term_goal_a_confirmed_goal_is_confirmed_again_only_with_a_candidate')
+    rewritten = gate('ceo', 'world_confirm_long_term_goal', lid, {'outcome': 'accepted', 'payload': {'horizon': '2030'}})
+    written = view(lid)
+    check('long_term_goal_a_confirmation_with_a_candidate_rewrites_it_in_one_step_and_the_stage_stays',
+          life(lid) == {'status': 'confirmed', 'display_name': '已确认', 'event_id': formal_confirmation['event_id']}
+          and rewritten['version'] == moved['version'] + 1 and written['business']['attributes']['horizon'] == '2030'
+          and written['business']['attributes']['external_refs'] == [{'system': 'tianshu', 'id': 'ltg-54', 'url': None}]
+          and written['business']['round'] is None
+          and formal(lid) == {'lifecycle_status': 'confirmed', 'effective_revision_id': rewritten['revision_id']})
+    deny('ceo', 'world_confirm_long_term_goal', lid, {'INVALID_STATE'},
+         {'outcome': 'withdrawn', 'supersedes_event_id': formal_confirmation['event_id']}, says='rewritten')
+    check('long_term_goal_once_rewritten_the_confirmation_that_made_it_formal_cannot_be_withdrawn')
+
+    # ================================================================ Mission 立项
+    # 守卫：父周期目标未确认时承诺被拒；承诺之后父目标的确认被撤回，确认接受同样被拒，退回不查守卫。
+    guard_goal = flow.create('a', 'PeriodGoal', 'a', {'title': '12 月目标（门）', 'period': '2026-12',
+                                                     'goal_ref': unit_goal['ref']})['result']
+    guarded = flow.create('a', 'Mission', 'a', {'title': '守卫试点', 'goal_ref': guard_goal['ref']})['result']
+    flow.assign('a', guarded['object_id'], actor_id['owner_a'])
+    deny('owner_a', 'world_commit_mission', guarded['object_id'], {'INVALID_STATE'}, says='parent_goal_confirmed')
+    check('mission_a_commitment_is_refused_while_its_period_goal_is_not_confirmed')
+    gate('a', 'world_commit_period_goal', guard_goal['object_id'])
+    goal_confirmed = gate('ceo', 'world_confirm_period_goal', guard_goal['object_id'], {'outcome': 'accepted'})
+    gate('owner_a', 'world_commit_mission', guarded['object_id'])
+    withdraw('ceo', 'world_confirm_period_goal', guard_goal['object_id'], goal_confirmed)
+    deny('a', 'world_confirm_mission', guarded['object_id'], {'INVALID_STATE'}, {'outcome': 'accepted'},
+         says='parent_goal_confirmed')
+    returned = gate('a', 'world_confirm_mission', guarded['object_id'], {'outcome': 'returned'})
+    check('mission_an_accepting_confirmation_is_refused_once_the_period_goal_is_no_longer_confirmed_and_a_return_is_not',
+          life(guarded['object_id']) == {'status': 'draft', 'display_name': '草稿', 'event_id': returned['event_id']})
+
+    goal_now = view(pid)['business']
+    mission = flow.create('a', 'Mission', 'a', {
+        'title': '试点（门）', 'goal_ref': f"{pid}@{goal_now['version']}",
+        'blocks': {'definition': {'text': '在两家客户做试点。'}, 'play': {'text': 'Play 核心路径：两场试点。'},
+                   'acceptance': {'components': [{'id': 'm-ac1', 'type': 'acceptance_criterion', 'text': '客户签字',
+                                                  'refs': [f"{pid}@{goal_now['version']}#acceptance/g-ac1"]}]},
+                   'execution_plan': {'components': [{'id': 'm-p1', 'type': 'plan_item', 'text': '搭环境'}]}}}
+    )['result']
+    mid = mission['object_id']
+    flow.assign('a', mid, actor_id['owner_a'])
+    deny('owner_a2', 'world_commit_mission', mid, {'FORBIDDEN'}, says='recorded by self')
+    deny('a', 'world_commit_mission', mid, {'FORBIDDEN'})
+    check('mission_only_its_owner_in_person_commits_it')
+    deny('agent', 'world_confirm_mission', mid, {'FORBIDDEN'}, {'outcome': 'accepted'}, says='recorded by a person')
+    deny('owner_a', 'world_confirm_mission', mid, {'FORBIDDEN'}, {'outcome': 'accepted'})
+    check('mission_only_the_dri_confirms_and_an_agent_holding_the_dri_role_cannot')
+
+    committed = gate('owner_a', 'world_commit_mission', mid)
+    check('mission_draft_commit_to_committed_by_the_owner',
+          life(mid) == {'status': 'committed', 'display_name': '已承诺', 'event_id': committed['event_id']}
+          and committed['responsible_through'] == mid and event(committed['event_id'])['kind'] == 'commit')
+    withdrawn = withdraw('owner_a', 'world_commit_mission', mid, committed)
+    check('mission_withdrawing_the_commitment_returns_to_draft',
+          life(mid) == {'status': 'draft', 'display_name': '草稿', 'event_id': withdrawn['event_id']})
+    gate('owner_a', 'world_commit_mission', mid)
+    returned = gate('a', 'world_confirm_mission', mid, {'outcome': 'returned', 'content': {'text': '打法太散'}})
+    check('mission_committed_confirm_returned_to_draft',
+          life(mid) == {'status': 'draft', 'display_name': '草稿', 'event_id': returned['event_id']}
+          and formal(mid) == {'lifecycle_status': 'draft', 'effective_revision_id': None})
+    candidate = {'blocks': {'play': {'text': 'Play 核心路径：一场试点加一次复盘。'}}}
+    gate('owner_a', 'world_commit_mission', mid, {'payload': candidate})
+    deny_revise('owner_a', mid, {'blocks': {'play': {'text': '直接改'}}}, {'INVALID_STATE'}, 'while it is a draft')
+    planned = flow.revise('owner_a', mid, {'blocks': {'execution_plan': {'components': [
+        {'id': 'm-p2', 'type': 'plan_item', 'text': '约客户'}]}}})['result']
+    confirmed = gate('a', 'world_confirm_mission', mid, {'outcome': 'accepted'})
+    written = view(mid)
+    check('mission_committed_confirm_accepted_to_established_writing_back_the_play_and_keeping_the_execution_plan',
+          life(mid) == {'status': 'established', 'display_name': '已成立', 'event_id': confirmed['event_id']}
+          and confirmed['version'] == planned['version'] + 1
+          and blocks_of(written)['play']['text'] == candidate['blocks']['play']['text']
+          and [c['id'] for c in blocks_of(written)['execution_plan']['components']] == ['m-p1', 'm-p2']
+          and written['business']['attributes']['responsible'] == actor_id['owner_a']
+          and formal(mid) == {'lifecycle_status': 'confirmed', 'effective_revision_id': confirmed['revision_id']})
+    formal_confirmation = confirmed
+
+    # 已成立：正式块不能直接改（Owner、持声明的 Agent）；Co-Agent 直接改执行计划、声明可以不要求人工验收；
+    # 下级责任人（Task 的责任人）也可以直接改执行计划，但改不了正式块。
+    deny_revise('owner_a', mid, {'blocks': {'play': {'text': '直接改打法'}}}, {'INVALID_STATE'}, 're-run of the gate')
+    unattended = {'scene': f'{mid}@1', 'trigger': '周会同步执行计划', 'human_acceptance': {'required': False}}
+    deny_revise('agent_a', mid, {'blocks': {'play': {'text': 'Agent 改打法'}}}, {'FORBIDDEN'}, None,
+                {**unattended, 'human_acceptance': {'required': True, 'acceptor': actor_id['owner_a']}})
+    check('mission_established_formal_blocks_are_not_revised_directly')
+    co_agent = flow.revise('agent_a', mid, {'blocks': {'execution_plan': {'components': [
+        {'id': 'm-p1', 'type': 'plan_item', 'text': '搭环境（已完成）'}]}}}, unattended)['result']
+    check('mission_established_the_co_agent_revises_the_execution_plan_without_human_acceptance',
+          co_agent['declaration']['human_acceptance'] == {'required': False}
+          and 'responsible_through' not in co_agent
+          and formal(mid) == {'lifecycle_status': 'confirmed', 'effective_revision_id': co_agent['revision_id']}
+          and life(mid)['event_id'] == formal_confirmation['event_id'])
+    task = flow.create('owner_a', 'Task', 'a', {'title': '准备试点环境', 'parent_ref': f"{mid}@{co_agent['version']}"})
+    task = task['result']
+    flow.assign('owner_a', task['object_id'], actor_id['ic_a'])
+    deny_revise('ic_a', mid, {'blocks': {'play': {'text': 'Task 责任人改打法'}}}, {'FORBIDDEN'})
+    below = flow.revise('ic_a', mid, {'blocks': {'execution_plan': {'components': [
+        {'id': 'm-p3', 'type': 'plan_item', 'text': '写部署脚本',
+         'attributes': {'responsible': actor_id['ic_a']}}]}}})['result']
+    check('mission_a_responsible_below_it_revises_the_execution_plan_but_not_its_formal_blocks',
+          below['responsible_through'] == task['object_id'] and below['version'] == co_agent['version'] + 1)
+
+    # 一轮重走：Owner 带候选承诺开轮、状态不变；一轮未完不能再开；重走期间改执行计划不被写回覆盖；DRI 接受写回。
+    deny('owner_a', 'world_commit_mission', mid, {'INVALID_STATE'}, says='carries the candidate')
+    rerun = {'blocks': {'play': {'text': 'Play 核心路径变化：先复盘再扩到第二家。'},
+                        'acceptance': {'components': [{'id': 'm-ac1', 'type': 'acceptance_criterion',
+                                                       'text': '客户书面签字'}]}}}
+    opened = gate('owner_a', 'world_commit_mission', mid, {'payload': rerun})
+    check('mission_the_owner_opens_a_round_with_a_candidate_and_the_stage_stays',
+          life(mid) == {'status': 'established', 'display_name': '已成立', 'event_id': formal_confirmation['event_id']}
+          and view(mid)['business']['round'] == {'opened_by_event_id': opened['event_id'], 'stage': 'committed',
+                                                 'display_name': '已承诺', 'candidate_event_id': opened['event_id'],
+                                                 'candidate': rerun}
+          and opened['responsible_through'] == mid)
+    deny('owner_a', 'world_commit_mission', mid, {'INVALID_STATE'}, {'payload': rerun}, says='still open')
+    check('mission_a_round_cannot_open_while_one_is_unfinished')
+    during = flow.revise('owner_a', mid, {'blocks': {'execution_plan': {'components': [
+        {'id': 'm-p4', 'type': 'plan_item', 'text': '复盘会'}]}}})['result']
+    plan = [(c['id'], c['text']) for c in blocks_of(view(mid))['execution_plan']['components']]
+    rewritten = gate('a', 'world_confirm_mission', mid, {'outcome': 'accepted'})
+    written = view(mid)
+    check('mission_the_dri_accepting_the_round_writes_it_back_the_stage_stays_and_the_execution_plan_is_not_overwritten',
+          life(mid) == {'status': 'established', 'display_name': '已成立', 'event_id': formal_confirmation['event_id']}
+          and rewritten['version'] == during['version'] + 1 and written['business']['round'] is None
+          and blocks_of(written)['play']['text'] == rerun['blocks']['play']['text']
+          and [(c['id'], c['text']) for c in blocks_of(written)['acceptance']['components']] == [('m-ac1', '客户书面签字')]
+          and [(c['id'], c['text']) for c in blocks_of(written)['execution_plan']['components']] == plan
+          and [c for c, _ in plan] == ['m-p1', 'm-p2', 'm-p3', 'm-p4'] and plan[0][1] == '搭环境（已完成）'
+          and written['business']['attributes']['responsible'] == actor_id['owner_a']
+          and formal(mid) == {'lifecycle_status': 'confirmed', 'effective_revision_id': rewritten['revision_id']}
+          and pinned_to(rewritten))
+    deny('a', 'world_confirm_mission', mid, {'INVALID_STATE'},
+         {'outcome': 'withdrawn', 'supersedes_event_id': formal_confirmation['event_id']}, says='rewritten')
+    check('mission_once_a_round_wrote_back_the_confirmation_that_made_it_established_cannot_be_withdrawn')
+
+    # 门事件恰好一条、一张回执；同键重放返回原回执。
+    body = flow.prepare('owner_a', flow.targeted('world_commit_mission', mid, {'payload': {'title': '试点（门，二轮）'}}))
+    receipt = flow.commit('owner_a', body)
+    replay = flow.commit('owner_a', deepcopy(body))
+    rows = flow.rows('SELECT kind FROM gov_world_events WHERE scope_id=%s AND action_id=%s', (scope, receipt['receipt_id']))
+    check('a_gate_writes_exactly_one_event_and_replaying_it_returns_the_original_receipt',
+          replay['receipt_id'] == receipt['receipt_id'] and [r['kind'] for r in rows] == ['commit']
+          and receipt['result']['contract_version'] == V02)
 
 
 def references(book, h, f, flow, trunk, foreign):
@@ -1188,6 +1575,8 @@ def run(book, h, source, upgrade_evidence):
     f = seed_world(h.env, h.private / 'identities.json', 'runtime-acceptance-world-v02')
     # 在公司域持 AGENT 的 Agent：为 Strategy 写快照（#52）。
     f['actors']['agent_company'] = _seed_actor(h.env, f, 'AGENT', f['domains']['company'], principal_type='agent')
+    # 单元 a 里另一位持 OWNER 的人：Mission 的承诺只由它的 Owner 本人记（#54）。
+    f['actors']['owner_a2'] = _seed_actor(h.env, f, 'OWNER', f['domains']['a'])
     with scenario('control_plane'):
         control_plane(book, h, source, f)
     process, url, _ = h.start_api(source)
@@ -1209,6 +1598,8 @@ def run(book, h, source, upgrade_evidence):
             state_events(book, h, f, flow, trunk, foreign)
         with scenario('assign_lifecycle'):
             assign_lifecycle(book, h, f, flow, trunk)
+        with scenario('gates'):
+            gates(book, h, f, flow, trunk)
         with scenario('revocation'):
             revocation(book, h, f, flow, made['command'])
     finally:

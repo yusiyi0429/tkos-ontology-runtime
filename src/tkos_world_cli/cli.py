@@ -7,7 +7,8 @@
 --params 带 on_behalf_of 也在发请求之前拒绝。允许的动作之内能做什么仍由凭证的身份决定，由 HTTP 面判权；这里只把
 对象 id 校验成 UUID（要拼进路径），其余交给 HTTP 面校验。
 
-读：get、state、events（0.1 另有 children）对应 /v1/world/objects/{id} 的读投影，context 是取上下文（每次调用落一行）。
+读：get、state、events（0.1 另有 children）对应 /v1/world/objects/{id} 的读投影，context 是取上下文（每次调用落一行）；
+0.2 另有 list，即列对象（GET /v1/world/objects，按单元或域、类型、周期与外部引用筛选，--cursor 取下一页）。
 写：act <动作> 先 prepare 再 commit，同一条命令、同一个幂等键；--prepare-only 只做 prepare。参数与目标按契约
 原样给 JSON（字面量、@文件或 - 读标准输入）。target 取自 get 返回的 object_id、revision_id 与 object_version
 （作 expected_version；0.2 在 business 组里），不在写入时替调用方重新取：那样会绕过版本检查。
@@ -37,8 +38,10 @@ AGENT_ACTIONS_V02 = AGENT_ACTIONS + ("world_start", "world_deliver")
 # 子命令 -> (路径后缀, 查询参数)。
 _READS = {"get": ("", "version"), "state": ("/state", "as_of"), "events": ("/events", "since"),
           "children": ("/children", None)}
-# 0.2 没有取子对象：它不在契约第 9.3 节的 Agent 面上，HTTP 面对 0.2 对象也不支持。列对象随 #63 加一个子命令。
-_READS_V02 = {name: read for name, read in _READS.items() if name != "children"}
+# 列对象（#63）的查询参数：筛选与分页，与 HTTP 面同名；子命令的选项是它们的连字符写法。
+_LIST_QUERY = ("unit_id", "domain_id", "type", "period", "external_system", "external_id", "limit", "cursor")
+# 0.2 没有取子对象：它不在契约第 9.3 节的 Agent 面上，HTTP 面对 0.2 对象也不支持。0.2 另有列对象，不带对象 id。
+_READS_V02 = {**{name: read for name, read in _READS.items() if name != "children"}, "list": (None, _LIST_QUERY)}
 # 契约版本 -> (act 接受的动作, 读子命令)。
 FACES = {CONTRACT_VERSION: (AGENT_ACTIONS, _READS), CONTRACT_V02: (AGENT_ACTIONS_V02, _READS_V02)}
 
@@ -79,6 +82,16 @@ def _parser(version: str = CONTRACT_VERSION) -> argparse.ArgumentParser:
     if "children" in reads:
         children = commands.add_parser("children", help="取子对象")
         children.add_argument("object_id", type=_object_id)
+    if "list" in reads:
+        listing = commands.add_parser("list", help="列对象：按责任单元或域、类型、周期、外部引用筛选，返回对象头，分页")
+        listing.add_argument("--unit-id", help="责任单元的对象 id（即它所在的域）；与 --domain-id 只给一个")
+        listing.add_argument("--domain-id", help="域 id")
+        listing.add_argument("--type", help="对象类型，例如 Mission、Task、StateSnapshot")
+        listing.add_argument("--period", help="周期 YYYY-MM：Mission 按其周期目标，Task、Activity 按其 Mission")
+        listing.add_argument("--external-system", help="外部引用的系统，例如 tianshu")
+        listing.add_argument("--external-id", help="外部引用的 id，与 --external-system 一起给")
+        listing.add_argument("--limit", type=int, help="每页条数（默认 50，最多 100）")
+        listing.add_argument("--cursor", help="上一页返回的 next_cursor")
     context = commands.add_parser("context", help="取上下文：从该对象沿主干向上组装上下文包，每次调用落一行")
     context.add_argument("object_id", type=_object_id)
     context.add_argument("--question", required=True, help="要回答的问题，只做记录，不影响返回的内容")
@@ -99,6 +112,9 @@ def _parser(version: str = CONTRACT_VERSION) -> argparse.ArgumentParser:
 
 
 def _read(http: httpx.Client, args: argparse.Namespace) -> httpx.Response:
+    if args.command == "list":  # 列对象：不带对象 id，给了的筛选与分页原样作查询参数
+        query = {name: getattr(args, name) for name in _LIST_QUERY if getattr(args, name) is not None}
+        return http.get("/v1/world/objects", params=query or None)
     path = f"/v1/world/objects/{args.object_id}"
     if args.command == "context":
         budget = {key: getattr(args, key) for key in ("max_chars", "max_events_per_object")

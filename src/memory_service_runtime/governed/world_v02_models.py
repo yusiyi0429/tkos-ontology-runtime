@@ -114,10 +114,17 @@ PinnedRef = Union[PinnedObjectRef, PinnedEventRef]
 
 
 class ExternalRef(StrictModel):
-    """外部系统与本体对象的对照（契约第 3.4 节）；scope 内按 (system, id) 唯一在票 #63。"""
+    """外部系统与本体对象的对照（契约第 3.4 节）：一个对象里同一 (system, id) 只出现一次；scope 内按各对象的最新修订
+    唯一，由服务判定（票 #63）。"""
     system: ShortText
     id: ShortText
     url: Optional[ArtifactUrl] = None
+
+
+def _distinct_external_refs(refs: list[ExternalRef]) -> list[ExternalRef]:
+    if len({(ref.system, ref.id) for ref in refs}) != len(refs):
+        raise ValueError("an external reference (system, id) appears once in an object")
+    return refs
 
 
 class LedgerEntry(StrictModel):
@@ -142,7 +149,7 @@ def _value_type(attribute: dict[str, Any]) -> Any:
     if kind == "principal":
         return CanonicalUUID
     if kind == "external_refs":
-        return list[ExternalRef]
+        return Annotated[list[ExternalRef], AfterValidator(_distinct_external_refs)]
     if kind == "progress_entries":
         return list[_progress_entry_model()]
     raise NotImplementedError(f"world 0.2 attribute value kind {kind} is not implemented yet")

@@ -71,7 +71,7 @@ TKOS_WORLD_MCP_LOG_DIR = "artifacts/world-mcp-runs"
 
 ## 选 0.2
 
-`TKOS_WORLD_CONTRACT_VERSION=tkos.world/0.2` 时，工具是契约第 9.3 节 Agent 面里已实现的部分，四读五写：
+`TKOS_WORLD_CONTRACT_VERSION=tkos.world/0.2` 时，工具是契约第 9.3 节 Agent 面里已实现的部分，五读五写：
 
 | 工具 | HTTP | 参数 |
 |-|-|-|
@@ -79,6 +79,7 @@ TKOS_WORLD_MCP_LOG_DIR = "artifacts/world-mcp-runs"
 | `world_get_context` | `POST /v1/world/objects/{object_id}/context` | 同 0.1 |
 | `world_get_events` | `GET /v1/world/objects/{object_id}/events` | 同 0.1 |
 | `world_get_state` | `GET /v1/world/objects/{object_id}/state` | 同 0.1 |
+| `world_list_objects` | `GET /v1/world/objects` | 都可选：`unit_id`（责任单元的对象 id）或 `domain_id`、`type`、`period`（`YYYY-MM`）、`external_system` 与 `external_id`、`limit`（默认 50，最多 100）、`cursor`（上一页的 `next_cursor`） |
 | `world_record_event` | 动作 `world_record_event` | `category`、`subject_refs`（对象或组件形式）、`occurred_at`、`content`，更正的 `category` 为 `correction` 并带 `supersedes_event_id`；`declaration`，可选 `idempotency_key` |
 | `world_refresh_state` | 动作 `world_refresh_state` | `payload`（外壳：`title`、`subject_ref`、`as_of`、可选 `period`、`payload_type`、`source_event_refs`（`event:<事件 id>`，至少一条）、`blocks`）、`declaration`，可选 `idempotency_key` |
 | `world_revise_object` | 动作 `world_revise_object` | `target`、`payload`（合并补丁，组件按 id 合并）、`declaration`，可选 `idempotency_key` |
@@ -90,7 +91,7 @@ TKOS_WORLD_MCP_LOG_DIR = "artifacts/world-mcp-runs"
 - 读的端点不变，HTTP 面按对象绑定的契约版本出形状。0.2 对象分三组：`business`（类型、版本与修订 id、`object_version`、属性、关系、块与组件、组件台账、正式内容指针、进行中的一轮）、`identity`（责任人、当前有效的委托）、`records`（生命周期与推出它的事件、最新状态快照）。修订、开始、交付的 `target` 取 `business` 组里的 `object_id`、`revision_id` 与 `object_version`（作 `expected_version`）。
 - 写入的 `contract_version` 是 `tkos.world/0.2`；多了开始与交付。`declaration` 的 `scene` 可以是任一业务对象（0.1 只认 Mission 或 Task）。Agent 修订有门对象只能改活动块与活动属性；触及正式块或正式属性时，声明必须要求人工验收并给出验收人。Agent 记的 Activity 交付由 Task 的责任人验收。
 - 门、指派、建关系、建对象、关注标记、代记一律不暴露：调用这些工具，或给开始、交付带 `on_behalf_of`，在发请求之前就返回 `INVALID_ARGUMENTS`。代记只走 HTTP（契约第 14 节）。
-- 列对象（#63）与提出问题、路由问题、退回形成（#61）还没有 HTTP 实现，随各自的票加进来。
+- 多了列对象（#63）：返回 `{"items": [对象头…], "next_cursor"}`，对象头是 id、类型、类别、标题、版本（`version`、`revision_id`、`object_version`）、生命周期、域、外部引用与契约版本，不带块与组件；要内容时再取对象。周期口径、外部引用查找与分页见《接口变化清单》第十项。提出问题、路由问题、退回形成（#61）还没有 HTTP 实现，随自己的票加进来。
 - 取上下文照旧只交出 `context_pack_id`、`markdown`、`coverage`、`budget` 四项；Markdown 里的引用细到组件，事件写成 `event:<事件 id>`。
 - 运行日志字段不变，引用多识别组件与事件两种形式（见下节）。
 
@@ -98,6 +99,6 @@ TKOS_WORLD_MCP_LOG_DIR = "artifacts/world-mcp-runs"
 
 每个进程一个 JSONL 文件，每次工具调用一行：`at`（UTC）、`session`、`seq`、`tool`、`arguments`、`status`（HTTP 状态；没拿到 HTTP 答复为 null）、`error_code`、`refs`（返回里出现的引用 `<id>@<版本>[#块]`）、`event_ids`、`chars`（交给调用方的字符数；取上下文成功时是上面四项的紧凑 JSON）；写入另有 `idempotency_key`；取上下文另有 `context_pack_id` 与 `used_chars`（渲染后 Markdown 的字符数），其 `refs`、`event_ids` 与下面的 `read_refs`、`read_event_ids` 都按 HTTP 面返回的上下文包本身算：交出去的 Markdown 就是这个包渲染的，检索计划里裁掉的条目与主干上钉定的旧版本不计入。四个读工具另有 `read_refs` 与 `read_event_ids`：带着内容回来的对象版本、块与事件，也就是对象视图（取对象，连同它顺带返回的最新快照；取状态的快照；上下文包里一层的对象、状态与多取一跳的对象）、块视图（空块读到的是标准句）与事件视图；块内引用、关系、`referenced_by`、`supersedes`、生命周期里钉的事件只以引用形式出现，只进 `refs` 与 `event_ids`。凭证不进日志；日志写不进去只在 stderr 提示。
 
-选 0.2 时字段不变，引用按 0.2 的四种业务形式识别（契约第 5 节）：对象 `<id>@<版本>`、块 `<id>@<版本>#<块>`、组件 `<id>@<版本>#<块>/<组件>` 与事件 `event:<事件 id>`，组件引用整条记下，不截到块；`read_refs` 另含随块带着内容回来的组件（块内与组件里引用的组件只进 `refs`）；推出生命周期的事件、快照的来源事件与委托的登记事件只以引用形式出现：进 `event_ids`，写成 `event:<事件 id>` 的另进 `refs`，不进 `read_event_ids`。
+选 0.2 时字段不变，引用按 0.2 的四种业务形式识别（契约第 5 节）：对象 `<id>@<版本>`、块 `<id>@<版本>#<块>`、组件 `<id>@<版本>#<块>/<组件>` 与事件 `event:<事件 id>`，组件引用整条记下，不截到块；`read_refs` 另含随块带着内容回来的组件（块内与组件里引用的组件只进 `refs`）；推出生命周期的事件、快照的来源事件与委托的登记事件只以引用形式出现：进 `event_ids`，写成 `event:<事件 id>` 的另进 `refs`，不进 `read_event_ids`。列对象返回的对象头不算读到内容：`read_refs`、`read_event_ids` 为空，对象头里推出生命周期的事件只进 `event_ids`。
 
 实验指标（召回、可追溯、预算、确定性）从这里算，「取到」按 `read_refs` 与 `read_event_ids`。`codex exec` 每次运行都会起一个新的 server 进程，所以一次运行对应一个日志文件和一个 `session`。

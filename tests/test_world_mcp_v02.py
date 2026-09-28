@@ -1,7 +1,7 @@
-"""tkos-world-mcp 的 0.2 Agent 面（票 #57）：TKOS_WORLD_CONTRACT_VERSION 选 tkos.world/0.2 时，用 mcp 客户端经 stdio
-拉起 server 子进程，让它打一个假的 HTTP 面。
+"""tkos-world-mcp 的 0.2 Agent 面（票 #57、#63）：TKOS_WORLD_CONTRACT_VERSION 选 tkos.world/0.2 时，用 mcp 客户端经
+stdio 拉起 server 子进程，让它打一个假的 HTTP 面。
 
-断言工具清单等于契约第 9.3 节 Agent 面里已实现的部分（登记 agent_face 去掉列对象与三个 Issue 动作），面外的工具与
+断言工具清单等于契约第 9.3 节 Agent 面里已实现的部分（登记 agent_face 去掉三个 Issue 动作），面外的工具与
 代记在发请求之前就拒绝；每个工具的请求形状、契约版本与 prepare 再 commit；运行日志按 0.2 的四种引用形式记下组件
 与事件引用、不含凭证；取上下文仍只交出包 id、Markdown、覆盖与预算摘要；版本取值不认识时启动即退出。默认 0.1 的
 行为由 test_world_mcp.py 原样覆盖。不连数据库，也不启动真 API；真 API 上的 0.2 Agent 面在 acceptance/world_v02 里跑。
@@ -45,10 +45,10 @@ TARGET = {"object_id": TASK, "revision_id": REV, "expected_version": 4}
 REFUSAL = {"error": {"code": "INVALID_REQUEST",
                      "message": "An Agent write must declare its scene, trigger and human acceptance."}}
 FORBIDDEN = {"error": {"code": "FORBIDDEN", "message": "not the responsible"}}
-READS = {"world_get_object", "world_get_context", "world_get_events", "world_get_state"}
+READS = {"world_get_object", "world_get_context", "world_get_events", "world_get_state", "world_list_objects"}
 WRITES = {"world_record_event", "world_refresh_state", "world_revise_object", "world_start", "world_deliver"}
-# 登记里在 Agent 面上、但 HTTP 面还没实现的：列对象（#63）与 Issue 的提出、路由、退回形成（#61）。
-NOT_YET = {"list_objects", "world_raise_issue", "world_route_issue", "world_return_issue"}
+# 登记里在 Agent 面上、但 HTTP 面还没实现的：Issue 的提出、路由、退回形成（#61）。
+NOT_YET = {"world_raise_issue", "world_route_issue", "world_return_issue"}
 
 
 # ------------------------------------------------------------ 0.2 读投影的形状（world_v02_readers、world_v02_context）
@@ -134,13 +134,24 @@ CONTEXT = {"contract_version": V02, "context_pack_id": PACK, "created_at": "2026
                                                 "reason": "over_level_cap"}]}}
 
 
+# 列对象的一页（world_v02_list 的对象头）：不带块与组件，运行日志里不算读到内容。
+HEADER = {"object_id": TASK, "object_type": "Task", "type_display_name": "Task",
+          "category": {"id": "business_object", "display_name": "业务对象"}, "title": "上下文 Task", "version": 3,
+          "revision_id": REV, "object_version": 4,
+          "lifecycle": {"status": "in_progress", "display_name": "进行中", "event_id": START}, "domain_id": UNIT,
+          "external_refs": [{"system": "tianshu", "id": "card:12", "url": None}], "contract_version": V02}
+LISTED = {"items": [HEADER, {**HEADER, "object_id": MISSION, "object_type": "Mission", "lifecycle": None,
+                             "external_refs": []}], "next_cursor": "cursor-2"}
+
+
 class FakeApi(FakeApiV01):
     """回 0.2 读投影的形状；没带声明的写入回 422，目标是 REFUSED 的回 403。"""
 
     def reply(self, method: str, path: str, body: dict | None) -> tuple[int, dict | str]:
         base = f"/v1/world/objects/{TASK}"
         replies = {base: TASK_VIEW, base + "/state": {"object_id": TASK, "as_of": None, "snapshot": SNAPSHOT_VIEW},
-                   base + "/events": {"object_id": TASK, "since": None, "events": [EVENT_VIEW]}, base + "/context": CONTEXT}
+                   base + "/events": {"object_id": TASK, "since": None, "events": [EVENT_VIEW]}, base + "/context": CONTEXT,
+                   "/v1/world/objects": LISTED}
         if path in replies:
             return 200, replies[path]
         if path in {"/v1/actions/prepare", "/v1/actions"}:
@@ -188,7 +199,7 @@ def log_lines(log_dir: Path) -> list[dict]:
 
 def test_the_0_2_server_offers_exactly_the_implemented_agent_face(api, tmp_path):
     tools, _ = run_session(api, tmp_path, [])
-    assert set(tools) == READS | WRITES and len(tools) == 9
+    assert set(tools) == READS | WRITES and len(tools) == 10
     face = REGISTRY["agent_face"]
     # 与登记一致：读是登记的读（加 world_ 前缀），写是登记的写，都去掉 HTTP 面还没实现的。
     assert {f"world_{name}" for name in face["reads"] if name not in NOT_YET} == READS
@@ -206,7 +217,7 @@ def test_the_0_2_server_offers_exactly_the_implemented_agent_face(api, tmp_path)
 
 def test_tools_outside_the_0_2_agent_face_and_on_behalf_writes_are_refused_before_any_http_call(api, tmp_path):
     outside = sorted({item["action"] for item in REGISTRY["actions"] if not item["agent_face"]}
-                     | (NOT_YET - {"list_objects"}) | {"world_list_objects", "world_get_children"})
+                     | NOT_YET | {"world_get_children"})
     calls = [(name, {"target": TARGET}) for name in outside]
     calls += [("world_start", {"target": TARGET, "on_behalf_of": {"principal_id": AGENT}}),
               ("world_deliver", {"target": TARGET, "declaration": DECLARATION,
@@ -244,6 +255,32 @@ def test_0_2_reads_forward_to_the_same_http_endpoints_with_the_agent_token(api, 
     assert not any(result.is_error for result in results)
     assert results[0].structured_content == TASK_VIEW and results[0].structured_content["business"]["object_version"] == 4
     assert json.loads(text(results[3])) == api.reply("GET", base + "/events", None)[1]
+
+
+def test_0_2_list_objects_forwards_filters_and_cursor_and_logs_headers_as_references_only(api, tmp_path):
+    """列对象（#63）：GET /v1/world/objects，给了的筛选与分页原样作查询参数；返回原样交出。对象头不带块与组件，
+    运行日志不把它当读到的内容：read_refs 为空，推出生命周期的事件只进 event_ids。"""
+    _, results = run_session(api, tmp_path, [
+        ("world_list_objects", {}),
+        ("world_list_objects", {"unit_id": UNIT, "type": "Mission", "period": "2026-10", "limit": 20,
+                                "cursor": "cursor-2"}),
+        ("world_list_objects", {"domain_id": UNIT, "external_system": "tianshu", "external_id": "card:12"}),
+        ("world_list_objects", {"object_id": TASK}),
+        ("world_list_objects", {"limit": 0}),
+    ])
+    assert [(r["method"], r["path"], r["query"], r["body"]) for r in api.requests] == [
+        ("GET", "/v1/world/objects", {}, None),
+        ("GET", "/v1/world/objects", {"unit_id": [UNIT], "type": ["Mission"], "period": ["2026-10"], "limit": ["20"],
+                                      "cursor": ["cursor-2"]}, None),
+        ("GET", "/v1/world/objects", {"domain_id": [UNIT], "external_system": ["tianshu"],
+                                      "external_id": ["card:12"]}, None)]
+    assert [result.structured_content for result in results[:3]] == [LISTED] * 3
+    assert [result.is_error for result in results] == [False, False, False, True, True]
+    lines = log_lines(tmp_path)
+    assert [(line["status"], line["error_code"]) for line in lines] == [(200, None)] * 3 + [
+        (None, "INVALID_ARGUMENTS")] * 2
+    assert all(line["read_refs"] == [] and line["read_event_ids"] == [] and line["refs"] == []
+               and line["event_ids"] == [START] for line in lines[:3])
 
 
 def test_each_0_2_write_prepares_then_commits_the_same_command_under_contract_0_2(api, tmp_path):

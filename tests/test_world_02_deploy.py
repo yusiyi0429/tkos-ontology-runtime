@@ -101,7 +101,7 @@ def test_the_build_takes_only_locked_wheels_for_its_architecture() -> None:
     assert build.wheel_fits("anyio-4.14.2-py3-none-any.whl", "arm64")
 
 
-def test_the_smoke_expects_the_nine_tools_of_the_0_2_mcp_face() -> None:
+def test_the_smoke_expects_the_tools_of_the_0_2_mcp_face() -> None:
     from tkos_world_mcp.tools_v02 import TOOLS
     assert smoke.MCP_TOOLS == sorted(TOOLS)
 

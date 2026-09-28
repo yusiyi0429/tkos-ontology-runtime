@@ -145,14 +145,50 @@
 
 - 每个业务对象可以带 `external_refs`：列表，每项 `{system, id, url?}`，例如 `{"system": "tianshu", "id": "battlefield:XX"}`、`{"system": "tianshu", "id": "card:123"}`。建议 `system` 统一用 `tianshu`，类别写进 `id` 前缀（可能变，三方会上定一个写法）。
 - 外部引用是活动属性：有门对象有了正式内容后也可以直接修订，不走门。天枢服务主体以 Agent 身份修订时要带写入声明，只改外部引用这类活动属性时 `human_acceptance.required` 可以为 false；能不能改某个对象按修订权限判。
-- 同一 scope 内同一 `(system, id)` 只能指向一个对象，冲突拒绝。
+- 同一 scope 内同一 `(system, id)` 只能指向一个对象，按各对象的最新修订判定。建对象或修订时撞上另一对象已有的一对，返回 `409 INVALID_STATE`，错误信息里写出那个对象的 id；一个对象的 `external_refs` 里同一对写两次是 `422 INVALID_REQUEST`。要把一对从 A 挪到 B：先修订 A 去掉它，再修订 B 加上。
 - 按外部引用查找：见第十项的列对象接口，带 `external_system` 与 `external_id`。
 
 同步表仍建议保留（记幂等键、`context_pack_id`、回执），但不必再靠它找对象。
 
 ## 十、读：列对象与分组读投影
 
-**列对象**（新增）：`GET /v1/world/objects`，筛选参数 `unit_id`（责任单元）或 `domain_id`、`type`、`period`、`external_system` 加 `external_id`，分页；返回对象头：id、类型、类别、标题、最新版本、生命周期、域、外部引用。按周期筛：周期目标按自己的 `period`，Mission 按其周期目标，Task 按其 Mission。
+**列对象**（新增，第 15.2 节）：`GET /v1/world/objects`，参数都可选、可以组合，都按各对象的最新修订判：
+
+| 参数 | 说明 |
+|-|-|
+| `unit_id` | 责任单元的对象 id：列它所在的域里的对象（每个责任单元在自己的域，含单元本身）；与 `domain_id` 只给一个 |
+| `domain_id` | 域 id |
+| `type` | 对象类型：`Company`、`Strategy`、`ResponsibilityUnit`、`LongTermGoal`、`PeriodGoal`、`Mission`、`Task`、`Activity`、`StateSnapshot` |
+| `period` | `YYYY-MM`：周期目标按自己的 `period`，Mission 按其周期目标，Task 按其 Mission、Activity 按其 Task 所属 Mission 的周期目标，状态快照按自己的 `period`；其余类型没有周期，给了 `period` 就不列 |
+| `external_system`、`external_id` | 按外部引用查找：两者都给时至多一项（`(system, id)` 在 scope 内唯一）；只给 `external_system` 时列带该系统任一外部引用的对象；只给 `external_id` 是 422 |
+| `limit` | 每页条数，1 至 100，默认 50 |
+| `cursor` | 上一页返回的 `next_cursor`，原样带回；只能用于同一组筛选、同一凭证 |
+
+不认识的参数、重复的参数一律 `422 INVALID_REQUEST`，不静默忽略。按对象的建立时刻与 id 排序。返回：
+
+```json
+{
+  "items": [
+    {
+      "object_id": "…", "object_type": "Mission", "type_display_name": "Mission",
+      "category": {"id": "business_object", "display_name": "业务对象"},
+      "title": "…",
+      "version": 3, "revision_id": "…", "object_version": 5,
+      "lifecycle": {"status": "in_progress", "display_name": "进行中", "event_id": "…"},
+      "domain_id": "…",
+      "external_refs": [{"system": "tianshu", "id": "card:123", "url": null}],
+      "contract_version": "tkos.world/0.2"
+    }
+  ],
+  "next_cursor": "…"
+}
+```
+
+- `version`、`revision_id` 是最新修订（引用写 `<object_id>@<version>`）；`object_version` 是对象行的并发版本，写入时作 `target.expected_version`，同取对象 `business` 组里的那两项。
+- `lifecycle` 与取对象的 `records.lifecycle` 相同；没有生命周期的类型（Company、责任单元、状态快照）为 null。
+- `next_cursor` 为 null 即最后一页。
+- 错误：`unit_id` 与 `domain_id` 同给、`unit_id` 不是责任单元、`period` 或 `type` 取值不对、`limit` 越界、游标不对（换了筛选或凭证）是 `422 INVALID_REQUEST`；`unit_id`、`domain_id` 不在本 scope（含别的 scope 的）是 `404 NOT_FOUND`；凭证在 scope 内没有任何生效角色是 `403 FORBIDDEN`。
+- 同一 scope 里若有 0.1 对象（实验实例上没有），也会列出，`contract_version` 为 `tkos.world/0.1`，生命周期按 0.1 的状态机，`external_refs` 为空。
 
 **取对象的返回改为三组**（第 15.1 节）：
 
@@ -161,6 +197,8 @@
 - `records`：生命周期与推出它的事件、最新快照（标明未经确认）、最近的已确认复盘、未处置的问题。
 
 写前取 `revision_id` 与 `object_version` 的做法不变，只是它们挪进了 `business` 组（字段位置以实测示例为准，可能变）。
+
+**读 0.1 对象**（第 15.4 节，实验实例上用不到，写在这里备查）：取对象、取状态对 0.1 对象默认仍给 0.1 的形状；带 `view=tkos.world/0.2` 时按上面的三组给出，内容仍按 0.1 契约解释（块、属性按 0.1 登记，生命周期按 0.1 的状态机），0.1 的引用读成 0.2 的对象或块形式，0.1 快照按只读的 `legacy_0_1` payload 给出（`progress`、`issue`、`artifacts` 三块，生成者是写它的人，没有来源事件）。0.2 对象带不带这个参数都一样；`view` 只认 `tkos.world/0.2`，其余取值 422。
 
 **取事件**：按发生时刻升序；每条带 `class`（门、生命周期、记录）、记录者、被代记的人与外部确认记录、迟记标记（补记过去时刻时）、被更正与被撤回的关系。
 

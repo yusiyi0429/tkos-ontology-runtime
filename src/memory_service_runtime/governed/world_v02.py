@@ -6,8 +6,8 @@
 闸门；然后校验载荷，按主干判断调用者是不是有权的责任人（从新对象的主干上一级找起，同 0.1），之后才
 钉定其余引用、核对对象放在哪个域与挂在谁下面、写入声明。已接通八类业务对象的建对象、合并修订与建关系，
 写状态快照与记外部事件，指派与 Task、Activity 的六个生命周期动作（#53），周期目标、长期目标与 Mission 立项的
-承诺与确认（#54），Mission 的六个生命周期动作与关注标记（#55），委托的登记与撤销与代记（#62）；其余门随各自的票
-接入。
+承诺与确认（#54），Mission 的六个生命周期动作与关注标记（#55），委托的登记与撤销与代记（#62），外部引用在 scope
+内唯一（#63）；其余门随各自的票接入。
 
 指派、生命周期动作与门的判权（契约第 9.2 节）：激活策略列角色（门按目标类型拆名，ADR-0005），之后由服务算出
 调用者对目标满足的记录者类别（self、self_or_agent、parent、gate_role）与守卫事实，连同目标的事件交给生命周期引擎
@@ -130,6 +130,7 @@ class WorldExecution(ActionExecution):
         self.check_components(object_type)
         self.payload = models.stored_payload(object_type, self.written, self.pins, version=1)
         self.declaration = self.pinned_declaration()
+        self.check_external_refs(None)
 
     # ------------------------------------------------------------ revise and relate
     def authorize_target(self) -> None:
@@ -164,6 +165,8 @@ class WorldExecution(ActionExecution):
         else:
             self.relate(object_type, current)
         self.declaration = self.pinned_declaration()
+        if self.kind == "world_revise_object":
+            self.check_external_refs(self.target["object_id"])
 
     def reviser(self, object_type: str) -> dict[str, Any]:
         """谁能直接修订（契约第 3.2、12 节）：该对象或其主干上某一级的责任人（同 0.1）；有门对象只改活动块与活动
@@ -194,6 +197,24 @@ class WorldExecution(ActionExecution):
             _fail("INVALID_STATE", "Formal blocks and attributes of a gated object are revised directly only while it "
                                    "is a draft: a commitment is returned by its confirmer first, and formal content "
                                    "changes through a re-run of the gate.")
+
+    def check_external_refs(self, object_id: str | None) -> None:
+        """外部引用在 scope 内按 (system, id) 唯一（契约第 3.4 节，补 2），按各对象的最新修订判定：这一版的每一项都不能
+        已在另一对象的最新修订里（object_id 是被修订的对象，自己原有的不算冲突）。冲突是 INVALID_STATE，同第二个 Company、
+        同一主体同一时点的第二条快照这类与已有记录冲突的拒绝；放在载荷、声明与判权之后。建对象与修订是外部引用仅有的
+        写入口（指派、关注标记与写回沿用最新修订的值）；scope 内的写入已被认证时的 scope 栅栏串行化，先查后写不会并发穿透。
+        查找走迁移 0039 的 external_refs 索引。"""
+        for ref in self.payload.get("external_refs") or []:
+            row = self.conn.execute(
+                """SELECT o.object_id FROM gov_objects o JOIN gov_object_revisions r
+                     ON r.scope_id=o.scope_id AND r.revision_id=o.latest_revision_id
+                    WHERE o.scope_id=%s AND r.payload ? 'external_refs' AND r.payload->'external_refs' @> %s
+                      AND o.object_id IS DISTINCT FROM %s::uuid
+                    LIMIT 1""",
+                (self.ctx.scope_id, Jsonb([{"system": ref["system"], "id": ref["id"]}]), object_id)).fetchone()
+            if row is not None:
+                _fail("INVALID_STATE", f"The external reference ({ref['system']}, {ref['id']}) already points to "
+                                       f"object {row['object_id']} in this scope.")
 
     def require_declaration(self, object_type: str | None = None) -> None:
         """写入声明只对 Agent 强制（契约第 9.3 节）；Agent 的修订触及正式块、正式属性时必须要求人工验收，

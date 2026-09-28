@@ -1,6 +1,6 @@
-"""tkos-world 的 0.2 Agent 面（票 #57）：TKOS_WORLD_CONTRACT_VERSION 选 tkos.world/0.2 时打一个假的 HTTP 面。
+"""tkos-world 的 0.2 Agent 面（票 #57、#63）：TKOS_WORLD_CONTRACT_VERSION 选 tkos.world/0.2 时打一个假的 HTTP 面。
 
-断言子命令与 act 的动作清单等于契约第 9.3 节 Agent 面里已实现的部分（登记 agent_face 去掉列对象与三个 Issue 动作），
+断言子命令与 act 的动作清单等于契约第 9.3 节 Agent 面里已实现的部分（登记 agent_face 去掉三个 Issue 动作），
 面外的动作、取子对象与代记（--params 带 on_behalf_of）在发请求之前就以用法错误拒绝；每个读与写的请求形状、契约
 版本与 prepare 再 commit；版本取值不认识时退出码 2、什么都不发。默认 0.1 的行为由 test_world_cli.py 原样覆盖。
 不连数据库，也不启动真 API。
@@ -24,15 +24,25 @@ REV = "1c5a7e2c-7d4f-4c1e-9a55-3a4f1c2d9e06"
 EVENT = "2c5a7e2c-7d4f-4c1e-9a55-3a4f1c2d9e06"
 TARGET = {"object_id": OBJ, "revision_id": REV, "expected_version": 5}
 DECLARATION = {"scene": f"{OBJ}@1", "trigger": "会后整理", "human_acceptance": {"required": False}}
-COMMANDS = ["get", "state", "events", "context", "act"]
+COMMANDS = ["get", "state", "events", "list", "context", "act"]
 ACTIONS = ["world_record_event", "world_refresh_state", "world_revise_object", "world_start", "world_deliver"]
-# 登记里在 Agent 面上、但 HTTP 面还没实现的：列对象（#63）与 Issue 的提出、路由、退回形成（#61）。
-NOT_YET = {"list_objects", "world_raise_issue", "world_route_issue", "world_return_issue"}
+# 登记里在 Agent 面上、但 HTTP 面还没实现的：Issue 的提出、路由、退回形成（#61）。
+NOT_YET = {"world_raise_issue", "world_route_issue", "world_return_issue"}
+LISTED = {"items": [{"object_id": OBJ, "object_type": "Mission", "version": 3}], "next_cursor": "c2"}
+
+
+class ListingApi(FakeApi):
+    """另回列对象：GET /v1/world/objects 回一页对象头。"""
+
+    def reply(self, path, body):
+        if path == "/v1/world/objects":
+            return 200, LISTED
+        return super().reply(path, body)
 
 
 @pytest.fixture
 def api(monkeypatch):
-    fake = FakeApi()
+    fake = ListingApi()
     monkeypatch.setenv("TKOS_WORLD_API_URL", fake.url)
     monkeypatch.setenv("TKOS_WORLD_TOKEN", TOKEN)
     monkeypatch.setenv("TKOS_WORLD_CONTRACT_VERSION", V02)
@@ -56,7 +66,7 @@ def test_the_0_2_cli_offers_exactly_the_implemented_agent_face(api, capsys):
     face = REGISTRY["agent_face"]
     assert set(face["writes"]) - NOT_YET == set(ACTIONS)
     assert {name for name in face["reads"] if name not in NOT_YET} == {"get_object", "get_context", "get_events",
-                                                                        "get_state"}
+                                                                        "get_state", "list_objects"}
 
 
 def test_0_2_reads_forward_to_the_http_endpoints_with_the_token(api, capsys):
@@ -73,6 +83,22 @@ def test_0_2_reads_forward_to_the_http_endpoints_with_the_token(api, capsys):
         ("GET", base + "/events", {"since": ["2026-09-23T08:00:00+08:00"]}, None),
         ("POST", base + "/context", {}, {"question": "为什么做？", "budget": {"max_events_per_object": 3},
                                          "recent_days": 7})]
+    assert {r["authorization"] for r in api.requests} == {f"Bearer {TOKEN}"}
+
+
+def test_0_2_list_forwards_each_filter_and_the_cursor_as_query_parameters(api, capsys):
+    """列对象（#63）：不带对象 id，给了的筛选与分页原样作查询参数；返回原样打出。"""
+    assert main(["list"]) == 0
+    assert json.loads(capsys.readouterr().out) == LISTED
+    assert main(["list", "--unit-id", OBJ, "--type", "Mission", "--period", "2026-10", "--limit", "20",
+                 "--cursor", "c2"]) == 0
+    assert main(["list", "--domain-id", REV, "--external-system", "tianshu", "--external-id", "card:12"]) == 0
+    assert [(r["method"], r["path"], r["query"]) for r in api.requests] == [
+        ("GET", "/v1/world/objects", {}),
+        ("GET", "/v1/world/objects", {"unit_id": [OBJ], "type": ["Mission"], "period": ["2026-10"], "limit": ["20"],
+                                      "cursor": ["c2"]}),
+        ("GET", "/v1/world/objects", {"domain_id": [REV], "external_system": ["tianshu"],
+                                      "external_id": ["card:12"]})]
     assert {r["authorization"] for r in api.requests} == {f"Bearer {TOKEN}"}
 
 
@@ -108,7 +134,7 @@ def test_prepare_only_under_0_2_does_not_commit(api, capsys):
 
 
 @pytest.mark.parametrize("action", sorted({item["action"] for item in REGISTRY["actions"] if not item["agent_face"]}
-                                          | (NOT_YET - {"list_objects"})))
+                                          | NOT_YET))
 def test_actions_outside_the_0_2_agent_face_are_refused_before_any_http_call(api, capsys, action):
     with pytest.raises(SystemExit) as exit_:
         main(["act", action, "--target", json.dumps(TARGET), "--params", "{}", "--reason", "不在白名单"])
@@ -149,3 +175,7 @@ def test_an_unset_empty_or_explicit_0_1_keeps_the_0_1_face(api, capsys, monkeypa
         main(["act", "world_start", "--params", "{}", "--reason", "0.1 没有开始"])
     assert exit_.value.code == 2 and choices(capsys.readouterr().err) == [
         "world_record_event", "world_refresh_state", "world_revise_object"]
+    with pytest.raises(SystemExit) as exit_:
+        main(["list"])
+    assert exit_.value.code == 2 and choices(capsys.readouterr().err) == [
+        "get", "state", "events", "children", "context", "act"]

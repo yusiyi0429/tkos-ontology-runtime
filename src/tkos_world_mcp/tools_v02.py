@@ -3,9 +3,13 @@
 TKOS_WORLD_CONTRACT_VERSION=tkos.world/0.2 时启用。读与 0.1 是同样四个端点：HTTP 面按对象绑定的契约版本出形状，
 0.2 对象分 business、identity、records 三组，读请求本身不带契约版本。写是契约第 9.3 节 Agent 面里已实现的五个动作：
 记外部事件（含更正）、写状态快照、修订、开始（Mission 作为 Owner 的 Agent，Activity 作为其责任人）、交付（Activity
-作为其责任人）。门、指派、建关系、建对象、关注标记不在 Agent 面上；代记只走 HTTP（契约第 14 节），所以开始、交付的
-参数里没有 on_behalf_of。列对象（#63）与提出问题、路由问题、退回形成（#61）还没有 HTTP 实现，各随自己的票加一个
-工具：写工具在 TOOLS 里加一项，读工具另在 READS 里给它的端点。
+作为其责任人）。另有第五读列对象（#63，GET /v1/world/objects，按单元或域、类型、周期与外部引用筛选，分页）。门、指派、
+建关系、建对象、关注标记不在 Agent 面上；代记只走 HTTP（契约第 14 节），所以开始、交付的参数里没有 on_behalf_of。
+提出问题、路由问题、退回形成（#61）还没有 HTTP 实现，随自己的票加一个工具：写工具在 TOOLS 里加一项，读工具另在
+READS 里给它的端点。
+
+列对象返回的是对象头（id、类型、类别、标题、版本、生命周期、域、外部引用），不带块与组件，运行日志里不算读到内容：
+它的 read_refs 为空，推出生命周期的事件只进 event_ids。
 
 运行日志按 0.2 引用的四种业务形式识别引用（契约第 5 节）：对象、块、组件 `对象@版本#块/组件` 与事件 `event:<事件 id>`；
 块里带着内容回来的组件算读到。
@@ -56,6 +60,21 @@ TOOLS: dict[str, tuple[str, dict[str, Any]]] = {
     "world_get_state": (
         "取状态（GET /v1/world/objects/{object_id}/state）：as_of 不晚于该时点的最新状态快照（外壳与 payload），未经确认。",
         TOOLS_V01["world_get_state"][1]),
+    "world_list_objects": (
+        "列对象（GET /v1/world/objects）：按 unit_id（责任单元的对象 id，即它所在的域）或 domain_id、type（对象类型，"
+        "含 StateSnapshot）、period（YYYY-MM：周期目标按自己的，Mission 按其周期目标，Task、Activity 按其 Mission，"
+        "快照按自己的）、external_system 与 external_id（外部引用；在 scope 内唯一，两者都给时至多一项）筛选，条件可以"
+        "组合、都按最新修订。返回 items（对象头：object_id、object_type、category、title、version、revision_id、"
+        "object_version、lifecycle、domain_id、external_refs、contract_version）与 next_cursor；limit 每页条数（默认 50，"
+        "最多 100），next_cursor 不为空时原样作 cursor 取下一页。要块与组件时再取对象。",
+        _schema({"unit_id": {**_OBJECT_ID, "description": "责任单元的对象 id"},
+                 "domain_id": {**_OBJECT_ID, "description": "域 id"},
+                 "type": {"type": "string", "description": "对象类型，例如 Mission、Task、StateSnapshot"},
+                 "period": {"type": "string", "description": "周期 YYYY-MM"},
+                 "external_system": {"type": "string", "description": "外部系统，例如 tianshu"},
+                 "external_id": {"type": "string", "description": "外部系统里的 id，与 external_system 一起给"},
+                 "limit": {"type": "integer", "minimum": 1, "maximum": 100},
+                 "cursor": {"type": "string", "description": "上一页返回的 next_cursor"}}, [])),
     "world_record_event": (
         "记外部事件（动作 world_record_event）：category（meeting、review、delivery、acceptance、other、correction）、"
         "subject_refs（对象或组件形式的引用，至少一条）、occurred_at（可以补记过去的时刻）、content；更正的 category "
@@ -86,7 +105,10 @@ TOOLS: dict[str, tuple[str, dict[str, Any]]] = {
         "supersedes_event_id。",
         _schema(_LIFECYCLE, ["target"])),
 }
-READS = _READS
+# 读工具 -> (方法, 路径, 查询参数)：0.1 的四读加列对象；列对象的路径里没有对象 id，筛选与分页都是查询参数。
+READS = {**_READS, "world_list_objects": ("GET", "/v1/world/objects", (
+    "unit_id", "domain_id", "type", "period", "external_system", "external_id", "limit", "cursor"))}
 
 FACE = Face(CONTRACT_VERSION, TOOLS, READS, REF, COMPONENT,
-            "tkos.world/0.2 业务世界：四读五写（记外部事件、写状态快照、修订、开始、交付），写入须带三项声明。")
+            "tkos.world/0.2 业务世界：五读（取对象、取上下文、取事件、取状态、列对象）五写（记外部事件、写状态快照、修订、"
+            "开始、交付），写入须带三项声明。")

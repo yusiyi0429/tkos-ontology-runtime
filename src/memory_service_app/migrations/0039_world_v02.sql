@@ -14,7 +14,8 @@
 -- constraints keep their 0.1 meaning.  The binding gate keeps every prior
 -- identity (0.1 exactly as 0035 pinned it) and adds the world 0.2 profile
 -- pinned to the current contract and registry bytes.  No new object types,
--- tables or grants: new columns inherit the table's append-only grants.
+-- tables or grants: new columns inherit the table's append-only grants.  One
+-- index serves the lookup of objects by external reference.
 ALTER TABLE gov_world_events
     ADD COLUMN contract_version text NOT NULL DEFAULT 'tkos.world/0.1',
     ADD COLUMN disposition text,
@@ -206,3 +207,11 @@ BEGIN
     RETURN NEW;
 END
 $gov_binding_insert_gate$;
+
+-- Ticket #63: business objects carry external references and are looked up by (system, id) (contract
+-- sections 3.4 and 15.2).  The service keeps a pair unique within a scope, judged on each object's latest
+-- revision (writes in a scope are serialised by the scope fence); this index serves that check and the
+-- lookup, a containment query on the latest revisions.
+CREATE INDEX ix_gov_world_external_refs
+    ON gov_object_revisions USING gin ((payload->'external_refs') jsonb_path_ops)
+    WHERE payload ? 'external_refs';

@@ -52,7 +52,8 @@ HTTP 面的返回（包括拒绝）原样打到标准输出，JSON 缩进打印�
 | 命令 | 与 0.1 的差别 |
 |-|-|
 | `get <id>`、`state <id>`、`events <id>`、`context <id>` | 端点与选项不变，HTTP 面按对象绑定的契约版本出形状：0.2 对象分 `business`、`identity`、`records` 三组，引用细到组件（`<id>@<版本>#<块>/<组件>`），事件写成 `event:<事件 id>` |
-| `children <id>` | 没有：取子对象不在 0.2 的 Agent 面上，HTTP 面对 0.2 对象也不支持；列对象随 #63 加 |
+| `children <id>` | 没有：取子对象不在 0.2 的 Agent 面上，HTTP 面对 0.2 对象也不支持 |
+| `list` | 新增，列对象（`GET /v1/world/objects`，契约第 15.2 节）：`--unit-id`（责任单元的对象 id，即它所在的域）或 `--domain-id`、`--type`、`--period`（`YYYY-MM`；Mission 按其周期目标，Task、Activity 按其 Mission）、`--external-system` 与 `--external-id`（按外部引用查找，两者都给时至多一项），`--limit`（默认 50，最多 100）、`--cursor`（上一页的 `next_cursor`）；给了的原样作查询参数，返回 `{"items": [对象头…], "next_cursor"}`，字段见《接口变化清单》第十项 |
 | `act <动作>` | 动作是 `world_record_event`、`world_refresh_state`、`world_revise_object`、`world_start`、`world_deliver`；`contract_version` 为 `tkos.world/0.2` |
 
 - 修订、开始、交付要 `--target`，取 `get` 返回的 `business` 组里的 `object_id`、`revision_id` 与 `object_version`（作 `expected_version`）。开始的目标是已成立的 Mission（Agent 作为 Owner 的 Agent，须在它所在的域持 AGENT）或指派给自己的 Activity；交付的目标是自己负责的 Activity。撤回自己记的开始或交付，`--params` 带 `{"outcome": "withdrawn", "supersedes_event_id": …}`。
@@ -61,6 +62,8 @@ HTTP 面的返回（包括拒绝）原样打到标准输出，JSON 缩进打印�
 
 ```sh
 export TKOS_WORLD_CONTRACT_VERSION=tkos.world/0.2
+tkos-world list --unit-id <责任单元 id> --type Mission --period 2026-10
+tkos-world list --external-system tianshu --external-id card:123 | jq -r '.items[0].object_id'
 TARGET=$(tkos-world get <activity id> | jq -c '.business | {object_id, revision_id, expected_version: .object_version}')
 # start.json：{"declaration": {"scene": "<Task id>@<版本>", "trigger": "…", "human_acceptance": {"required": false}}}
 tkos-world act world_start --target "$TARGET" --params @start.json --reason "开始执行"

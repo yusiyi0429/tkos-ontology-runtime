@@ -73,10 +73,11 @@ def block_view(object_id: str, version: int, spec: dict[str, Any], value: dict[s
             "components": components, "ref": citation(object_id, version, spec["id"])}
 
 
-def responsible_principals(conn: Any, ctx: Any, head: dict[str, Any], payload: dict[str, Any]) -> list[dict[str, Any]]:
+def responsible_principals(conn: Any, ctx: Any, head: dict[str, Any], payload: dict[str, Any],
+                           rule: dict[str, Any] | None = None) -> list[dict[str, Any]]:
     """责任人（契约第 3.3 节）：按角色解析的是当前在对象所在域持该角色、启用的人；按属性解析的是
-    responsible 属性上的身份，还没指派时为空。"""
-    rule = world_registry.object_spec(head["object_type"])["responsible"]
+    responsible 属性上的身份，还没指派时为空。规则默认取 0.2 登记；读 0.1 对象时给 0.1 登记的规则（票 #63）。"""
+    rule = rule or world_registry.object_spec(head["object_type"])["responsible"]
     if rule["source"] == "attribute":
         if payload.get("responsible") is None:
             return []

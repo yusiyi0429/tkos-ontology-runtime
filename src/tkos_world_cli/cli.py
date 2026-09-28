@@ -1,7 +1,9 @@
 """tkos-world：在命令行里读写业务世界（tkos.world/0.1），HTTP 面的薄封装。
 
 持一枚凭证，把子命令转发到现有 HTTP 面，返回原样打到标准输出；不连数据库、不判权、不补目标、不重试。
-能做什么由凭证的身份决定，由 HTTP 面判权；这里只把对象 id 校验成 UUID（要拼进路径），其余交给 HTTP 面校验。
+第一版只做 Agent 面，与 MCP 暴露同样的七个操作：四读加三写（记外部事件、写状态快照、修订无门对象）；门动作、
+指派、建关系与建对象不暴露，在发请求之前就拒绝（契约第 9 节，人经工作台或 HTTP 记）。允许的动作之内能做什么仍由
+凭证的身份决定，由 HTTP 面判权；这里只把对象 id 校验成 UUID（要拼进路径），其余交给 HTTP 面校验。
 
 读：get、state、events、children 对应 /v1/world/objects/{id} 的四个读投影，context 是取上下文（每次调用落一行）。
 写：act <动作> 先 prepare 再 commit，同一条命令、同一个幂等键；--prepare-only 只做 prepare。参数与目标按契约
@@ -24,6 +26,8 @@ import uuid
 import httpx
 
 CONTRACT_VERSION = "tkos.world/0.1"
+# Agent 面的三个写动作，与 tkos-world-mcp 一致；其余动作不暴露。
+AGENT_ACTIONS = ("world_record_event", "world_refresh_state", "world_revise_object")
 # 子命令 -> (路径后缀, 查询参数)。
 _READS = {"get": ("", "version"), "state": ("/state", "as_of"), "events": ("/events", "since"),
           "children": ("/children", None)}
@@ -68,10 +72,11 @@ def _parser() -> argparse.ArgumentParser:
     context.add_argument("--max-chars", type=int, help="渲染后 Markdown 的字符数上限")
     context.add_argument("--max-events-per-object", type=int, help="每个对象的事件条数上限")
     context.add_argument("--recent-days", type=int, help="近期事件的天数")
-    act = commands.add_parser("act", help="执行动作：先 prepare 再 commit")
-    act.add_argument("action_type", help="动作名，例如 world_create_object、world_revise_object")
+    act = commands.add_parser("act", help="执行动作（只限 Agent 面的三个写动作）：先 prepare 再 commit")
+    act.add_argument("action_type", choices=AGENT_ACTIONS, metavar="<action>",
+                     help="动作名，只接受 " + "、".join(AGENT_ACTIONS) + "；门动作、指派、建关系与建对象不经此命令")
     act.add_argument("--params", type=_json, required=True, help="动作参数 JSON：字面量、@文件或 -（标准输入）")
-    act.add_argument("--target", type=_json, help="目标 JSON {object_id, revision_id, expected_version}；不落在对象上的动作不给")
+    act.add_argument("--target", type=_json, help="目标 JSON {object_id, revision_id, expected_version}，修订对象时给；写快照与记外部事件不给")
     act.add_argument("--reason", required=True, help="写入理由，进审计")
     act.add_argument("--idempotency-key", help="幂等键，不给则生成；重放同一条命令时带上原来的键")
     act.add_argument("--prepare-only", action="store_true", help="只做 prepare，不提交")

@@ -50,7 +50,7 @@ Runtime 提供 Clark 现有月度核对、周进展和会议工作面的 Runtime
   - 取事件：`…/events?since=`。
   - 取上下文：`POST …/context`。沿主干组装分层上下文包，同时给出检索计划、覆盖与预算裁剪记录，并落表留存。
 - **MCP**：`tkos-world-mcp` 是 stdio MCP server，作为 HTTP 面的薄壳，四读三写，先接 Codex CLI。它在可选依赖组 `mcp` 里，基础安装不带。配置与运行日志见 [Codex 接入说明](docs/world-mcp-codex.md)。
-- **CLI**：`tkos-world` 是给人和脚本用的命令行，作为 HTTP 面的薄封装，覆盖四个读投影、取上下文与任意动作（prepare 再 commit），权限由 HTTP 面按凭证判定。它在基础安装里，用法见 [CLI 说明](docs/world-cli.md)。
+- **CLI**：`tkos-world` 是给人和脚本用的命令行，作为 HTTP 面的薄封装，第一版只做 Agent 面：四个读投影、取上下文，以及记外部事件、写状态快照、修订无门对象三个写动作（prepare 再 commit）；门动作、指派、建关系与建对象不暴露，允许的动作之内权限由 HTTP 面按凭证判定。它在基础安装里，用法见 [CLI 说明](docs/world-cli.md)。
 
 契约见 [tkos-world-0.1.md](docs/contracts/tkos-world-0.1.md)，登记与 profile 钉定见 [world 登记](docs/contracts/world-registry-0.1.json) 与 [world profile](docs/contracts/world-profile-0.1.json)，支持登记见 [runtime-world-support-0.1.json](docs/runtime-world-support-0.1.json)。契约、登记或 profile 以后再改，都要追加重钉迁移。
 

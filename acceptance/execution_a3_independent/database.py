@@ -7,6 +7,7 @@ only to children of their intended privilege level.
 """
 from __future__ import annotations
 import argparse
+import importlib.util
 from io import BytesIO
 import json
 from pathlib import Path
@@ -40,20 +41,48 @@ def socket_sql(container: str, database: str, statement: str):
         raise AssertionError('local PostgreSQL administration failed; no credential/log output emitted')
 
 
-def grants(environment: Environment, mutable_extra: set[str] | None = None):
+RELEASE_DB_ADMIN = Path(__file__).resolve().parents[2] / 'deploy' / 'offline-release' / 'db_admin.py'
+PRIVILEGE_VERBS = ('SELECT', 'INSERT', 'UPDATE', 'DELETE', 'TRUNCATE')
+
+
+def release_rules():
+    """The release grant step (deploy/offline-release/db_admin.py), loaded by path like infra.GRANTS."""
+    spec = importlib.util.spec_from_file_location('release_db_admin', RELEASE_DB_ADMIN)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def grants(environment: Environment):
+    """Grant the application role exactly the release privileges, then verify them as that role.
+
+    Every table's privileges come from the release's expected_privileges (the same
+    source infra.GRANTS uses), after REVOKE ALL; a private copy of the rules here
+    drifted before (it granted DELETE on the runtime queue tables).
+    """
+    release = release_rules()
     app = conninfo_to_dict(environment.values['APP_DATABASE_URL'])['user']
-    mutable = MUTABLE_A1 | (mutable_extra or set())
     with psycopg.connect(environment.values['MIGRATION_DATABASE_URL']) as conn:
-        for (table,) in conn.execute("SELECT tablename FROM pg_tables WHERE schemaname='public'"):
-            if table.startswith('gov_'):
-                conn.execute(sql.SQL('REVOKE INSERT, UPDATE, DELETE ON TABLE public.{} FROM {}').format(
-                    sql.Identifier(table), sql.Identifier(app)))
-                privilege = 'SELECT' if table in CONTROL else 'SELECT, INSERT, UPDATE' if table in mutable else 'SELECT, INSERT'
-            else:
-                privilege = 'SELECT' if table == 'schema_migrations' else 'SELECT, INSERT, UPDATE, DELETE'
-            conn.execute(sql.SQL('GRANT '+privilege+' ON TABLE public.{} TO {}').format(
+        tables = [row[0] for row in conn.execute(
+            "SELECT tablename FROM pg_tables WHERE schemaname='public' ORDER BY tablename").fetchall()]
+        for table in tables:
+            conn.execute(sql.SQL('REVOKE ALL ON TABLE public.{} FROM {}').format(
+                sql.Identifier(table), sql.Identifier(app)))
+            privileges = ', '.join(sorted(release.expected_privileges(table)))
+            conn.execute(sql.SQL('GRANT ' + privileges + ' ON TABLE public.{} TO {}').format(
                 sql.Identifier(table), sql.Identifier(app)))
         conn.execute(sql.SQL('GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO {}').format(sql.Identifier(app)))
+    with psycopg.connect(environment.values['APP_DATABASE_URL']) as conn:
+        effective = conn.execute(
+            "SELECT tablename, " + ", ".join(
+                "has_table_privilege(current_user, quote_ident(schemaname)||'.'||quote_ident(tablename), '"
+                + verb + "')" for verb in PRIVILEGE_VERBS)
+            + " FROM pg_tables WHERE schemaname='public' ORDER BY tablename").fetchall()
+    diverged = [row[0] for row in effective
+                if {verb for verb, granted in zip(PRIVILEGE_VERBS, row[1:]) if granted}
+                != release.expected_privileges(row[0])]
+    if diverged:
+        raise AssertionError('application role privileges diverge from the release: ' + ', '.join(diverged))
 
 
 def create(args):

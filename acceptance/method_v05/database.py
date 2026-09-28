@@ -26,7 +26,7 @@ from psycopg import sql
 from psycopg.conninfo import conninfo_to_dict, make_conninfo
 
 from acceptance.execution_a3_independent.database import grants, socket_sql
-from acceptance.method_independent.database import BASE_COMMIT, BASE_MUTABLE, CONTAINER, method_grants
+from acceptance.method_independent.database import BASE_COMMIT, CONTAINER, method_grants
 from acceptance.protocol_a1_independent.database import source_migrate
 from acceptance.protocol_a1_independent.support import Environment, private_json, public_json
 
@@ -85,7 +85,7 @@ def create(env_file: Path, private: Path, output: Path) -> dict:
     first = source_migrate(env, source_root / 'src', output / 'base-migrate-first.json')
     second = source_migrate(env, source_root / 'src', output / 'base-migrate-repeat.json')
     assert first['applied'][-1] == BASELINE and second['applied'] == []
-    grants(env, BASE_MUTABLE)
+    grants(env)
     result = {'database': database, 'base_commit': BASE_COMMIT, 'private_environment': str(env_path),
               'base_source': str(source_root / 'src'), 'migrations': first['applied'],
               'repeat_applied': second['applied'], 'existing_databases_modified': False,

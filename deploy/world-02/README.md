@@ -6,7 +6,7 @@
 
 下文 `C=<短提交>`（构建提交的前 7 位，本机 `C=$(git rev-parse origin/world/0.2 | cut -c1-7)`）、`APP=/srv/tokenhub/apps/tkos-world-02`、`SRC=$APP/releases/world-02-$C`（源码）、`LAB=$APP/world-02`（env 与输出）、`B=world-02-$C-amd64`（构建产物目录名）。
 
-本目录的文件：`build_images.py`（本机构建两个镜像并打包）、`world-02.env.example`（env 模板）、`spec.example.json`（scope 的域、主体与角色）、`provision.py`（建 scope、域、主体、角色并生成 0.2 策略文件）、`provision-and-install.sh`（第 4–5 步整段，每个 scope 跑一遍，可重跑）、`smoke.py`（第 7 步：实验 scope 只探活，冒烟 scope 跑整条链，可重跑）、`nginx/world-02.conf`。
+本目录的文件：`build_images.py`（本机构建两个镜像并打包）、`world-02.env.example`（env 模板）、`spec.example.json`（冒烟 scope 的域、主体与角色）、`spec.eo.example.json`（实验 scope 的名单，第 11 节）、`provision.py`（建 scope、域、主体、角色并生成 0.2 策略文件）、`provision-and-install.sh`（第 4–5 步整段，每个 scope 跑一遍，可重跑）、`smoke.py`（第 7 步：实验 scope 只探活，冒烟 scope 跑整条链，可重跑）、`seed-eo-2026-10.json` 与 `seed_eo.py`（第 11 节：实验 scope 的 E&O 十月起点，按人分段播种）、`nginx/world-02.conf`。
 
 ## 与 world-lab 的隔离
 
@@ -66,15 +66,15 @@ cd $SRC/deploy/offline-release && mkdir -m 700 -p private
 openssl rand -hex 16 > private/minio-app-access-key
 openssl rand -hex 32 > private/minio-app-secret-key
 sudo chown 10001:0 private/minio-app-* && sudo chmod 440 private/minio-app-*
-cp $SRC/deploy/world-02/spec.example.json $LAB/spec.json      # 实验 scope；要改域或主体就改这份
+cp $SRC/deploy/world-02/spec.eo.example.json $LAB/spec.json && chmod 600 $LAB/spec.json   # 实验 scope 的名单（第 11 节），三个人的 display_name 在这里改成真名
 python3 -c 'import json,sys; s=json.load(open(sys.argv[1])); s["tenant_id"]+="-smoke"; s["notes"]="world-02 冒烟 scope：只给 smoke.py 建对象，可随时清空重建"; json.dump(s,open(sys.argv[2],"w"),ensure_ascii=False,indent=1)' $SRC/deploy/world-02/spec.example.json $LAB/spec-smoke.json
 ```
 
 MinIO 应用密钥文件必须是属主 10001、属组 0、权限 440：`minio-init` 以 root 运行但 `cap_drop: [ALL]`，只能按普通的 uid 0 / gid 0 判权限，API 与 Worker 以 uid 10001 运行；停在部署用户的 600 会让 `minio-init` 读不到（world-lab 2026-09-28 主机实测）。之后部署用户读这两个文件要 `sudo cat`。
 
-一个实例供给两个 scope：**实验 scope**（`spec.json` → `out/`，tenant `tokenking-world-02`）给天枢与 E&O 用，冒烟一个对象都不在里面建；**冒烟 scope**（`spec-smoke.json` → `out-smoke/`，tenant `tokenking-world-02-smoke`，域与主体的键和实验 scope 一样）只给 `smoke.py` 建对象。两个 scope 的身份、凭证、对象互不可见（scope 外 404）。
+一个实例供给两个 scope：**实验 scope**（`spec.json` → `out/`，tenant `tokenking-world-02`）给天枢与 E&O 用，冒烟一个对象都不在里面建；**冒烟 scope**（`spec-smoke.json` → `out-smoke/`，tenant `tokenking-world-02-smoke`，域与主体按 `spec.example.json`）只给 `smoke.py` 建对象。两个 scope 的身份、凭证、对象互不可见（scope 外 404）。
 
-`spec.json` 的键就是凭证文件名，`smoke.py` 按 `spec.example.json` 的键写（改键就改它的 `KEYS`）：公司域 `company`、责任单元 `eo`（E&O）与 `agents`（Agents）；人 `ceo`、`eo-dri`、`agents-dri`、`eo-owner`（E&O 的 Mission Owner，兼 IC）、`eo-ic`、`agents-ic`；Agent `tianshu`（天枢服务主体，在三个域都持 AGENT，用于代记与每周快照）、`eo-coagent`（E&O 的 Co-Agent）、`exec-agent`（执行 Agent，在 E&O 持 AGENT）。CEO 在三个域都持 CEO（确认单元里的周期目标、在单元域建责任单元要用）。
+spec 的键就是凭证文件名。实验 scope 的名单见第 11 节。冒烟 scope 按 `spec.example.json`，完整冒烟按它的键写（改键就改 `smoke.py` 的 `KEYS`）：公司域 `company`、责任单元 `eo`（E&O）与 `agents`（Agents）；人 `ceo`、`eo-dri`、`agents-dri`、`eo-owner`（E&O 的 Mission Owner，兼 IC）、`eo-ic`、`agents-ic`；Agent `tianshu`（天枢服务主体，在三个域都持 AGENT，用于代记与每周快照）、`eo-coagent`（E&O 的 Co-Agent）、`exec-agent`（执行 Agent，在 E&O 持 AGENT）。CEO 在三个域都持 CEO（确认单元里的周期目标、在单元域建责任单元要用）。
 
 ## 3. 启动
 
@@ -133,7 +133,7 @@ python3 $SRC/deploy/world-02/smoke.py http://127.0.0.1:8050 $LAB/out-smoke      
 # Nginx 之后把地址换成 https://world-02.tokenkingos.com 各跑一次
 ```
 
-只用标准库，只从给的目录读凭证、不打印。两种都先查：健康、`/openapi.json` 的 world 路由、无凭证 401、每枚凭证都能认证且读不存在（scope 外）的对象 404。对实验 scope 只跑到这里（`--probe-only`），加上第 5 步末尾的 `ctl status`，就是不写库的确认：凭证与 scope 可用，里面没有冒烟对象。完整冒烟只认 tenant 以 `-smoke` 结尾的 scope，对 `out/` 跑会直接 FAIL。它经 prepare 与 commit 按 0.2 走一条链，每步断言回执、生命周期与读回：
+只用标准库，只从给的目录读凭证、不打印。两种都先查：健康、`/openapi.json` 的 world 路由、无凭证 401、每枚凭证都能认证且读不存在（scope 外）的对象 404（探活按 `ids.json` 里实际有的主体逐个查，完整冒烟按 `KEYS`）。对实验 scope 只跑到这里（`--probe-only`），加上第 5 步末尾的 `ctl status`，就是不写库的确认：凭证与 scope 可用，里面没有冒烟对象。完整冒烟只认 tenant 以 `-smoke` 结尾的 scope，对 `out/` 跑会直接 FAIL。它经 prepare 与 commit 按 0.2 走一条链，每步断言回执、生命周期与读回：
 
 - 骨架（一个 scope 一套）：CEO 建 Company 与 Strategy（责任结构块带 `eo`、`agents` 两个责任单元条目组件），CEO 建两个责任单元（`architecture_ref` 以组件引用指到各自的条目）并指派 DRI。
 - 每跑一次新建（标题以「冒烟 <run>」开头）：公司级与 E&O 长期目标（CEO 确认）→ 周期目标（DRI 承诺、CEO 确认）→ Mission（DRI 指派 Owner、Owner 承诺、DRI 确认、Owner 开始）→ Task（Owner 指派 IC、IC 开始）→ Activity（IC 指派执行 Agent，Agent 带写入声明开始、交付，IC 验收）→ Task 交付、Owner 验收 → 天枢记一条外部事件（每周同步）、写引用它的执行状态快照（`source_event_refs`，进展条目组件），读回生成者与未经确认标记 → CEO 给天枢登记一小时的门委托（E&O 域）、天枢代 CEO 标核心战役（读回代记信息）、CEO 撤销委托 → 执行 Agent 从 Activity 取上下文，沿主干到 Company，Task 的验收条件以钉定的组件引用返回。
@@ -193,6 +193,74 @@ mkdir -p "$D/smoke" && scp "tokenhub-prod:$LAB/spec-smoke.json" "tokenhub-prod:$
 cd /tmp/tkos-secrets && git add -A && git commit -m "world-02: 0.2 实验实例的 compose.env、MinIO 应用密钥、两个 scope 的清单与凭证" && git push
 rm -rf /tmp/tkos-secrets
 ```
+
+## 11. 实验 scope 的名单与十月起点播种
+
+实验 scope 只建公司域 `company` 与 E&O 域 `eo`（Agents 单元这次不参与），名单按 `spec.eo.example.json`：
+
+| 键 | 是谁 | 角色 |
+|-|-|-|
+| `ceo` | CEO | company、eo：CEO |
+| `eo-dri` | E&O DRI（兼 IC） | eo：DOMAIN_DRI、IC |
+| `eo-owner` | E&O Mission Owner（兼 IC） | eo：OWNER、IC |
+| `tianshu` | 天枢服务主体 | company、eo：AGENT |
+| `eo-coagent` | E&O Co-Agent | eo：AGENT |
+| `exec-agent` | 执行 Agent | eo：AGENT |
+
+第 2 步由它生成主机上的 `spec.json`，三个人的 `display_name` 在主机上改成真名。真名只出现在主机的 `spec.json`、库里的主体与事件、tkos-secrets 的归档里；仓库里的样例、计划与测试一律用占位（「CEO」「E&O DRI」「E&O Mission Owner」）。已经按旧名单（`spec.example.json`）供给过的实验 scope 随第 9 或 9.5 节的重建换名单；不要在同一个库里删掉 `out/` 重新供给，那样旧 scope 与它的凭证还留在库里。
+
+**播种计划** `seed-eo-2026-10.json`（33 步）只写主体与域的键，id 与显示名运行时取 `ids.json`：
+
+- 公司层：Company、Strategy（草稿，责任结构块只有 E&O 一个责任单元条目组件）、E&O 责任单元（`architecture_ref` 以组件引用指到那个条目）、公司级与 E&O 长期目标。正文照搬 `experiments/world_v01/seed.json`（E&O 九月回放），原稿的 `feishu.example` 占位链接不带。
+- E&O 十月周期目标（2026-10，`goal_ref` 指 E&O 长期目标，不带 `review_ref`）：结果与验收标准各三条。
+- 三个 Mission（天枢 × 本体 0.2 试用、0.2 实验与报告、0.2 锁版），Owner 都是 `eo-owner`，下面共 8 个 Task；Task 不指派执行人，试用中在天枢里指派。拿不准的块留空块。
+- 每个人最后一步给天枢登记委托：门、指派、生命周期，域是他持角色的域，至 2026-10-31T23:59:59+08:00。
+- 不写 `external_refs`：天枢的战场、任务卡 id 联调时由天枢以修订补上。
+
+**按人分段**：播种会让记录挂在真人名下，所以 `seed_eo.py` 每一段只用一个人的凭证（`<out>/<键>.token`，不打印），只做他名下前置已满足、还没做过的步骤；要等别人时停下，打印状态视图（每步谁做、做没做、本人执行还是代录、在等谁）与「下一步：谁 做 什么」。每一段由本人在场执行，或经本人同意代为执行（代录，见下）。九段（CEO 8 步、DRI 13 步、Owner 12 步）：
+
+| 段 | 谁 | 做什么 |
+|-|-|-|
+| 1 | ceo | 建 Company、Strategy、E&O 责任单元、公司级长期目标 |
+| 2 | eo-dri | 建 E&O 长期目标（草稿） |
+| 3 | ceo | 确认公司级与 E&O 长期目标 |
+| 4 | eo-dri | 建十月周期目标并承诺（形成锚定：E&O 长期目标已确认；scope 里还没有已确认的公司复盘，不带 `review_ref` 放行） |
+| 5 | ceo | 确认十月周期目标；登记委托（company、eo） |
+| 6 | eo-dri | 建三个 Mission，各自指派 Owner |
+| 7 | eo-owner | 承诺三个 Mission（守卫：十月周期目标已确认） |
+| 8 | eo-dri | 确认三个 Mission；登记委托（eo） |
+| 9 | eo-owner | 每个 Mission 下建 Task；登记委托（eo） |
+
+计划的前置按这九段写，比 0.2 本身严。0.2 只要求：E&O 长期目标确认后才能承诺、确认十月周期目标；十月周期目标确认后才能承诺、确认 Mission；Owner 被指派后才能承诺 Mission、在它下面建 Task（经 Mission 的 `responsible` 成为主干上一级的责任人）；登记委托时 scope 里已有 Company。责任单元的 DRI 按角色解析，不用指派。
+
+**命令**：主机没有仓库检出，脚本只用标准库，在本机仓库检出里经域名跑（同 `smoke.py --mcp-cli`）。`<out>` 用第 10 节归档里实验 scope 的那份（`ids.json` 与凭证）；状态文件 `seed-eo-state.json` 写在同一目录，回执、事件与对象 id 都在里面，重跑沿用，每段跑完推回 tkos-secrets（段与段隔了时间就每段重新克隆、跑完删掉）。幂等键固定为 `world-02-eo-seed:<步骤>`；提交前请求先记进状态文件，中断后重跑原样重发，已提交的拿回原回执。状态文件丢了，重跑会停在第一个门步骤的 IDEMPOTENCY_CONFLICT（不会记两次），从 tkos-secrets 取回再跑。实验 scope 重建后，旧状态文件随第 10 节的整目录替换一起作废（脚本拒绝另一个 scope 的状态文件）。
+
+```bash
+git clone https://github.com/VanillaCoca/tkos-secrets.git /tmp/tkos-secrets
+O=/tmp/tkos-secrets/ontology-runtime/world-02 U=https://world-02.tokenkingos.com P=deploy/world-02/seed-eo-2026-10.json
+python3 deploy/world-02/seed_eo.py $U $O $P --status                                    # 只看状态，不连服务
+python3 deploy/world-02/seed_eo.py $U $O $P --as ceo --proxy-operator eo-dri --dry-run   # 先列出这一段会做什么，不写
+python3 deploy/world-02/seed_eo.py $U $O $P --as ceo --proxy-operator eo-dri             # 1 CEO 段：代录，operator eo-dri
+python3 deploy/world-02/seed_eo.py $U $O $P --as eo-dri                                  # 2 DRI 段：本人执行
+python3 deploy/world-02/seed_eo.py $U $O $P --as ceo --proxy-operator eo-dri             # 3
+python3 deploy/world-02/seed_eo.py $U $O $P --as eo-dri                                  # 4
+python3 deploy/world-02/seed_eo.py $U $O $P --as ceo --proxy-operator eo-dri             # 5
+python3 deploy/world-02/seed_eo.py $U $O $P --as eo-dri                                  # 6
+python3 deploy/world-02/seed_eo.py $U $O $P --as eo-owner --proxy-operator eo-dri        # 7 Owner 段：代录，operator eo-dri
+python3 deploy/world-02/seed_eo.py $U $O $P --as eo-dri                                  # 8
+python3 deploy/world-02/seed_eo.py $U $O $P --as eo-owner --proxy-operator eo-dri        # 9
+python3 deploy/world-02/smoke.py $U $O --probe-only
+cd /tmp/tkos-secrets && git add ontology-runtime/world-02/seed-eo-state.json && git commit -m "world-02: E&O 十月起点播种状态" && git push
+rm -rf /tmp/tkos-secrets
+```
+
+**代录**：`--proxy-operator <键>` 表示这一段仍用 `--as` 那个人的凭证写，实际由 operator 代为录入；只在本人同意时用。记录里如实写明：
+
+- 收内容的门动作（承诺、确认）：`content.text` 是「E&O 十月起点播种。由<operator>代<本人>录入，待本人复核」，显示名取 `ids.json`；`--proxy-note` 换后一句的模板（可用 `{operator}`、`{person}`、`{date}`）。本人执行时只有「E&O 十月起点播种」。
+- 建对象、指派、登记委托不收内容，所以一段代录跑完后，以 operator 自己的凭证补记一条外部事件（category `other`，operator 是人不带写入声明）作代录说明：主体是这一段涉及的对象（对象形式，钉到当前版本；委托的主体是 Company）；正文「以下<本人>名下的记录由<operator>于 <日期> 代为录入，待本人复核：」之后逐条列出这一段写下的事件 id 与动作名，门事件也列；`content.refs` 是这些事件的 `event:<id>` 引用；发生时刻取这一段最后一张回执的记录时刻。幂等键 `world-02-eo-seed:proxy-note:<本人键>:<步骤集合的摘要>`，重跑不重复记；一段中途失败，已写下的也补记。
+- 状态视图与状态文件标出每步是本人执行还是代录、由谁代录。
+
+真名与代录说明里的姓名只出现在主机（库里的主体与事件）与 tkos-secrets 的数据里，不进仓库、文档与聊天。
 
 ## 已核与未验证
 

@@ -5,9 +5,9 @@
 只用标准库（--mcp-cli 除外）；凭证只从 <out目录>/<主体键>.token 读，不打印。主体键与域键按 spec.example.json
 （改了键就改这里的 KEYS）。
 
---probe-only：只查健康、world 路由、无凭证 401、每枚凭证都能认证且读 scope 外（不存在）的对象 404，不写库、不建
-对象。实验 scope（out/）只跑这一种。完整冒烟只对冒烟 scope（out-smoke/，tenant 以 -smoke 结尾）跑，打到别的
-scope 直接 FAIL。
+--probe-only：只查健康、world 路由、无凭证 401，以及 ids.json 里实际有的每个主体的凭证都能认证、读 scope 外（不存在）
+的对象 404，不写库、不建对象。实验 scope（out/，名单见 spec.eo.example.json）只跑这一种。完整冒烟按 KEYS 取主体，
+只对冒烟 scope（out-smoke/，tenant 以 -smoke 结尾）跑，打到别的 scope 直接 FAIL。
 
 骨架（Company、Strategy、E&O 与 Agents 两个责任单元）一个 scope 只有一套：第一次跑时建，id 记在
 <out目录>/smoke-world-02.json，重跑沿用（一个 scope 只有一个 Company、一个域只有一个责任单元）。其余对象每跑一次新建一套
@@ -66,13 +66,18 @@ def blocks(view):
 
 
 class Smoke:
-    def __init__(self, base, out):
+    def __init__(self, base, out, probe_only=False):
         self.base, self.out = base.rstrip("/"), out
         self.ids = json.loads((out / "ids.json").read_text(encoding="utf-8"))
-        check("ids.json has the spec's principals and domains",
-              set(KEYS) <= set(self.ids["principals"]) and set(DOMAINS) <= set(self.ids["domains"]))
-        self.tokens = {key: (out / f"{key}.token").read_text(encoding="utf-8").strip() for key in KEYS}
-        self.pid = {key: self.ids["principals"][key]["principal_id"] for key in KEYS}
+        if probe_only:  # 探活只看 ids.json 里实际有的主体：实验 scope 的名单与冒烟 scope 不同
+            self.keys = tuple(self.ids["principals"])
+            check("ids.json lists principals", bool(self.keys))
+        else:
+            self.keys = KEYS
+            check("ids.json has the smoke spec's principals and domains",
+                  set(KEYS) <= set(self.ids["principals"]) and set(DOMAINS) <= set(self.ids["domains"]))
+        self.tokens = {key: (out / f"{key}.token").read_text(encoding="utf-8").strip() for key in self.keys}
+        self.pid = {key: self.ids["principals"][key]["principal_id"] for key in self.keys}
         self.domain = self.ids["domains"]
 
     def load_state(self):
@@ -155,7 +160,7 @@ class Smoke:
         check("openapi has the world routes", status == 200 and len(world) >= 5, str(world))
         status, _ = self.call("GET", f"/v1/world/objects/{ZERO}")
         check("no token -> 401", status == 401, str(status))
-        for key in KEYS:
+        for key in self.keys:
             status, _ = self.call("GET", f"/v1/world/objects/{ZERO}", who=key)
             check(f"{key} token authenticates; object outside the scope -> 404", status == 404, str(status))
 
@@ -457,7 +462,7 @@ def main():
     mode.add_argument("--probe-only", action="store_true", help="只查健康、路由与凭证，不写库（实验 scope 用这个）")
     mode.add_argument("--mcp-cli", action="store_true", help="链跑完后另用 tkos-world 与 tkos-world-mcp（0.2）冒烟")
     args = parser.parse_args()
-    smoke = Smoke(args.base_url, args.out)
+    smoke = Smoke(args.base_url, args.out, probe_only=args.probe_only)
     smoke.basics()
     if args.probe_only:
         print(f"PROBE_OK scope={smoke.ids['scope_id']} tenant={smoke.ids['tenant_id']}")

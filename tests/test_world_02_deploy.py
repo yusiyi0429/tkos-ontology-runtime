@@ -23,6 +23,7 @@ def load(name: str):
 
 provision, smoke, build = load("provision"), load("smoke"), load("build_images")
 EXAMPLE = json.loads((DEPLOY / "spec.example.json").read_text(encoding="utf-8"))
+EO_EXAMPLE = json.loads((DEPLOY / "spec.eo.example.json").read_text(encoding="utf-8"))
 REGISTRY = json.loads((ROOT / "docs/contracts/world-registry-0.2.json").read_text(encoding="utf-8"))
 SUPPORT = json.loads((ROOT / "docs/runtime-world-support-0.2.json").read_text(encoding="utf-8"))
 
@@ -33,6 +34,17 @@ def test_the_example_spec_is_valid_and_carries_what_the_smoke_uses() -> None:
     agents = {key for key, p in EXAMPLE["principals"].items() if p["type"] == "agent"}
     assert agents == {"tianshu", "eo-coagent", "exec-agent"}
     assert set(EXAMPLE["principals"]["tianshu"]["roles"]) == set(EXAMPLE["domains"])
+
+
+def test_the_experiment_scope_roster_is_the_company_and_eo_with_placeholder_names() -> None:
+    provision.check_spec(EO_EXAMPLE)
+    assert set(EO_EXAMPLE["domains"]) == {"company", "eo"}
+    assert {key: p["roles"] for key, p in EO_EXAMPLE["principals"].items()} == {
+        "ceo": {"company": ["CEO"], "eo": ["CEO"]}, "eo-dri": {"eo": ["DOMAIN_DRI", "IC"]},
+        "eo-owner": {"eo": ["OWNER", "IC"]}, "tianshu": {"company": ["AGENT"], "eo": ["AGENT"]},
+        "eo-coagent": {"eo": ["AGENT"]}, "exec-agent": {"eo": ["AGENT"]}}
+    humans = {key: p["display_name"] for key, p in EO_EXAMPLE["principals"].items() if p["type"] == "human"}
+    assert humans == {"ceo": "CEO", "eo-dri": "E&O DRI", "eo-owner": "E&O Mission Owner"}  # 真名只在主机上填
 
 
 @pytest.mark.parametrize(("change", "says"), [
@@ -121,3 +133,27 @@ def test_the_full_smoke_runs_only_on_the_smoke_scope(tmp_path, tenant, allowed) 
         with pytest.raises(SystemExit):
             run.load_state()
     assert not (tmp_path / "smoke-world-02.json").exists()
+
+
+def test_the_probe_takes_the_principals_the_scope_has_and_the_full_smoke_its_own_roster(tmp_path, monkeypatch) -> None:
+    ids = {"scope_id": "s", "tenant_id": EO_EXAMPLE["tenant_id"], "domains": {key: key for key in EO_EXAMPLE["domains"]},
+           "principals": {key: {"principal_id": key} for key in EO_EXAMPLE["principals"]}}
+    (tmp_path / "ids.json").write_text(json.dumps(ids))
+    for key in EO_EXAMPLE["principals"]:
+        (tmp_path / f"{key}.token").write_text(f"token-of-{key}")
+    probe = smoke.Smoke("http://127.0.0.1:1", tmp_path, probe_only=True)
+    assert probe.keys == tuple(EO_EXAMPLE["principals"]) and set(probe.tokens) == set(EO_EXAMPLE["principals"])
+    asked = []
+
+    def answer(method, path, body=None, who=None):
+        asked.append(who)
+        if path == "/v1/health":
+            return 200, {"ok": True, "db": True}
+        if path == "/openapi.json":
+            return 200, {"paths": {f"/v1/world/{n}": {} for n in range(5)}}
+        return (404 if who else 401), {}
+    monkeypatch.setattr(probe, "call", answer)
+    probe.basics()
+    assert [who for who in asked if who] == list(EO_EXAMPLE["principals"])
+    with pytest.raises(SystemExit):
+        smoke.Smoke("http://127.0.0.1:1", tmp_path)  # 完整冒烟仍要冒烟那套主体与域

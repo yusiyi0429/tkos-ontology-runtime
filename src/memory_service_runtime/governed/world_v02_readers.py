@@ -6,7 +6,8 @@ world 对象，不走域级 read 策略；非 world 对象一律 NOT_FOUND，授
 引用同时给钉定结构与业务形式，另给正式内容指针与进行中的一轮（票 #54）；``identity`` 给责任人与委托范围覆盖
 对象所在域的当前有效委托（票 #62）；``records`` 给生命周期与推出它的事件（按登记的状态表推导，ADR-0002）、最新
 状态快照（标明未经确认）、最近的已确认复盘（票 #60）与主受影响对象是它、还没处置的问题（票 #61）。状态快照是时间
-记录，按 id 读回的是快照视图，不分三组；复盘确认不改快照本身（契约第 7 节）。
+记录，按 id 读回的是快照视图，不分三组；复盘确认不改快照本身（契约第 7 节）。Strategy 的一轮另给被指定的人、
+Agreement 与还差谁（票 #59）。
 """
 from __future__ import annotations
 
@@ -18,6 +19,7 @@ from psycopg.types.json import Jsonb
 from . import db, protocol
 from . import world_v02_lifecycle as world_lifecycle
 from . import world_v02_registry as world_registry
+from . import world_v02_strategy as world_strategy
 from .errors import GovernedError
 from .world_v01_models import utc_text
 from .world_v02_models import CONTRACT_VERSION, citation, cite, payload_spec
@@ -98,10 +100,13 @@ def responsible_principals(conn: Any, ctx: Any, head: dict[str, Any], payload: d
 def lifecycle_events(conn: Any, ctx: Any, object_id: str) -> list[dict[str, Any]]:
     """推导生命周期的输入：以该对象为目标（subject_refs 的第一项）的 0.2 事件，另加确认以它为主体的快照的复盘确认——
     目标是快照，主体钉在 subject_refs 的第二项（登记 via snapshot_subject，票 #60）；按记录顺序，带取自回执的产生它的
-    动作，以及是否带候选（候选随门事件的 detail 留存，契约第 12 节）。"""
+    动作，是否带候选（候选随门事件的 detail 留存，契约第 12 节），以及 Strategy 的 Agreement 记下时是否补齐本轮
+    （detail 的 round_complete，引擎按它在本轮未齐与本轮补齐两条转移里选，票 #59）。"""
     return [db.jsonable(row) for row in conn.execute(
         """SELECT e.event_id, r.action_type AS action, e.outcome, e.disposition, e.supersedes_event_id,
-                  COALESCE(e.detail ? 'candidate', false) AS candidate
+                  COALESCE(e.detail ? 'candidate', false) AS candidate,
+                  CASE WHEN e.detail ? 'round_complete'
+                       THEN jsonb_build_object('round_complete', e.detail->'round_complete') END AS guards
              FROM gov_world_events e JOIN gov_action_receipts r ON r.scope_id=e.scope_id AND r.receipt_id=e.action_id
             WHERE e.scope_id=%s AND e.contract_version=%s
               AND (e.subject_refs->0->>'object_id'=%s
@@ -176,9 +181,12 @@ def read_object(conn: Any, ctx: Any, object_id: str, version: int | None = None)
         return {**snapshot_view(head, revision, generator=principal(conn, ctx, revision["payload"]["generator"])),
                 "protocol": metadata}
     derived = lifecycle(conn, ctx, head)
+    # Strategy 在草稿里也有一轮（指定本轮责任人），另给被指定的人与 Agreement（票 #59）。
+    current_round = (world_strategy.round_view(conn, ctx, head, derived) if head["object_type"] == "Strategy"
+                     else round_view(conn, ctx, head, derived and derived["round"]))
     return object_view(head, revision, metadata, responsible=responsible_principals(conn, ctx, head, revision["payload"]),
                        latest_state=latest_snapshot(conn, ctx, head["object_id"]), lifecycle=derived,
-                       current_round=round_view(conn, ctx, head, derived and derived["round"]),
+                       current_round=current_round,
                        delegations=[delegation_view(conn, ctx, row) for row in
                                     delegations_in_force(conn, ctx, domain_id=head["domain_id"])],
                        open_issues=open_issues(conn, ctx, head["object_id"]),
@@ -483,7 +491,8 @@ def authorize_receipt(conn: Any, ctx: Any, row: dict[str, Any], *, replay: bool 
     current = {item["assignment_id"] for item in db._assignments(conn, judged)}
     if any(aid not in current for aid in row["result"].get("required_assignment_ids", [])):
         raise GovernedError("FORBIDDEN", "An assignment this command relied on is no longer valid.")
-    if world_registry.action_spec(row["action_type"])["authorization"] != "scope":  # 外部事件按 scope 判权
+    # 外部事件、委托按 scope 判权；Agreement 按 scope 与本轮指定（决 13），都不看该域策略的角色表。
+    if world_registry.action_spec(row["action_type"])["authorization"] not in {"scope", "scope_and_designation"}:
         db.authorize_domain(conn, judged, row["result"]["domain_id"], row["action_type"])
     through = row["result"].get("responsible_through")
     if through is not None and db.jsonable(conn.execute(

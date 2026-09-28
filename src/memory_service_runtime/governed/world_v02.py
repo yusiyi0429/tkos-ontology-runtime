@@ -8,7 +8,7 @@
 写状态快照与记外部事件，指派与 Task、Activity 的六个生命周期动作（#53），周期目标、长期目标与 Mission 立项的
 承诺与确认（#54），Mission 的六个生命周期动作与关注标记（#55），委托的登记与撤销与代记（#62），外部引用在 scope
 内唯一（#63），Issue 的提出、路由、承接、处置与退回形成（#61），长期目标与周期目标的再确认、复盘确认、取消与
-终止、形成锚定（#60）；其余门随各自的票接入。
+终止、形成锚定（#60），Strategy 的指定本轮、Agreement、确认生效与再确认（#59）；其余门随各自的票接入。
 
 Issue（契约第 13 节）：问题是主受影响对象快照里的问题组件，身份是（主受影响对象，组件 id）。动作不带目标，以 issue_ref
 指明问题；判权在主受影响对象所在的域按激活策略判，承接与处置只由人记，然后按登记 issue.lifecycle 的状态表与记录者
@@ -19,6 +19,10 @@ Issue（契约第 13 节）：问题是主受影响对象快照里的问题组�
 调用者对目标满足的记录者类别（self、self_or_agent、parent、gate_role）与守卫事实，连同目标的事件交给生命周期引擎
 admit 判状态、守卫与记录者。记录者不符是 FORBIDDEN，状态表或守卫不允许是 INVALID_STATE。关注标记是记录事件，
 但和门一样只由持策略角色（CEO）的人记，走门的判权，写入时只置 core_battle。
+
+Strategy（契约第 10.1 节）：指定本轮责任人是记录事件，但它开一轮、已生效时带候选，同门一起交给引擎判；被指定的人须是
+scope 内有效的人。Agreement 不按激活策略的角色表判权（决 13）：记录者在 scope 内有生效指派，且是本轮被指定的人
+（记录者类别 designated）；谁被指定、谁的 Agreement 还算数由 world_v02_strategy 按事件重放，守卫与重复都按它算。
 
 代记（契约第 14 节）：受托的服务主体以自己的凭证记可代记的动作，另带 on_behalf_of。判权不改内核机制，只换判谁：
 先按调用者核对委托（服务主体本人、当前有效、动作族与目标所在域在范围内），再把身份上下文换成被代记的人——带他当前
@@ -44,6 +48,7 @@ from . import world_v02_models as models
 from . import world_v02_profile as world_profile
 from . import world_v02_lifecycle as world_lifecycle
 from . import world_v02_registry as world_registry
+from . import world_v02_strategy as world_strategy
 from .errors import GovernedError
 from .service import ActionExecution
 from .world_v01_readers import holds_role
@@ -631,10 +636,17 @@ class WorldExecution(ActionExecution):
         （ADR-0005），门事件只由人记——Agent 持有角色也不能记；再过目标动作闸门。然后校验事件内容与候选（合并补丁，
         只含正式内容），最后连同守卫事实与调用者满足的记录者类别交给生命周期引擎，判这条门事件现在能不能记。
         要写回的候选：这条请求带来的（长期目标带候选的确认），或此前那条承诺留存的（确认接受时）。
-        关注标记（契约第 10.4 节）同样走这里：只由持 CEO 角色的人记，守卫 once，不带候选。"""
+        关注标记（契约第 10.4 节）同样走这里：只由持 CEO 角色的人记，守卫 once，不带候选。Strategy 的指定本轮也走这里
+        （契约第 10.1 节）：被指定的人须是 scope 内有效的人，已生效时开轮的候选随事件留存，确认接受时写回；Agreement 不按
+        策略的角色表判权（决 13），记录者类别、守卫与是否重复见 designation。"""
         self.target = head_and_binding(self.conn, self.ctx, self.request.target.object_id)[0]
         self.domain_id = self.target["domain_id"]
-        self.action_assignments = db.authorize_domain(self.conn, self.ctx, self.domain_id, self.kind)
+        if world_registry.action_spec(self.kind)["authorization"] == "scope_and_designation":
+            # Agreement（决 13）：不看激活策略的角色表，记录者在 scope 内有生效指派（否则 403）；是不是本轮被指定的人
+            # 由记录者类别 designated 判。
+            self.action_assignments = db._assignments(self.conn, self.ctx)
+        else:
+            self.action_assignments = db.authorize_domain(self.conn, self.ctx, self.domain_id, self.kind)
         if self.ctx.principal_type != "human":
             _fail("FORBIDDEN", "A gate event is recorded by a person; an Agent does not record it even with the role.")
         self.protocol_context = protocol.gate_target_action(
@@ -648,8 +660,18 @@ class WorldExecution(ActionExecution):
         proposed = None
         if self.candidate is not None:  # 按修订的规则校验、钉定；这条请求就写回时，写回的正是这一版
             proposed = self.candidate_revision(object_type, latest["payload"], latest["payload"], self.candidate)
+        # 事件 detail：候选（合并补丁）、长期目标确认与再确认注明的返回 M1-A（补 23）；Strategy 的指定本轮另写被指定
+        # 的人，Agreement 换成它钉住的内容（见 designation）。
+        self.detail = {**({"candidate": self.candidate} if self.candidate is not None else {}),
+                       **({"returns_to": self.params["returns_to"]} if "returns_to" in self.params else {})} or None
+        if self.kind == "world_assign_strategy_round":
+            self.check_designees()
+            self.detail = {"principal_ids": self.params["principal_ids"], **(self.detail or {})}
         recorders = self.recorders()
-        recorders["gate_role"] = (sorted(self.action_assignments, key=lambda row: row["assignment_id"])[0], None)
+        if self.kind == "world_agree_strategy":
+            recorders.update(self.designation(latest))
+        else:
+            recorders["gate_role"] = (sorted(self.action_assignments, key=lambda row: row["assignment_id"])[0], None)
         event = {"event_id": "pending", "action": self.kind, "outcome": self.params.get("outcome"),
                  "disposition": None, "supersedes_event_id": self.params.get("supersedes_event_id"),
                  "candidate": self.candidate is not None, "guards": self.guard_facts(object_type),
@@ -659,6 +681,10 @@ class WorldExecution(ActionExecution):
                                                 lifecycle_events(self.conn, self.ctx, self.target["object_id"]), event)
         except world_lifecycle.Refused as exc:
             _fail("FORBIDDEN" if exc.reason == "recorder" else "INVALID_STATE", str(exc))
+        if self.kind == "world_agree_strategy" and self.agreement is not None:
+            if self.agreement["duplicate"]:
+                _fail("INVALID_STATE", "This person has already agreed to this content in this round.")
+            self.detail = self.agreement["detail"]
         used, through = recorders[self.effect["by"]]
         self.required_assignments.add(used["assignment_id"])
         self.responsible_through = through
@@ -685,6 +711,8 @@ class WorldExecution(ActionExecution):
             return {"parent_goal_confirmed": status == "confirmed", "once": not marked}
         if object_type == "PeriodGoal":
             return {"formation_anchors": self.formation_anchors()}
+        if self.kind == "world_agree_strategy" and self.agreement is not None:
+            return self.agreement["guards"]
         return {}
 
     def formation_anchors(self) -> bool:
@@ -700,6 +728,40 @@ class WorldExecution(ActionExecution):
         if review is None:
             return confirmed_company_review(self.conn, self.ctx) is None
         return review_confirmed(self.conn, self.ctx, review["object_id"])
+
+    def check_designees(self) -> None:
+        """本轮被指定的人（契约第 10.1 节）各是 scope 内有效的人：启用的人类身份，当前有任一生效的角色指派；否则
+        INVALID_REQUEST。至少一人、各不相同由请求模型判。"""
+        ids = self.params["principal_ids"]
+        found = self.conn.execute(
+            """SELECT count(*) AS n FROM gov_principals p
+                WHERE p.scope_id=%s AND p.principal_id = ANY(%s::uuid[]) AND p.active AND p.principal_type='human'
+                  AND EXISTS (SELECT 1 FROM gov_role_assignments a
+                               WHERE a.scope_id=p.scope_id AND a.principal_id=p.principal_id AND a.active
+                                 AND a.valid_from<=clock_timestamp()
+                                 AND (a.valid_to IS NULL OR clock_timestamp()<a.valid_to))""",
+            (self.ctx.scope_id, ids)).fetchone()["n"]
+        if found != len(ids):
+            _invalid("Each person designated for the round is an active person of this scope.")
+
+    def designation(self, latest: dict[str, Any]) -> dict[str, tuple[dict[str, Any], None]]:
+        """Agreement 的记录者类别 designated（契约第 9.2、10.1 节，决 13）：调用者（代记时是被代记的人）是本轮被指定的
+        人；撤回只由记那条 Agreement 的人本人。另按当前的一轮算出这一条的守卫事实、是否重复与要钉住的内容，存在
+        self.agreement（撤回时为 None）。判权只要求他在 scope 内有生效指派，用到的指派取他当前按 id 排在最前的那条
+        （同 gate_role 的取法）。"""
+        history = world_strategy.events(self.conn, self.ctx, self.target["object_id"])
+        current = world_strategy.current_round(history)
+        person = self.ctx.principal_id
+        if self.params.get("outcome") == "withdrawn":
+            self.agreement = None
+            original = next((item for item in history if item["event_id"] == self.params["supersedes_event_id"]), None)
+            designated = original is not None and original["person"] == person
+        else:
+            status = lifecycle(self.conn, self.ctx, self.target)["status"]
+            self.agreement = world_strategy.admission(current, status, latest, person)
+            designated = current is not None and person in current["designated"]
+        used = sorted(self.action_assignments, key=lambda row: row["assignment_id"])[0]
+        return {"designated": (used, None)} if designated else {}
 
     # ------------------------------------------------------------ review confirmation
     def authorize_review(self) -> None:
@@ -991,7 +1053,8 @@ class WorldExecution(ActionExecution):
     def recheck_recorder(self) -> None:
         # 让调用者成为责任人的指派可以在上一级对象的域（例如公司域的 CEO），不必在本动作的域。
         # 外部事件按 scope 判权，不看各域策略，只要调用者仍在 scope 内有生效指派。
-        if world_registry.action_spec(self.kind)["authorization"] == "scope":
+        # Agreement 同样只要求在 scope 内有生效指派（决 13）；本轮指定是已记的事件，同一事务里不会变。
+        if world_registry.action_spec(self.kind)["authorization"] in {"scope", "scope_and_designation"}:
             db._assignments(self.conn, self.ctx)
         else:
             db.authorize_domain(self.conn, self.ctx, self.domain_id, action_type=self.kind)
@@ -1002,6 +1065,8 @@ class WorldExecution(ActionExecution):
             self.check_assignee()
         if self.kind == "world_route_issue":  # 承接人此刻仍是在该域持角色的人
             self.check_route_target()
+        if self.kind == "world_assign_strategy_round":  # 被指定的人此刻仍是 scope 内有效的人
+            self.check_designees()
 
     # ------------------------------------------------------------ writing
     def collect_dependencies(self) -> None:
@@ -1119,10 +1184,8 @@ class WorldExecution(ActionExecution):
         if effect["unmakes_formal"]:
             status, effective = "draft", None
         obj = self.bump(obj, status=status, latest=latest, effective=effective)
-        detail = {**({"candidate": self.candidate} if self.candidate is not None else {}),
-                  **({"returns_to": self.params["returns_to"]} if "returns_to" in self.params else {})}
         return self.written_result(obj, revision, outcome=self.params.get("outcome"), content=self.content,
-                                   detail=detail or None, supersedes_event_id=self.params.get("supersedes_event_id"))
+                                   detail=self.detail, supersedes_event_id=self.params.get("supersedes_event_id"))
 
     def record_review(self) -> dict[str, Any]:
         """复盘确认（契约第 7 节）：一条门事件，钉住被确认的快照（第一项）与它的主体（第二项，主体当前的最新修订）。快照

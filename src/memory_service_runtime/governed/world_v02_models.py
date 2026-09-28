@@ -740,8 +740,8 @@ class WorldV02ConfirmCandidateParams(WorldV02ConfirmParams):
 
 
 class WorldV02ReconfirmParams(StrictModel):
-    """再确认（周期目标；契约第 10.3、12 节）：不带候选、不出新修订、没有结果，也不能撤回（登记 rules.withdrawal.never
-    的 reconfirm）；可选内容写进事件。门只由人记，不带写入声明；可以代记（门族）。"""
+    """再确认（周期目标、Strategy 的继续有效；契约第 10.1、10.3、12 节）：不带候选、不出新修订、没有结果，也不能撤回
+    （登记 rules.withdrawal.never 的 reconfirm）；可选内容写进事件。门只由人记，不带写入声明；可以代记（门族）。"""
     content: Optional[_block_model((), False)] = None
     on_behalf_of: Optional[OnBehalfOf] = None
 
@@ -754,6 +754,27 @@ class WorldV02ReconfirmLongTermGoalParams(WorldV02ReconfirmParams):
 class WorldV02ConfirmReviewParams(_GateParams):
     """复盘确认（契约第 7、10.3、11 节）：目标是被确认的状态快照，不带候选；只在撤回时带结果。以周期目标为主体的复盘
     确认可以撤回，公司复盘的确认不能（服务按登记判）。"""
+    outcome: Optional[Literal["withdrawn"]] = None
+
+
+class WorldV02AssignStrategyRoundParams(StrictModel):
+    """指定本轮责任人（契约第 9.1、10.1 节）：至少一人、各不相同，是不是 scope 内有效的人在服务里判；已生效时开轮
+    可带候选（合并补丁，只含正式块与正式属性）。它是记录事件，不撤回、不带事件内容；可以代记（指派族）。"""
+    principal_ids: list[CanonicalUUID] = Field(min_length=1)
+    payload: Optional[dict[str, Any]] = None
+    on_behalf_of: Optional[OnBehalfOf] = None
+
+    @field_validator("principal_ids")
+    @classmethod
+    def distinct(cls, values: list[str]) -> list[str]:
+        if len(set(values)) != len(values):
+            raise ValueError("a round designates each person once")
+        return values
+
+
+class WorldV02AgreeParams(_GateParams):
+    """Agreement（契约第 9.1、10.1 节）：内容是记录者的判断（可选）；只在撤回时带结果。所同意的内容由服务钉住，
+    不带候选。"""
     outcome: Optional[Literal["withdrawn"]] = None
 
 
@@ -837,14 +858,16 @@ class WorldV02ReturnIssueParams(_IssueParams):
     declaration: Optional[Declaration] = None
 
 
-# 已接入的门动作 -> 目标类型（门按目标类型拆名，ADR-0005）；Strategy 的门随它的票。关注标记是记录事件，但和门
-# 一样由持策略角色（CEO）的人记，按目标类型拆名，所以也列在这里（#55）。再确认与复盘确认随票 #60：复盘确认的目标
-# 是状态快照。
+# 已接入的门动作 -> 目标类型（门按目标类型拆名，ADR-0005）。关注标记是记录事件，但和门一样由持策略角色（CEO）的人
+# 记，按目标类型拆名，所以也列在这里（#55）。再确认与复盘确认随票 #60：复盘确认的目标是状态快照。Strategy 的指定本轮
+# 也是记录事件，但它开一轮、带候选，和门一起交给生命周期引擎判（#59）。
 GATE_ACTIONS = {"world_commit_period_goal": "PeriodGoal", "world_confirm_period_goal": "PeriodGoal",
                 "world_confirm_long_term_goal": "LongTermGoal", "world_commit_mission": "Mission",
                 "world_confirm_mission": "Mission", "world_mark_core_battle": "Mission",
                 "world_reconfirm_long_term_goal": "LongTermGoal", "world_reconfirm_period_goal": "PeriodGoal",
-                "world_confirm_review": "StateSnapshot"}
+                "world_confirm_review": "StateSnapshot",
+                "world_assign_strategy_round": "Strategy", "world_agree_strategy": "Strategy",
+                "world_confirm_strategy": "Strategy", "world_reconfirm_strategy": "Strategy"}
 
 # 本进程已实现的 0.2 动作与可建类型。支持登记只能在这之内收窄，不能扩大（与协议支持集合同理）。
 ACTION_PARAMS = {"world_create_object": WorldV02CreateObjectParams, "world_revise_object": WorldV02ReviseObjectParams,
@@ -858,6 +881,9 @@ ACTION_PARAMS = {"world_create_object": WorldV02CreateObjectParams, "world_revis
                  "world_reconfirm_period_goal": WorldV02ReconfirmParams,
                  "world_confirm_review": WorldV02ConfirmReviewParams,
                  "world_mark_core_battle": WorldV02MarkCoreBattleParams,
+                 "world_assign_strategy_round": WorldV02AssignStrategyRoundParams,
+                 "world_agree_strategy": WorldV02AgreeParams, "world_confirm_strategy": WorldV02ConfirmParams,
+                 "world_reconfirm_strategy": WorldV02ReconfirmParams,
                  "world_grant_delegation": WorldV02GrantDelegationParams,
                  "world_revoke_delegation": WorldV02RevokeDelegationParams,
                  "world_raise_issue": WorldV02RaiseIssueParams, "world_route_issue": WorldV02RouteIssueParams,

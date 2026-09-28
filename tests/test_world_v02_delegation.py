@@ -100,6 +100,8 @@ def _minimal(action):
     """每个可代记动作最小的合法参数。"""
     if action == "world_assign":
         return {"principal_id": PID}
+    if action == "world_assign_strategy_round":
+        return {"principal_ids": [PID]}
     if ACTIONS[action]["event_kind"] == "confirm":
         return {"outcome": "accepted"}
     return {}

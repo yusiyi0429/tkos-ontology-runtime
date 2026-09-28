@@ -35,9 +35,9 @@ def test_the_five_gates_of_this_ticket_are_implemented_on_their_registered_targe
         assert ACTIONS[action]["class"] == "gate" and ACTIONS[action]["agent_face"] is False
 
 
-def test_the_gates_of_later_tickets_are_not_implemented_yet():
-    for action in ("world_agree_strategy", "world_confirm_strategy"):  # 关注标记随票 #55、再确认与复盘确认随票 #60 接入
-        assert action not in models.ACTION_PARAMS
+def test_every_gate_of_the_registry_is_implemented_now():
+    """关注标记随票 #55、再确认与复盘确认随票 #60、Strategy 的门随票 #59 接入之后，登记里的门没有未实现的了。"""
+    assert {action for action, spec in ACTIONS.items() if spec["class"] == "gate"} <= set(models.ACTION_PARAMS)
 
 
 @pytest.mark.parametrize("action", sorted(GATES))

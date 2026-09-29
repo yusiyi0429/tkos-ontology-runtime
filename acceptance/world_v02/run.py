@@ -29,7 +29,7 @@ from acceptance.runtime.client import Client
 from acceptance.world_v01.fixture import ROOT, _grant, _seed_actor, register_world, revoke_assignment, seed_world
 from acceptance.world_v01.flow import Flow as V01Flow
 from .agent_face import mcp_end_to_end
-from .context_fill import context_fill
+from .context_fill import context_fill, trim_step, trimmed_in_the_0_2_order, why_chain
 from .experiment_b import experiment_b
 from .experiment_e import experiment_e
 from .experiment_r import experiment_r
@@ -1578,8 +1578,9 @@ def state_events(book, h, f, flow, trunk, foreign):
 
 def context_packs(book, h, f, flow, trunk, foreign):
     """#56：从 Activity 出发取上下文（0.2）。沿主干取块与组件、执行链上的快照外壳与近期事件；验收条件以组件引用、
-    事件以事件引用返回，包里每条钉定的引用都能按版本读回；生命周期、正式内容与责任人同 0.2 读投影；预算、裁剪、
-    覆盖、检索计划、落表与默认值同 0.1；同一世界状态两次调用结果相同；scope 外 404；0.1 对象仍按 0.1 取。"""
+    事件以事件引用返回，包里每条钉定的引用都能按版本读回；生命周期、正式内容与责任人同 0.2 读投影；覆盖、检索计划
+    与落表同 0.1；默认预算 100000 字符，裁剪保护 Why 链，每对象事件上限不计当前对象的指派与推出生命周期的事件（#70，
+    契约第 15.3 节与补 48）；同一世界状态两次调用结果相同；scope 外 404；0.1 对象仍按 0.1 取。"""
     check = book.check
     made = trunk['made']
     scope, foreign_scope = f['scope_id'], f['foreign_scope_id']
@@ -1610,7 +1611,8 @@ def context_packs(book, h, f, flow, trunk, foreign):
                                      'attributes': {'responsible': actor_id['ic_a']}}]}}})['result']
     act('owner_a', 'world_assign', task['object_id'], {'principal_id': actor_id['ic_a']})
     activity = flow.create('a', 'Activity', 'a', {'title': '上下文 Activity', 'parent_ref': task['ref'], 'blocks': {
-        'instruction': {'text': '按验收条件实现取上下文。', 'refs': [task['ref'] + '#acceptance/ctx-ac1']}}})['result']
+        'instruction': {'text': '按验收条件实现取上下文。',
+                        'refs': [task['ref'] + '#acceptance/ctx-ac1', task['ref'] + '#plan/ctx-p1']}}})['result']
     act('ic_a', 'world_assign', activity['object_id'], {'principal_id': actor_id['agent_a']})
     started = act('agent_a', 'world_start', activity['object_id'], {'declaration': declared(activity['ref'], '开工')})
     # 评审与快照的时点都落在开始之后、此刻之前，这样都不算迟记。
@@ -1777,13 +1779,13 @@ def context_packs(book, h, f, flow, trunk, foreign):
 
     rows = packs()
     row = rows[-1]
-    check('each_call_writes_exactly_one_context_pack_row_holding_what_was_returned_with_the_0_1_defaults',
+    check('each_call_writes_exactly_one_context_pack_row_holding_what_was_returned_with_the_0_2_defaults',
           len(rows) == before + 1 and str(row['context_pack_id']) == first['context_pack_id']
           and str(row['principal_id']) == actor_id['agent_a'] and str(row['object_id']) == activity['object_id']
           and row['question'] == question['question'] and row['pack'] == pack and row['plan'] == plan
           and row['coverage'] == coverage and row['budget'] == first['budget']
           and {k: first['budget'][k] for k in ('max_chars', 'max_events_per_object', 'recent_days')}
-          == {'max_chars': 12000, 'max_events_per_object': 10, 'recent_days': 30}
+          == {'max_chars': 100000, 'max_events_per_object': 10, 'recent_days': 30}
           and first['budget']['used_chars'] == len(markdown)
           and first['budget']['estimated_tokens'] == -(-len(markdown) // 2)
           and set(plan) == {'walked', 'hops', 'shown_not_followed', 'taken', 'trimmed', 'state_and_events_from_levels',
@@ -1795,7 +1797,7 @@ def context_packs(book, h, f, flow, trunk, foreign):
           second['context_pack'] == pack and second['plan'] == plan and second['coverage'] == coverage
           and second['context_pack_id'] != first['context_pack_id'] and len(packs()) == before + 2)
 
-    # ------------------------------------------------------------ budget（同 0.1）
+    # ------------------------------------------------------------ budget（#70，契约第 15.3 节与补 48）
     mission_level = layers[2]
     check('the_per_object_event_cap_keeps_the_newest_ten_events_and_records_the_rest',
           len(mission_level['events']) == 10
@@ -1804,13 +1806,8 @@ def context_packs(book, h, f, flow, trunk, foreign):
           and any(entry['reason'] == 'over_level_cap' and entry['level'] == 2 for entry in plan['trimmed']))
     tight = flow.context('agent_a', activity['object_id'], {**question, 'budget': {'max_chars': len(markdown) // 2}})
     over = [entry for entry in tight['plan']['trimmed'] if entry['reason'] == 'over_budget']
-    when = {event['ref']: at(event['occurred_at']) for event in events}
-    over_events = [entry['key'] for entry in over if entry['kind'] == 'event']
-    rest = [entry['level'] for entry in over if entry['kind'] != 'event']
-    check('a_tight_budget_trims_old_events_first_then_the_farthest_levels_and_records_why',
-          over[:len(over_events)] == [entry for entry in over if entry['kind'] == 'event']
-          and [when[key] for key in over_events] == sorted(when[key] for key in over_events)
-          and rest and rest == sorted(rest, reverse=True) and 0 not in rest
+    check('a_tight_budget_trims_blocks_off_the_why_chain_then_old_events_then_the_rest_and_records_why',
+          over and trimmed_in_the_0_2_order(first, tight)
           and tight['budget']['used_chars'] == len(tight['context_pack']['markdown'])
           and tight['budget']['over_budget'] is (tight['budget']['used_chars'] > len(markdown) // 2))
     tiny = flow.context('agent_a', activity['object_id'], {**question, 'budget': {'max_chars': 10}})
@@ -1820,10 +1817,37 @@ def context_packs(book, h, f, flow, trunk, foreign):
           and tiny['budget']['over_budget'] is True and tiny['plan']['over_budget'] is True
           and all(layer['blocks'] == [] and layer['events'] == [] for layer in tiny['context_pack']['layers'][1:])
           and not tiny['coverage']['why']['answered'])
+    # Why 链留到最后：预算只差一个字符时只裁上层不在 Why 链上的块，从最远层起，事件与 Why 链上的项都在（0.1 会先裁
+    # 最旧的事件）；10 个字符时 Why 链上的项在其余一切之后才裁。Activity 的执行指令引了 Task 的一条计划条目，Task 的
+    # 计划块（计划类）因此在 Why 链上，留到最后与 Task 的定义类块一起裁；没被引到的 Mission 执行计划在第一步裁。
+    why = why_chain(first)
+    almost = flow.context('agent_a', activity['object_id'], {**question, 'budget': {'max_chars': len(markdown) - 1}})
+    almost_over = [entry for entry in almost['plan']['trimmed'] if entry['reason'] == 'over_budget']
+    taken = {entry['key'] for entry in almost['plan']['taken']}
+    tiny_keys = [entry['key'] for entry in tiny['plan']['trimmed'] if entry['reason'] == 'over_budget']
+    task_ref, mission_ref, strategy_ref = (layers[n]['object']['ref'] for n in (1, 2, 6))
+    tiny_events = [index for index, key in enumerate(tiny_keys) if key.startswith('event:')]
+    check('a_tight_budget_keeps_the_why_chain_until_everything_else_is_trimmed',
+          almost_over and all(trim_step(entry, why) == 1 for entry in almost_over)
+          and almost_over[0]['level'] == layers[-1]['level'] and almost['budget']['over_budget'] is False
+          and {entry['key'] for entry in plan['taken'] if entry['kind'] == 'event' or entry['key'] in why} <= taken
+          and trimmed_in_the_0_2_order(first, tiny)
+          and {f"block:{task_ref}#plan", f"block:{strategy_ref}#responsibility_structure"} <= why
+          and f"block:{mission_ref}#execution_plan" not in why
+          and tiny_events and tiny_keys.index(f"block:{mission_ref}#execution_plan") < tiny_events[0]
+          and tiny_keys.index(f"block:{task_ref}#plan") > tiny_events[-1]
+          and tiny_keys[-3:] == [f"block:{task_ref}#{block}" for block in ('plan', 'acceptance', 'definition')])
+    # 每对象事件上限不计当前对象最近一次指派事件与推出它当前生命周期的事件（这里是指派给 Agent 与开始，都不是最新的）。
     capped = flow.context('agent_a', activity['object_id'], {**question, 'budget': {'max_events_per_object': 1}})
-    check('a_per_object_cap_of_one_keeps_the_newest_event_of_each_level',
-          [layer['events'] for layer in capped['context_pack']['layers']]
-          == [layer['events'][:1] for layer in layers])
+    current_events = layers[0]['events']
+    assignment = next(event for event in current_events if event['kind'] == 'assign')
+    stage = layers[0]['object']['lifecycle']['event_id']
+    uncapped = [event for event in current_events
+                if event is current_events[0] or event is assignment or event['event_id'] == stage]
+    check('a_cap_of_one_keeps_each_levels_newest_event_plus_the_current_objects_assignment_and_lifecycle_events',
+          len(uncapped) == 3 and stage == started['event_id']
+          and [layer['events'] for layer in capped['context_pack']['layers']]
+          == [uncapped] + [layer['events'][:1] for layer in layers[1:]])
     recent = flow.context('agent_a', activity['object_id'], {**question, 'recent_days': 1})
     start = at(recent['budget']['window_start'])
     recent_events = [e for layer in recent['context_pack']['layers'] for e in layer['events']]

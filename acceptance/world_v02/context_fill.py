@@ -4,7 +4,7 @@
 单元长期目标下建一条周期目标并承诺，CEO 给天枢登记门的委托，天枢代 CEO 确认；再在它下面建一条 Mission，DRI 指派
 Owner。从周期目标与 Mission 出发经 HTTP 取上下文，核对：Why 沿单元长期目标多取一跳到公司级长期目标，覆盖追到
 公司级长期目标、Strategy 与 Company 的块或组件；Markdown 开头是六问指引、以六问为节；代记的事件行写出记录者与
-被代记的人，指派的写出被指派者；同一世界状态两次调用结果相同；收紧预算时裁剪顺序同 0.1。MCP 取上下文只交四项
+被代记的人，指派的写出被指派者；同一世界状态两次调用结果相同；收紧预算时按补 48 的顺序裁（#70）。MCP 取上下文只交四项
 由前面的 mcp_end_to_end 场景在同一个 API 进程上核对。
 
 第二段（形成时带入）：出发对象是有门类型就带入，不看它当前在哪个生命周期段——「此后主受影响对象还没记过
@@ -26,12 +26,64 @@ V02 = 'tkos.world/0.2'
 SECTIONS = ['## 六问指引', '## 为什么', '## 做什么', '## 谁负责', '## 现在怎样', '## 发生了什么', '## 凭什么']
 # 从周期目标出发一定有「形成时带入」一节（公司复盘或它的缺口），在六问指引之后。
 FORMING = SECTIONS[:1] + ['## 形成时带入'] + SECTIONS[1:]
-# 同一层里先裁的在前（同 0.1）：跨链关系、多取的一跳、块、快照。
-TRIM_RANK = {'relations': 0, 'hop': 1, 'block': 2, 'snapshot': 3}
 
 
 def at(text):
     return datetime.fromisoformat(text.replace('Z', '+00:00'))
+
+
+def why_chain(whole):
+    """契约补 48：从一次没裁过的取上下文，按读回的字段算 Why 链上的项（条目 key）。上溯各层定义类的块、多取的一跳，
+    以及被层号更小的内容钉到的上溯各层的块：主干那一步的引用字段（检索计划 walked 的 pinned，第 i 步算第 i 层），
+    或包里任一块（多取一跳里的块算它那一层）的块值引用与组件引用；按对象 id 与块 id 认，不看版本。"""
+    layers = whole['context_pack']['layers']
+    where = {(layer['object']['object_id'], block['id']): (layer['level'], f"block:{block['ref']}")
+             for layer in layers if layer['level'] > 0 for block in layer['blocks']}
+    found = {f"hop:{layer['hop']['object']['ref']}" for layer in layers if layer['hop']}
+    found |= {f"block:{block['ref']}" for layer in layers if layer['level'] > 0 for block in layer['blocks']
+              if block['kind'] == 'definition'}
+    pins = []
+    for level, step in enumerate(whole['plan']['walked']):
+        head, _, rest = step['pinned'].partition('#')
+        pins.append((level, head.split('@')[0], rest.split('/')[0] or None))
+    for layer in layers:
+        for part in (layer, layer['hop']):
+            for block in part['blocks'] if part else []:
+                refs = (block['value']['refs'] if block['value'] else []) + [
+                    ref for item in block['components'] for ref in item['refs']]
+                pins += [(layer['level'], ref.get('object_id'), ref.get('block')) for ref in refs]
+    for level, object_id, block in pins:
+        target = where.get((object_id, block))
+        if target and target[0] > level:
+            found.add(target[1])
+    return found
+
+
+def trim_step(entry, why):
+    """一条裁剪记录落在补 48 的哪一步：1 上溯各层不在 Why 链上的块，2 事件，3 其余内容（跨链关系、快照），
+    4 Why 链上的项。"""
+    if entry['kind'] == 'event':
+        return 2
+    if entry['key'] in why:
+        return 4
+    return 1 if entry['kind'] == 'block' else 3
+
+
+def trimmed_in_the_0_2_order(whole, result):
+    """收紧预算的裁剪按补 48 的四步排：步号不减；事件由旧到新；其余三步各自由远及近（当前对象的跨链关系在第 3 步
+    最后）；当前对象的块与最新快照不裁，也都还在。whole 是同一世界状态下没裁过的那次。"""
+    why = why_chain(whole)
+    when = {event['ref']: at(event['occurred_at']) for layer in whole['context_pack']['layers'] for event in layer['events']}
+    over = [entry for entry in result['plan']['trimmed'] if entry['reason'] == 'over_budget']
+    steps = [trim_step(entry, why) for entry in over]
+    by_step = {n: [entry for entry in over if trim_step(entry, why) == n] for n in (1, 2, 3, 4)}
+    current, before = result['context_pack']['layers'][0], whole['context_pack']['layers'][0]
+    return (steps == sorted(steps)
+            and [when[entry['key']] for entry in by_step[2]] == sorted(when[entry['key']] for entry in by_step[2])
+            and all([entry['level'] for entry in by_step[n]] == sorted((entry['level'] for entry in by_step[n]), reverse=True)
+                    for n in (1, 3, 4))
+            and not [entry for entry in over if entry['level'] == 0 and entry['kind'] in {'block', 'snapshot'}]
+            and current['blocks'] == before['blocks'] and current['state'] == before['state'])
 
 
 def context_fill(book, h, f, flow, trunk):
@@ -160,22 +212,15 @@ def context_fill(book, h, f, flow, trunk):
           and all(event['assignee'] is None for key, event in mission_events.items() if key != assigned['event_id'])
           and from_mission['plan']['hops'][0]['read'] == targets[company_goal])
 
-    # ---------------------------------------------------------------- 预算（同 0.1）
-    when = {f"event:{event['event_id']}": at(event['occurred_at']) for event in in_pack.values()}
-
+    # ---------------------------------------------------------------- 预算（#70，契约第 15.3 节与补 48）
     def trimmed_in_order(result):
-        """裁剪顺序同 0.1：先裁最旧的事件，再由远及近逐层裁跨链关系、多取的一跳、块、快照，当前对象的块不裁；
-        六问的节都在，指引不再指向裁掉的内容（推出当前生命周期的事件一直在「现在怎样」里）。"""
+        """裁剪按补 48 的四步排（见 trimmed_in_the_0_2_order），当前对象的块不裁；六问的节都在，指引不再指向裁掉的
+        内容（推出当前生命周期的事件一直在「现在怎样」里）。"""
         over = [entry for entry in result['plan']['trimmed'] if entry['reason'] == 'over_budget']
-        trimmed_events = [entry['key'] for entry in over if entry['kind'] == 'event']
-        rest = [(-entry['level'], TRIM_RANK[entry['kind']]) for entry in over if entry['kind'] != 'event']
         stage = f"event:{result['context_pack']['layers'][0]['object']['lifecycle']['event_id']}"
         gone = [entry['key'] if entry['kind'] == 'event' else entry['key'].split(':', 1)[1] for entry in over]
         guide = sections(result['context_pack']['markdown'])['六问指引']
-        return (over[:len(trimmed_events)] == [entry for entry in over if entry['kind'] == 'event']
-                and [when[key] for key in trimmed_events] == sorted(when[key] for key in trimmed_events)
-                and rest == sorted(rest) and all(level != 0 for level, _ in rest)
-                and result['context_pack']['layers'][0]['blocks'] == layers[0]['blocks']
+        return (trimmed_in_the_0_2_order(first, result)
                 and [line for line in result['context_pack']['markdown'].splitlines() if line.startswith('## ')]
                 == FORMING
                 and not [ref for ref in gone if f"`{ref}" in guide and ref != stage]
@@ -184,7 +229,7 @@ def context_fill(book, h, f, flow, trunk):
 
     tight = flow.context('agent_a', pid, {**question, 'budget': {'max_chars': len(markdown) // 2}})
     tiny = flow.context('agent_a', pid, {**question, 'budget': {'max_chars': 10}})
-    check('a_tight_budget_trims_in_the_0_1_order_keeps_the_current_object_and_the_guide_only_points_at_what_is_left',
+    check('a_tight_budget_trims_in_the_0_2_order_keeps_the_current_object_and_the_guide_only_points_at_what_is_left',
           tight['plan']['trimmed'] and trimmed_in_order(tight) and trimmed_in_order(tiny)
           and tiny['budget']['over_budget'] is True
           and f"hop:{targets[company_goal]}" in [entry['key'] for entry in tiny['plan']['trimmed']]

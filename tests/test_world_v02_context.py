@@ -1,7 +1,8 @@
-"""tkos.world/0.2 的取上下文（票 #56、#64，契约第 15.3 节）：组件级引用与事件引用，0.2 的生命周期、正式内容、快照外壳
-与责任人；预算、裁剪、六问覆盖、检索计划与落表沿用 0.1（票 #25）。#64 第一段：单元长期目标沿 goal_ref 多取一跳到
+"""tkos.world/0.2 的取上下文（票 #56、#64、#70，契约第 15.3 节）：组件级引用与事件引用，0.2 的生命周期、正式内容、快照外壳
+与责任人；六问覆盖、检索计划与落表沿用 0.1（票 #25）。#64 第一段：单元长期目标沿 goal_ref 多取一跳到
 公司级长期目标，Why 追到公司级长期目标、Strategy 与 Company；Markdown 开头是六问指引、以六问为节；事件行写出
-记录者、被代记的人与被指派者。不连数据库。
+记录者、被代记的人与被指派者。#70：默认预算 100000 字符；裁剪保护 Why 链（补 48）；每对象事件上限不计当前对象
+最近一次指派事件与推出它当前生命周期的事件。不连数据库。
 
 覆盖判定是纯函数；组装在假连接上的一条 0.2 主干上做：读投影里取对象、快照与事件的三个入口换成按下表查的替身，
 生命周期与责任人走 0.2 读侧的真代码，由假连接按语句应答。HTTP 路径（从 Activity 出发、引用逐条读回、scope 外
@@ -598,44 +599,116 @@ def test_coverage_cites_components_blocks_and_events_that_the_pack_holds(world):
     assert all(answer["answered"] for answer in coverage.values())
 
 
-def test_the_defaults_and_the_budget_record_follow_0_1(world):
+def test_the_default_budget_is_100000_chars_and_the_budget_record_keeps_its_shape(world):
+    """决 18（#70）：0.2 预算只报成本、不作门，默认 100000 字符；每个对象 10 条事件、近期 30 天沿用 0.1。"""
+    assert (context.DEFAULT_MAX_CHARS, context.DEFAULT_MAX_EVENTS_PER_OBJECT, context.DEFAULT_RECENT_DAYS) == (
+        100000, 10, 30)
     result = build(world)
     markdown = result["context_pack"]["markdown"]
-    assert result["budget"] == {"max_chars": 12000, "max_events_per_object": 10, "recent_days": 30,
+    assert result["budget"] == {"max_chars": 100000, "max_events_per_object": 10, "recent_days": 30,
                                 "window_start": "2026-08-25T00:00:00Z", "used_chars": len(markdown),
                                 "estimated_tokens": math.ceil(len(markdown) / 2), "over_budget": False}
     assert markdown.startswith(f"# 上下文\n\n问题：为什么要做这条 Activity？\n\n出发对象：`{ACTIVITY}@2`\n\n## 六问指引\n")
     assert result["plan"]["trimmed"] == [] and result["plan"]["over_budget"] is False
+    # 请求里给的预算照旧生效。
+    assert build(world, budget={"max_chars": 12000})["budget"]["max_chars"] == 12000
 
 
-def test_a_tight_budget_trims_old_events_first_then_the_farthest_levels_and_keeps_the_current_object(world):
+def why_chain(pack: dict) -> set[str]:
+    """按契约补 48 从一个没裁过的包算 Why 链上的项：上层的定义类块、多取的一跳，以及被层号更小的块值引用或组件引用
+    钉到的上层块（与实现各自算，只用包里读回的字段）。"""
+    layers = pack["layers"]
+    where = {(layer["object"]["object_id"], block["id"]): (layer["level"], f"block:{block['ref']}")
+             for layer in layers if layer["level"] > 0 for block in layer["blocks"]}
+    found = {f"hop:{layer['hop']['object']['ref']}" for layer in layers if layer["hop"]}
+    found |= {f"block:{block['ref']}" for layer in layers[1:] for block in layer["blocks"] if block["kind"] == "definition"}
+    for layer in layers:
+        for part in (layer, layer["hop"]):
+            for block in part["blocks"] if part else []:
+                for pinned in (block["value"]["refs"] if block["value"] else []) + [
+                        ref for item in block["components"] for ref in item["refs"]]:
+                    target = where.get((pinned.get("object_id"), pinned.get("block")))
+                    if target and target[0] > layer["level"]:
+                        found.add(target[1])
+    return found
+
+
+def step(entry: dict, why: set[str]) -> int:
+    """一条裁剪记录落在哪一步（契约补 48）：1 上层不在 Why 链上的块，2 事件，3 其余内容，4 Why 链上的项。"""
+    if entry["kind"] == "event":
+        return 2
+    if entry["key"] in why:
+        return 4
+    return 1 if entry["kind"] == "block" else 3
+
+
+def in_the_0_2_order(whole: dict, result: dict) -> bool:
+    """裁剪记录按四步排列：步号不减；事件由旧到新；其余三步各自由远及近（当前对象的跨链关系在第 3 步最后）；
+    当前对象的块与快照不在其中。"""
+    why = why_chain(whole["context_pack"])
+    moments = {item["ref"]: context._moment({"occurred_at": item["occurred_at"], "key": item["ref"]})
+               for layer in whole["context_pack"]["layers"] for item in layer["events"]}
+    over = [entry for entry in result["plan"]["trimmed"] if entry["reason"] == "over_budget"]
+    steps = [step(entry, why) for entry in over]
+    by_step = {n: [entry for entry in over if step(entry, why) == n] for n in (1, 2, 3, 4)}
+    return (steps == sorted(steps)
+            and [moments[entry["key"]] for entry in by_step[2]] == sorted(moments[entry["key"]] for entry in by_step[2])
+            and all([entry["level"] for entry in by_step[n]] == sorted((entry["level"] for entry in by_step[n]),
+                                                                       reverse=True) for n in (1, 3, 4))
+            and not [entry for entry in over if entry["level"] == 0 and entry["kind"] in {"block", "snapshot"}])
+
+
+def test_a_tight_budget_trims_blocks_off_the_why_chain_then_old_events_then_the_rest_and_the_why_chain_last(world):
     whole = build(world)
     tight = build(world, budget={"max_chars": whole["budget"]["used_chars"] // 2})
-    trimmed = tight["plan"]["trimmed"]
-    moments = {item["ref"]: item["occurred_at"] for layer in whole["context_pack"]["layers"] for item in layer["events"]}
-    events = [entry["key"] for entry in trimmed if entry["kind"] == "event"]
-    rest = [entry["level"] for entry in trimmed if entry["kind"] != "event"]
-    assert trimmed[:len(events)] == [entry for entry in trimmed if entry["kind"] == "event"]
-    assert [moments[key] for key in events] == sorted(moments[key] for key in events) and len(events) == len(moments)
-    assert rest and rest == sorted(rest, reverse=True) and 0 not in rest
-    assert {entry["reason"] for entry in trimmed} == {"over_budget"} and tight["budget"]["over_budget"] is False
-    assert tight["budget"]["used_chars"] == len(tight["context_pack"]["markdown"]) <= whole["budget"]["used_chars"] // 2
     tiny = build(world, budget={"max_chars": 10})
-    for pack in (tight, tiny):
-        current = pack["context_pack"]["layers"][0]
+    for result in (tight, tiny):
+        assert in_the_0_2_order(whole, result)
+        assert {entry["reason"] for entry in result["plan"]["trimmed"]} == {"over_budget"}
+        assert result["budget"]["used_chars"] == len(result["context_pack"]["markdown"])
+        # 当前对象的块与它的最新快照不裁。
+        current = result["context_pack"]["layers"][0]
         assert [block["ref"] for block in current["blocks"]] == [f"{ACTIVITY}@2#instruction", f"{ACTIVITY}@2#constraint"]
         assert current["state"] == whole["context_pack"]["layers"][0]["state"]
+    assert tight["budget"]["over_budget"] is False
+    assert tight["budget"]["used_chars"] <= whole["budget"]["used_chars"] // 2
     assert tiny["budget"]["over_budget"] is True and all(layer["blocks"] == [] for layer in tiny["context_pack"]["layers"][1:])
     # 覆盖只看留下的内容。
     assert not tiny["coverage"]["why"]["answered"] and not tiny["coverage"]["happened"]["answered"]
+    # 同样的世界与预算裁出同样的结果。
+    again = build(world, budget={"max_chars": whole["budget"]["used_chars"] // 2})
+    assert {key: tight[key] for key in ("context_pack", "plan", "coverage", "budget")} == {
+        key: again[key] for key in ("context_pack", "plan", "coverage", "budget")}
 
 
-def test_the_per_object_event_cap_keeps_the_newest_events(world):
+def test_the_per_object_event_cap_keeps_the_newest_events_and_the_current_objects_assignment_and_lifecycle_event(
+        world):
+    """上限不计当前对象最近一次指派事件（ASSIGNED）与推出它当前生命周期的事件（STARTED，进行中）；其余事件按上限留
+    最新的。Mission 不是当前对象，推出它生命周期的确认照样按上限裁。"""
     result = build(world, budget={"max_events_per_object": 1})
     assert [[item["event_id"] for item in layer["events"]] for layer in result["context_pack"]["layers"][:3]] == [
-        [STARTED], [], [CORRECTED]]
+        [STARTED, MET, ASSIGNED], [], [CORRECTED]]
     assert sorted((entry["key"], entry["reason"]) for entry in result["plan"]["trimmed"]) == sorted(
-        (f"event:{event_id}", "over_level_cap") for event_id in (MET, ASSIGNED, CREATED, REFRESHED, CONFIRMED, LATE))
+        (f"event:{event_id}", "over_level_cap") for event_id in (CREATED, REFRESHED, CONFIRMED, LATE))
+
+
+def test_newer_events_do_not_push_the_current_objects_latest_assignment_or_lifecycle_event_out_of_the_pack(world,
+                                                                                                         monkeypatch):
+    """当前对象又记了三条更新的事件（其中一条再指派）：上限 2 留最新的两条其余事件；最近一次指派（再指派那条）与推出
+    生命周期的开始都留下，早先那次指派按上限裁；「谁负责」的指引仍指到最近一次指派。"""
+    later = [uid(n) for n in (96, 97, 98)]
+    monkeypatch.setitem(globals(), "EVENTS", EVENTS + [
+        event(later[0], "assign", IC, "2026-09-25T00:00:00Z", [pin(ACTIVITY, 2)], detail={"principal_id": AGENT}),
+        event(later[1], "event.recorded", IC, "2026-09-26T00:00:00Z", [pin(ACTIVITY, 2)], category="meeting", text="对齐"),
+        event(later[2], "event.recorded", AGENT, "2026-09-27T00:00:00Z", [pin(ACTIVITY, 2)], category="meeting",
+              text="再对齐")])
+    assert context.uncapped_events(build(world)["context_pack"]["layers"]) == {f"event:{later[0]}", f"event:{STARTED}"}
+    result = build(world, budget={"max_events_per_object": 2})
+    assert [item["event_id"] for item in result["context_pack"]["layers"][0]["events"]] == [
+        later[2], later[1], later[0], STARTED]
+    assert sorted(entry["key"] for entry in result["plan"]["trimmed"] if entry["level"] == 0) == sorted(
+        f"event:{event_id}" for event_id in (MET, ASSIGNED, CREATED))
+    assert f"指派事件 `event:{later[0]}`" in sections(result["context_pack"]["markdown"])["六问指引"]
 
 
 def test_the_same_world_gives_the_same_pack(world):
@@ -793,25 +866,107 @@ def test_event_lines_name_the_recorder_the_person_recorded_on_behalf_of_and_the_
     assert all(item["assignee"] is None for key, item in events.items() if key != ASSIGNED)
 
 
-def test_trimming_keeps_the_0_1_order_with_the_hop_after_its_levels_relations_and_before_its_blocks(world):
-    """同 0.1：最旧的事件先裁，再从最远层起逐层裁跨链关系、多取的一跳、块（约束、计划、定义类块由后往前）、快照；
-    当前对象的块与最新快照不裁。按六问分节不改变这个顺序。"""
-    result = build(world, budget={"max_chars": 10})
+def blocks(oid, version, *ids):
+    return [f"block:{oid}@{version}#{block}" for block in ids]
 
-    def blocks(oid, version, *ids):
-        return [f"block:{oid}@{version}#{block}" for block in ids]
+
+def test_trimming_protects_the_why_chain_and_takes_the_hop_before_its_levels_blocks(world):
+    """契约补 48 的完整顺序：上层不在 Why 链上的块（约束、计划）由远及近、同层从后往前；再裁最旧的事件；再由远及近
+    裁跨链关系与快照；Why 链上的项（上层的定义类块与多取的一跳）最后由远及近裁，同一层先裁一跳、再从后往前裁块。
+    当前对象的块与最新快照不裁。"""
+    result = build(world, budget={"max_chars": 10})
     assert [entry["key"] for entry in result["plan"]["trimmed"]] == [
+        *blocks(COMPANY, 1, "constraint"), *blocks(STRATEGY, 1, "constraint"), *blocks(UNIT, 1, "constraint"),
+        *blocks(GOAL, 1, "constraint"), *blocks(PERIOD, 1, "constraint"),
+        *blocks(MISSION, 2, "constraint", "execution_plan"), *blocks(TASK, 2, "constraint", "plan"),
         *[f"event:{event_id}" for event_id in (LATE, CREATED, ASSIGNED, CONFIRMED, MET, STARTED, REFRESHED, CORRECTED)],
-        *blocks(COMPANY, 1, "constraint", "identity"),
-        *blocks(STRATEGY, 1, "constraint", "responsibility_structure", "capabilities", "assumptions", "path", "choices"),
-        *blocks(UNIT, 1, "constraint", "boundary", "definition"),
-        f"hop:{COMPANY_GOAL}@1", *blocks(GOAL, 1, "constraint", "measures", "outcome"),
-        *blocks(PERIOD, 1, "constraint", "acceptance", "realization_logic", "outcome"),
-        "relations:2", *blocks(MISSION, 2, "constraint", "execution_plan", "play", "acceptance", "definition"),
-        f"snapshot:{SNAP_MISSION}@1",
-        *blocks(TASK, 2, "constraint", "plan", "acceptance", "definition")]
+        "relations:2", f"snapshot:{SNAP_MISSION}@1",
+        *blocks(COMPANY, 1, "identity"),
+        *blocks(STRATEGY, 1, "responsibility_structure", "capabilities", "assumptions", "path", "choices"),
+        *blocks(UNIT, 1, "boundary", "definition"),
+        f"hop:{COMPANY_GOAL}@1", *blocks(GOAL, 1, "measures", "outcome"),
+        *blocks(PERIOD, 1, "acceptance", "realization_logic", "outcome"),
+        *blocks(MISSION, 2, "play", "acceptance", "definition"),
+        *blocks(TASK, 2, "acceptance", "definition")]
     assert {entry["reason"] for entry in result["plan"]["trimmed"]} == {"over_budget"}
     assert result["context_pack"]["layers"][4]["hop"] is None and result["plan"]["hops"] != []
+
+
+def test_a_long_why_block_outlasts_a_long_block_off_the_why_chain_and_every_event(world, monkeypatch):
+    """Strategy 的战略选择（Why 链上）与约束（不在 Why 链上）都很长。预算只差约束那么多时，只裁上层的约束，事件与
+    Why 链上的项都在（0.1 的顺序会先裁掉全部事件，再裁 Company 的身份）；预算再紧、要动到战略选择时，不在 Why 链上的
+    块、全部事件、跨链关系与快照都已先裁掉，近处的 Why 链（Task、Mission 的定义类块）仍在。"""
+    object_type, domain, version, status, attributes, content = OBJECTS[STRATEGY]
+    choices, constraint = "主线：企业经营系统。" * 600, "不追求 Token 用量最大化。" * 300
+    monkeypatch.setitem(OBJECTS, STRATEGY, (object_type, domain, version, status, attributes, {
+        **content, "choices": value(choices), "constraint": value(constraint)}))
+    whole = build(world)
+    events = [item["ref"] for layer in whole["context_pack"]["layers"] for item in layer["events"]]
+    loose = build(world, budget={"max_chars": whole["budget"]["used_chars"] - len(constraint)})
+    assert [entry["key"] for entry in loose["plan"]["trimmed"]] == [
+        *blocks(COMPANY, 1, "constraint"), *blocks(STRATEGY, 1, "constraint")]
+    kept = [item["ref"] for layer in loose["context_pack"]["layers"] for item in layer["events"]]
+    assert kept == events and choices in loose["context_pack"]["markdown"] and loose["budget"]["over_budget"] is False
+
+    # 少掉约束与大半条战略选择才够：别的内容全裁掉也凑不够，战略选择必须裁，裁了它就够。
+    tight = build(world, budget={"max_chars": whole["budget"]["used_chars"] - len(constraint) - len(choices) + 100})
+    keys = [entry["key"] for entry in tight["plan"]["trimmed"]]
+    first_why = keys.index(blocks(COMPANY, 1, "identity")[0])
+    assert set(keys[:first_why]) == {
+        *blocks(COMPANY, 1, "constraint"), *blocks(STRATEGY, 1, "constraint"), *blocks(UNIT, 1, "constraint"),
+        *blocks(GOAL, 1, "constraint"), *blocks(PERIOD, 1, "constraint"),
+        *blocks(MISSION, 2, "constraint", "execution_plan"), *blocks(TASK, 2, "constraint", "plan"),
+        *events, "relations:2", f"snapshot:{SNAP_MISSION}@1"}
+    assert keys[-1] == blocks(STRATEGY, 1, "choices")[0] and choices not in tight["context_pack"]["markdown"]
+    assert tight["budget"]["over_budget"] is False and in_the_0_2_order(whole, tight)
+    assert [block["ref"] for block in tight["context_pack"]["layers"][1]["blocks"]] == [
+        f"{TASK}@2#definition", f"{TASK}@2#acceptance"]
+
+
+def test_a_block_pinned_from_a_nearer_level_is_on_the_why_chain_even_when_it_is_not_a_definition(world, monkeypatch):
+    """Activity 的执行指令另引 Task 计划里的一条：Task 的计划块（计划类）因此在 Why 链上，事件、跨链关系与快照都裁掉
+    之后才裁；没被引到的 Mission 执行计划仍在第一步裁。"""
+    object_type, domain, version, status, attributes, content = OBJECTS[ACTIVITY]
+    monkeypatch.setitem(OBJECTS, ACTIVITY, (object_type, domain, version, status, attributes, {
+        "instruction": value("按评审意见改材料", refs=[pin(TASK, 2, "acceptance", "ac-1"), pin(TASK, 2, "plan", "p-1")])}))
+    result = build(world, budget={"max_chars": 10})
+    keys = [entry["key"] for entry in result["plan"]["trimmed"]]
+    assert keys.index(blocks(MISSION, 2, "execution_plan")[0]) < keys.index(f"event:{LATE}")
+    assert keys[-3:] == blocks(TASK, 2, "plan", "acceptance", "definition")
+    assert blocks(TASK, 2, "plan")[0] in why_chain(build(world)["context_pack"])
+
+
+def test_why_keys_count_references_from_nearer_levels_by_object_and_block_ids_only():
+    """补 48 的第二条逐项判：层号更小的块值引用与组件引用钉到上层的块（不看版本）才算；同层、从远处往近处、只钉对象
+    与事件引用都不算；主干那一步的引用字段钉到块也算。"""
+    def blk(oid, bid, kind="constraint", refs=(), component_refs=()):
+        return {"id": bid, "kind": kind, "ref": f"{oid}@1#{bid}",
+                "value": {"refs": list(refs), "text": "", "components": [], "artifacts": []},
+                "components": [{"refs": list(component_refs)}]}
+
+    def ref(oid, bid=None, version=1, component=None):
+        return {"object_id": oid, "object_version": version, "block": bid, "component": component}
+    layers = [
+        {"level": 0, "object": {"object_id": "a"}, "hop": None,
+         "blocks": [blk("a", "own", "definition", refs=[ref("b", "plan", version=7), ref("c"), {"event_id": "e"}])]},
+        {"level": 1, "object": {"object_id": "b"}, "hop": None,
+         "blocks": [blk("b", "plan", "plan"), blk("b", "note"),
+                    blk("b", "other", component_refs=[ref("c", "limits", component="x")])]},
+        {"level": 2, "object": {"object_id": "c"}, "hop": {"object": {"ref": "h@1"}, "blocks": [
+            blk("h", "outcome", "definition", refs=[ref("d", "rules")])]},
+         "blocks": [blk("c", "limits", refs=[ref("c", "loose")]), blk("c", "loose"), blk("c", "entry")]},
+        {"level": 3, "object": {"object_id": "d"}, "hop": None,
+         "blocks": [blk("d", "rules"), blk("d", "idea", "definition", refs=[ref("b", "note")]), blk("d", "spare")]},
+    ]
+    assert context.why_keys(layers, [("parent_ref", ref("b")), ("parent_ref", ref("c", "entry", component="u")),
+                                     ("parent_ref", ref("d"))]) == {
+        "hop:h@1", "block:d@1#idea",  # 上层的定义类块与多取的一跳
+        "block:b@1#plan",             # 当前对象钉到上一层的计划块（钉的版本与所读的不同也算）
+        "block:c@1#limits",           # 第 1 层的组件引用钉到第 2 层
+        "block:c@1#entry",            # 主干第 1 步（第 1 层到第 2 层）的引用字段钉到块里的组件
+        "block:d@1#rules"}            # 第 2 层多取一跳里的引用钉到第 3 层
+    # 不算的：b#note 只被更远的第 3 层引用，c#loose 只被同层引用，只钉对象（c、d）与事件引用不指块，b#other、d#spare
+    # 没人引用。
 
 
 @pytest.mark.parametrize("share", [0.8, 0.5, 0.3, 0])

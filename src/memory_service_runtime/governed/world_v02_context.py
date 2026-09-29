@@ -1,12 +1,11 @@
-"""tkos.world/0.2 的取上下文（票 #56、#64，契约第 15.3 节）：0.1 的 B 固定路径（票 #25）搬到 0.2 对象上，引用细到组件。
+"""tkos.world/0.2 的取上下文（票 #56、#64、#70，契约第 15.3 节）：0.1 的 B 固定路径（票 #25）搬到 0.2 对象上，引用细到组件。
 
-沿用 0.1 的遍历、预算、裁剪、六问覆盖、检索计划、落表与默认值：从一个对象沿主干向上到 Company，每层取最新修订的
+沿用 0.1 的遍历、六问覆盖、检索计划与落表：从一个对象沿主干向上到 Company，每层取最新修订的
 全部块（空块用标准句）、生命周期、责任人与跨链关系（只列引用，不递归）；当前对象向上直到 Mission（含）各层另取
 最新状态快照与近期事件，一条事件以多层对象为主体时只放在离当前对象最近的那一层。从状态快照出发时，以它的主体为
-当前对象，状态取这条快照。整包渲染成 Markdown，按字符预算裁剪（直接用 0.1 的纯函数 trim：每层条数上限先生效，
-再先裁最旧的事件，然后从主干最远层起逐层裁跨链关系、多取的一跳、块、快照，最后裁当前对象的跨链关系与它多取的
-一跳；当前对象的块与它的最新快照不裁；六问指引计入预算，每裁一条按留下的内容重新渲染），输出上下文包、检索计划
-与六问覆盖三件，每次调用在 gov_world_context_packs 落一行（上下文包是时间记录，只追加）。
+当前对象，状态取这条快照。整包渲染成 Markdown，按字符预算裁剪（0.2 自己的纯函数 trim，见它的说明；0.1 的 trim
+冻结不改），输出上下文包、检索计划与六问覆盖三件，每次调用在 gov_world_context_packs 落一行（上下文包是时间记录，
+只追加）。
 
 0.2 的改动：
 - 引用按组件返回：块里的组件逐条带组件形式的引用 ``对象@版本#块/组件`` 与钉定结构，Markdown 里逐条写出；
@@ -24,17 +23,21 @@
   为什么——当前对象之上各层（由近及远）的跨链关系与定义类块，多取的一跳跟在它那一层之后；
   做什么——当前对象的定义类块与各层的计划类块；谁负责——逐层的责任人与来源；
   现在怎样——逐层的生命周期与正式内容，然后是各层的最新状态快照；发生了什么——各层的近期事件；
-  凭什么——各层的约束类块。同一层的跨链关系、一跳、块与快照在文档里的先后同 0.1 的分层写法，所以裁剪顺序不变。
+  凭什么——各层的约束类块。同一层的跨链关系、一跳、块与快照在文档里的先后同 0.1 的分层写法。
 - 事件行写出记录者；代记的同时写出被代记的人，指派另写被指派者（#64，同 0.1 批次 D 写人名）。
 - 形成时带入（#64 第二段，契约第 15.3 节与补 43，见 _carried_in）：出发对象是有门类型时，带入待带入的问题；从周期
   目标出发另带本 scope 最近的已确认公司复盘与本单元有效的长期目标。放在六问指引之后自成一节，预算裁剪不裁；复盘与
   问题计入「凭什么」的覆盖，有效的长期目标计入「为什么」。
+- 预算与裁剪（#70，契约第 15.3 节、补 48 与决 18）：默认预算 100000 字符（0.2 预算只报成本、不作门；12000 是 0.1
+  为预算作门定的），每个对象 10 条事件与近期 30 天沿用 0.1。超预算时的裁剪保护 Why 链（见 why_keys 与 trim）：先
+  由远及近裁上层不在 Why 链上的块，再裁最旧的事件，再由远及近裁其余内容，Why 链上的项最后才裁。每个对象的事件
+  条数上限不计当前对象最近一次指派事件与推出它当前生命周期的事件（见 uncapped_events）。
 """
 from __future__ import annotations
 
 from datetime import datetime
 import math
-from typing import Any
+from typing import Any, Callable, Collection
 
 from psycopg.types.json import Jsonb
 
@@ -42,12 +45,13 @@ from . import db
 from . import world_v02_lifecycle as world_lifecycle
 from . import world_v02_readers as readers
 from . import world_v02_registry as world_registry
-from .world_v01_context import trim
+from .world_v01_context import _markdown, _moment
 from .world_v01_models import WorldContextRequest, utc_text
 from .world_v02_models import CONTRACT_VERSION, citation, component_spec
 
-# 契约第 15.3 节（决 18）：沿用 0.1 的默认值，实验后再定。
-DEFAULT_MAX_CHARS, DEFAULT_MAX_EVENTS_PER_OBJECT, DEFAULT_RECENT_DAYS = 12000, 10, 30
+# 契约第 15.3 节（决 18）：0.2 预算只报成本、不作门，默认 100000 字符；0.1 的 12000 是为预算作门定的。每个对象的
+# 事件条数与近期窗口沿用 0.1 的默认值。
+DEFAULT_MAX_CHARS, DEFAULT_MAX_EVENTS_PER_OBJECT, DEFAULT_RECENT_DAYS = 100000, 10, 30
 # token 只估算上报：中文为主的 Markdown 粗按每 2 个字符 1 个 token 计（同 0.1）。
 CHARS_PER_TOKEN_ESTIMATE = 2
 # 取最新快照与近期事件的层：当前对象，以及它向上直到 Mission（含）的执行链。
@@ -70,6 +74,100 @@ _GAPS = {"why": "主干上层没有取到非空的定义类块", "what": "当前
 # 六问指引答不了时的缺口（指引的取法与覆盖不同，见 guide）。
 _GUIDE_GAPS = {**_GAPS, "now": "当前对象没有生命周期，也没有取到状态快照",
                "basis": "没有取到验收标准、约束、上层已确认的正式内容或文档链接"}
+
+
+# ------------------------------------------------------------ pure: budget and trimming（#70）
+def why_keys(layers: list[dict[str, Any]], walked: list[tuple[str, dict[str, Any]]]) -> set[str]:
+    """Why 链上的项（契约第 15.3 节与补 48），按条目的 key 给出，裁剪时最后才裁。只看当前对象之上的内容，即上溯
+    各层（level > 0）的块与各层（含当前对象）多取的一跳；当前对象的块本来就不裁。以裁剪的单位（块、多取的一跳）判：
+
+    - 定义类的块（登记里 kind 为 definition），也就是 cover() 与 guide() 回答「为什么」所用的那些；
+    - 被更近的层钉到的块：有引用钉到这一块或其中某个组件，引用来自沿主干走的那一步的引用字段（parent_ref、goal_ref、
+      architecture_ref，walked 里第 i 步算第 i 层），或来自包里任一块（不论类别）的块值引用与组件引用（多取的一跳里
+      的块算它那一层），且引用所在的层号小于这一块所在的层号。按对象 id 与块 id 认，不看版本：包读的是各层的最新
+      修订，引用钉定的版本只作出处。只钉到对象本身的引用不另指块，那个对象的定义类块已按上一条算；事件引用不指块；
+    - 多取的一跳整条算：它只带定义类块。
+
+    按现在的登记，主干的引用字段钉的是对象或责任单元条目（在定义类的责任结构块里），所以第二条实际多出来的，是块值
+    与组件引用钉到的计划类、约束类块。裁剪以块为单位：块里只要有一条组件被钉到，整块都算。"""
+    targets = {(layer["object"]["object_id"], block["id"]): (layer["level"], f"block:{block['ref']}")
+               for layer in layers if layer["level"] > 0 for block in layer["blocks"]}
+    keys = {f"hop:{layer['hop']['object']['ref']}" for layer in layers if layer["hop"]}
+    keys |= {f"block:{block['ref']}" for layer in layers if layer["level"] > 0 for block in layer["blocks"]
+             if block["kind"] == "definition"}
+    pins = [(level, pinned) for level, (_, pinned) in enumerate(walked)]
+    for layer in layers:
+        for part in (layer, layer["hop"]):
+            for block in part["blocks"] if part else []:
+                pins += [(layer["level"], pinned) for pinned in (block["value"]["refs"] if block["value"] else [])]
+                pins += [(layer["level"], pinned) for item in block["components"] for pinned in item["refs"]]
+    for level, pinned in pins:  # 事件引用没有对象 id
+        target = targets.get((pinned.get("object_id"), pinned.get("block")))
+        if target and target[0] > level:
+            keys.add(target[1])
+    return keys
+
+
+def uncapped_events(layers: list[dict[str, Any]]) -> set[str]:
+    """每个对象的事件条数上限不计的事件（契约第 15.3 节），按条目的 key（事件引用）给出：当前对象（第 0 层）最近一次
+    指派事件，与推出它当前生命周期的那条事件（读投影 records.lifecycle.event_id）。两条都只在近期窗口里取到时才在包里；
+    它们不占上限，也就不会被上限挤掉，其余事件照旧按上限留最新的。预算裁剪不另保护它们。"""
+    current = layers[0]
+    stage = current["object"]["lifecycle"]
+    assigned = next((event for event in current["events"] if event["kind"] == "assign"), None)  # 事件新的在前
+    return {event["ref"] for event in current["events"]
+            if event is assigned or (stage is not None and event["event_id"] == stage["event_id"])}
+
+
+def trim(items: list[dict[str, Any]], *, max_chars: int, max_events_per_object: int,
+         why: Collection[str] = frozenset(), uncapped: Collection[str] = frozenset(),
+         lead: Callable[[set[str]], str] | None = None) -> dict[str, Any]:
+    """按文档顺序给出的条目（形状同 0.1）裁到预算内；返回留下的条目、裁掉的条目（带原因）、渲染结果与字符数。0.1 的
+    trim 冻结不改，这里是 0.2 自己的顺序（契约第 15.3 节与补 48）。why 是 Why 链上的项（why_keys），uncapped 是
+    不计入每对象事件上限的事件（uncapped_events）。lead 按留下条目的 key 渲染六问指引，计入字符预算，每裁一条重新
+    渲染（同 0.1）。
+
+    每个对象的事件条数上限先生效：除 uncapped 外，每个对象按发生时刻留最新的 max_events_per_object 条，其余记
+    over_level_cap。仍超预算的，依次裁下面四步，裁到不超为止，都记 over_budget：
+    1. 上溯各层里不在 Why 链上的块，由远及近，同一层从后往前；
+    2. 最旧的事件，不分层；
+    3. 其余内容由远及近：上溯各层的跨链关系、不在 Why 链上的多取一跳、快照，最后是当前对象的跨链关系与它不在 Why
+       链上的多取一跳（按 why_keys，多取的一跳都在 Why 链上，这里实际没有）；
+    4. Why 链上的项由远及近：同一层先裁多取的一跳，再从后往前裁块；当前对象多取的一跳最后裁。
+    永不裁：当前对象的块与它的最新快照、形成时带入、标题与节名、「谁负责」「现在怎样」的逐层清单。顺序只由条目的
+    文档顺序、层号与事件的发生时刻决定，同样的输入裁出同样的结果。"""
+    kept = list(items)
+    trimmed: list[dict[str, Any]] = []
+
+    def drop(item: dict[str, Any], reason: str) -> None:
+        kept.remove(item)
+        trimmed.append({"key": item["key"], "kind": item["kind"], "level": item["level"], "reason": reason})
+
+    counted: dict[str, int] = {}
+    for item in sorted((item for item in items if item["kind"] == "event" and item["key"] not in uncapped),
+                       key=_moment, reverse=True):
+        counted[item["object_id"]] = counted.get(item["object_id"], 0) + 1
+        if counted[item["object_id"]] > max_events_per_object:
+            drop(item, "over_level_cap")
+
+    def at(level: int, kinds: set[str], chosen: bool, backwards: bool = False) -> list[dict[str, Any]]:
+        """这一层里这几类条目，按是否在 Why 链上挑，按文档顺序（backwards 为从后往前）。"""
+        return [item for item in (reversed(kept) if backwards else kept)
+                if item["level"] == level and item["kind"] in kinds and (item["key"] in why) is chosen]
+    far = sorted({item["level"] for item in items if item["level"] > 0}, reverse=True)
+    order = [item for level in far for item in at(level, {"block"}, False, backwards=True)]
+    order += sorted((item for item in kept if item["kind"] == "event"), key=_moment)
+    order += [item for level in far for kinds in ({"relations", "hop"}, {"snapshot"}) for item in at(level, kinds, False)]
+    order += at(0, {"relations", "hop"}, False)
+    order += [item for level in far for item in at(level, {"hop"}, True) + at(level, {"block"}, True, backwards=True)]
+    order += at(0, {"hop"}, True)
+    for item in order:
+        if len(_markdown(kept, lead)) <= max_chars:
+            break
+        drop(item, "over_budget")
+    markdown = _markdown(kept, lead)
+    return {"kept": kept, "trimmed": trimmed, "markdown": markdown, "chars": len(markdown),
+            "over_budget": len(markdown) > max_chars}
 
 
 # ------------------------------------------------------------ pure: coverage and the guide
@@ -565,13 +663,14 @@ def _now_text(layers: list[dict[str, Any]]) -> str:
 
 def _items(question: str, start: str, layers: list[dict[str, Any]],
            carried: dict[str, Any] | None) -> list[dict[str, Any]]:
-    """把上下文包渲染成按文档顺序排列、可逐条裁剪的 Markdown 片段（条目的形状同 0.1，交给 trim）。
+    """把上下文包渲染成按文档顺序排列、可逐条裁剪的 Markdown 片段（条目的形状同 0.1，交给本模块的 trim）。
 
     标题之后由 trim 插入六问指引；形成时带入（从周期目标出发，或有待带入的问题时）自成一节，依次是公司复盘（或缺口）、
     有效的长期目标、待带入的问题；然后以六问为节。条目按块类别分节：定义类块在当前对象
     是「做什么」、在上层是「为什么」，计划类块是「做什么」，约束类块是「凭什么」；跨链关系与多取的一跳放在「为什么」，
     分别在该层的块之前与之后。这样同一层的条目在文档里的先后与 0.1 的分层写法一致（登记里每类对象的块都是定义类在
-    前、计划类其次、约束类最后），trim 的裁剪顺序不变。节名、「谁负责」与「现在怎样」的逐层清单不裁。"""
+    前、计划类其次、约束类最后），trim 同一层里「从后往前」裁块的先后也同 0.1。节名、「谁负责」与「现在怎样」的逐层
+    清单不裁。"""
     kinds = {item["kind"]: item["display_name"] for item in world_registry.registry()["event_kinds"]}
 
     def entry(key: str, kind: str, level: int, object_id: str | None, text: str,
@@ -676,8 +775,8 @@ def build(conn: Any, ctx: Any, object_id: str, request: WorldContextRequest) -> 
     # 形成时带入：周期目标 goal_ref 指的长期目标就是主干的上一层。
     carried = _carried_in(conn, ctx, current, layers[1]["object"]["object_id"] if len(layers) > 1 else None)
     result = trim(_items(request.question, start, layers, carried), max_chars=budget["max_chars"],
-                  max_events_per_object=budget["max_events_per_object"],
-                  lead=lambda kept: guide(_keep(layers, kept), carried))
+                  max_events_per_object=budget["max_events_per_object"], why=why_keys(layers, walked),
+                  uncapped=uncapped_events(layers), lead=lambda kept: guide(_keep(layers, kept), carried))
     packed = _keep(layers, {item["key"] for item in result["kept"]})
     plan = {
         # 沿主干读的是上一级的最新修订，引用字段钉定的版本（责任单元的是责任单元条目）只作出处。

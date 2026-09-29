@@ -47,9 +47,9 @@ def install(h, source: Path, scope: dict) -> None:
     adapter = ControlAdapter(h, source, 'memory_service_runtime.governed.control')
     for domain_id in scope['domains'].values():
         tag = uuid.uuid4().hex[:8]
-        path = h.private / f'w67-activation-{tag}.json'
+        path = h.private / f'activation-{tag}.json'
         private_json(path, {'action_roles': action_roles(), 'notes': 'Experiment E scenarios (tkos.world/0.2)'})
-        adapter.cli('w67-activation-' + tag, [
+        adapter.cli('experiment-e-activation-' + tag, [
             'install-activation-policy', '--scope-id', scope['scope_id'], '--domain-id', domain_id,
             '--content-json', str(path), '--reason', REASON], expected_exit=0)
     register_world_v02(h, source, scope['scope_id'])
@@ -83,7 +83,7 @@ class Seeder:
 
     def act(self, step: dict, params: dict, target: str | None = None) -> dict:
         body = {'action_type': spec.action(step), 'contract_version': CONTRACT, 'target': None, 'expected_versions': [],
-                'idempotency_key': 'w67-' + uuid.uuid4().hex, 'reason': REASON,
+                'idempotency_key': 'experiment-e-' + uuid.uuid4().hex, 'reason': REASON,
                 'params': spec.resolve(params, self.objects, self.principals, self.events)}
         if target is not None:
             business = self.read(target)
@@ -128,7 +128,7 @@ def seed(h, source: Path, url: str, scenarios: dict, answers: dict) -> tuple[dic
     spec.validate(scenarios)
     spec.validate_gold(answers, scenarios)
     scope = new_scope(h, scenarios)
-    private_json(h.private / f"w67-scope-{scope['scope_id'][:8]}.json", scope)
+    private_json(h.private / f"scope-{scope['scope_id'][:8]}.json", scope)
     install(h, source, scope)
     clients = h.clients(url, {'actors': scope['actors']})
     try:

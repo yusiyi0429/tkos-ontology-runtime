@@ -178,10 +178,10 @@ Nginx 配置不随版本变时不用动（`cmp $SRC2/deploy/world-02/nginx/world
 
 ## 10. 归档到 tkos-secrets
 
-密钥与清单放进私有仓库 `VanillaCoca/tkos-secrets`（明文、LF 行尾、只能靠轮换撤销）的 `ontology-runtime/world-02/`。主机不通 GitHub，先拉回本机再推：
+密钥与清单放进私有仓库 `TokenkingOS/tkos-secrets`（明文、LF 行尾、只能靠轮换撤销）的 `ontology-runtime/world-02/`。主机不通 GitHub，先拉回本机再推：
 
 ```bash
-git clone https://github.com/VanillaCoca/tkos-secrets.git /tmp/tkos-secrets
+git clone https://github.com/TokenkingOS/tkos-secrets.git /tmp/tkos-secrets
 D=/tmp/tkos-secrets/ontology-runtime/world-02; rm -rf "$D"; mkdir -p "$D"      # 重建后整目录替换
 scp tokenhub-prod:$LAB/.env "$D/compose.env"
 for k in minio-app-access-key minio-app-secret-key; do ssh tokenhub-prod "sudo cat $SRC/deploy/offline-release/private/$k" > "$D/$k"; done
@@ -236,7 +236,7 @@ rm -rf /tmp/tkos-secrets
 **命令**：主机没有仓库检出，脚本只用标准库，在本机仓库检出里经域名跑（同 `smoke.py --mcp-cli`）。`<out>` 用第 10 节归档里实验 scope 的那份（`ids.json` 与凭证）；状态文件 `seed-eo-state.json` 写在同一目录，回执、事件与对象 id 都在里面，重跑沿用，每段跑完推回 tkos-secrets（段与段隔了时间就每段重新克隆、跑完删掉）。幂等键固定为 `world-02-eo-seed:<步骤>`；提交前请求先记进状态文件，中断后重跑原样重发，已提交的拿回原回执。状态文件丢了，重跑时建对象与代录说明拿回原回执（同键同请求），第一个门步骤在 prepare 就被拒（对象已经过了那一步），不会记两次；从 tkos-secrets 取回状态文件再跑。实验 scope 重建后，旧状态文件随第 10 节的整目录替换一起作废（脚本拒绝另一个 scope 的状态文件）。
 
 ```bash
-git clone https://github.com/VanillaCoca/tkos-secrets.git /tmp/tkos-secrets
+git clone https://github.com/TokenkingOS/tkos-secrets.git /tmp/tkos-secrets
 O=/tmp/tkos-secrets/ontology-runtime/world-02 U=https://world-02.tokenkingos.com P=deploy/world-02/seed-eo-2026-10.json
 python3 deploy/world-02/seed_eo.py $U $O $P --status                                    # 只看状态，不连服务
 python3 deploy/world-02/seed_eo.py $U $O $P --as ceo --proxy-operator eo-dri --dry-run   # 先列出这一段会做什么，不写
@@ -274,6 +274,15 @@ rm -rf /tmp/tkos-secrets
 
 2026-09-29 #69 与第 11 节合入后按第 9.5 节换到 c29e7d5 重建，实验 scope 改按真名名单（6 个主体、公司域与 E&O 域）供给：实验 scope 的 `--probe-only` 本机口与域名都过；冒烟 scope 完整冒烟本机口 94 项、域名 83 项，本机 `--mcp-cli` 92 项全过。随后在本机经域名按九段跑完十月起点播种：33 步全部提交，其中代录 20 步，代录说明 5 条；再跑一段不做任何事。用天枢凭证读回：17 个对象，两个长期目标与十月周期目标已确认，三个 Mission 已成立，8 个 Task 未指派，`period=2026-10` 列出 12 个，周期目标的 `identity.delegations` 有 3 条。归档见第 10 节（含 `seed-eo-state.json`）。
 
+2026-09-29 #66–#68 与 #70 合入后，按第 9.5 节换到 55c46d3 重建（#70 改了契约，默认预算 10 万字符，镜像里契约的 sha256 为 fb260b28…）。同时删掉了对照实验 B 冒烟用的两个输出目录 `out-b-*`。重建后：
+
+- 实验 scope 按真名名单重新供给。本机口与域名的 `--probe-only` 都通过，域名 10 项。
+- 冒烟 scope 的完整冒烟：本机口通过，域名 83 项通过；本机 `--mcp-cli` 92 项通过。
+- 十月起点经用户同意按九段重播：33 步全部提交，其中代录 20 步，代录说明 5 条；各段重跑都不再做事。
+- 读回 17 个对象：8 个 Task 未指派，3 个 Mission 已成立。
+- 归档：tkos-secrets 7bb3023，仓库已迁到 TokenkingOS/tkos-secrets，旧地址会重定向。
+- 旧的 c29e7d5 镜像与发布目录已删。world-lab 全程 200。
+
 主机上踩到的坑：经 `ssh … 'bash -s' <<EOS` 远程跑脚本时，`docker compose exec -T` 同样会吃掉 stdin，把后面的脚本当输入读走，要接 `</dev/null`（`run -T` 已在脚本里这样做）；但别给管道的下游加：`gunzip -c … | docker load </dev/null` 会让 `docker load` 读到空输入、什么都不加载，之后 compose 转去 Docker Hub 拉镜像超时。远程脚本里先解到文件再 `docker load -i`。本机对域名跑冒烟时遇到过一次连接超时，重跑即过。
 
-未验证：并发写下的外部引用唯一性；大数据量下列对象的性能；第 11 节在主机实例上实跑（真名、经域名 HTTPS、状态文件放在 tkos-secrets）；天枢凭这三条委托实际代记。
+未验证：并发写下的外部引用唯一性；大数据量下列对象的性能；天枢凭这三条委托实际代记。

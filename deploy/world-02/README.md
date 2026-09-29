@@ -316,6 +316,13 @@ rm -rf /tmp/tkos-secrets
 - 归档：tkos-secrets 7bb3023，仓库已迁到 TokenkingOS/tkos-secrets，旧地址会重定向。
 - 旧的 c29e7d5 镜像与发布目录已删。world-lab 全程 200。
 
+2026-09-29 晚，#71、#72、#73 合入后按第 9.5 节换到 24e6202 重建（#71 改了契约与登记，镜像里契约 sha256 9e6d1c6c…、登记 2fc36f4f…）。主机的 `spec.json` 给 E&O DRI 加了 OWNER。重建后：
+
+- 实验 scope 与冒烟 scope 重新供给；实验 scope 的 `--probe-only` 本机口与域名都过（域名 10 项）；冒烟 scope 完整冒烟本机口过、域名 83 项；本机 `--mcp-cli` 92 项全过。
+- 十月起点按新计划五段播完（用户同意第三次代录）：17 步，代录 8 步，代录说明 3 条。读回 9 个对象：两个长期目标已确认；周期目标与三个 Mission 是草稿，Owner 分别是 Mission Owner、Mission Owner、E&O DRI；单元带 `capability:05`，按外部引用能查回；三条委托各含四族。
+- `examples.py` 在冒烟 scope 上经域名跑完，准备到第 11 步与收尾全部通过（127 项），生成 `docs/world-v02-tianshu-examples.md`。
+- 密钥整目录替换，见 tkos-secrets 29002c5；旧的 55c46d3 镜像与发布目录已删。
+
 主机上踩到的坑：经 `ssh … 'bash -s' <<EOS` 远程跑脚本时，`docker compose exec -T` 同样会吃掉 stdin，把后面的脚本当输入读走，要接 `</dev/null`（`run -T` 已在脚本里这样做）；但别给管道的下游加：`gunzip -c … | docker load </dev/null` 会让 `docker load` 读到空输入、什么都不加载，之后 compose 转去 Docker Hub 拉镜像超时。远程脚本里先解到文件再 `docker load -i`。本机对域名跑冒烟时遇到过一次连接超时，重跑即过。
 
 未验证：并发写下的外部引用唯一性；大数据量下列对象的性能；天枢凭这三条委托实际代记。

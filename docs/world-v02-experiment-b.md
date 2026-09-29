@@ -179,6 +179,6 @@ python3 -m experiments.world_v02.b_drive status $B/task-only           # 只看�
   - 按上面「实例 scope」的命令，在主机上各供给一个 scope：Task-only 线 `885495de`，Task+Activity 线 `1816d844`，tenant `tokenking-world-02-experiment-b`。
   - 在本机经域名跑完 seed、drive、collect、observe、status，全部退出码 0，两条线的 Mission 都读回已关闭。
   - 结果与隔离库上录的一致：Task+Activity 线 49 步全部原生；Task-only 线原生 20、粗粒度 21、被拒 8；结论为 Activity 留作对象（执行、管理）。
-  - 两条线的清单、凭证、运行日志与观测归档在 tkos-secrets 的 `ontology-runtime/world-02/experiment-b-smoke/`。
-  - 实例换版本重建后，这两个 scope 随之作废；试用回放要另开两个新 scope。
+  - 两条线的清单、凭证、运行日志与观测曾归档在 tkos-secrets 1c24e00 的 `ontology-runtime/world-02/experiment-b-smoke/`，运行日志与观测可从那个提交取回。
+  - 同日按 55c46d3 重建（#70）后，这两个 scope 连同凭证作废，归档目录在 tkos-secrets 7bb3023 删除；试用回放要另开两个新 scope。
 - 未验证：真实记录的转写与回放，要等试用。

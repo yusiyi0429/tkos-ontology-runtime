@@ -175,4 +175,10 @@ python3 -m experiments.world_v02.b_drive status $B/task-only           # 只看�
 
 - 无库测试 `tests/test_world_v02_experiment_b.py`：共同播种就是原计划里 mission_trial 的主干、名单只有角色名且过 `provision.check_spec`、段与角色合登记；脚本校验；驱动器按线的写法（假 HTTP）：Activity、计划条目、只有一段的 Task 与配对、退路、快照前的外部事件、问题引用、行动者不换人；三种表达结果；传输（假 HTTP）：被拒是结果不是错误，提交中途断掉原样重发拿回原回执，重发被拒则重新 prepare，服务端错误留着请求；用录好的冒烟运行日志核对五项观测的发生与未发生（去掉对应步骤）、独立的判定、Task-only 线的三种表达、结论规则（粗粒度不留对象、不独立的不留对象、五项都没发生）、Agent 写入的主体、两份日志必须是同一次对照。
 - 独立验收 `acceptance/world_v02/` 的场景 `experiment_b`：隔离库上两条线播种、读回、按冒烟脚本推到 Mission 关闭，经读投影与只读 SQL 核对（见该目录 README）。
-- 未验证：实例上的供给、播种与冒烟没有跑；真实记录的转写与回放要等试用。
+- 实例上的冒烟（2026-09-29，world-02 跑 c29e7d5 镜像，实验代码取 d82d176）：
+  - 按上面「实例 scope」的命令，在主机上各供给一个 scope：Task-only 线 `885495de`，Task+Activity 线 `1816d844`，tenant `tokenking-world-02-experiment-b`。
+  - 在本机经域名跑完 seed、drive、collect、observe、status，全部退出码 0，两条线的 Mission 都读回已关闭。
+  - 结果与隔离库上录的一致：Task+Activity 线 49 步全部原生；Task-only 线原生 20、粗粒度 21、被拒 8；结论为 Activity 留作对象（执行、管理）。
+  - 两条线的清单、凭证、运行日志与观测归档在 tkos-secrets 的 `ontology-runtime/world-02/experiment-b-smoke/`。
+  - 实例换版本重建后，这两个 scope 随之作废；试用回放要另开两个新 scope。
+- 未验证：真实记录的转写与回放，要等试用。

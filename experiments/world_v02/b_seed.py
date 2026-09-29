@@ -1,17 +1,21 @@
-"""对照实验 B 的两条线播种（票 #66）：同一份 mission_trial 内容（换任务卡之前的十月计划 experiments/world_v02/b_source-2026-10.json）分别播进
-Task-only 线与 Task+Activity 线的 scope，读回核对；另有隔离库上的一键冒烟。
+"""对照实验 B 的两条线播种（票 #66、#75）：同一份 Mission 内容分别播进 Task-only 线与 Task+Activity 线的 scope，读回
+核对；另有隔离库上的一键冒烟。播什么由 lines 文件定：
+- 冒烟（默认）：b_smoke_lines.json，换任务卡之前的十月计划（b_source-2026-10.json）里的 mission_trial 与预设的段；
+- 试用回放：转写产物 b-lines.json（b_transcribe 生成）＝ b_lines.json 的主干（十月起点里 mission_context 到公司）加
+  转写出的门与 Task（lines 的 steps）、Task 的责任人与段（tasks）。
 
-    播种  python -m experiments.world_v02.b_seed seed <base_url> <目录> --line task_only|task_activity
+    播种  python -m experiments.world_v02.b_seed seed <base_url> <目录> --line task_only|task_activity [--lines L]
     核对  python -m experiments.world_v02.b_seed check <base_url> <目录>     （驱动之前有效，seed 跑完也会做）
-    冒烟  python -m experiments.world_v02.b_seed smoke --env-file E --private P --output O [--script S]
+    冒烟  python -m experiments.world_v02.b_seed smoke --env-file E --private P --output O [--script S] [--lines L]
 
 <目录> 是一条线的 scope：ids.json 与每个主体的 <键>.token（实例上由 deploy/world-02 的 provision-and-install.sh 按
 b_spec.json 供给；隔离库上由 smoke 用 owner SQL 供给）。凭证只从文件读，不上命令行、不打印。运行日志 b-run.json 写在
 同一目录，重跑沿用：播过的步骤不再做，中途断掉的那一步原样重发。
 
 播种分两段，两条线的第一段完全相同：
-1. 共同播种：取原计划里 mission_trial 到 Company 的主干（b_lines.json 的 source.steps，正文与顺序照原计划），再由
-   Mission Owner 把各 Task 指派给 tasks[].responsible、把 Mission 的执行计划写成每个 Task 一条带责任人的计划条目；
+1. 共同播种：取原计划里这条 Mission 到 Company 的主干（lines 的 source.steps，正文与顺序照原计划），接着是 lines 自己的
+   steps（同一计划格式，lines 0.2 才有：转写出的门与建 Task），再由 Mission Owner 把各 Task 指派给
+   tasks[].responsible、把 Mission 的执行计划写成每个 Task 一条带责任人的计划条目；
 2. 划段（运行日志里 phase 为 plan）：每个 Task 的 segments 按线的写法落下——Task-only 线是 Task 计划块里带责任人的
    计划条目，Task+Activity 线是 Task 下的 Activity 并指派。这一段走驱动器（b_drive），与执行脚本的记录同一格式。
 
@@ -35,10 +39,12 @@ from .b_http import Line, TransportError, submit, utc_text
 
 FOLDER = Path(__file__).resolve().parent
 ROOT = FOLDER.parents[1]
-LINES_FILE = FOLDER / "b_lines.json"
+LINES_FILE = FOLDER / "b_lines.json"  # 试用回放的主干（转写产物照抄它）
+SMOKE_LINES_FILE = FOLDER / "b_smoke_lines.json"  # 冒烟：mission_trial 与预设的段
 SPEC_FILE = FOLDER / "b_spec.json"
 SMOKE_FILE = FOLDER / "b_smoke.json"
 LINES_FORMAT = "tkos-world-02-experiment-b-lines/0.1"
+LINES_FORMAT_02 = "tkos-world-02-experiment-b-lines/0.2"  # 加 steps：主干之后的门与建 Task（转写产物）
 ACTIONS = {"create": "world_create_object", "assign": "world_assign", "revise": "world_revise_object"}
 
 
@@ -58,14 +64,30 @@ def sha256_text(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
-def derive(lines: dict, source: dict) -> dict:
-    """b_lines.json 与原计划 → 两条线共同的播种步骤与段表；不自洽就抛 ValueError。
+def mission_status(shared: list[dict], mission: str) -> str:
+    """共同播种之后这条 Mission 的生命周期：草稿起，按播种里它的门推（承诺 → 已承诺；确认接受 → 已成立，退回 → 草稿）。"""
+    status = "draft"
+    for step in shared:
+        if step["do"] == "gate" and step["target"] == mission:
+            if step["action"] == "world_commit_mission":
+                status = "committed"
+            elif step["action"] == "world_confirm_mission":
+                status = {"accepted": "established", "returned": "draft"}.get(step.get("outcome"), status)
+    return status
 
-    共同播种：原计划里 source.steps 列的步骤（按原计划的顺序与正文，after 只留列出的步骤，由 seed_eo.check_plan 核对
-    前置与占位），加上每个 Task 的指派（Mission Owner 记）与 Mission 执行计划的修订（每个 Task 一条带责任人的计划条目）。
+
+def derive(lines: dict, source: dict) -> dict:
+    """lines 与原计划 → 两条线共同的播种步骤与段表；不自洽就抛 ValueError。
+
+    共同播种：原计划里 source.steps 列的步骤（按原计划的顺序与正文，after 只留列出的步骤），接着是 lines 的 steps（lines
+    0.2：转写出的门与建 Task，同一计划格式，前置只能是主干与它前面的步骤），由 seed_eo.check_plan 核对前置与占位；
+    再加上每个 Task 的指派（Mission Owner 记）与 Mission 执行计划的修订（每个 Task 一条带责任人的计划条目）。
+    Task 可以不划段（转写时 Task 下没有计划条目也没有 Activity）。
     """
-    if lines.get("format") != LINES_FORMAT:
-        raise ValueError(f"b_lines 的 format 是 {LINES_FORMAT}")
+    if lines.get("format") not in (LINES_FORMAT, LINES_FORMAT_02):
+        raise ValueError(f"lines 的 format 是 {LINES_FORMAT} 或 {LINES_FORMAT_02}")
+    if lines["format"] == LINES_FORMAT and "steps" in lines:
+        raise ValueError(f"steps（主干之后的播种步骤）是 {LINES_FORMAT_02} 才有的")
     wanted = lines["source"]["steps"]
     steps = {step["key"]: step for step in source["steps"]}
     missing = [key for key in wanted if key not in steps]
@@ -76,7 +98,8 @@ def derive(lines: dict, source: dict) -> dict:
         dropped = [dep for dep in step["after"] if dep not in wanted]
         if dropped:
             raise ValueError(f"{step['key']} 的前置 {dropped} 不在 source.steps 里")
-    plan = {**source, "title": lines["title"], "event_text": lines["event_text"], "steps": kept}
+    extra = [dict(step) for step in lines.get("steps", [])]
+    plan = {**source, "title": lines["title"], "event_text": lines["event_text"], "steps": kept + extra}
     seed_eo.check_plan(plan)
     mission = lines["source"]["mission"]
     if steps.get(mission, {}).get("type") != "Mission" or mission not in wanted:
@@ -84,14 +107,16 @@ def derive(lines: dict, source: dict) -> dict:
     owners = [step["to"] for step in kept if step["do"] == "assign" and step["target"] == mission]
     if len(owners) != 1:
         raise ValueError("source.steps 里恰好有一步给这个 Mission 指派 Owner")
+    wanted = [*wanted, *(step["key"] for step in extra)]
+    steps.update({step["key"]: step for step in extra})
     owner, tasks, segments = owners[0], [], {}
     for item in lines["tasks"]:
         task = item["task"]
         step = steps.get(task, {})
         if task not in wanted or step.get("type") != "Task" or step["payload"].get("parent_ref") != f"@{mission}":
             raise ValueError(f"{task} 是列出的、挂在 {mission} 下的建 Task 步骤")
-        if task in tasks or not item["segments"]:
-            raise ValueError(f"{task} 只列一次，且至少划一段")
+        if task in tasks:
+            raise ValueError(f"{task} 只列一次")
         tasks.append(task)
         for segment in item["segments"]:
             key = segment["key"]
@@ -102,21 +127,23 @@ def derive(lines: dict, source: dict) -> dict:
                 raise ValueError(f"段 {key} 要有 title、text 与 responsible")
             segments[key] = {"task": task, "title": segment["title"], "text": segment["text"],
                              "responsible": segment["responsible"]}
-    shared = list(kept)
+    shared = kept + extra
     for item in lines["tasks"]:
         shared.append({"key": f"assign_{item['task']}", "by": owner, "do": "assign", "after": [item["task"]],
                        "target": item["task"], "to": item["responsible"]})
-    shared.append({"key": "execution_plan", "by": owner, "do": "revise", "after": [f"assign_{task}" for task in tasks],
-                   "target": mission, "payload": {"blocks": {"execution_plan": {"components": [
-                       {"id": item["task"], "type": "plan_item", "text": steps[item["task"]]["payload"]["title"],
-                        "refs": [f"@{item['task']}"], "attributes": {"responsible": item["responsible"]}}
-                       for item in lines["tasks"]]}}}})
+    if tasks:
+        shared.append({"key": "execution_plan", "by": owner, "do": "revise",
+                       "after": [f"assign_{task}" for task in tasks], "target": mission,
+                       "payload": {"blocks": {"execution_plan": {"components": [
+                           {"id": item["task"], "type": "plan_item", "text": steps[item["task"]]["payload"]["title"],
+                            "refs": [f"@{item['task']}"], "attributes": {"responsible": item["responsible"]}}
+                           for item in lines["tasks"]]}}}})
     return {"mission": mission, "owner": owner, "tasks": tasks, "segments": segments, "shared": shared,
-            "event_text": lines["event_text"]}
+            "event_text": lines["event_text"], "mission_status": mission_status(shared, mission)}
 
 
-def load(lines_path: Path = LINES_FILE) -> tuple[dict, str]:
-    """读 b_lines.json 与它指向的原计划，返回（派生结果，两份文件合在一起的内容哈希）。"""
+def load(lines_path: Path = SMOKE_LINES_FILE) -> tuple[dict, str]:
+    """读 lines 文件（默认冒烟的 b_smoke_lines.json）与它指向的原计划，返回（派生结果，两份文件合在一起的内容哈希）。"""
     lines_text = Path(lines_path).read_text(encoding="utf-8")
     lines = json.loads(lines_text)
     source_text = (ROOT / lines["source"]["plan"]).read_text(encoding="utf-8")
@@ -206,7 +233,7 @@ class Seeder:
                   flush=True)
 
 
-def seed(line: Line, out: Path, line_name: str, lines_path: Path = LINES_FILE) -> dict:
+def seed(line: Line, out: Path, line_name: str, lines_path: Path = SMOKE_LINES_FILE) -> dict:
     """播种一条线（共同播种加划段），可重跑；返回运行日志。"""
     derived, digest = load(lines_path)
     log = b_drive.load_log(out)
@@ -215,8 +242,9 @@ def seed(line: Line, out: Path, line_name: str, lines_path: Path = LINES_FILE) -
     if (log["line"], log["scope_id"]) != (line_name, line.scope_id):
         raise ValueError(f"{Path(out) / b_drive.RUN_FILE} 属于另一条线或另一个 scope")
     if log["lines_sha256"] != digest:
-        raise ValueError("b_lines.json 或原计划在上次播种之后改过；改了要新开 scope 重播")
-    log.update(mission=derived["mission"], tasks=derived["tasks"], segments=derived["segments"])
+        raise ValueError("lines 文件或原计划在上次播种之后改过（或换了 lines）；改了要新开 scope 重播")
+    log.update(mission=derived["mission"], tasks=derived["tasks"], segments=derived["segments"],
+               mission_status=derived["mission_status"])
     save = b_drive.saver(out, log)
     save()
     Seeder(line, log, save, derived).run()
@@ -228,8 +256,8 @@ def seed(line: Line, out: Path, line_name: str, lines_path: Path = LINES_FILE) -
 
 
 def check(line: Line, log: dict) -> list[str]:
-    """播种之后（驱动之前）读回核对，返回问题清单：Mission 已成立、Owner 与 Task 的责任人照计划、Mission 执行计划每个
-    Task 一条带责任人的计划条目；Task-only 线每段是 Task 计划块里带责任人的计划条目、scope 里没有 Activity；
+    """播种之后（驱动之前）读回核对，返回问题清单：Mission 的生命周期是播种里它的门推出的那个（冒烟是已成立）、Owner
+    与 Task 的责任人照计划、Mission 执行计划每个 Task 一条带责任人的计划条目；Task-only 线每段是 Task 计划块里带责任人的计划条目、scope 里没有 Activity；
     Task+Activity 线每段是 Task 下已指派的 Activity、Task 的计划块为空。"""
     who, problems = "ceo", []
     principal = {key: item["principal_id"] for key, item in line.ids["principals"].items()}
@@ -241,8 +269,9 @@ def check(line: Line, log: dict) -> list[str]:
         return {block["id"]: block for block in view["business"]["blocks"]}
 
     mission = line.view(log["objects"][log["mission"]]["object_id"], who)
-    if mission["records"]["lifecycle"]["status"] != "established":
-        problems.append(f"Mission 在 {mission['records']['lifecycle']['status']}，不是已成立")
+    expected = log.get("mission_status", "established")
+    if mission["records"]["lifecycle"]["status"] != expected:
+        problems.append(f"Mission 在 {mission['records']['lifecycle']['status']}，不是 {expected}")
     if responsible(mission) != [principal[log["seed"][f"assign_{log['mission']}"]["to"]]]:
         problems.append("Mission 的 Owner 与原计划的指派对不上")
     plan = {item["id"]: item for item in blocks(mission)["execution_plan"]["components"]}
@@ -346,7 +375,8 @@ def provision(h, source: Path, spec: dict, line_name: str, out: Path) -> dict:
     return ids
 
 
-def smoke(env_file: Path, private: Path, output: Path, script_path: Path = SMOKE_FILE) -> dict:
+def smoke(env_file: Path, private: Path, output: Path, script_path: Path = SMOKE_FILE,
+          lines_path: Path = SMOKE_LINES_FILE) -> dict:
     """隔离库上的一键冒烟：两条线各开一个 scope，播种、读回核对、按脚本驱动、取证，再算五项观测。
     输出 --output 下 <线>.json（运行日志，不含凭证）与 observations.json；两条线的 Mission 都关闭、核对无问题才算过。"""
     from acceptance.method_independent.harness import MethodHarness
@@ -364,7 +394,7 @@ def smoke(env_file: Path, private: Path, output: Path, script_path: Path = SMOKE
         for name, out in outs.items():
             provision(h, source, spec, name, out)
         _, url, _ = h.start_api(source)
-        summary = run_lines(url, outs, script)
+        summary = run_lines(url, outs, script, lines_path)
         logs = {name: b_drive.load_log(out) for name, out in outs.items()}
         for name, log in logs.items():
             public_json(output / f"{name}.json", strip_pending(log))
@@ -375,12 +405,12 @@ def smoke(env_file: Path, private: Path, output: Path, script_path: Path = SMOKE
         h.close()
 
 
-def run_lines(url: str, outs: dict, script: dict) -> dict:
+def run_lines(url: str, outs: dict, script: dict, lines_path: Path = SMOKE_LINES_FILE) -> dict:
     """两条线：播种、读回核对、驱动、取证，然后算观测。返回摘要。"""
     problems, closed = {}, {}
     for name, out in outs.items():
         line = Line(url, out)
-        log = seed(line, out, name)
+        log = seed(line, out, name, lines_path)
         problems[name] = check(line, log)
         b_drive.drive(line, out, script)
         log = b_drive.collect(line, out)
@@ -406,6 +436,8 @@ def main() -> None:
     run.add_argument("base_url")
     run.add_argument("out", type=Path)
     run.add_argument("--line", choices=b_drive.LINES, required=True)
+    run.add_argument("--lines", type=Path, default=SMOKE_LINES_FILE,
+                     help="播种内容：默认冒烟的 b_smoke_lines.json；试用回放用转写产物 b-lines.json")
     verify = sub.add_parser("check", help="播种之后读回核对一条线")
     verify.add_argument("base_url")
     verify.add_argument("out", type=Path)
@@ -414,10 +446,11 @@ def main() -> None:
     local.add_argument("--private", type=Path, required=True)
     local.add_argument("--output", type=Path, required=True)
     local.add_argument("--script", type=Path, default=SMOKE_FILE)
+    local.add_argument("--lines", type=Path, default=SMOKE_LINES_FILE)
     args = parser.parse_args()
     try:
         if args.command == "smoke":
-            summary = smoke(args.env_file, args.private, args.output, args.script)
+            summary = smoke(args.env_file, args.private, args.output, args.script, args.lines)
             print(json.dumps({key: summary[key] for key in ("passed", "missions_closed", "seed_problems",
                                                              "expressions", "conclusion")}, ensure_ascii=False))
             if not summary["passed"]:
@@ -425,7 +458,7 @@ def main() -> None:
             return
         line = Line(args.base_url, args.out)
         if args.command == "seed":
-            log = seed(line, args.out, args.line)
+            log = seed(line, args.out, args.line, args.lines)
         else:
             log = b_drive.load_log(args.out)
             if log is None:

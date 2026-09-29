@@ -144,31 +144,41 @@ RUN=$(date +%Y%m%d-%H%M%S)
 
 ## 对照实验 B：Task-only 与 Task+Activity
 
-票 #66。同一场真实 Mission（E&O 十月起点的「天枢 × 本体 0.2 试用」，`b_source-2026-10.json` 的 `mission_trial`）分 Task-only 与 Task+Activity 两条线执行到关闭，对照 Activity 是否需要独立的指派、执行、重试、验收与管理。设计、执行脚本格式、五项观测的记录来源与判断口径、结论规则、试用期间的做法与命令见 `docs/world-v02-experiment-b.md`。冒烟用的是换任务卡之前的合成源数据；试用回放时对象改为真实的任务卡 Mission，届时再改 `b_lines.json`。
+票 #66、#75。同一场真实 Mission 分 Task-only 与 Task+Activity 两条线执行到关闭，对照 Activity 是否需要独立的指派、执行、重试、验收与管理。试用回放的对象是 E&O 十月起点（`deploy/world-02/seed-eo-2026-10.json`）里的 `mission_context`（Owner 是 E&O DRI 本人）：10/16 联调验收之后把真实 scope 里它的记录转写成执行脚本，E&O DRI 审过再回放。冒烟仍用换任务卡之前的合成源数据（`b_source-2026-10.json` 的 `mission_trial`）。设计、执行脚本格式、五项观测的记录来源与判断口径、结论规则、转写规则与命令见 `docs/world-v02-experiment-b.md`（转写在第 8 节）。
 
 | 文件 | 内容 |
 |-|-|
 | `b_source-2026-10.json` | 源数据：E&O 十月起点换任务卡之前的原计划，原样另存（#73）；实例用的 `deploy/world-02/seed-eo-2026-10.json` 已改为按天枢个人任务重播 |
-| `b_lines.json` | 两条线的播种：原计划里要的步骤（mission_trial 到 Company 的主干）、三个 Task 的责任人、每个 Task 下「谁做哪一段」的初始划分 |
-| `b_spec.json` | 两条线各自 scope 的名单（角色名，`deploy/world-02/provision.py` 的格式） |
-| `b_smoke.json` | 预置的冒烟执行脚本：两条线都推到 Mission 关闭 |
+| `b_smoke_lines.json` | 冒烟的播种（lines 0.1，`b_seed` 的默认）：原计划里要的步骤（mission_trial 到 Company 的主干）、三个 Task 的责任人、每个 Task 下「谁做哪一段」的初始划分 |
+| `b_lines.json` | 试用回放的主干（lines 0.2）：十月起点里 `mission_context` 到 Company 的 10 步；门、Task 与段由转写填进转写产物 `b-lines.json` |
+| `b_spec.json` | 两条线各自 scope 的名单（角色名，`deploy/world-02/provision.py` 的格式；eo-dri 另持 OWNER） |
+| `b_smoke.json` | 预置的冒烟执行脚本（0.1）：两条线都推到 Mission 关闭 |
 | `b_http.py` | HTTP 传输：一条线就是一个目录（`ids.json` 与 `<键>.token`），prepare 再 commit，中断后原样重发；只用标准库 |
 | `b_seed.py` | 播种（共同播种加划段）、读回核对；隔离库上的一键冒烟（owner SQL 供给、控制面 CLI 装 0.2、起真 API） |
 | `b_drive.py` | 执行脚本的校验、驱动器（按各线的写法落下，记下动作、回执、事件与表达结果）、取证 |
 | `b_observe.py` | 五项观测与结论（纯函数，输入是两条线的运行日志） |
+| `b_transcribe.py` | 试用回放的转写：只读（GET）取回真实 scope 里一场 Mission 的记录，按私有的对照表把主体换成角色键，写出转写产物 `b-lines.json`（lines 0.2）、`b-script.json`（脚本 0.2）与审阅稿 `b-review.md`；任一产物里出现显示名就报错、不写 |
+| `b_rehearse.py` | 隔离库上的试用回放预演：仿一个真实 scope、按天枢的写法造一段试用记录，转写，再两条线回放 |
 
 ```sh
 # 隔离库上的冒烟（建库同 0.2 验收，STAMP 为 method_v05 database create/upgrade 用的那次）
 .venv/bin/python -m experiments.world_v02.b_seed smoke --env-file .runtime-acceptance/world-v02-db-$STAMP/env.json \
   --private .runtime-acceptance/world-v02-b-$RUN --output artifacts/runtime-acceptance/world-v02-b-$RUN
-# 已供给的实例 scope：播种、驱动、取证、观测（每条线一个目录，凭证只从文件读）
-python3 -m experiments.world_v02.b_seed seed $U $B/task-only --line task_only
-python3 -m experiments.world_v02.b_drive drive $U $B/task-only [--script <脚本>]
+# 隔离库上的试用回放预演：仿真实 scope → 转写 → 两条线播种、驱动、取证、观测
+.venv/bin/python -m experiments.world_v02.b_rehearse --env-file .runtime-acceptance/world-v02-db-$STAMP/env.json \
+  --private .runtime-acceptance/world-v02-b-rehearse-$RUN --output artifacts/runtime-acceptance/world-v02-b-rehearse-$RUN
+# 试用回放的转写：只读取回真实 scope 里这场 Mission 的记录（凭证与对照表都私有），产物交 E&O DRI 审
+python3 -m experiments.world_v02.b_transcribe transcribe $U --token-file <凭证文件> --mission <object_id> \
+  --principals $B/principals.json --private $B/read --output $B/transcript
+python3 -m experiments.world_v02.b_transcribe write $B/read/bundle.json --principals $B/principals.json --output $B/transcript
+# 已供给的实例 scope：播种、驱动、取证、观测（每条线一个目录，凭证只从文件读；回放带 --lines 与 --script）
+python3 -m experiments.world_v02.b_seed seed $U $B/task-only --line task_only [--lines $B/transcript/b-lines.json]
+python3 -m experiments.world_v02.b_drive drive $U $B/task-only [--script $B/transcript/b-script.json]
 python3 -m experiments.world_v02.b_drive collect $U $B/task-only
 python3 -m experiments.world_v02.b_observe $B/task-only/b-run.json $B/task-activity/b-run.json --output $B/observations.json
 ```
 
-无库测试是 `tests/test_world_v02_experiment_b.py`（录好的运行日志在 `tests/fixtures/world_v02_experiment_b/`），独立验收是 `acceptance/world_v02/` 的场景 `experiment_b`。输出目录与 `--private` 目录是本地产物，不入库。
+无库测试是 `tests/test_world_v02_experiment_b.py`（录好的运行日志在 `tests/fixtures/world_v02_experiment_b/`）与 `tests/test_world_v02_transcribe.py`（录好的读取原样在 `tests/fixtures/world_v02_transcribe/`，是预演的仿真实 scope 取回的），独立验收是 `acceptance/world_v02/` 的场景 `experiment_b`。输出目录、`--private` 目录、对照表与转写产物是本地产物，不入库。
 
 ## 四种取法对照（含 RAG）
 

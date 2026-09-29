@@ -5,7 +5,7 @@
 experiments/world_v02/b_spec.json 的角色名单，owner SQL 播种身份与凭证，控制面 CLI 装 0.2），用实验本身的代码
 （b_seed、b_drive、b_observe，打本次起的 API）播种、读回核对、驱动、取证与算观测，与实例上跑的是同一段代码。
 
-- 播种：两条线读回都照 b_lines.json（Mission 已成立、Owner 与 Task 责任人照计划、执行计划每个 Task 一条带责任人的
+- 播种：两条线读回都照冒烟的 b_smoke_lines.json（b_seed 的默认；Mission 已成立、Owner 与 Task 责任人照计划、执行计划每个 Task 一条带责任人的
   计划条目；Task-only 线每段是计划条目、scope 里没有 Activity；Task+Activity 线每段是已指派的 Activity），Task 之上的
   对象在两条线上同形。
 - 驱动：两条线的 Mission 都已关闭（读投影 records.lifecycle），Task 都已关闭，Activity 都已关闭。

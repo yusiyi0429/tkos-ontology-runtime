@@ -8,11 +8,12 @@
 <目录> 是一条线的 scope（ids.json、每个主体的 <键>.token，先经 b_seed 播种）；凭证只从文件读，不打印。重跑从运行日志
 接着做：记过的步骤不再做，中途断掉的那一步用同样的幂等键原样重发。
 
-执行脚本（format tkos-world-02-experiment-b-script/0.1）的步骤按出现顺序从 1 编号，每步：
+执行脚本（format tkos-world-02-experiment-b-script/0.1 或 0.2）的步骤按出现顺序从 1 编号，每步：
 - do：plan（划出一段并定责任人）、assign（指派）、start、deliver、accept、reject、reopen（生命周期）、progress（在某一段
-  上写进展）、refresh（状态刷新）、raise_issue、route_issue、own_issue、dispose_issue（问题流转）；
+  上写进展）、refresh（状态刷新）、raise_issue、route_issue、own_issue、dispose_issue（问题流转）；0.2 另有 cancel（取消，
+  生命周期）与 return_issue（退回形成，问题流转），供试用回放的转写用；
 - by：主体键（b_spec.json 的角色键）；
-- 目标四选一：segment（段键）、task（Task 的步骤键）、mission（true）、issue（问题键，路由、承接、处置用）；
+- 目标四选一：segment（段键）、task（Task 的步骤键）、mission（true）、issue（问题键，路由、承接、处置、退回形成用）；
 - 按 do 另带：to（plan、assign、route_issue）、task 与 title（plan）、text（正文：进展、状态、问题、理由；reject、
   progress、refresh、dispose_issue 必带）、question（raise_issue 的核心判断问题）、disposition（dispose_issue）；
 - 可选：as_of（progress、refresh、raise_issue 的时点，回放真实记录时给）、declaration（Agent 写入声明的 trigger 与
@@ -42,6 +43,8 @@ from .b_http import Line, TransportError, submit, utc_text
 
 FOLDER = Path(__file__).resolve().parent
 SCRIPT_FORMAT = "tkos-world-02-experiment-b-script/0.1"
+SCRIPT_FORMAT_02 = "tkos-world-02-experiment-b-script/0.2"  # 加 cancel 与 return_issue（转写试用记录用）
+VERBS_02 = ("cancel", "return_issue")
 RUN_FORMAT = "tkos-world-02-experiment-b-run/0.1"
 RUN_FILE = "b-run.json"
 V02 = "tkos.world/0.2"
@@ -50,12 +53,13 @@ LINE_NAMES = {"task_only": "Task-only", "task_activity": "Task+Activity"}
 KEY_PREFIX = "world-02-b"
 REASON = "world-02 对照实验 B"
 LIFECYCLE = {"start": "world_start", "deliver": "world_deliver", "accept": "world_accept", "reject": "world_reject",
-             "reopen": "world_reopen"}
+             "reopen": "world_reopen", "cancel": "world_cancel"}
 VERB_NAMES = {"plan": "划段", "assign": "指派", "start": "开始", "deliver": "交付", "accept": "验收通过", "reject": "退回",
-              "reopen": "重开", "progress": "写进展", "refresh": "状态刷新", "raise_issue": "提出问题",
-              "route_issue": "路由问题", "own_issue": "承接问题", "dispose_issue": "处置问题"}
+              "reopen": "重开", "cancel": "取消", "progress": "写进展", "refresh": "状态刷新", "raise_issue": "提出问题",
+              "route_issue": "路由问题", "own_issue": "承接问题", "dispose_issue": "处置问题",
+              "return_issue": "退回形成"}
 SNAPSHOTS = ("progress", "refresh", "raise_issue")
-ISSUE_STEPS = ("route_issue", "own_issue", "dispose_issue")
+ISSUE_STEPS = ("route_issue", "own_issue", "dispose_issue", "return_issue")
 TARGET_KINDS = ("segment", "task", "mission", "issue")
 # do → 允许的目标；必带字段（目标与 by 之外）。
 TARGETS = {"plan": {"segment"}, "assign": {"segment", "task"},
@@ -84,8 +88,8 @@ def target_of(step: dict) -> tuple[str, str | None]:
 def check_script(script: dict, segments: dict, tasks: list[str], principals: set[str] | None = None) -> None:
     """脚本不成立就抛 ValueError，列出全部问题。segments 是播种划好的段（键 → {task, …}），tasks 是 Task 的步骤键；
     脚本里的 plan 可以再划新段。principals 给出时核对 by、to 与 acceptor 都是 ids.json 里的主体键。"""
-    if not isinstance(script, dict) or script.get("format") != SCRIPT_FORMAT:
-        raise ValueError(f"脚本的 format 是 {SCRIPT_FORMAT}")
+    if not isinstance(script, dict) or script.get("format") not in (SCRIPT_FORMAT, SCRIPT_FORMAT_02):
+        raise ValueError(f"脚本的 format 是 {SCRIPT_FORMAT} 或 {SCRIPT_FORMAT_02}")
     problems = []
     if not isinstance(script.get("id"), str) or not re.fullmatch(r"[a-z0-9][a-z0-9_-]{0,62}", script["id"]):
         problems.append("id 是小写字母、数字、下划线与连字符（它进运行日志）")
@@ -100,6 +104,9 @@ def check_script(script: dict, segments: dict, tasks: list[str], principals: set
             problems.append(f"{where}：do 是 {'、'.join(TARGETS)} 之一")
             continue
         do = step["do"]
+        if do in VERBS_02 and script["format"] != SCRIPT_FORMAT_02:
+            problems.append(f"{where}：{do} 是 {SCRIPT_FORMAT_02} 才有的动词")
+            continue
         try:
             kind, key = target_of(step)
         except ValueError as exc:
@@ -404,7 +411,7 @@ class Driver:
         return record
 
     def on_issue(self, record, step):
-        """路由、承接、处置：两条线写同一个动作，问题引用取这条线上提出它的那一步。"""
+        """路由、承接、处置、退回形成：两条线写同一个动作，问题引用取这条线上最近提出它的那一步。"""
         record["writing"] = "issue"
         raised = [item for item in self.log["steps"] if item["do"] == "raise_issue"
                   and item["target"].get("issue") == step["issue"] and item["expression"] != "rejected"]
@@ -413,7 +420,8 @@ class Driver:
             return
         extra = {"route_issue": lambda: {"to_principal_id": self.line.principal(step["to"])},
                  "own_issue": lambda: {},
-                 "dispose_issue": lambda: {"disposition": step["disposition"], "content": {"text": step["text"]}}}
+                 "dispose_issue": lambda: {"disposition": step["disposition"], "content": {"text": step["text"]}},
+                 "return_issue": lambda: {"content": {"text": step["text"]}} if "text" in step else {}}
         self.issue_action(record, step, "world_" + step["do"], raised[-1]["issue_ref"], raised[-1]["issue_primary_id"],
                           extra[step["do"]]())
 

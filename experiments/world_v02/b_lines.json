@@ -1,29 +1,14 @@
 {
-  "format": "tkos-world-02-experiment-b-lines/0.1",
-  "title": "对照实验 B：天枢 × 本体 0.2 试用",
+  "format": "tkos-world-02-experiment-b-lines/0.2",
+  "title": "对照实验 B：可信 Context / Memory 与真实 Agent 读写闭环（试用回放）",
   "source": {
-    "plan": "experiments/world_v02/b_source-2026-10.json",
-    "mission": "mission_trial",
+    "plan": "deploy/world-02/seed-eo-2026-10.json",
+    "mission": "mission_context",
     "steps": ["company", "strategy", "unit_eo", "company_goal", "eo_goal", "confirm_company_goal", "confirm_eo_goal",
-              "october_goal", "commit_october_goal", "confirm_october_goal", "mission_trial", "assign_mission_trial",
-              "commit_mission_trial", "confirm_mission_trial", "task_trial_integration", "task_trial_week",
-              "task_trial_acceptance"]
+              "october_goal", "mission_context", "assign_mission_context"]
   },
   "event_text": "对照实验 B 播种",
-  "tasks": [
-    {"task": "task_trial_integration", "responsible": "eo-owner", "segments": [
-      {"key": "integration", "title": "联调", "responsible": "eo-ic",
-       "text": "天枢与本体 0.2 联调：按接口清单逐项跑通。"},
-      {"key": "delegation_setup", "title": "委托登记", "responsible": "eo-owner",
-       "text": "CEO、E&O DRI 与 Mission Owner 各自给天枢登记委托（门、指派、生命周期）。"}]},
-    {"task": "task_trial_week", "responsible": "eo-ic", "segments": [
-      {"key": "weekly_snapshot", "title": "每周快照", "responsible": "eo-ic",
-       "text": "试用周每张任务卡的每周快照经本体记录。"},
-      {"key": "issue_flow", "title": "问题流转", "responsible": "eo-ic",
-       "text": "试用中提出的问题经提出、路由、承接与处置流转。"}]},
-    {"task": "task_trial_acceptance", "responsible": "eo-owner", "segments": [
-      {"key": "acceptance_run", "title": "联调验收", "responsible": "eo-owner",
-       "text": "10 月 16 日按验收条件逐项核对联调结果，记下结论。"}]}
-  ],
-  "notes": "两条线的共同播种取 experiments/world_v02/b_source-2026-10.json 里「天枢 × 本体 0.2 试用」（mission_trial）到公司的主干：steps 按原计划的正文与顺序播，只留这条主干，另外两个 Mission、它们的 Task 与三条委托不带。之后两条线同样：Mission Owner 把三个 Task 指派给 tasks[].responsible，并把 Mission 的执行计划写成每个 Task 一条带责任人的计划条目。segments 是每个 Task 下「谁做哪一段」的初始划分，按 Task 的定义拆，是实验用的提议，试用期间以转写的真实记录为准：Task-only 线写成该 Task 计划块里带责任人的计划条目，Task+Activity 线写成 Task 下的 Activity 并指派。身份一律是角色键（b_spec.json）。"
+  "steps": [],
+  "tasks": [],
+  "notes": "试用回放的主干：取 E&O 十月起点（deploy/world-02/seed-eo-2026-10.json，按天枢个人任务重播的那份）里 mission_context 到公司的主干，正文与顺序照原计划；这条 Mission 的 Owner 就是 eo-dri。另外两个 Mission 与三条委托不带。门（周期目标与这条 Mission 的承诺、确认）、Task 与段不预设：由转写（b_transcribe）从真实 scope 的记录得出，写进转写产物 b-lines.json 的 steps 与 tasks（同一格式，主干原样照抄），本文件只是它的主干。"
 }

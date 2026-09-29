@@ -1,6 +1,7 @@
-"""对照实验 B（票 #66）的无库测试：两条线的共同播种取自 E&O 十月起点的 mission_trial、名单只有角色名、执行脚本的格式、
-驱动器按线的写法与三种表达结果（假 HTTP），以及五项观测的统计——用录好的一次冒烟运行日志（tests/fixtures/
-world_v02_experiment_b/，隔离库上经真 API 跑出）核对每项观测的发生与未发生、三种表达结果与结论规则。"""
+"""对照实验 B（票 #66、#75）的无库测试：冒烟的共同播种取自换任务卡之前的 mission_trial（b_smoke_lines.json），试用回放
+的主干取自十月起点的 mission_context（b_lines.json），转写产物（lines 0.2）加门与 Task；名单只有角色名、执行脚本的格式
+（0.2 加取消与退回形成）、驱动器按线的写法与三种表达结果（假 HTTP），以及五项观测的统计——用录好的一次冒烟运行日志
+（tests/fixtures/world_v02_experiment_b/，隔离库上经真 API 跑出）核对每项观测的发生与未发生、三种表达结果与结论规则。"""
 from __future__ import annotations
 
 from copy import deepcopy
@@ -17,7 +18,9 @@ REGISTRY = json.loads((ROOT / "docs/contracts/world-registry-0.2.json").read_tex
 SOURCE = json.loads((ROOT / "experiments/world_v02/b_source-2026-10.json").read_text(encoding="utf-8"))
 SPEC = json.loads(b_seed.SPEC_FILE.read_text(encoding="utf-8"))
 SMOKE = json.loads(b_seed.SMOKE_FILE.read_text(encoding="utf-8"))
-DERIVED, _ = b_seed.load()
+DERIVED, _ = b_seed.load(b_seed.SMOKE_LINES_FILE)
+EO_PLAN = json.loads((ROOT / "deploy/world-02/seed-eo-2026-10.json").read_text(encoding="utf-8"))
+SPINE = json.loads(b_seed.LINES_FILE.read_text(encoding="utf-8"))
 
 
 def recorded():
@@ -32,7 +35,7 @@ def test_the_shared_seed_is_the_trial_mission_chain_of_the_eo_october_plan():
     kept = [key for key in source if key in shared]
     # 原计划的正文与顺序原样照搬，只留 mission_trial 到 Company 的主干
     assert all(shared[key] == source[key] for key in kept)
-    assert kept == [key for key in source if key in json.loads(b_seed.LINES_FILE.read_text())["source"]["steps"]]
+    assert kept == [key for key in source if key in json.loads(b_seed.SMOKE_LINES_FILE.read_text())["source"]["steps"]]
     assert DERIVED["mission"] == "mission_trial" and source["mission_trial"]["payload"]["title"] == "天枢 × 本体 0.2 试用"
     assert DERIVED["tasks"] == ["task_trial_integration", "task_trial_week", "task_trial_acceptance"]
     assert not {"mission_experiments", "mission_lock", "task_experiment_b", "delegate_ceo", "delegate_dri",
@@ -46,7 +49,7 @@ def test_the_shared_seed_is_the_trial_mission_chain_of_the_eo_october_plan():
 
 
 def test_the_lines_do_not_derive_from_a_broken_plan():
-    lines = json.loads(b_seed.LINES_FILE.read_text(encoding="utf-8"))
+    lines = json.loads(b_seed.SMOKE_LINES_FILE.read_text(encoding="utf-8"))
     broken = deepcopy(lines)
     broken["source"]["steps"].remove("confirm_mission_trial")
     with pytest.raises(ValueError, match="前置"):
@@ -59,6 +62,92 @@ def test_the_lines_do_not_derive_from_a_broken_plan():
     broken["tasks"][0]["task"] = "task_experiment_b"
     with pytest.raises(ValueError, match="task_experiment_b"):
         b_seed.derive(broken, SOURCE)
+
+
+# ------------------------------------------------------------------ replay: the spine and transcribed lines (lines 0.2)
+def replay_lines(steps=(), tasks=()):
+    """试用回放的 lines：主干（b_lines.json）加转写产物的 steps 与 tasks。"""
+    return {**deepcopy(SPINE), "steps": deepcopy(list(steps)), "tasks": deepcopy(list(tasks))}
+
+
+GATES = [
+    {"key": "gate_1", "by": "eo-dri", "do": "gate", "after": ["assign_mission_context"],
+     "action": "world_commit_period_goal", "target": "october_goal"},
+    {"key": "gate_2", "by": "ceo", "do": "gate", "after": ["gate_1"], "action": "world_confirm_period_goal",
+     "target": "october_goal", "outcome": "accepted"},
+    {"key": "gate_3", "by": "eo-dri", "do": "gate", "after": ["gate_2"], "action": "world_commit_mission",
+     "target": "mission_context"},
+    {"key": "gate_4", "by": "eo-dri", "do": "gate", "after": ["gate_3"], "action": "world_confirm_mission",
+     "target": "mission_context", "outcome": "returned"},
+    {"key": "gate_5", "by": "eo-dri", "do": "gate", "after": ["gate_4"], "action": "world_commit_mission",
+     "target": "mission_context"},
+    {"key": "gate_6", "by": "eo-dri", "do": "gate", "after": ["gate_5"], "action": "world_confirm_mission",
+     "target": "mission_context", "outcome": "accepted"},
+]
+TASKS = [
+    {"key": "task_1", "by": "eo-dri", "do": "create", "after": ["gate_6"], "type": "Task", "domain": "eo",
+     "payload": {"title": "接入改动", "parent_ref": "@mission_context", "blocks": {"definition": {"text": "接入 0.2"}}}},
+    {"key": "task_2", "by": "eo-dri", "do": "create", "after": ["task_1"], "type": "Task", "domain": "eo",
+     "payload": {"title": "联调验收", "parent_ref": "@mission_context", "blocks": {}}},
+]
+LINE_TASKS = [
+    {"task": "task_1", "responsible": "eo-owner", "segments": [
+        {"key": "task_1.s1", "title": "先做一段", "text": "先做一段", "responsible": "exec-agent"}]},
+    {"task": "task_2", "responsible": "eo-dri", "segments": []},
+]
+
+
+def test_the_replay_spine_is_the_mission_context_chain_of_the_october_start():
+    derived = b_seed.derive(replay_lines(), EO_PLAN)
+    source = {step["key"]: step for step in EO_PLAN["steps"]}
+    assert derived["mission"] == "mission_context" and derived["owner"] == "eo-dri"
+    assert source["mission_context"]["payload"]["title"] == "可信 Context / Memory 与真实 Agent 读写闭环"
+    # 正文与顺序照原计划，只留 mission_context 到 Company 的主干：另外两个 Mission 与三条委托不带
+    assert derived["shared"] == [source[key] for key in source if key in SPINE["source"]["steps"]]
+    assert [step["key"] for step in derived["shared"]][-2:] == ["mission_context", "assign_mission_context"]
+    assert source["assign_mission_context"]["to"] == "eo-dri"
+    assert derived["tasks"] == [] and derived["segments"] == {} and derived["mission_status"] == "draft"
+
+
+def test_transcribed_lines_seed_the_gates_and_the_tasks_after_the_spine():
+    derived = b_seed.derive(replay_lines(GATES + TASKS, LINE_TASKS), EO_PLAN)
+    keys = [step["key"] for step in derived["shared"]]
+    assert keys[:10] == SPINE["source"]["steps"]
+    assert keys[10:] == ["gate_1", "gate_2", "gate_3", "gate_4", "gate_5", "gate_6", "task_1", "task_2",
+                         "assign_task_1", "assign_task_2", "execution_plan"]
+    shared = {step["key"]: step for step in derived["shared"]}
+    # 首次指派由 Mission Owner（这条 Mission 是 eo-dri）记；执行计划每个 Task 一条带责任人的计划条目
+    assert [(shared[f"assign_{task}"]["by"], shared[f"assign_{task}"]["to"]) for task in ("task_1", "task_2")] == [
+        ("eo-dri", "eo-owner"), ("eo-dri", "eo-dri")]
+    plan = shared["execution_plan"]["payload"]["blocks"]["execution_plan"]["components"]
+    assert [(item["id"], item["text"], item["attributes"]["responsible"]) for item in plan] == [
+        ("task_1", "接入改动", "eo-owner"), ("task_2", "联调验收", "eo-dri")]
+    # 没有段的 Task 不划段
+    assert derived["tasks"] == ["task_1", "task_2"] and list(derived["segments"]) == ["task_1.s1"]
+    steps, keys = b_seed.plan_steps(derived)
+    assert keys == ["plan:task_1.s1"] and steps[0]["by"] == "eo-owner" and steps[0]["to"] == "exec-agent"
+    assert derived["mission_status"] == "established"
+
+
+@pytest.mark.parametrize("gates,status", [
+    ([], "draft"), (GATES[:2], "draft"), (GATES[:3], "committed"), (GATES[:4], "draft"), (GATES[:5], "committed"),
+    (GATES, "established")])
+def test_the_mission_reads_back_as_its_seeded_gates_leave_it(gates, status):
+    assert b_seed.derive(replay_lines(gates), EO_PLAN)["mission_status"] == status
+
+
+def test_the_smoke_lines_still_leave_the_mission_established():
+    assert DERIVED["mission_status"] == "established"
+
+
+def test_transcribed_lines_that_do_not_fit_the_spine_are_refused():
+    broken = replay_lines([{**GATES[0], "after": []}])
+    with pytest.raises(ValueError, match="须是它前置里建对象的步骤"):
+        b_seed.derive(broken, EO_PLAN)
+    with pytest.raises(ValueError, match="task_9"):
+        b_seed.derive(replay_lines(GATES + TASKS, [{"task": "task_9", "responsible": "eo-dri", "segments": []}]), EO_PLAN)
+    with pytest.raises(ValueError, match="steps"):
+        b_seed.derive({**json.loads(b_seed.SMOKE_LINES_FILE.read_text()), "steps": GATES}, SOURCE)
 
 
 def test_the_spec_has_only_role_names_and_passes_provision():
@@ -93,7 +182,8 @@ def test_the_smoke_script_is_valid_and_splits_the_tasks_as_planned():
     assert b_drive.segment_counts(table) == {"task_trial_integration": 2, "task_trial_week": 2,
                                              "task_trial_acceptance": 1}
     dos = {step["do"] for step in SMOKE["steps"]}
-    assert dos == set(b_drive.TARGETS) - {"plan"}
+    assert SMOKE["format"] == "tkos-world-02-experiment-b-script/0.1"
+    assert dos == set(b_drive.TARGETS) - {"plan"} - {"cancel", "return_issue"}  # 后两个是脚本 0.2 才有的动词
     assert SMOKE["steps"][-1] == {"do": "accept", "by": "eo-dri", "mission": True}
     assert any(step["by"] == "exec-agent" and step["do"] == "progress" for step in SMOKE["steps"])
 
@@ -115,6 +205,25 @@ def test_a_broken_script_step_is_named(step, message):
     script = {**SMOKE, "steps": [step]}
     with pytest.raises(ValueError, match=message):
         b_drive.check_script(script, DERIVED["segments"], DERIVED["tasks"], set(SPEC["principals"]))
+
+
+SCRIPT_02 = "tkos-world-02-experiment-b-script/0.2"
+RAISE = {"do": "raise_issue", "by": "eo-coagent", "segment": "issue_flow", "issue": "scope", "question": "覆盖公司域？"}
+NEW_VERBS = [{"do": "cancel", "by": "eo-owner", "task": "task_trial_week", "text": "不做了"},
+             {"do": "cancel", "by": "eo-ic", "segment": "integration"},
+             RAISE, {"do": "route_issue", "by": "eo-coagent", "issue": "scope", "to": "eo-owner"},
+             {"do": "return_issue", "by": "eo-owner", "issue": "scope", "text": "核心问题要先补齐"}]
+
+
+def test_script_0_2_adds_cancel_and_return_issue_and_0_1_does_not_have_them():
+    b_drive.check_script({**SMOKE, "format": SCRIPT_02, "steps": NEW_VERBS}, DERIVED["segments"], DERIVED["tasks"],
+                         set(SPEC["principals"]))
+    b_drive.check_script({**SMOKE, "format": SCRIPT_02}, DERIVED["segments"], DERIVED["tasks"], set(SPEC["principals"]))
+    with pytest.raises(ValueError, match="0.2"):
+        b_drive.check_script({**SMOKE, "steps": NEW_VERBS}, DERIVED["segments"], DERIVED["tasks"], set(SPEC["principals"]))
+    with pytest.raises(ValueError, match="还没提出"):
+        b_drive.check_script({**SMOKE, "format": SCRIPT_02, "steps": [NEW_VERBS[-1]]}, DERIVED["segments"],
+                             DERIVED["tasks"], set(SPEC["principals"]))
 
 
 # ------------------------------------------------------------------ driver: the writing on each line (fake HTTP)
@@ -263,6 +372,23 @@ def test_an_issue_is_raised_on_the_lines_subject_and_routed_by_its_reference(fak
         owned = run(drv, log, {"do": "own_issue", "by": "eo-owner", "issue": "scope"}, "3")
         assert "declaration" not in fake[0][-1][1]["params"] and owned["expression"] == "native"
         fake[0].clear()
+
+
+def test_cancel_is_a_lifecycle_step_and_return_issue_follows_the_raised_issue(fake):
+    drv, log = driver("task_activity")
+    cancelled = run(drv, log, NEW_VERBS[0], "1")
+    assert actions(cancelled) == [("primary", "world_cancel", "task_trial_week", True)]
+    assert fake[0][-1][1]["params"] == {"content": {"text": "不做了"}} and cancelled["expression"] == "native"
+    raised = run(drv, log, RAISE, "2")
+    run(drv, log, NEW_VERBS[3], "3")
+    # 人记的退回形成不带写入声明；Agent 作为路由者退回要带
+    returned = run(drv, log, NEW_VERBS[4], "4")
+    assert actions(returned) == [("primary", "world_return_issue", "act-issue_flow", True)]
+    assert fake[0][-1][1]["params"] == {"issue_ref": raised["issue_ref"], "content": {"text": "核心问题要先补齐"}}
+    run(drv, log, {"do": "return_issue", "by": "eo-coagent", "issue": "scope"}, "5")
+    params = fake[0][-1][1]["params"]
+    assert params["issue_ref"] == raised["issue_ref"] and params["declaration"]["scene"] == "act-issue_flow@1"
+    assert "content" not in params
 
 
 def test_a_step_on_an_issue_that_was_not_raised_on_this_line_is_rejected_without_a_request(fake):

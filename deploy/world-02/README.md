@@ -6,7 +6,7 @@
 
 下文 `C=<短提交>`（构建提交的前 7 位，本机 `C=$(git rev-parse origin/world/0.2 | cut -c1-7)`）、`APP=/srv/tokenhub/apps/tkos-world-02`、`SRC=$APP/releases/world-02-$C`（源码）、`LAB=$APP/world-02`（env 与输出）、`B=world-02-$C-amd64`（构建产物目录名）。
 
-本目录的文件：`build_images.py`（本机构建两个镜像并打包）、`world-02.env.example`（env 模板）、`spec.example.json`（冒烟 scope 的域、主体与角色）、`spec.eo.example.json`（实验 scope 的名单，第 11 节）、`provision.py`（建 scope、域、主体、角色并生成 0.2 策略文件）、`provision-and-install.sh`（第 4–5 步整段，每个 scope 跑一遍，可重跑）、`smoke.py`（第 7 步：实验 scope 只探活，冒烟 scope 跑整条链，可重跑）、`seed-eo-2026-10.json` 与 `seed_eo.py`（第 11 节：实验 scope 的 E&O 十月起点，按人分段播种）、`nginx/world-02.conf`。
+本目录的文件：`build_images.py`（本机构建两个镜像并打包）、`world-02.env.example`（env 模板）、`spec.example.json`（冒烟 scope 的域、主体与角色）、`spec.eo.example.json`（实验 scope 的名单，第 11 节）、`provision.py`（建 scope、域、主体、角色并生成 0.2 策略文件）、`provision-and-install.sh`（第 4–5 步整段，每个 scope 跑一遍，可重跑）、`smoke.py`（第 7 步：实验 scope 只探活，冒烟 scope 跑整条链，可重跑）、`examples.py`（第 7.5 节：在冒烟 scope 上实跑、生成给天枢的请求与返回示例）、`seed-eo-2026-10.json` 与 `seed_eo.py`（第 11 节：实验 scope 的 E&O 十月起点，按人分段播种）、`nginx/world-02.conf`。
 
 ## 与 world-lab 的隔离
 
@@ -141,6 +141,26 @@ python3 $SRC/deploy/world-02/smoke.py http://127.0.0.1:8050 $LAB/out-smoke      
 建好的 id 记在 `out-smoke/smoke-world-02.json`：骨架在 `skeleton`（一个 scope 只有一个 Company、一个域只有一个责任单元），重跑沿用；每次的对象在 `runs`。骨架用确定的幂等键建，即使这个文件丢了，重跑也会拿回同一套骨架（前提是骨架没被改过）。冒烟 scope 里的对象随时可以连同实验 scope 一起按第 9 节清掉。
 
 `--mcp-cli`：链跑完后再以执行 Agent 的凭证、`TKOS_WORLD_CONTRACT_VERSION=tkos.world/0.2` 走命令行与 MCP：`tkos-world` 读 Activity、取上下文、`act world_record_event` 写一条外部事件；经 stdio 起 `tkos-world-mcp`，工具清单是 0.2 Agent 面的十三个（五读八写，#63 加了列对象，#61 加了提出问题、路由问题、退回形成），读 Activity、写一条外部事件（做法同 `acceptance/world_v02/agent_face.py`），运行日志不含凭证；两条事件经 HTTP 读回，记录者是执行 Agent。它要 `tkos-world`、`tkos-world-mcp` 与 MCP 客户端，主机上没有，在本机仓库检出里跑：`uv run python deploy/world-02/smoke.py https://world-02.tokenkingos.com <out-smoke> --mcp-cli`，`<out-smoke>` 是第 10 节归档里冒烟 scope 的那份（`ids.json`、凭证与 `smoke-world-02.json`）。
+
+## 7.5 给天枢的实测示例
+
+`examples.py` 在冒烟 scope 上按天枢的接入顺序真打一遍接口，生成 `docs/world-v02-tianshu-examples.md`（#72）。它只用标准库，同 `smoke.py --mcp-cli` 一样在本机仓库检出里经域名跑，凭证目录用第 10 节归档里冒烟 scope 的那份。先按第 7 节跑过完整冒烟，骨架就已经在了：
+
+```bash
+git clone https://github.com/TokenkingOS/tkos-secrets.git /tmp/tkos-secrets
+S=/tmp/tkos-secrets/ontology-runtime/world-02/smoke U=https://world-02.tokenkingos.com
+python3 deploy/world-02/examples.py run $U $S ~/tkos-world-02-examples --commit $C --doc docs/world-v02-tianshu-examples.md
+rm -rf /tmp/tkos-secrets
+```
+
+- 只认 tenant 以 `-smoke` 结尾的 scope，对实验 scope 在发出任何请求之前 FAIL。凭证只从目录读，不打印，也不写进任何输出。
+- 十步依次是：列对象与按外部引用查回、写外部引用、每周同步（来源事件与执行状态快照）、会议事件、代记门、Task 的指派与生命周期、Co-Agent 写执行计划、议题、取上下文、典型错误；末尾撤销本次登记的委托。每步断言返回码与关键字段，失败即停并以 1 退出，停之前尽力撤销已登记的委托。
+- 每跑一次新建一套对象（标题以「示例 <run>」开头），另把 E&O 责任单元的外部引用写成固定的 `tianshu`/`domain:eo`；骨架已在时 `smoke-world-02.json` 不变，不用推回 tkos-secrets。
+- 第 8 步的代记承接、处置与退回形成要等委托有议题族（#71）。在那之前，以 E&O Mission Owner 登记 `families: ["issue"]` 在 prepare 就返回 422，脚本打印 `STEP 8 skipped`，文档里这一节标「跳过」，提出与路由照常跑，退出码仍为 0。
+- 输出：原始记录 `~/tkos-world-02-examples/examples-<run>.json`（含真实 id，不含凭证，0600，不入库）；文档写到 `--doc`，不给时写在输出目录里。文档里的 id 按指向换成占位（`<mission-1>`、`<event-3>`、`<principal:tianshu>`……），显示名换成冒烟名单的角色名，运行标记写作 `<run>`；有说不出指向什么的 uuid、残留的凭证或真名，就不写文档。
+- 只重新渲染、不连服务：`python3 deploy/world-02/examples.py render ~/tkos-world-02-examples/examples-<run>.json --doc docs/world-v02-tianshu-examples.md --commit $C`。
+
+实例按第 9 或 9.5 节重建、或契约与接口改动之后，在新实例上重跑一遍，提交更新后的文档。接口没变时，差异只在时刻、运行标记与占位编号。
 
 ## 8. 交付
 

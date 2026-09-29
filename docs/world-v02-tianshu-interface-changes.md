@@ -31,7 +31,7 @@
 
 | 组件类型 | 放在哪 | 类型属性 |
 |-|-|-|
-| `progress_item` 进展条目 | 执行状态快照的 `progress` 块 | `principal_id`、`principal_name`（写入时的姓名）、`external_status`（天枢状态原样）、`entries`（本期条目列表，每条 `{at, source, text, url?}`，`source` 取 `web`、`codex`、`claude`、`github`、`other`） |
+| `progress_item` 进展条目 | 执行状态快照的 `progress` 块 | `principal_id`、`principal_name`（写入时的姓名）、`external_status`（天枢状态原样）、`entries`（本期条目列表，每条 `{at, source, text, url?}`，`source` 取 `web`、`codex`、`claude`、`github`、`other`）。一条进展有多个链接时，主链接放条目的 `url`，其余放进同一个组件的 `artifacts`，不要拆成多条条目（2026-09-29 与天枢约定） |
 | `issue` 问题 | 各类快照的 `issues` 块 | `core_question`（核心判断问题，必填）、`responsible_hint`（最低充分责任主体，可选，本体 principal id） |
 | `plan_item` 计划条目 | Mission 的执行计划块、Task 的计划块 | `responsible`（只作记录，不是指派、不产生权限） |
 
@@ -76,7 +76,7 @@
 **天枢每周进展快照的改法**：
 
 1. 先记一条外部事件作来源，例如 `category: "other"`，内容「天枢每周同步 <ISO 周>」，主体是该 Mission，幂等键建议 `tianshu:weekly-sync:<missionId>:<ISO周>`。
-2. 再写快照：`payload_type: "execution_state"`，`source_event_refs` 放第 1 步返回的 `event:<事件 id>`；进展按人 × 事项写成 `progress` 块里的 `progress_item` 组件，组件 id 用天枢 todo id；议题写成 `issues` 块里的 `issue` 组件，组件 id 用天枢 issue id；链接放 `materials`（0.1 的 `artifacts` 块改名为 `materials`，块内仍有 `artifacts` 链接列表）。
+2. 再写快照（块放在 `payload.blocks.<块 id>` 下，同建对象与修订；外部事件的内容放在 `content`；块放在 payload 顶层返回 422）：`payload_type: "execution_state"`，`source_event_refs` 放第 1 步返回的 `event:<事件 id>`；进展按人 × 事项写成 `progress` 块里的 `progress_item` 组件，组件 id 用天枢 todo id；议题写成 `issues` 块里的 `issue` 组件，组件 id 用天枢 issue id；链接放 `materials`（0.1 的 `artifacts` 块改名为 `materials`，块内仍有 `artifacts` 链接列表）。
 3. `as_of`、幂等键、声明沿用 0.1 的约定（周日 23:59:59+08:00，`tianshu:weekly:<missionId>:<ISO周>`，`human_acceptance.required=false`）。
 
 0.1 里按模板渲染成 Markdown 的做法在 0.2 不再需要：每条事项、每个议题是一个组件，字段在 `attributes` 里；`text` 可以留一句说明。
@@ -190,8 +190,13 @@
 
 0.1 没有外部引用字段，天枢靠同步表对照。0.2（第 3.4、15.2 节）：
 
-- 每个业务对象可以带 `external_refs`：列表，每项 `{system, id, url?}`，例如 `{"system": "tianshu", "id": "battlefield:XX"}`、`{"system": "tianshu", "id": "card:123"}`。建议 `system` 统一用 `tianshu`，类别写进 `id` 前缀（可能变，三方会上定一个写法）。
-- 外部引用是活动属性：有门对象有了正式内容后也可以直接修订，不走门。天枢服务主体以 Agent 身份修订时要带写入声明，只改外部引用这类活动属性时 `human_acceptance.required` 可以为 false；能不能改某个对象按修订权限判。
+- 每个业务对象可以带 `external_refs`：列表，每项 `{system, id, url?}`。
+- 写法（2026-09-29 与天枢约定，三方会上若改再跟着改）：`system` 统一用 `tianshu`，类别写进 `id` 前缀。
+  - 个人任务对应 Mission：`mission:<编号>`，由天枢以修订写入。
+  - 执行事项对应 Task：`todo:<天枢事项 uuid>`，由 E&O 建 Task 时写入。
+  - E&O 责任单元：`capability:05`，由 E&O 播种时写好。
+  - 战场暂不写：本体里没有和战场对应的对象，同一对引用又只能挂一个对象，三方会上再定。
+- 外部引用是活动属性：有门对象有了正式内容后也可以直接修订，不走门。天枢服务主体以 Agent 身份修订时要带写入声明，只改外部引用这类活动属性时 `human_acceptance.required` 可以为 false；能不能改某个对象按修订权限判：天枢能改的是有门对象（Mission、周期目标等）的外部引用；责任单元、Task 这类无门对象只由主干上的责任人改，天枢修订会返回 403（实测示例第十一节）。
 - 同一 scope 内同一 `(system, id)` 只能指向一个对象，按各对象的最新修订判定。建对象或修订时撞上另一对象已有的一对，返回 `409 INVALID_STATE`，错误信息里写出那个对象的 id；一个对象的 `external_refs` 里同一对写两次是 `422 INVALID_REQUEST`。要把一对从 A 挪到 B：先修订 A 去掉它，再修订 B 加上。
 - 按外部引用查找：见第十项的列对象接口，带 `external_system` 与 `external_id`。
 
@@ -223,7 +228,7 @@
       "version": 3, "revision_id": "…", "object_version": 5,
       "lifecycle": {"status": "in_progress", "display_name": "进行中", "event_id": "…"},
       "domain_id": "…",
-      "external_refs": [{"system": "tianshu", "id": "card:123", "url": null}],
+      "external_refs": [{"system": "tianshu", "id": "mission:<编号>", "url": null}],
       "contract_version": "tkos.world/0.2"
     }
   ],
@@ -274,7 +279,9 @@
 2. 每周进展：先记来源外部事件，再写带 `payload_type`、`source_event_refs` 的快照；进展与议题改为组件，组件 id 用天枢 id；`artifacts` 块改 `materials`。
 3. 执行事项完成改记 Task 的 `world_deliver`（代记执行人），不再只记交付类外部事件。
 4. 月度计划签发、任务卡确认、指派经代记写入，带 `on_behalf_of`；请参与的人先登记委托。
-5. 战场、能力域、任务卡写 `external_refs`，按列对象接口查回，替代同步表里的对象对照。
+5. Mission 写个人任务的 `external_refs`（`mission:<编号>`）；Task 的 `todo:<uuid>` 由 E&O 建 Task 时写，E&O 责任单元的 `capability:05` 由 E&O 写好，战场暂不写。按列对象接口查回，替代同步表里的对象对照。
+   - 新增的执行事项，先在对应 Mission 的执行计划块里写一条计划条目：组件 id 为 `todo:<uuid>`，`responsible` 填执行人，以 Agent 身份修订，带写入声明、不要求人工验收。E&O 按这些条目建 Task，写同一个 `todo:<uuid>`，天枢按外部引用查回后再代记指派、开始、交付。天枢服务主体不建对象。
+   - 执行事项状态的对应：进入 `in_progress` 记 `world_start`，`done` 记 `world_deliver`，都代执行人记；`returned` 代 Mission Owner 记 `world_reject`。执行事项创建、建出 Task 之后先代 Mission Owner 记 `world_assign`。Task 的责任人只能是本 scope 里的人，Agent 不能当 Task 的责任人。天枢加上「通过」的话，代 Owner 记 `world_accept`。
 6. 读取改从 `business`、`identity`、`records` 三组取字段；引用解析支持组件与事件两种新形式。
 7. 议题按 Issue 的事件流转（提出、路由由天枢服务主体记；承接、处置由承接人本人记，或经议题族委托代记，见第八项）。
 8. 调用日志的约定不变（对接说明 4.4），引用集合包括组件引用与事件引用。

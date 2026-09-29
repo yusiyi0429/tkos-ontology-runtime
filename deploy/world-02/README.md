@@ -154,10 +154,10 @@ rm -rf /tmp/tkos-secrets
 ```
 
 - 只认 tenant 以 `-smoke` 结尾的 scope，对实验 scope 在发出任何请求之前 FAIL。凭证只从目录读，不打印，也不写进任何输出。
-- 十步依次是：列对象与按外部引用查回、写外部引用、每周同步（来源事件与执行状态快照）、会议事件、代记门、Task 的指派与生命周期、Co-Agent 写执行计划、议题、取上下文、典型错误；末尾撤销本次登记的委托。每步断言返回码与关键字段，失败即停并以 1 退出，停之前尽力撤销已登记的委托。
-- 每跑一次新建一套对象（标题以「示例 <run>」开头），另把 E&O 责任单元的外部引用写成固定的 `tianshu`/`domain:eo`；骨架已在时 `smoke-world-02.json` 不变，不用推回 tkos-secrets。
-- 第 8 步的代记承接、处置与退回形成要等委托有议题族（#71）。在那之前，以 E&O Mission Owner 登记 `families: ["issue"]` 在 prepare 就返回 422，脚本打印 `STEP 8 skipped`，文档里这一节标「跳过」，提出与路由照常跑，退出码仍为 0。
-- 输出：原始记录 `~/tkos-world-02-examples/examples-<run>.json`（含真实 id，不含凭证，0600，不入库）；文档写到 `--doc`，不给时写在输出目录里。文档里的 id 按指向换成占位（`<mission-1>`、`<event-3>`、`<principal:tianshu>`……），显示名换成冒烟名单的角色名，运行标记写作 `<run>`；有说不出指向什么的 uuid、残留的凭证或真名，就不写文档。
+- 十一步依次是：列对象与按外部引用查回、天枢写 Mission 的外部引用、每周同步（来源事件与执行状态快照）、会议事件、代记门、天枢写执行计划的计划条目、Task 的建与代记指派和生命周期、Co-Agent 再加一条计划条目、议题（提出、路由与代记承接、退回形成、处置）、取上下文、典型错误；末尾撤销本次登记的委托。每步断言返回码与关键字段，失败即停并以 1 退出，停之前尽力撤销已登记的委托。议题的代记要求服务含 #71（386f7f5）的议题族。
+- 外部 id 按天枢定下的写法，`system` 一律 `tianshu`：Mission 是 `mission:demo-<run>`，执行事项是 `todo:<uuid>`（每跑一次新生成的真 uuid，进展条目、计划条目的组件 id 与 Task 的外部引用共用），E&O 责任单元是能力域 `capability:05`。单元的那一对由 E&O DRI 本人在准备阶段写（天枢改单元的外部引用是 403，列在典型错误里）。
+- 每跑一次新建一套对象（标题以「示例 <run>」开头）；骨架里只重写 E&O 责任单元的外部引用，同一对原样再写。骨架已在时 `smoke-world-02.json` 不变，不用推回 tkos-secrets。
+- 输出：原始记录 `~/tkos-world-02-examples/examples-<run>.json`（含真实 id，不含凭证，0600，不入库）；文档写到 `--doc`，不给时写在输出目录里。文档里的 id 按指向换成占位（`<mission-1>`、`<event-3>`、`<principal:tianshu>`、`<todo-uuid>`……），显示名换成冒烟名单的角色名，运行标记写作 `<run>`；有说不出指向什么的 uuid、残留的凭证或真名，就不写文档。
 - 只重新渲染、不连服务：`python3 deploy/world-02/examples.py render ~/tkos-world-02-examples/examples-<run>.json --doc docs/world-v02-tianshu-examples.md --commit $C`。
 
 实例按第 9 或 9.5 节重建、或契约与接口改动之后，在新实例上重跑一遍，提交更新后的文档。接口没变时，差异只在时刻、运行标记与占位编号。

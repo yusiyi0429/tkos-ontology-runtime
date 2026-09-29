@@ -52,6 +52,9 @@
    }
   }
  },
+ "external_ids": {
+  "2e1ddaa2-a6fe-531c-857d-5ae5db6fd575": "todo-uuid"
+ },
  "types": {
   "1c7c1cb8-5918-5a2d-a1d2-ae4d642a0d52": "Mission",
   "6c3db609-9b90-5d68-96de-ccf8143e6429": "Task",
@@ -74,11 +77,10 @@
   "5": {
    "status": "passed"
   },
-  "8": {
-   "status": "skipped",
-   "reason": "委托还没有议题族（等 #71）"
+  "7": {
+   "status": "passed"
   },
-  "9": {
+  "10": {
    "status": "passed"
   }
  },
@@ -311,7 +313,46 @@
    }
   },
   {
-   "step": "9",
+   "step": "7",
+   "caption": "建 Task，带执行事项的外部引用",
+   "method": "POST",
+   "path": "/v1/actions",
+   "who": "eo-owner",
+   "body": {
+    "action_type": "world_create_object",
+    "contract_version": "tkos.world/0.2",
+    "target": null,
+    "params": {
+     "object_type": "Task",
+     "payload": {
+      "title": "示例 20261012-073000-abcd Task",
+      "parent_ref": "1c7c1cb8-5918-5a2d-a1d2-ae4d642a0d52@2",
+      "external_refs": [
+       {
+        "system": "tianshu",
+        "id": "todo:2e1ddaa2-a6fe-531c-857d-5ae5db6fd575"
+       }
+      ]
+     }
+    }
+   },
+   "status": 200,
+   "response": {
+    "receipt_id": "99256dea-ddd6-577e-b707-fe397afe4cb3",
+    "status": "committed",
+    "result": {
+     "object_id": "6c3db609-9b90-5d68-96de-ccf8143e6429",
+     "external_refs": [
+      {
+       "system": "tianshu",
+       "id": "todo:2e1ddaa2-a6fe-531c-857d-5ae5db6fd575"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "step": "10",
    "caption": "从 Mission 出发取上下文",
    "method": "POST",
    "path": "/v1/world/objects/1c7c1cb8-5918-5a2d-a1d2-ae4d642a0d52/context",

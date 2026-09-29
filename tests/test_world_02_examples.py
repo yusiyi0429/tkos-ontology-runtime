@@ -23,12 +23,28 @@ MISSION = RAW["records"][0]["response"]["items"][0]["object_id"]
 FAKE_NAME = IDS["principals"]["eo-owner"]["display_name"]
 
 
-def test_the_sections_follow_the_ticket_order() -> None:
-    assert examples.STEP_IDS == ["prep", *map(str, range(1, 11)), "end"]
+def test_the_sections_follow_the_integration_order() -> None:
+    assert examples.STEP_IDS == ["prep", *map(str, range(1, 12)), "end"]
+    titles = {number: title for number, title, _ in examples.STEPS}
+    assert titles["6"].startswith("执行计划：天枢") and titles["7"].startswith("Task") and titles["9"].startswith("议题")
+    assert all(hasattr(examples.Examples, f"step{number}") for number in examples.STEP_IDS[1:-1])
     text = examples.render(RAW)
     headings = [line for line in text.splitlines() if line.startswith("## ")]
-    assert [h.split()[1].rstrip(".") for h in headings[1:-1]] == [str(n) for n in range(1, 11)]
+    assert [h.split()[1].rstrip(".") for h in headings[1:-1]] == [str(n) for n in range(1, 12)]
     assert headings[0].startswith("## 准备") and headings[-1].startswith("## 收尾")
+
+
+def test_the_tianshu_external_ids_follow_the_agreed_spelling() -> None:
+    assert examples.UNIT_REF == {"system": "tianshu", "id": "capability:05"}
+    source = (DEPLOY / "examples.py").read_text(encoding="utf-8")
+    assert 'f"mission:demo-{self.run}"' in source and 'f"todo:{self.todo}"' in source
+
+
+def test_the_executive_item_uuid_is_named_as_such() -> None:
+    todo = next(u for u, name in RAW["external_ids"].items() if name == "todo-uuid")
+    assert examples.placeholders(RAW)[todo] == "<todo-uuid>"
+    text = examples.render(RAW)
+    assert '"id": "todo:<todo-uuid>"' in text and todo not in text
 
 
 def test_every_uuid_becomes_a_placeholder_and_the_same_id_the_same_placeholder() -> None:
@@ -99,19 +115,21 @@ def test_long_returns_are_cut_and_say_so() -> None:
     text = examples.render(RAW)
     assert "……（截去 5 项）" in text  # 八条事件留三条
     assert "……（截去 2 项）" in text  # 取上下文一节更紧：三层留一层
-    markdown = RAW["records"][4]["response"]["context_pack"]["markdown"]
-    cut = examples.SHORTEN["9"][2]
-    assert f"……（截去 {len(examples.sanitize(RAW)['records'][4]['response']['context_pack']['markdown']) - cut} 字）" in text
+    context = next(i for i, r in enumerate(RAW["records"]) if r["step"] == examples.CONTEXT_STEP)
+    markdown = RAW["records"][context]["response"]["context_pack"]["markdown"]
+    cut = examples.SHORTEN[examples.CONTEXT_STEP][2]
+    cleaned = examples.sanitize(RAW)["records"][context]["response"]["context_pack"]["markdown"]
+    assert f"……（截去 {len(cleaned) - cut} 字）" in text
     assert len(markdown) > cut
     # 请求不截：上下文一节的请求体原样给出
     assert '{"question": "为什么做？"}' in text
 
 
-def test_prepared_objects_skipped_steps_and_steps_not_run_are_rendered() -> None:
+def test_prepared_objects_passed_steps_and_steps_not_run_are_rendered() -> None:
     text = examples.render(RAW)
     assert "- `ceo`（CEO）建 Mission：`<mission-1>`" in text
-    assert "**跳过**：委托还没有议题族（等 #71）。" in text and "| 8 | 议题：提出、路由、承接、处置、退回形成 | 跳过 |" in text
-    assert "| 10 | 典型错误 | 未跑 |" in text and "本节没有跑到。" in text
+    assert "| 10 | 取上下文 | 通过 |" in text
+    assert "| 9 | 议题：提出、路由、承接、处置、退回形成 | 未跑 |" in text and "本节没有跑到。" in text
     assert text.count("**列 E&O 单元本期的 Mission**") == 1  # 没有说明的请求（翻页）不进文档
     assert "服务提交 `0000000`、本机隔离栈上的运行 `20261012-073000-abcd`" in text
 

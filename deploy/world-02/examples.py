@@ -9,12 +9,12 @@
 只用标准库；凭证只从 <凭证目录>/<主体键>.token 读，不打印、不写进任何记录。<凭证目录> 是冒烟 scope 的那份
 （ids.json 与凭证，tenant 以 -smoke 结尾，别的 scope 直接 FAIL），骨架（Company、Strategy、两个责任单元）照
 smoke.py 的做法有就沿用、没有就建，记在 <凭证目录>/smoke-world-02.json。其余对象每跑一次新建一套，标题以
-「示例 <run>」开头，不动骨架以外别人的对象；骨架里只改 E&O 责任单元的外部引用（固定写 tianshu 的 domain:eo）。
+「示例 <run>」开头，不动骨架以外别人的对象；骨架里只由 E&O DRI 本人给 E&O 责任单元写能力域的外部引用（固定写
+tianshu 的 capability:05，重跑原样再写）。
 
-run 按十步真打，每步断言返回码与关键字段，失败即停（以 1 退出）；人的委托由本人先登记、末尾撤销。第 8 步的代记
-（承接、处置、退回形成）要等委托有议题族（#71）：登记 families [issue] 在 prepare 就被拒（422）时，这部分记为
-「跳过：等 #71」，不算失败。原始记录（含真实 id，不含凭证）写到 <输出目录>/examples-<run>.json（0600，不入库），
-再渲染成 --doc（默认 <输出目录>/world-v02-tianshu-examples.md）。render 只从原始记录重新渲染，不连服务。
+run 按十一步真打，每步断言返回码与关键字段，失败即停（以 1 退出，停之前尽力撤销已登记的委托）；人的委托由本人先
+登记、末尾撤销。原始记录（含真实 id，不含凭证）写到 <输出目录>/examples-<run>.json（0600，不入库），再渲染成
+--doc（默认 <输出目录>/world-v02-tianshu-examples.md）。render 只从原始记录重新渲染，不连服务。
 """
 from __future__ import annotations
 
@@ -26,8 +26,7 @@ import json
 import os
 from pathlib import Path
 import re
-import sys
-from urllib.parse import quote, urlencode, urlsplit
+from urllib.parse import urlencode, urlsplit
 import uuid
 
 HERE = Path(__file__).resolve().parent
@@ -37,8 +36,7 @@ _spec.loader.exec_module(smoke)
 check, V02 = smoke.check, smoke.V02
 
 CST = timezone(timedelta(hours=8))
-ISSUE_FAMILY = "issue"  # #71 加的议题族；委托还不认它时第 8 步的代记部分跳过
-UNIT_REF = {"system": "tianshu", "id": "domain:eo"}  # 骨架 E&O 单元（能力域）的外部引用，固定，重跑不累积
+UNIT_REF = {"system": "tianshu", "id": "capability:05"}  # 骨架 E&O 单元（能力域 05）的外部引用，固定，重跑不累积
 # 显示名一律换成冒烟名单里的角色名（spec.example.json），真名即使出现在库里也不进文档。
 ROLE_NAMES = {key: principal["display_name"] for key, principal in json.loads(
     (HERE / "spec.example.json").read_text(encoding="utf-8"))["principals"].items()}
@@ -47,35 +45,39 @@ FORMAT = "world-02-examples/1"
 # 文档的节，按天枢的接入顺序：（编号，标题，一句说明）。编号也是原始记录里 step 的取值。
 STEPS = [
     ("prep", "准备（不是天枢的调用）",
-     "以下对象由人本人经 HTTP 记，只列结果，不列请求；骨架（Company、Strategy、两个责任单元）沿用冒烟 scope 已有的一套。"),
+     "以下由人本人经 HTTP 记，只列结果，不列请求；骨架（Company、Strategy、两个责任单元）沿用冒烟 scope 已有的一套。"
+     "责任单元（能力域）的外部引用由 E&O 写好：单元的 DRI 本人写，天枢只写 Mission 的（天枢改单元的是 403，见第 11 节）。"),
     ("1", "列对象、按外部引用查回",
-     "接口清单第十项：按单元、类型、周期列对象，取对象的三组读投影；按外部引用查找，还没写过的外部引用查回空列表。"),
+     "接口清单第十项：按外部引用查回 E&O 写好的能力域；按单元、类型、周期列 Mission；取对象的三组读投影。本次 Mission "
+     "的外部引用还没写，按它查回空列表。"),
     ("2", "写外部引用",
-     "接口清单第九项：天枢以 Agent 身份修订 Mission 的 `external_refs`（任务卡），带写入声明，只改活动属性时 "
+     "接口清单第九项：天枢以 Agent 身份修订 Mission 的 `external_refs`，带写入声明，只改活动属性时 "
      "`human_acceptance.required` 为 false。每个写入都先以同一请求体调 `/v1/actions/prepare`，再把返回的 "
-     "`expected_versions` 带回 `/v1/actions` 提交；本节列出两段，之后只列提交与出错的 prepare。责任单元没有门，"
-     "天枢不是它的责任人，改不了它的外部引用（403），由单元的 DRI 本人写。"),
+     "`expected_versions` 带回 `/v1/actions` 提交；本节列出两段，之后只列提交与出错的 prepare。"),
     ("3", "每周同步：来源事件与执行状态快照",
-     "接口清单第四项：先记一条外部事件作来源，再写引用它的执行状态快照。进展条目的组件 id 用天枢 todo id，本期条目放 "
-     "`attributes.entries`，多个链接放组件的 `artifacts`；问题写成 `issues` 块里的 `issue` 组件，组件 id 用天枢 issue id。"
-     "幂等键按清单的建议写。"),
+     "接口清单第四项：先记一条外部事件作来源，再写引用它的执行状态快照。进展条目的组件 id 用天枢执行事项 id（`todo:` 加"
+     "天枢的 uuid），本期条目放 `attributes.entries`，多个链接放组件的 `artifacts`；问题写成 `issues` 块里的 `issue` "
+     "组件，组件 id 用天枢 issue id。幂等键按清单的建议写。"),
     ("4", "会议事件",
      "接口清单第十一项：外部事件可以补记过去的时刻（这里补记两小时前的会），读取按发生时刻升序并标迟记。"),
     ("5", "代记门：周期目标与 Mission 的承诺、确认",
-     "接口清单第八项：人本人先登记委托（门、指派、生命周期，按人各取所需），天枢再带 `on_behalf_of` 代记，代记写入不带"
-     "写入声明。事件同时记下记录者（天枢服务主体）与被代记的人，外部确认时刻另存。"),
-    ("6", "Task：建、指派与生命周期",
-     "接口清单第六、八项：E&O DRI 建 Task（带天枢执行事项的外部引用），之后天枢代 Mission Owner 指派、打回、验收、"
-     "重开，代执行人开始、交付。重开要求 Task 已关闭，所以打回之后先再交付、验收一次；重复的交付与验收没有列出。"),
-    ("7", "Mission 执行计划：带责任人的计划条目",
-     "接口清单第二项：E&O 的 Co-Agent 直接修订 Mission 的执行计划块（活动块，已成立后也不走门），计划条目带 "
-     "`responsible`，只作记录，不是指派。"),
-    ("8", "议题：提出、路由、承接、处置、退回形成",
-     "接口清单第七项：五个动作都不带 `target`，以 `params.issue_ref`（快照 `issues` 块里问题组件的组件引用）指明问题。"
-     "天枢以自己的身份提出、路由；承接、处置、退回形成由天枢代承接人记（要求委托有议题族，#71）。"),
-    ("9", "取上下文",
+     "接口清单第八项：人本人先登记委托（门、指派、生命周期、议题，按人各取所需），天枢再带 `on_behalf_of` 代记，代记"
+     "写入不带写入声明。事件同时记下记录者（天枢服务主体）与被代记的人，外部确认时刻另存。"),
+    ("6", "执行计划：天枢写计划条目",
+     "接口清单第二项：天枢以 Agent 身份修订 Mission 的执行计划块（活动块，已成立后也不走门），带写入声明、不要求人工"
+     "验收。计划条目的组件 id 用天枢执行事项 id，`responsible` 填执行人，只作记录，不是指派。"),
+    ("7", "Task：建、指派与生命周期",
+     "接口清单第六、八项：E&O DRI 建 Task，`external_refs` 写同一个执行事项 id；之后天枢代 Mission Owner 指派、打回、"
+     "验收、重开，代执行人开始、交付。重开要求 Task 已关闭，所以打回之后先再交付、验收一次；重复的交付与验收没有列出。"),
+    ("8", "执行计划：Co-Agent 再加一条",
+     "接口清单第二项：E&O 的 Co-Agent 直接修订同一个执行计划块。组件按 id 合并：补丁里只有新条目，天枢写的那条保留。"),
+    ("9", "议题：提出、路由、承接、处置、退回形成",
+     "接口清单第七、八项：五个动作都不带 `target`，以 `params.issue_ref`（快照 `issues` 块里问题组件的组件引用）指明"
+     "问题。天枢以自己的身份提出、路由（带写入声明）；承接、退回形成与处置由天枢按承接人第 5 节登记的议题族委托代记，"
+     "不带写入声明。委托的域按问题所在的域（主受影响对象的域）判。"),
+    ("10", "取上下文",
      "接口清单第十项：从 Mission 出发取上下文；有门的对象另带「形成时带入」。返回很长，下面截短了。"),
-    ("10", "典型错误",
+    ("11", "典型错误",
      "错误都在 prepare 就返回，库里不留任何记录。返回形状是 `{\"error\": {\"code\", \"message\"}}`。"),
     ("end", "收尾：撤销委托",
      "委托人本人撤销委托，引用登记那条事件，即时生效。每个人的撤销请求形状相同，只列第一条。"),
@@ -90,7 +92,8 @@ ID_KINDS = {"event_id": "event", "supersedes_event_id": "event", "delegation_eve
             "revision_id": "revision", "latest_revision_id": "revision", "receipt_id": "receipt",
             "action_id": "action", "context_pack_id": "context-pack"}
 # 文档里截短返回：（数组超过几项就截，留前几项，文本超过几字就截）；取上下文的返回太大，另收紧。JSON 行宽超过 WIDTH 才折行。
-SHORTEN = {"default": (6, 3, 1200), "9": (2, 1, 1500)}
+CONTEXT_STEP = "10"
+SHORTEN = {"default": (6, 3, 1200), CONTEXT_STEP: (2, 1, 1500)}
 WIDTH = 110
 
 
@@ -105,6 +108,7 @@ class Examples(smoke.Smoke):
     def __init__(self, base, out):
         super().__init__(base, out)
         self.run = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S-") + uuid.uuid4().hex[:4]
+        self.todo = str(uuid.uuid4())  # 天枢执行事项的 id（真 uuid）：进展条目、计划条目与 Task 的外部引用共用
         self.records, self.types, self.prep, self.steps = [], {}, [], {}
         self.step = self.caption = None
         self.reason, self.seq, self.delegations, self.revoked = "world-02 冒烟", 0, {}, set()
@@ -183,6 +187,8 @@ class Examples(smoke.Smoke):
             self.prep.append({"who": who, "text": text, "object_id": oid})
             return oid
 
+        self.act("eo-dri", "world_revise_object", {"payload": {"external_refs": [UNIT_REF]}}, unit)
+        made("eo-dri", f"给 E&O 责任单元写能力域的外部引用 `{UNIT_REF['system']}`/`{UNIT_REF['id']}`（骨架，重跑原样再写）", unit)
         goal = made("ceo", "建公司级长期目标并确认", self.create("ceo", "LongTermGoal", "company", {
             "title": f"{self.title} 公司长期目标", "scope": "company", "horizon": "2028", "parent_ref": self.ref(company),
             "blocks": {"measures": {"components": [{"id": "sc-1", "type": "success_criterion", "text": "示例：衡量一"}]}}}
@@ -194,7 +200,7 @@ class Examples(smoke.Smoke):
                 {"id": "uo-1", "type": "outcome", "text": "示例：结果一", "refs": [f"{self.ref(goal)}#measures/sc-1"]}]}}}
         )[0]["object_id"])
         self.act("ceo", "world_confirm_long_term_goal", {"outcome": "accepted"}, unit_goal)
-        self.goal = made("eo-dri", "建本期周期目标（草稿，第 5 步代记承诺与确认）", self.create("eo-dri", "PeriodGoal", "eo", {
+        self.goal = made("eo-dri", "建本期周期目标（草稿，第 5 节代记承诺与确认）", self.create("eo-dri", "PeriodGoal", "eo", {
             "title": f"{self.title} 周期目标", "period": self.period, "goal_ref": self.ref(unit_goal),
             "blocks": {"outcome": {"components": [{"id": "pg-o1", "type": "outcome", "text": "示例：本期结果",
                                                    "refs": [f"{self.ref(unit_goal)}#outcome/uo-1"]}]},
@@ -209,46 +215,42 @@ class Examples(smoke.Smoke):
         self.expect("mission born a draft with its owner", self.mission, "draft")
         self.passed("prep")
 
-    # ---------------------------------------------------------------- 十步
+    # ---------------------------------------------------------------- 十一步
     def step1(self):
         self.step, mission = "1", self.mission
-        page = self.listed({"unit_id": self.unit, "type": "Mission", "period": self.period, "limit": 5},
-                           "列 E&O 单元本期的 Mission（按建立时刻排序，每页 5 条，`next_cursor` 原样带回取下一页）")
-        check("the list gives mission headers", all(item["object_type"] == "Mission" for item in page["items"]))
-        found = [item for item in page["items"] if item["object_id"] == mission]
-        while not found and page["next_cursor"]:
-            page = self.listed({"unit_id": self.unit, "type": "Mission", "period": self.period, "limit": 5,
-                                "cursor": page["next_cursor"]})
-            found = [item for item in page["items"] if item["object_id"] == mission]
+        found = self.listed({"external_system": UNIT_REF["system"], "external_id": UNIT_REF["id"]},
+                            f"按外部引用查回责任单元：E&O 写好的能力域 `{UNIT_REF['id']}`")
+        check("the capability finds the E&O unit", [item["object_id"] for item in found["items"]] == [self.unit])
+        query = {"unit_id": self.unit, "type": "Mission", "period": self.period, "limit": 5}
+        page = self.listed(query)
+        while mission not in [item["object_id"] for item in page["items"]] and page["next_cursor"]:
+            page = self.listed({**query, "cursor": page["next_cursor"]})
+        mine = [item for item in page["items"] if item["object_id"] == mission]
         check("this run's mission is listed with its lifecycle and no external refs yet",
-              len(found) == 1 and found[0]["lifecycle"]["status"] == "draft" and found[0]["external_refs"] == [])
+              len(mine) == 1 and mine[0]["lifecycle"]["status"] == "draft" and mine[0]["external_refs"] == []
+              and all(item["object_type"] == "Mission" for item in page["items"]))
+        self.records[-1]["caption"] = ("列 E&O 单元本期的 Mission：按建立时刻升序分页，每页 5 条，把上一页的 `next_cursor` "
+                                       "原样带回取下一页；这里列出本次 Mission 所在的那一页")
         view = self.get(f"/v1/world/objects/{mission}", "取对象：`business`、`identity`、`records` 三组")
         check("the object reads in the three groups", set(view) >= {"business", "identity", "records"}
               and view["business"]["object_id"] == mission)
-        empty = self.listed({"external_system": "tianshu", "external_id": f"card:{self.run}"},
-                            "按外部引用查找：还没写过这一对时 `items` 为空")
+        self.mission_ext = {"system": "tianshu", "id": f"mission:demo-{self.run}"}
+        empty = self.listed({"external_system": "tianshu", "external_id": self.mission_ext["id"]},
+                            "按外部引用查找本次的 Mission：还没写过这一对时 `items` 为空")
         check("an external ref nobody carries finds nothing", empty == {"items": [], "next_cursor": None})
         self.passed("1")
 
     def step2(self):
         self.step, mission = "2", self.mission
-        self.card = {"system": "tianshu", "id": f"card:{self.run}"}
-        self.act("tianshu", "world_revise_object", {"payload": {"external_refs": [self.card]},
-                                                    "declaration": self.declare(mission, "天枢任务卡关联本体 Mission")},
+        self.act("tianshu", "world_revise_object", {"payload": {"external_refs": [self.mission_ext]},
+                                                    "declaration": self.declare(mission, "天枢 Mission 关联本体")},
                  mission, prepare_caption="天枢修订 Mission 的外部引用：先 prepare",
                  caption="再以同一请求体（带上 prepare 返回的 `expected_versions`）提交，返回回执")
-        check("the mission carries the card", self.read(mission)["business"]["attributes"]["external_refs"]
-              == [{**self.card, "url": None}])
-        found = self.listed({"external_system": "tianshu", "external_id": self.card["id"]}, "按外部引用查回 Mission")
-        check("the card finds the mission", [item["object_id"] for item in found["items"]] == [mission])
-        unit = self.unit
-        self.act("tianshu", "world_revise_object", {"payload": {"external_refs": [UNIT_REF]},
-                                                    "declaration": self.declare(unit, "天枢能力域关联本体责任单元")},
-                 unit, expect=(403, "FORBIDDEN"), prepare_caption="天枢修订责任单元的外部引用：403（单元没有门，天枢不是它的责任人）")
-        self.act("eo-dri", "world_revise_object", {"payload": {"external_refs": [UNIT_REF]}}, unit,
-                 caption="单元的 DRI 本人写责任单元（能力域）的外部引用：人不必带写入声明")
-        found = self.listed({"external_system": UNIT_REF["system"], "external_id": UNIT_REF["id"]})
-        check("the unit's external ref finds the unit", [item["object_id"] for item in found["items"]] == [unit])
+        check("the mission carries its external ref", self.read(mission)["business"]["attributes"]["external_refs"]
+              == [{**self.mission_ext, "url": None}])
+        found = self.listed({"external_system": "tianshu", "external_id": self.mission_ext["id"]},
+                            "按外部引用查回本次的 Mission")
+        check("the external ref finds the mission", [item["object_id"] for item in found["items"]] == [mission])
         self.passed("2")
 
     def step3(self):
@@ -261,14 +263,14 @@ class Examples(smoke.Smoke):
             "content": {"text": f"天枢每周同步 {self.week}"}, "declaration": scene},
             key=f"tianshu:weekly-sync:{mission}:{self.week}", caption="先记来源外部事件（`category: other`）")
         self.source_event = synced["event_id"]
-        self.issue_id = f"issue:{self.run}-1"
+        self.issue_id = f"issue:demo-{self.run}-1"
         shot = self.act("tianshu", "world_refresh_state", {"declaration": scene, "payload": {
             "title": f"{self.title} 执行状态 {self.week}", "subject_ref": self.ref(mission), "as_of": at(seconds=-30),
             "period": self.period, "payload_type": "execution_state",
             "source_event_refs": [f"event:{self.source_event}"],
             "blocks": {
                 "progress": {"components": [{
-                    "id": f"todo:{self.run}-1", "type": "progress_item", "text": "接入 0.2 的本周进展",
+                    "id": f"todo:{self.todo}", "type": "progress_item", "text": "接入 0.2 的本周进展",
                     "artifacts": ["https://example.com/tianshu/todo/1", "https://example.com/tianshu/pr/1"],
                     "attributes": {"principal_id": self.pid["eo-owner"], "principal_name": ROLE_NAMES["eo-owner"],
                                    "external_status": "进行中", "entries": [
@@ -307,8 +309,8 @@ class Examples(smoke.Smoke):
     def step5(self):
         self.step = "5"
         valid_until = at(hours=1)
-        for person, families in (("ceo", ["gate"]), ("eo-dri", ["gate"]), ("eo-owner", ["gate", "assign", "lifecycle"]),
-                                 ("eo-ic", ["lifecycle"])):
+        for person, families in (("ceo", ["gate"]), ("eo-dri", ["gate"]),
+                                 ("eo-owner", ["gate", "assign", "lifecycle", "issue"]), ("eo-ic", ["lifecycle"])):
             granted = self.act(person, "world_grant_delegation", {
                 "delegate_principal_id": self.pid["tianshu"], "families": families,
                 "domain_ids": [self.domain["eo"]], "valid_until": valid_until},
@@ -341,15 +343,34 @@ class Examples(smoke.Smoke):
         self.passed("5")
 
     def step6(self):
-        self.step, eo = "6", self.domain["eo"]
+        self.step, mission = "6", self.mission
+        self.plan_item = {"id": f"todo:{self.todo}", "type": "plan_item", "text": "示例：接入改动（天枢执行事项）",
+                          "attributes": {"responsible": self.pid["eo-ic"]}}
+        self.act("tianshu", "world_revise_object", {
+            "payload": {"blocks": {"execution_plan": {"components": [self.plan_item]}}},
+            "declaration": self.declare(mission, "天枢同步执行事项到执行计划")}, mission,
+            caption="天枢修订 Mission 的执行计划块：计划条目的组件 id 用执行事项 id，`responsible` 填执行人")
+        plan = smoke.blocks(self.read(mission))["execution_plan"]["components"]
+        check("tianshu's plan item reads back with the executor as its responsible",
+              [(c["id"], c["type"], c["attributes"]["responsible"]) for c in plan]
+              == [(self.plan_item["id"], "plan_item", self.pid["eo-ic"])])
+        self.expect("the mission stays established (an activity block does not go through the gate)",
+                    mission, "established")
+        self.passed("6")
+
+    def step7(self):
+        self.step, eo = "7", self.domain["eo"]
+        todo = {"system": "tianshu", "id": f"todo:{self.todo}"}
         made = self.act("eo-dri", "world_create_object", {"domain_id": eo, "object_type": "Task", "payload": {
-            "title": f"{self.title} Task", "parent_ref": self.ref(self.mission),
-            "external_refs": [{"system": "tianshu", "id": f"todo:{self.run}-1"}],
+            "title": f"{self.title} Task", "parent_ref": self.ref(self.mission), "external_refs": [todo],
             "blocks": {"definition": {"text": "示例：Task 定义"},
                        "acceptance": {"components": [{"id": "t-ac1", "type": "acceptance_criterion", "text": "示例：验收一",
                                                       "refs": [f"{self.ref(self.mission)}#acceptance/m-ac1"]}]},
                        "plan": {"components": [{"id": "tp-1", "type": "plan_item", "text": "示例：先做一段"}]}}}},
-            caption="E&O DRI 建 Task，带天枢执行事项的外部引用")
+            caption="E&O DRI 建 Task，`external_refs` 写同一个执行事项 id")
+        found = self.listed({"external_system": "tianshu", "external_id": todo["id"]})
+        check("the executive item's id finds the task", [item["object_id"] for item in found["items"]]
+              == [made["object_id"]])
         task = self.task = made["object_id"]
         self.expect("task born unassigned", task, "unassigned")
         steps = [("world_assign", "eo-owner", {"principal_id": self.pid["eo-ic"]}, "assigned", "代 Mission Owner 指派执行人"),
@@ -367,28 +388,26 @@ class Examples(smoke.Smoke):
             self.act("tianshu", action, {**params, "on_behalf_of": self.behalf(person, action.removeprefix("world_"))},
                      task, caption=caption)
             self.expect(f"task {action} on behalf of {person}", task, status)
-        self.passed("6")
-
-    def step7(self):
-        self.step, mission = "7", self.mission
-        items = [{"id": f"plan:{self.run}-1", "type": "plan_item", "text": "示例：接入改动",
-                  "attributes": {"responsible": self.pid["eo-ic"]}},
-                 {"id": f"plan:{self.run}-2", "type": "plan_item", "text": "示例：联调与验收",
-                  "attributes": {"responsible": self.pid["eo-owner"]}}]
-        self.act("eo-coagent", "world_revise_object", {
-            "payload": {"blocks": {"execution_plan": {"text": "按周会结论更新", "components": items}}},
-            "declaration": self.declare(mission, "按周会结论更新执行计划")}, mission,
-            caption="Co-Agent 修订 Mission 的执行计划块：两条带责任人的计划条目")
-        plan = smoke.blocks(self.read(mission))["execution_plan"]["components"]
-        check("the plan items read back with their responsible",
-              [(c["id"], c["attributes"]["responsible"]) for c in plan]
-              == [(item["id"], item["attributes"]["responsible"]) for item in items])
-        self.expect("the mission stays established (an activity block does not go through the gate)",
-                    mission, "established")
         self.passed("7")
 
     def step8(self):
         self.step, mission = "8", self.mission
+        item = {"id": f"plan:demo-{self.run}-1", "type": "plan_item", "text": "示例：联调与验收",
+                "attributes": {"responsible": self.pid["eo-owner"]}}
+        self.act("eo-coagent", "world_revise_object", {
+            "payload": {"blocks": {"execution_plan": {"text": "按周会结论更新", "components": [item]}}},
+            "declaration": self.declare(mission, "按周会结论更新执行计划")}, mission,
+            caption="Co-Agent 修订 Mission 的执行计划块：补丁里只有新的一条")
+        plan = smoke.blocks(self.read(mission))["execution_plan"]["components"]
+        check("the plan keeps tianshu's item and appends the co-agent's, each with its responsible",
+              [(c["id"], c["attributes"]["responsible"]) for c in plan]
+              == [(self.plan_item["id"], self.pid["eo-ic"]), (item["id"], self.pid["eo-owner"])])
+        self.expect("the mission stays established", mission, "established")
+        self.passed("8")
+
+    def step9(self):
+        self.step, mission = "9", self.mission
+        since = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
         issue_ref = f"{self.snapshot_ref}#issues/{self.issue_id}"
         declared = self.declare(mission, "每周同步发现的问题")
 
@@ -403,18 +422,10 @@ class Examples(smoke.Smoke):
               "天枢提出问题（写入声明必带）")
         issue("world_route_issue", {"to_principal_id": self.pid["eo-owner"], "declaration": declared}, "routed",
               "天枢把问题路由给 E&O Mission Owner")
-        grant = {"delegate_principal_id": self.pid["tianshu"], "families": [ISSUE_FAMILY],
-                 "domain_ids": [self.domain["eo"]], "valid_until": at(hours=1)}
-        if not self.issue_family_supported(grant):
-            self.steps["8"] = {"status": "skipped", "reason": "委托还没有议题族（等 #71）：登记 `families: [\"issue\"]` "
-                                                              "在 prepare 就返回 422。上面的提出与路由已跑通，代记承接、"
-                                                              "处置、退回形成没有跑"}
-            print("STEP 8 skipped: 等 #71（委托没有议题族）", flush=True)
-            return
-        granted = self.act("eo-owner", "world_grant_delegation", grant,
-                           caption=f"{ROLE_NAMES['eo-owner']} 本人登记议题族的委托")
-        self.delegations["eo-owner"].append(granted["event_id"])
-        issue("world_own_issue", {}, "owned", "代承接人承接", "eo-owner")
+        owned = issue("world_own_issue", {}, "owned", "代承接人承接（不带写入声明）", "eo-owner")
+        check("the delegated ownership names the owner and the issue-family delegation it used",
+              owned["on_behalf_of"]["principal_id"] == self.pid["eo-owner"]
+              and owned["on_behalf_of"]["delegation_event_id"] == self.delegations["eo-owner"][0], str(owned)[:300])
         issue("world_return_issue", {"content": {"text": "核心问题要先补齐再路由"}}, "forming", "代承接人退回形成", "eo-owner")
         issue("world_raise_issue", {"content": {"text": "补齐后再提出"}, "declaration": declared}, "pending_routing")
         issue("world_route_issue", {"to_principal_id": self.pid["eo-owner"], "declaration": declared}, "routed")
@@ -425,21 +436,19 @@ class Examples(smoke.Smoke):
         open_issues = self.read(mission)["records"]["open_issues"]
         check("the disposed issue is no longer open on the mission",
               all(item["component_id"] != self.issue_id for item in open_issues))
-        self.passed("8")
+        events = self.get(f"/v1/world/objects/{mission}/events?since={since}",
+                          "取 Mission 的事件（`since` 之后）：议题事件，代记的带被代记的人与外部确认记录")
+        kinds = [(e["kind"], (e["on_behalf_of"] or {}).get("principal_id")) for e in events["events"]
+                 if e["kind"].startswith("issue.")]
+        owner = self.pid["eo-owner"]
+        check("the issue events read back in order, the delegated ones on behalf of the owner",
+              kinds == [("issue.raised", None), ("issue.routed", None), ("issue.owned", owner), ("issue.returned", owner),
+                        ("issue.raised", None), ("issue.routed", None), ("issue.owned", owner),
+                        ("issue.disposed", owner)], str(kinds))
+        self.passed("9")
 
-    def issue_family_supported(self, grant):
-        """委托认不认议题族：同一请求体只 prepare、不提交（不进文档）。422 即还没有（#71 之前）；其余拒绝一律 FAIL。"""
-        body = {"action_type": "world_grant_delegation", "contract_version": V02, "target": None,
-                "expected_versions": [], "idempotency_key": f"world-02-examples:{self.run}:issue-family-probe",
-                "reason": self.reason, "params": grant}
-        status, prepared = self.call("POST", "/v1/actions/prepare", body, "eo-owner")
-        code = prepared.get("error", {}).get("code") if isinstance(prepared, dict) else None
-        check("the issue-family probe either passes or is refused as an invalid request",
-              status == 200 or (status, code) == (422, "INVALID_REQUEST"), f"{status} {str(prepared)[:300]}")
-        return status == 200
-
-    def step9(self):
-        self.step, mission = "9", self.mission
+    def step10(self):
+        self.step, mission = "10", self.mission
         self.caption = "从 Mission 出发取上下文"
         status, context = self.call("POST", f"/v1/world/objects/{mission}/context",
                                     {"question": "这个 Mission 为什么做、做什么、谁负责、现在怎样？"}, who="tianshu")
@@ -447,10 +456,10 @@ class Examples(smoke.Smoke):
         check("context from the mission is 0.2 and starts at the mission",
               status == 200 and context["contract_version"] == V02 and layers
               and layers[0]["object"]["object_id"] == mission, f"{status} {str(context)[:300]}")
-        self.passed("9")
+        self.passed("10")
 
-    def step10(self):
-        self.step, mission = "10", self.mission
+    def step11(self):
+        self.step, mission = "11", self.mission
         scene = self.declare(mission, "天枢每周同步")
         self.act("tianshu", "world_refresh_state", {"declaration": scene, "payload": {
             "title": f"{self.title} 执行状态（块放错）", "subject_ref": self.ref(mission), "as_of": at(seconds=-5),
@@ -460,15 +469,19 @@ class Examples(smoke.Smoke):
         self.act("tianshu", "world_create_object", {"domain_id": self.domain["eo"], "object_type": "Task", "payload": {
             "title": f"{self.title} 天枢建的 Task", "parent_ref": self.ref(mission), "blocks": {}},
             "declaration": scene}, expect=(403, "FORBIDDEN"), prepare_caption="Agent 建对象：403（建对象不在 Agent 面上）")
+        self.act("tianshu", "world_revise_object", {"payload": {"external_refs": [UNIT_REF]},
+                                                    "declaration": self.declare(self.unit, "天枢能力域关联本体责任单元")},
+                 self.unit, expect=(403, "FORBIDDEN"),
+                 prepare_caption="天枢改责任单元的外部引用：403（单元没有门，天枢不是它的责任人；单元的外部引用由 E&O 写）")
         self.act("tianshu", "world_assign", {"principal_id": self.pid["eo-owner"],
                                              "on_behalf_of": self.behalf("eo-dri", "assign-owner")}, mission,
                  expect=(403, "FORBIDDEN"),
                  prepare_caption="委托不含该族：E&O DRI 只登记了门，天枢代他指派 Mission Owner 是 403")
-        self.act("tianshu", "world_revise_object", {"payload": {"external_refs": [self.card]},
-                                                    "declaration": self.declare(self.goal, "天枢任务卡关联")},
+        self.act("tianshu", "world_revise_object", {"payload": {"external_refs": [self.mission_ext]},
+                                                    "declaration": self.declare(self.goal, "天枢 Mission 关联本体")},
                  self.goal, expect=(409, "INVALID_STATE"),
                  prepare_caption="同一外部引用挂到第二个对象：409（错误信息写出已有这一对的对象）")
-        self.passed("10")
+        self.passed("11")
 
     def finish(self):
         self.step = "end"
@@ -508,6 +521,7 @@ class Examples(smoke.Smoke):
                                "principals": {key: {"principal_id": p["principal_id"], "display_name": p["display_name"],
                                                     "assignments": p.get("assignments", [])}
                                               for key, p in self.ids["principals"].items()}},
+                "external_ids": {self.todo: "todo-uuid"},
                 "types": self.types, "prep": self.prep, "steps": self.steps, "records": self.records}
 
 
@@ -523,10 +537,11 @@ def _walk(value, visit):
 
 
 def placeholders(raw) -> dict[str, str]:
-    """每个 uuid 按它指向什么编成占位，同一次运行里前后一致：scope、域、主体、角色指派与骨架按身份清单；其余按出现
-    它的键判种类（对象另按类型），按首次出现的顺序逐类编号。说不出指向什么的 uuid 一个也不放过：抛 ValueError。"""
+    """每个 uuid 按它指向什么编成占位，同一次运行里前后一致：scope、域、主体、角色指派与骨架按身份清单，天枢侧的 id
+    （执行事项）按 external_ids；其余按出现它的键判种类（对象另按类型），按首次出现的顺序逐类编号。说不出指向什么的
+    uuid 一个也不放过：抛 ValueError。"""
     ident = raw["identities"]
-    names = {ident["scope_id"]: "<scope>"}
+    names = {ident["scope_id"]: "<scope>", **{u: f"<{name}>" for u, name in raw.get("external_ids", {}).items()}}
     if ident.get("company_id"):
         names[ident["company_id"]] = "<scope-company-id>"
     for key, domain in ident["domains"].items():
@@ -667,14 +682,15 @@ def render(raw, commit=None) -> str:
         "（冒号后是冒烟名单的主体键）；骨架对象 `<company>`、`<strategy>`、`<unit:eo>`；本次新建的对象按类型编号，如 "
         "`<mission-1>`、`<task-1>`、`<snapshot-1>`；事件 `<event-3>`、修订 `<revision-5>`、回执 `<receipt-2>`（事件的 "
         "`action_id` 就是产生它的回执 id）、上下文包 `<context-pack-1>`、角色指派 `<assignment:tianshu:AGENT@eo>`。"
-        "引用里的 id 同样替换，例如 `<mission-1>@3#acceptance/m-ac1`、`event:<event-3>`。真实接口里这些位置都是 uuid。",
+        "引用里的 id 同样替换，例如 `<mission-1>@3#acceptance/m-ac1`、`event:<event-3>`。真实接口里这些位置都是 uuid。"
+        "天枢执行事项的 id 在请求里是真 uuid（`todo:` 加 uuid），本文写作 `todo:<todo-uuid>`。",
         "- 时刻是实跑时刻，格式原样：请求里按天枢的习惯写 `+08:00`，返回里服务统一给 UTC。",
         "- 显示名一律是冒烟名单的角色名；分页游标写作 `<cursor>`，真实值是不透明字符串，原样带回即可。",
         "- 「身份」是这个请求带哪个主体的凭证（放在请求头里，本文不列出凭证）。天枢的请求都用天枢服务主体的凭证；"
         "人本人的请求（登记委托、建 Task 等）只是为了示例完整。",
         "- 过长的返回截短了：超过 {0} 项的数组留前 {1} 项，超过 {2} 字的文本留开头（取上下文一节更紧：超过 {3} 项留 {4} "
         "项，文本留 {5} 字），截掉的在原处写明「截去 N 项」或「截去 N 字」。请求都是完整的。".format(
-            *SHORTEN["default"], *SHORTEN["9"]),
+            *SHORTEN["default"], *SHORTEN[CONTEXT_STEP]),
         "",
         "**各步结果**：",
         "",
@@ -683,7 +699,7 @@ def render(raw, commit=None) -> str:
     ]
     for number, title, _ in STEPS:
         row = clean["steps"].get(number)
-        state = "未跑" if row is None else {"passed": "通过", "skipped": "跳过"}.get(row["status"], row["status"])
+        state = "未跑" if row is None else {"passed": "通过"}.get(row["status"], row["status"])
         lines.append(f"| {'' if number in ('prep', 'end') else number} | {title} | {state} |")
     for number, title, intro in STEPS:
         heading = title if number in ("prep", "end") else f"{number}. {title}"
@@ -704,8 +720,6 @@ def render(raw, commit=None) -> str:
             lines += [f"返回 `{record['status']}`：", ""] + _json(shorten(record["response"], limits)) + [""]
         if row is None:
             lines += ["本节没有跑到。", ""]
-        elif row["status"] == "skipped":
-            lines += [f"**跳过**：{row.get('reason', '')}。", ""]
     return "\n".join(lines).rstrip() + "\n"
 
 
@@ -720,9 +734,9 @@ def run(args) -> None:
     try:
         company, _ = examples.skeleton()
         examples.prepare_chain(company)
-        for step in (examples.step1, examples.step2, examples.step3, examples.step4, examples.step5, examples.step6,
-                     examples.step7, examples.step8, examples.step9, examples.step10, examples.finish):
-            step()
+        for number in STEP_IDS[1:-1]:
+            getattr(examples, f"step{number}")()
+        examples.finish()
         failed = False
     finally:
         if failed:
@@ -741,8 +755,7 @@ def run(args) -> None:
             if p["display_name"] != ROLE_NAMES.get(key, key)]
     assert_clean(rendered, tokens, real)
     doc.write_text(rendered, encoding="utf-8")
-    skipped = [n for n, row in examples.steps.items() if row["status"] == "skipped"]
-    print(f"EXAMPLES_OK run={examples.run} doc={doc}" + (f" skipped={','.join(skipped)}" if skipped else ""))
+    print(f"EXAMPLES_OK run={examples.run} doc={doc}")
 
 
 def render_only(args) -> None:

@@ -80,7 +80,7 @@
      "trimmed": []
     },
     "rag": {
-     "chars": 8783,
+     "chars": 12370,
      "recall": [
       2,
       7
@@ -92,9 +92,9 @@
       "0fdc1d7e-0a3b-5ef7-acd5-8957bb76af7d@1#choices",
       "33da53b0-4eaf-5ac3-b09c-100ca6e63caf@1#identity"
      ],
-     "max_chars": 8785,
-     "kept": 65,
-     "skipped": 74
+     "max_chars": 12380,
+     "kept": 87,
+     "skipped": 52
     },
     "full": {
      "chars": 32141,
@@ -140,15 +140,15 @@
      "trimmed": []
     },
     "rag": {
-     "chars": 8708,
+     "chars": 12340,
      "recall": [
       1,
       1
      ],
      "missing": [],
-     "max_chars": 8772,
-     "kept": 64,
-     "skipped": 75
+     "max_chars": 12367,
+     "kept": 88,
+     "skipped": 51
     },
     "full": {
      "chars": 32141,
@@ -199,15 +199,15 @@
      "trimmed": []
     },
     "rag": {
-     "chars": 8708,
+     "chars": 12340,
      "recall": [
       2,
       2
      ],
      "missing": [],
-     "max_chars": 8769,
-     "kept": 64,
-     "skipped": 75
+     "max_chars": 12364,
+     "kept": 88,
+     "skipped": 51
     },
     "full": {
      "chars": 32141,
@@ -263,15 +263,15 @@
      "trimmed": []
     },
     "rag": {
-     "chars": 8709,
+     "chars": 11113,
      "recall": [
       3,
       3
      ],
      "missing": [],
-     "max_chars": 8766,
-     "kept": 65,
-     "skipped": 14
+     "max_chars": 12361,
+     "kept": 79,
+     "skipped": 0
     },
     "full": {
      "chars": 32141,
@@ -322,15 +322,15 @@
      "trimmed": []
     },
     "rag": {
-     "chars": 8740,
+     "chars": 11113,
      "recall": [
       2,
       2
      ],
      "missing": [],
-     "max_chars": 8766,
-     "kept": 66,
-     "skipped": 13
+     "max_chars": 12361,
+     "kept": 79,
+     "skipped": 0
     },
     "full": {
      "chars": 32141,
@@ -386,17 +386,15 @@
      "trimmed": []
     },
     "rag": {
-     "chars": 8763,
+     "chars": 12125,
      "recall": [
-      2,
+      3,
       3
      ],
-     "missing": [
-      "81fcaee2-0dd9-50f7-bb07-e908c6e9d202@1#constraint"
-     ],
-     "max_chars": 8771,
-     "kept": 70,
-     "skipped": 26
+     "missing": [],
+     "max_chars": 12366,
+     "kept": 94,
+     "skipped": 2
     },
     "full": {
      "chars": 32141,
@@ -472,7 +470,7 @@
      "trimmed": []
     },
     "rag": {
-     "chars": 8822,
+     "chars": 12291,
      "recall": [
       2,
       7
@@ -484,9 +482,9 @@
       "0fdc1d7e-0a3b-5ef7-acd5-8957bb76af7d@1#choices",
       "33da53b0-4eaf-5ac3-b09c-100ca6e63caf@1#identity"
      ],
-     "max_chars": 8842,
-     "kept": 63,
-     "skipped": 81
+     "max_chars": 12296,
+     "kept": 83,
+     "skipped": 61
     },
     "full": {
      "chars": 32141,
@@ -552,7 +550,7 @@
      "trimmed": []
     },
     "rag": {
-     "chars": 8822,
+     "chars": 12218,
      "recall": [
       4,
       5
@@ -560,9 +558,9 @@
      "missing": [
       "81fcaee2-0dd9-50f7-bb07-e908c6e9d202@1#constraint"
      ],
-     "max_chars": 8829,
-     "kept": 63,
-     "skipped": 81
+     "max_chars": 12283,
+     "kept": 84,
+     "skipped": 60
     },
     "full": {
      "chars": 32141,
@@ -613,15 +611,15 @@
      "trimmed": []
     },
     "rag": {
-     "chars": 8820,
+     "chars": 12218,
      "recall": [
       2,
       2
      ],
      "missing": [],
-     "max_chars": 8820,
-     "kept": 64,
-     "skipped": 80
+     "max_chars": 12274,
+     "kept": 84,
+     "skipped": 60
     },
     "full": {
      "chars": 32141,
@@ -677,15 +675,15 @@
      "trimmed": []
     },
     "rag": {
-     "chars": 8749,
+     "chars": 12196,
      "recall": [
       3,
       3
      ],
      "missing": [],
-     "max_chars": 8817,
-     "kept": 65,
-     "skipped": 24
+     "max_chars": 12271,
+     "kept": 87,
+     "skipped": 2
     },
     "full": {
      "chars": 32141,
@@ -736,15 +734,15 @@
      "trimmed": []
     },
     "rag": {
-     "chars": 8734,
+     "chars": 12014,
      "recall": [
       2,
       2
      ],
      "missing": [],
-     "max_chars": 8817,
-     "kept": 64,
-     "skipped": 21
+     "max_chars": 12271,
+     "kept": 85,
+     "skipped": 0
     },
     "full": {
      "chars": 32141,
@@ -795,17 +793,15 @@
      "trimmed": []
     },
     "rag": {
-     "chars": 8753,
+     "chars": 12170,
      "recall": [
-      1,
+      2,
       2
      ],
-     "missing": [
-      "81fcaee2-0dd9-50f7-bb07-e908c6e9d202@1#constraint"
-     ],
-     "max_chars": 8822,
-     "kept": 69,
-     "skipped": 29
+     "missing": [],
+     "max_chars": 12276,
+     "kept": 91,
+     "skipped": 7
     },
     "full": {
      "chars": 32141,
@@ -891,7 +887,7 @@
      "trimmed": []
     },
     "rag": {
-     "chars": 8488,
+     "chars": 11985,
      "recall": [
       3,
       9
@@ -904,9 +900,9 @@
       "0fdc1d7e-0a3b-5ef7-acd5-8957bb76af7d@1#choices",
       "33da53b0-4eaf-5ac3-b09c-100ca6e63caf@1#identity"
      ],
-     "max_chars": 8500,
-     "kept": 60,
-     "skipped": 76
+     "max_chars": 12031,
+     "kept": 91,
+     "skipped": 45
     },
     "full": {
      "chars": 32141,
@@ -952,15 +948,15 @@
      "trimmed": []
     },
     "rag": {
-     "chars": 8488,
+     "chars": 11985,
      "recall": [
       1,
       1
      ],
      "missing": [],
-     "max_chars": 8490,
-     "kept": 60,
-     "skipped": 76
+     "max_chars": 12021,
+     "kept": 91,
+     "skipped": 45
     },
     "full": {
      "chars": 32141,
@@ -1011,7 +1007,7 @@
      "trimmed": []
     },
     "rag": {
-     "chars": 8486,
+     "chars": 11985,
      "recall": [
       1,
       2
@@ -1019,9 +1015,9 @@
      "missing": [
       "event:5b505a40-22ab-5448-8c03-020e399d0e30"
      ],
-     "max_chars": 8487,
-     "kept": 60,
-     "skipped": 76
+     "max_chars": 12018,
+     "kept": 91,
+     "skipped": 45
     },
     "full": {
      "chars": 32141,
@@ -1085,7 +1081,7 @@
      "missing": [
       "event:304c29f4-0f8a-5d2d-81be-c61daadabdac"
      ],
-     "max_chars": 8484,
+     "max_chars": 12015,
      "kept": 55,
      "skipped": 0
     },
@@ -1146,7 +1142,7 @@
      "missing": [
       "event:304c29f4-0f8a-5d2d-81be-c61daadabdac"
      ],
-     "max_chars": 8484,
+     "max_chars": 12015,
      "kept": 50,
      "skipped": 0
     },
@@ -1210,7 +1206,7 @@
       3
      ],
      "missing": [],
-     "max_chars": 8489,
+     "max_chars": 12020,
      "kept": 69,
      "skipped": 0
     },
@@ -1302,7 +1298,7 @@
      ]
     },
     "rag": {
-     "chars": 9316,
+     "chars": 13272,
      "recall": [
       3,
       8
@@ -1314,9 +1310,9 @@
       "0fdc1d7e-0a3b-5ef7-acd5-8957bb76af7d@1#choices",
       "33da53b0-4eaf-5ac3-b09c-100ca6e63caf@1#identity"
      ],
-     "max_chars": 9378,
-     "kept": 65,
-     "skipped": 74
+     "max_chars": 13276,
+     "kept": 98,
+     "skipped": 41
     },
     "full": {
      "chars": 32141,
@@ -1371,15 +1367,15 @@
      ]
     },
     "rag": {
-     "chars": 9316,
+     "chars": 13259,
      "recall": [
       1,
       1
      ],
      "missing": [],
-     "max_chars": 9361,
-     "kept": 65,
-     "skipped": 74
+     "max_chars": 13259,
+     "kept": 99,
+     "skipped": 40
     },
     "full": {
      "chars": 32141,
@@ -1439,15 +1435,15 @@
      ]
     },
     "rag": {
-     "chars": 9316,
+     "chars": 13193,
      "recall": [
       2,
       2
      ],
      "missing": [],
-     "max_chars": 9358,
-     "kept": 65,
-     "skipped": 74
+     "max_chars": 13256,
+     "kept": 99,
+     "skipped": 40
     },
     "full": {
      "chars": 32141,
@@ -1517,17 +1513,15 @@
      ]
     },
     "rag": {
-     "chars": 9316,
+     "chars": 10116,
      "recall": [
-      3,
+      4,
       4
      ],
-     "missing": [
-      "event:29a91455-430c-5730-a8d4-9c4362aacb46"
-     ],
-     "max_chars": 9355,
-     "kept": 66,
-     "skipped": 3
+     "missing": [],
+     "max_chars": 13253,
+     "kept": 69,
+     "skipped": 0
     },
     "full": {
      "chars": 32141,
@@ -1602,7 +1596,7 @@
      ]
     },
     "rag": {
-     "chars": 9214,
+     "chars": 9515,
      "recall": [
       4,
       5
@@ -1610,9 +1604,9 @@
      "missing": [
       "event:3dc18e8c-a537-557b-9e46-d4e12f853b4a"
      ],
-     "max_chars": 9355,
-     "kept": 64,
-     "skipped": 1
+     "max_chars": 13253,
+     "kept": 65,
+     "skipped": 0
     },
     "full": {
      "chars": 32141,
@@ -1682,17 +1676,15 @@
      ]
     },
     "rag": {
-     "chars": 9218,
+     "chars": 11119,
      "recall": [
-      3,
+      4,
       4
      ],
-     "missing": [
-      "event:29a91455-430c-5730-a8d4-9c4362aacb46"
-     ],
-     "max_chars": 9360,
-     "kept": 74,
-     "skipped": 8
+     "missing": [],
+     "max_chars": 13258,
+     "kept": 82,
+     "skipped": 0
     },
     "full": {
      "chars": 32141,
@@ -1768,20 +1760,19 @@
      "trimmed": []
     },
     "rag": {
-     "chars": 9228,
+     "chars": 12832,
      "recall": [
-      3,
+      4,
       7
      ],
      "missing": [
-      "04e1479e-c221-58b6-a541-e3c34930dee4@2#outcome/lock",
       "9fcc28fd-254d-56e2-9738-bb0cc67f88f6@1#outcome",
       "acf78a61-8704-5760-bd10-7a5b48b8f825@1#outcome",
       "33da53b0-4eaf-5ac3-b09c-100ca6e63caf@1#identity"
      ],
-     "max_chars": 9282,
-     "kept": 70,
-     "skipped": 123
+     "max_chars": 12875,
+     "kept": 94,
+     "skipped": 99
     },
     "full": {
      "chars": 32141,
@@ -1852,15 +1843,15 @@
      "trimmed": []
     },
     "rag": {
-     "chars": 9247,
+     "chars": 12842,
      "recall": [
       6,
       6
      ],
      "missing": [],
-     "max_chars": 9265,
-     "kept": 70,
-     "skipped": 123
+     "max_chars": 12858,
+     "kept": 95,
+     "skipped": 98
     },
     "full": {
      "chars": 32141,
@@ -1931,15 +1922,15 @@
      "trimmed": []
     },
     "rag": {
-     "chars": 9228,
+     "chars": 12832,
      "recall": [
       6,
       6
      ],
      "missing": [],
-     "max_chars": 9263,
-     "kept": 70,
-     "skipped": 123
+     "max_chars": 12856,
+     "kept": 94,
+     "skipped": 99
     },
     "full": {
      "chars": 32141,
@@ -1995,15 +1986,15 @@
      "trimmed": []
     },
     "rag": {
-     "chars": 9254,
+     "chars": 12843,
      "recall": [
       3,
       3
      ],
      "missing": [],
-     "max_chars": 9254,
-     "kept": 74,
-     "skipped": 66
+     "max_chars": 12847,
+     "kept": 100,
+     "skipped": 40
     },
     "full": {
      "chars": 32141,
@@ -2054,15 +2045,15 @@
      "trimmed": []
     },
     "rag": {
-     "chars": 9249,
+     "chars": 12799,
      "recall": [
       2,
       2
      ],
      "missing": [],
-     "max_chars": 9254,
-     "kept": 75,
-     "skipped": 58
+     "max_chars": 12847,
+     "kept": 100,
+     "skipped": 33
     },
     "full": {
      "chars": 32141,
@@ -2118,15 +2109,15 @@
      "trimmed": []
     },
     "rag": {
-     "chars": 9251,
+     "chars": 12827,
      "recall": [
       3,
       3
      ],
      "missing": [],
-     "max_chars": 9259,
-     "kept": 80,
-     "skipped": 65
+     "max_chars": 12852,
+     "kept": 104,
+     "skipped": 41
     },
     "full": {
      "chars": 32141,

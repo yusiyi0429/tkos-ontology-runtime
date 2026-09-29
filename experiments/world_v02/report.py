@@ -1,5 +1,6 @@
 """四种取法对照的实验报告（票 #68）：只由 summary.json 生成 Markdown，不连库、不读别的文件。报告的每个数字都取自
-summary；对照实验 B 一节等 #66 合入与 10/12–16 的试用后再写，现在是占位。
+summary。对照实验 B 一节读 summary 的 b（#66 的观测结论经 triggers.b_conclusions 摘成）：五项观测、#66 口径的结论
+（粗粒度算能表达）与由 coarse 清单算出的更严口径的结论（粗粒度也算表达不了），两种都列；没有 b 时写还缺什么。
 
     python -m experiments.world_v02.report --summary O3/summary.json [--output docs/world-v02-retrieval-report.md]
 """
@@ -13,7 +14,13 @@ ROOT = Path(__file__).resolve().parents[2]
 REPORT = ROOT / 'docs/world-v02-retrieval-report.md'
 STATUS = {'triggered': '**触发**', 'not_triggered': '未触发', 'no_data': '无数据'}
 REASONS = {'over_level_cap': '超每层条数上限', 'over_budget': '超预算'}  # 取上下文检索计划里裁剪的原因
-B_PLACEHOLDER = '待 #66 与试用。'
+B_MISSING = ('还没有 #66 的观测结论：试用（10/12–16）后两条线执行到关闭、取证，由 b_observe 算出 observations.json，'
+             '再以 `summarize --b-observations` 重算 summary。')
+# #66 驱动器记下的写法（运行日志 steps[].writing，docs/world-v02-experiment-b.md 第 4 节）
+WRITINGS = {'plan_item': '改计划条目', 'task_subject': '以 Task 为主体记下', 'task_level': 'Task 一级的同名动作',
+            'activity': 'Activity', 'task': 'Task', 'mission': 'Mission', 'issue': '问题'}
+EXPRESSIONS = {'native': '原生', 'coarse': '粗粒度', 'inexpressible': '表达不了', None: '—'}
+ACTIVITY = {'object': 'Activity 留作对象', 'component': 'Activity 降为组件'}
 
 
 def _ratio(value: float | None, counts: list[int] | None = None) -> str:
@@ -50,7 +57,8 @@ def _setup(summary: dict) -> list[str]:
               f"状态快照 {corpus['snapshots']} 条、事件 {corpus['events']} 条，切成 "
               + '、'.join(f'{kind} {count}' for kind, count in corpus['chunks'].items()) + ' 个分块。',
               f"- 预算：固定路径用取上下文的默认预算，这次返回的是 {_budgets(prepared)} 字符；RAG 同成本对照，每问装入"
-              f"上限等于固定路径这一问的 Markdown 字符数（used_chars）；全量文本 {prepared['full']['chars']:,} 字符。",
+              f"上限等于固定路径这一问交给模型的字符数（写进提示词的取上下文返回）；全量文本 "
+              f"{prepared['full']['chars']:,} 字符。",
               f"- 准备阶段的核对：每个分块只带一条自己的引用 {_mark(prepared['checks']['chunks_single_ref'])}；"
               f"取到的每一项都写在交给模型的文本里 {_mark(prepared['checks']['refs_in_text'])}；"
               f"都能经读投影读回 {_mark(prepared['checks']['refs_read_back'])}。", '']
@@ -135,7 +143,8 @@ def _budget(summary: dict) -> list[str]:
              f"固定路径（取上下文）用服务端的默认预算，这次返回的是 {_budgets(prepared)} 字符。超预算时按规格先裁跨链"
              '关系、多取的一跳与上层的块，从主干最远层起裁，也就是先裁 Company 与 Strategy；而五个场景 Why 的应引项都追到'
              '这两层。真实战略材料换上之后，预算一紧，最先坏的是固定路径组的 Why 召回。RAG 每问的装入上限等于固定路径这一问'
-             '的 Markdown 字符数（同成本对照）。下表是这次播种每问的实测：', '']
+             '交给模型的字符数（写进提示词的取上下文返回，比 Markdown 多一层 JSON 外壳；同成本对照）。下表是这次播种每问的'
+             '实测：', '']
     rows = []
     for key, item in prepared['questions'].items():
         fixed, rag = item['contexts']['fixed'], item['contexts']['rag']
@@ -145,10 +154,10 @@ def _budget(summary: dict) -> list[str]:
                      '、'.join(f"{entry['label']}（{REASONS.get(entry['reason'], entry['reason'])}）"
                               for entry in fixed['trimmed']) or '无',
                      '、'.join(unanswered) or '都答得了',
-                     _ratio(fixed['recall'][0] / fixed['recall'][1], fixed['recall']),
+                     _ratio(fixed['recall'][0] / fixed['recall'][1], fixed['recall']), f"{fixed['chars']:,}",
                      f"{rag['chars']:,}（{rag['kept']} 块）", _ratio(rag['recall'][0] / rag['recall'][1], rag['recall'])])
     lines += _table(['问', '固定路径 Markdown / 预算', '余量', '被裁的项', '包里答不了的问', '固定路径取到召回',
-                     'RAG 装入', 'RAG 取到召回'], rows)
+                     '固定路径交给模型（RAG 上限）', 'RAG 装入', 'RAG 取到召回'], rows)
     top = []
     for key, item in prepared['questions'].items():
         if item['question'] != 'why':
@@ -174,7 +183,9 @@ def _evidence(item: dict, scenarios: dict[str, str]) -> str:
     if item['id'] == 'activity_to_component':
         parts = []
         if 'b' in evidence:
-            parts.append(f"B 的结论：Activity {'降为组件' if evidence['b']['activity'] == 'component' else '留作对象'}")
+            parts.append(f"B 的结论（#66 口径）：{ACTIVITY[evidence['b']['activity']]}；更严口径："
+                         f"{ACTIVITY[evidence['b']['strict']['activity']]}"
+                         + ('（冒烟脚本的观测，不是实验结论）' if evidence['b']['smoke'] else ''))
         if 'e' in evidence:
             parts.append(f"task_only 场景参照组四项门：{'全过' if evidence['e']['verdict']['passed'] else '有门没过'}")
         return '；'.join(parts) or '—'
@@ -201,6 +212,39 @@ def _triggers(summary: dict) -> list[str]:
     return lines
 
 
+def _b(summary: dict) -> list[str]:
+    """对照实验 B：#66 的五项观测与两种口径的结论。"""
+    lines = ['## 七、对照实验 B', '']
+    b = summary['b']
+    if b is None:
+        return lines + [B_MISSING, '']
+    if b['smoke']:
+        lines += [f"> 这是 #66 预置冒烟脚本（`{b['script']['id']}`）的观测，内容是合成的，只证明代码与口径跑得通，"
+                  '不是实验结论；结论看试用期间转写的真实记录。', '']
+    counts = {line: '、'.join(f"{EXPRESSIONS.get(kind, '被拒')} {count}" for kind, count in b['expressions'][line].items())
+              for line in ('task_only', 'task_activity')}
+    lines += [f"数据：#66 的观测结论（`{b['format']}`，执行脚本 `{b['script']['id']}`，sha256 "
+              f"`{b['script']['sha256'][:12]}…`）。两条线逐步的表达结果：Task-only 线{counts['task_only']}；"
+              f"Task+Activity 线{counts['task_activity']}。", '']
+    rows = [[item['name'], item['question'], '是' if item['occurred'] else '否', EXPRESSIONS[item['task_only']],
+             ' / '.join(str(item['task_only_counts'][kind]) for kind in ('native', 'coarse', 'inexpressible')),
+             '、'.join(f'`{step}`' for step in item['steps']) or '—'] for item in b['observations'].values()]
+    lines += _table(['观测', '问题', '独立发生', 'Task-only 线的表达', '原生 / 粗粒度 / 表达不了', '依据的步骤'], rows)
+
+    def verdict(conclusion):
+        names = '、'.join(b['observations'][name]['name'] for name in conclusion['because'])
+        return ACTIVITY[conclusion['activity']] + (f'（{names}）' if names else '')
+
+    lines += ['', f"**按 #66 的口径（粗粒度算能表达）**：{verdict(b['conclusion'])}。规则：{b['conclusion']['rule']}", '',
+              f"**按更严的口径（粗粒度也算表达不了，由 coarse 清单算出）**：{verdict(b['strict'])}。规则：{b['strict']['rule']}",
+              '', f"Agent 写入需要以谁为主体：{b['agent_subject'] or '没有 Agent 的写入'}。", '',
+              '粗粒度清单（两种口径只差在这里）：', '']
+    coarse = [f"- {item['name']}：" + '、'.join(f"`{step['step']}`（{WRITINGS.get(step['writing'], step['writing'])}）"
+                                               for step in item['coarse'])
+              for item in b['observations'].values() if item['coarse']]
+    return lines + (coarse or ['- 无']) + ['']
+
+
 def _runs(summary: dict) -> list[str]:
     names, groups = summary['names']['groups'], summary['groups']
     ran = [name for name, item in groups.items() if item['runs']]
@@ -223,9 +267,7 @@ def render(summary: dict) -> str:
              '模型遍历与 RAG 四组都作答，同一模型、同一推理档、同一回答形状，每问三次；召回、可追溯、确定性与反例作门，'
              '成本按交给模型的字符数只报告。', '']
     lines += _setup(summary) + _conclusion(summary) + _basis(summary) + _scenarios(summary) + _budget(summary)
-    lines += _triggers(summary)
-    lines += ['## 七、对照实验 B', '', B_PLACEHOLDER, '']
-    lines += _runs(summary)
+    lines += _triggers(summary) + _b(summary) + _runs(summary)
     return '\n'.join(lines)
 
 

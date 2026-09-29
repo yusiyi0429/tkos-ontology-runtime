@@ -32,6 +32,7 @@ from .agent_face import mcp_end_to_end
 from .context_fill import context_fill
 from .experiment_b import experiment_b
 from .experiment_e import experiment_e
+from .experiment_r import experiment_r
 from .goal_closure import goal_closure
 from .issues import issues
 from .listing import list_objects
@@ -46,7 +47,7 @@ MIGRATION = '0039_world_v02.sql'
 SCENARIOS = ['migration', 'control_plane', 'company', 'objects', 'rejections', 'coexistence', 'references',
              'revise_relate', 'state_events', 'assign_lifecycle', 'gates', 'context_packs', 'mission_lifecycle',
              'delegation', 'mcp_end_to_end', 'list_objects', 'issues', 'goal_closure', 'strategy_gates',
-             'context_fill', 'state_cells', 'revocation', 'experiment_e', 'experiment_b']
+             'context_fill', 'state_cells', 'revocation', 'experiment_e', 'experiment_b', 'experiment_r']
 EVENT_KINDS = {item['kind']: item for item in json.loads(REGISTRY.read_text())['event_kinds']}
 OBJECTS = {item['type']: item for item in json.loads(REGISTRY.read_text())['objects']}
 TYPES = ['Company', 'Strategy', 'ResponsibilityUnit', 'LongTermGoal', 'PeriodGoal', 'Mission', 'Task', 'Activity']
@@ -2582,6 +2583,8 @@ def run(book, h, source, upgrade_evidence):
             experiment_e(book, h, source, url)
         with scenario('experiment_b'):
             experiment_b(book, h, url, source)
+        with scenario('experiment_r'):
+            experiment_r(book, h, source, url)
     finally:
         flow.close()
 

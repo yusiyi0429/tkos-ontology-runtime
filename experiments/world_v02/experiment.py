@@ -6,11 +6,12 @@
 - fixed（固定路径）：跑器调一次取上下文（不给预算，用服务端默认值），把返回写进提示词，同 0.1 的 F 组；
 - traverse（模型遍历）：模型经 tkos-world-mcp（契约 0.2）的读工具自己走，不给取上下文，同 0.1 的 A0 组；
 - rag（RAG）：按问题检索分块，写进提示词（retrieval.retrieve）。同成本对照：每一问装入的字符上限等于固定路径组这一问
-  取上下文返回的 budget.used_chars（渲染后 Markdown 的字符数）。取上下文的默认预算（#70 定为 100000）大到几乎装下整个
-  scope，RAG 按它装就退化成全量塞入；按固定路径实际用掉的字符装，比的是同样的成本下谁取得准。
+  实际交给模型的字符数，也就是写进提示词的那段取上下文返回（MCP 交给调用方的 JSON）的字符数；两组按同一口径（交给
+  模型的字符数）量成本。取上下文的默认预算（#70 定为 100000）大到几乎装下整个 scope，RAG 按它装就退化成全量塞入；
+  按固定路径实际交给模型的字符装，比的是同样的成本下谁取得准。
 
 全量、固定路径、RAG 三组不给任何工具。三组的上下文在准备阶段每问生成一次，三次作答用同一份，所以这三组每次运行取到的
-集合相同。代码里不写死预算：固定路径的预算读自取上下文的返回（budget.max_chars），RAG 的上限读自 used_chars。
+集合相同。代码里不写死预算：固定路径的预算读自取上下文的返回（budget.max_chars），RAG 的上限是固定路径那段文本的长度。
 
     python -m experiments.world_v02.experiment prepare --env-file P/env.json --seeded-private P2 --seeded-output O2 \\
         --private P3 --output O3                       # 不调模型：生成三组的上下文并核对引用，批准前也能跑
@@ -21,15 +22,15 @@
 P2、O2 是 experiments.world_v02.seed 的 --private 与 --output（那次播种的凭据与 manifest.json）。
 
 准备（prepare）：经 HTTP 读投影取 scope 的全部内容，切分并建 RAG 索引；每问经 HTTP 调一次取上下文（默认预算与近期
-窗口），记下包、六问覆盖、预算与检索计划里被裁的项；生成全量文本、固定路径的返回与 RAG 结果（上限取这一问的
-used_chars）。然后核对：每个分块恰好带一条
-自己的引用；每组取到的每一项都以业务形式出现在交给模型的文本里；取到的每个对象版本、块、组件与事件都能经读投影读回。
+窗口），记下包、六问覆盖、预算与检索计划里被裁的项；生成全量文本、固定路径的返回与 RAG 结果（上限取固定路径这一问
+交给模型的字符数）。然后核对：每个分块恰好带一条自己的引用；每组取到的每一项都以业务形式出现在交给模型的文本里；
+取到的每个对象版本、块、组件与事件都能经读投影读回。
 都通过 verified 才为真。另做读投影扫描，给触发检查用（triggers.scan）。
 
 固定路径组交给模型的文本与 MCP 交给调用方的完全相同：``tkos_world_mcp.server._shown`` 取包 id、Markdown、六问覆盖与
 按原因、按类计的裁剪条数，按 MCP 的写法序列化；取到的集合用 ``tkos_world_mcp.server._content`` 判，与 MCP 运行日志
-一致。这是对 MCP 两个私有函数的依赖。成本按这段文本计，所以比包里 Markdown 的 used_chars 大（0.1 报告已指出）；RAG 的
-上限按 used_chars 定，两组的成本因此差一层 JSON 外壳（六问覆盖与预算摘要）。
+一致。这是对 MCP 两个私有函数的依赖。成本按这段文本计，比包里 Markdown 的 used_chars 大一层 JSON 外壳（六问覆盖与
+预算摘要，0.1 报告已指出）；RAG 的上限也按这段文本的长度定，两组同一口径。
 
 跑（run）先经 ``gold.load_approved`` 取标准答案并核对播种，未经 E&O DRI 批准或批准后内容改过就拒跑；再在同一个输出
 目录里做一次准备，核对不通过就停；然后按组跑模型。每次作答都隔离：空目录、不读用户的 Codex 配置，关掉 shell、记忆、
@@ -207,7 +208,7 @@ def verify(client, corpus: dict, contexts: dict[str, dict]) -> dict:
 
 def prepare(client, manifest: dict, answers: dict, output: Path) -> dict:
     """生成全量、固定路径、RAG 三组每问的上下文（写进 output/contexts/），核对引用，做读投影扫描。RAG 每问的装入上限
-    是固定路径这一问的 used_chars（同成本对照）。"""
+    是固定路径这一问交给模型的字符数（同成本对照）。"""
     corpus = retrieval.read_corpus(client)
     found = retrieval.chunks(corpus)  # 每个分块恰好带一条自己的引用，不是就报错
     labels = {chunk.ref: chunk.label for chunk in found}
@@ -225,7 +226,7 @@ def prepare(client, manifest: dict, answers: dict, output: Path) -> dict:
         for name, expected in gold_item['questions'].items():
             key = metrics.key(scenario, name)
             fixed = fixed_context(client.json('POST', f'/v1/world/objects/{start}/context', {'question': asked[name]}))
-            made = {'fixed': fixed, 'rag': retrieval.retrieve(index, titles[start], asked[name], fixed['used_chars'])}
+            made = {'fixed': fixed, 'rag': retrieval.retrieve(index, titles[start], asked[name], fixed['chars'])}
             for group, context in made.items():
                 public_json(output / f'contexts/{key}.{group}.json', context)
                 contexts[f'{key}.{group}'] = context
@@ -387,7 +388,8 @@ def run(env_file: Path, seeded_private: Path, seeded_output: Path, private: Path
 
 
 def summarize(seeded_output: Path, output: Path, gold_path: Path = gold.GOLD, observations: Path | None = None) -> dict:
-    """按输出目录重算：跑过的每一组各算一份，加上准备结果与四个触发检查。observations 是 #66 的观测结论。"""
+    """按输出目录重算：跑过的每一组各算一份，加上准备结果与四个触发检查。observations 是 #66 的观测结论
+    （b_observe 的输出），经 triggers.b_conclusions 摘成 summary 的 b，报告的对照实验 B 一节与第 1 条检查都读它。"""
     manifest = json.loads((seeded_output / 'manifest.json').read_text())
     answers = gold.load_approved(gold_path, manifest)['gold']
     prepared = json.loads((output / 'prepared.json').read_text())
@@ -397,7 +399,8 @@ def summarize(seeded_output: Path, output: Path, gold_path: Path = gold.GOLD, ob
     result = metrics.summarize(metrics.resolve(answers, manifest), runs, ATTEMPTS, prepared)
     setup = output / 'setup.json'
     result['setup'] = json.loads(setup.read_text()) if setup.exists() else None
-    result['triggers'] = triggers.evaluate(result, json.loads(observations.read_text()) if observations else None)
+    result['b'] = triggers.b_conclusions(json.loads(observations.read_text()) if observations else None)
+    result['triggers'] = triggers.evaluate(result)
     result['thresholds'] = triggers.THRESHOLDS
     public_json(output / 'summary.json', result)
     return result

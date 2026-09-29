@@ -4,38 +4,80 @@ not_triggered（未触发）或 no_data（无数据），并写明数据源、�
 判法的共同规则：已有的数据足以判定触发就判触发；判「未触发」要该有的数据都在；否则无数据，逐条列出缺的数据。
 
 1. activity_to_component：Task-only 线达标则 Activity 降为组件。
-   数据源：#66 对照实验 B 的观测结论（b_observe 输出的 observations.json，格式 OBSERVATIONS_FORMAT，看
-   conclusion.activity）；本实验参照组（固定路径）在 task_only 场景上的四项门（summary.json）。
+   数据源：#66 对照实验 B 的观测结论（b_observe 输出的 observations.json，格式 OBSERVATIONS_FORMAT，经 b_conclusions
+   摘成 summary.json 的 b，看 #66 口径的 conclusion.activity）；本实验参照组（固定路径）在 task_only 场景上的四项门。
    B 的结论是 component（降为组件）且参照组在 task_only 场景四项门全过，触发；B 的结论是 object，或参照组在 task_only
-   场景有门没过，未触发。
+   场景有门没过，未触发。更严口径（粗粒度也算表达不了）的结论只列在依据里，不改判定。
 2. component_ref_instability：组件引用跨修订不稳则拆块或升对象。
    数据源：读投影扫描（scan 的 component_refs）：scope 内全部对象与事件里钉着的组件引用，只看跨修订的——钉的版本早于
    目标对象的最新版；对照目标对象最新版的组件台账，组件已删（removed_in_version 不为空）或不在台账里即悬空。
    跨修订的组件引用至少 MIN_COMPONENT_REFS 条才判；悬空的比例超过 MAX_DANGLING 触发。
 3. why_coverage_low：Why 覆盖持续偏低则改主干关系或取法。
    数据源：参照组 Why 问的取到召回（准备结果，不要模型）与回答覆盖（summary.json，要模型运行），逐场景。
-   一个场景偏低：取到召回低于召回门（WHY_RECALL），或回答覆盖低于 WHY_COVERAGE。持续：至少 WHY_SCENARIOS 个场景偏低。
+   一个场景偏低：取到召回或回答覆盖低于 0.9（WHY_RECALL、WHY_COVERAGE，都等于召回门）。持续：至少 WHY_SCENARIOS
+   个场景偏低。
 4. issue_detached：Issue 常脱离主体快照演进则升为对象。
    数据源：读投影扫描（scan 的 issue_events）：提出之后的问题事件（路由、承接、处置、退回），看主受影响对象在事件
    发生时刻的最新状态快照（as_of 不晚于事件的发生时刻）的 issues 块里还有没有这个问题组件，没有即脱离。
    问题事件至少 MIN_ISSUE_EVENTS 条才判；脱离的比例不低于 DETACHED_SHARE 触发。
 
-阈值（MIN_*、MAX_DANGLING、WHY_COVERAGE、WHY_SCENARIOS、DETACHED_SHARE）是本票定的默认值，待用户确认。
+阈值是模块常量（THRESHOLDS 列出全部，写进 summary.json 与报告），已经用户确认：
+- MIN_COMPONENT_REFS = 10、MAX_DANGLING = 0.1：跨修订的组件引用至少 10 条，悬空超过 0.1 触发；
+- WHY_RECALL = WHY_COVERAGE = 0.9（召回门）、WHY_SCENARIOS = 3：五个场景里至少 3 个低于 0.9 触发；
+- MIN_ISSUE_EVENTS = 5、DETACHED_SHARE = 0.5：问题事件至少 5 条，脱离快照的比例至少 0.5 触发；
+- REFERENCE = fixed：第 1、3 条以固定路径组为参照。
+
+对照实验 B 的两种口径（b_conclusions）：#66 的结论规则是「五项中有独立发生、且 Task-only 线表达不了（被拒）的，Activity
+留作对象」，粗粒度算能表达；更严的口径把粗粒度也算表达不了——一项观测在 #66 口径下留对象，或它的 coarse 清单不为空，
+就让 Activity 留作对象。两种都由 observations.json 机械算出，报告都列。
 """
 from __future__ import annotations
 
+import json
+from pathlib import Path
 from typing import Any
 
-from . import counterexamples, metrics
+from . import counterexamples, metrics, spec
 from .retrieval import moment
 
 TRIGGERED, NOT_TRIGGERED, NO_DATA = 'triggered', 'not_triggered', 'no_data'
 STATUS_NAMES = {TRIGGERED: '触发', NOT_TRIGGERED: '未触发', NO_DATA: '无数据'}
 REFERENCE = 'fixed'  # 参照组：固定路径，即服务自己的取上下文
 OBSERVATIONS_FORMAT = 'tkos-world-02-experiment-b-observations/0.1'
+SMOKE_SCRIPT = json.loads((Path(__file__).with_name('b_smoke.json')).read_text(encoding='utf-8'))['id']
+STRICT_RULE = ('五项中有独立发生、且 Task-only 线表达不了（被拒）或只能粗粒度表达的，Activity 留作对象；'
+               '否则降为组件。')
 MIN_COMPONENT_REFS, MAX_DANGLING = 10, 0.1
-WHY_RECALL, WHY_COVERAGE, WHY_SCENARIOS = metrics.GATES['recall'], 0.5, 3
+WHY_RECALL = WHY_COVERAGE = metrics.GATES['recall']
+WHY_SCENARIOS = 3
 MIN_ISSUE_EVENTS, DETACHED_SHARE = 5, 0.5
+
+
+# ------------------------------------------------------------------ experiment B
+def b_conclusions(observations: dict | None) -> dict | None:
+    """#66 的观测结论（b_observe.observe 的输出）摘成报告与第 1 条检查用的形状：五项观测各自的发生、Task-only 线的表达与
+    计数、依据的步骤与 coarse 清单，Agent 写入的主体，#66 口径的结论（粗粒度算能表达），以及由 coarse 清单机械算出的
+    更严口径的结论（粗粒度也算表达不了）。没有观测为 None；格式不对抛 ValueError。"""
+    if observations is None:
+        return None
+    if observations.get('format') != OBSERVATIONS_FORMAT \
+            or (observations.get('conclusion') or {}).get('activity') not in {'component', 'object'}:
+        raise ValueError(f'the observations are not {OBSERVATIONS_FORMAT} with conclusion.activity')
+    items = observations['observations']
+    strict = [name for name, item in items.items() if item['keeps_activity'] or item['coarse']]
+    return {
+        'format': observations['format'], 'script': observations['script'],
+        'smoke': observations['script']['id'] == SMOKE_SCRIPT, 'expressions': observations['expressions'],
+        'observations': {name: {'name': item['name'], 'question': item['question'], 'occurred': item['occurred'],
+                                'task_only': item['task_only'], 'task_only_counts': item['task_only_counts'],
+                                'keeps_activity': item['keeps_activity'], 'steps': item['evidence']['steps'],
+                                'coarse': [{key: step[key] for key in ('step', 'writing', 'event_ids')}
+                                           for step in item['coarse']]}
+                         for name, item in items.items()},
+        'agent_subject': observations['agent_subject']['needs'],
+        'conclusion': {key: observations['conclusion'][key] for key in ('activity', 'because', 'rule')},
+        'strict': {'activity': 'object' if strict else 'component', 'because': strict, 'rule': STRICT_RULE},
+    }
 
 
 # ------------------------------------------------------------------ scan of the read projection
@@ -101,19 +143,18 @@ def _result(check: str, status: str, evidence: dict, missing: list[str]) -> dict
             'status': status, 'evidence': evidence, 'missing': missing}
 
 
-def activity_to_component(summary: dict, observations: dict | None) -> dict:
+def activity_to_component(summary: dict) -> dict:
+    """第 1 条：summary 的 b（b_conclusions 的摘要）按 #66 的口径，加参照组在 task_only 场景的四项门。"""
     missing, evidence = [], {}
     b = None
-    if observations is None:
+    digest = summary.get('b')
+    if digest is None:
         missing.append('#66 对照实验 B 在 10/12–16 试用后的观测结论：两条线执行到关闭、取证之后由 b_observe 算出的 '
                        'observations.json')
-    elif observations.get('format') != OBSERVATIONS_FORMAT \
-            or observations.get('conclusion', {}).get('activity') not in {'component', 'object'}:
-        missing.append(f'观测结论的格式不是 {OBSERVATIONS_FORMAT}，或没有 conclusion.activity')
     else:
-        b = observations['conclusion']['activity']
-        evidence['b'] = {'activity': b, 'because': observations['conclusion'].get('because', []),
-                         'script': (observations.get('script') or {}).get('id')}
+        b = digest['conclusion']['activity']
+        evidence['b'] = {'activity': b, 'because': digest['conclusion']['because'],
+                         'strict': digest['strict'], 'script': digest['script']['id'], 'smoke': digest['smoke']}
     scenario = summary['groups'][REFERENCE]['scenarios'].get('task_only')
     e = None
     if scenario is None or not scenario['valid']:
@@ -155,9 +196,10 @@ def why_coverage_low(summary: dict) -> dict:
         low = (retrieval is not None and retrieval < WHY_RECALL) or (coverage is not None and coverage < WHY_COVERAGE)
         rows[scenario] = {'retrieval_recall': retrieval, 'answer_coverage': coverage, 'low': low}
         if retrieval is None:
-            missing.append(f'{scenario}：参照组 Why 问的准备结果')
+            missing.append(f'{spec.SCENARIOS.get(scenario, scenario)}：参照组 Why 问的准备结果')
         if coverage is None:
-            missing.append(f'{scenario}：参照组 Why 问的有效运行（回答覆盖要模型作答，标准答案批准后才能跑）')
+            missing.append(f'{spec.SCENARIOS.get(scenario, scenario)}：参照组 Why 问的有效运行（回答覆盖要模型作答，'
+                           '标准答案批准后才能跑）')
     lows = [scenario for scenario, row in rows.items() if row['low']]
     evidence = {'group': REFERENCE, 'scenarios': rows, 'low': lows}
     if len(lows) >= WHY_SCENARIOS:
@@ -186,7 +228,8 @@ def issue_detached(scanned: dict) -> dict:
 CHECKS = {
     'activity_to_component': (
         'Task-only 线达标', 'Activity 降为组件',
-        ['#66 对照实验 B 的观测结论（observations.json 的 conclusion.activity）',
+        ['#66 对照实验 B 的观测结论（observations.json 经 b_conclusions 摘成 summary.json 的 b，按 #66 口径的 '
+         'conclusion.activity）',
          f'本实验参照组（{metrics.GROUPS[REFERENCE]}）在 task_only 场景上的四项门（summary.json）']),
     'component_ref_instability': (
         '组件引用跨修订不稳', '拆块或升对象',
@@ -201,11 +244,11 @@ CHECKS = {
 }
 THRESHOLDS = {'MIN_COMPONENT_REFS': MIN_COMPONENT_REFS, 'MAX_DANGLING': MAX_DANGLING, 'WHY_RECALL': WHY_RECALL,
               'WHY_COVERAGE': WHY_COVERAGE, 'WHY_SCENARIOS': WHY_SCENARIOS, 'MIN_ISSUE_EVENTS': MIN_ISSUE_EVENTS,
-              'DETACHED_SHARE': DETACHED_SHARE}
+              'DETACHED_SHARE': DETACHED_SHARE, 'REFERENCE': REFERENCE}
 
 
-def evaluate(summary: dict, observations: dict | None = None) -> list[dict]:
-    """四个检查，按规格里的顺序。扫描结果取自 summary 带着的准备结果。"""
+def evaluate(summary: dict) -> list[dict]:
+    """四个检查，按规格里的顺序。扫描结果取自 summary 带着的准备结果，B 的结论取自 summary 的 b。"""
     scanned = summary['prepared']['scan']
-    return [activity_to_component(summary, observations), component_ref_instability(scanned),
+    return [activity_to_component(summary), component_ref_instability(scanned),
             why_coverage_low(summary), issue_detached(scanned)]

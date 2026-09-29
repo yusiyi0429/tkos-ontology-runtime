@@ -1,5 +1,6 @@
-"""四种取法对照（票 #68）：RAG 的切分、BM25 排序与预算装入，跑器的隔离与批准门，带门的指标（含 short 与无有效运行）、
-反例统计与四组的成本口径，四个触发检查的三种输出，以及只由 summary.json 生成的报告。无库、不接模型。
+"""四种取法对照（票 #68）：RAG 的切分、BM25 排序与同成本装入，跑器的隔离与批准门，带门的指标（含 short 与无有效
+运行）、反例统计与四组的成本口径，对照实验 B 的两种口径，四个触发检查的三种输出，以及只由 summary.json 生成的报告。
+无库、不接模型。对照实验 B 用 #66 录好的冒烟运行日志（tests/fixtures/world_v02_experiment_b/）经 b_observe 算出的观测。
 
 fixture（tests/fixtures/world_v02_retrieval/）：
 - corpus.json：一次真实播种（实验 E）的读投影里取的 8 个对象与 25 条事件，id 按实验 E 测试的假播种清单换过
@@ -16,11 +17,12 @@ import uuid
 import pytest
 
 from experiments.world_v01.experiment import contamination
-from experiments.world_v02 import experiment, gold, metrics, report, retrieval, spec, triggers
+from experiments.world_v02 import b_observe, experiment, gold, metrics, report, retrieval, spec, triggers
 
 ROOT = Path(__file__).resolve().parents[1]
 FOLDER = ROOT / 'experiments/world_v02'
 FIXTURES = ROOT / 'tests/fixtures/world_v02_retrieval'
+B_FIXTURES = ROOT / 'tests/fixtures/world_v02_experiment_b'  # #66 录好的冒烟运行日志
 CODEX = ROOT / 'tests/fixtures/world_v01_experiment/codex'
 NAMESPACE = uuid.UUID('6f1c0c1e-67e0-4a67-8e67-000000000067')  # 与实验 E 的测试同一个假播种清单
 
@@ -115,7 +117,8 @@ def perfect_runs(golds: dict, attempts: int = 3) -> list[dict]:
 def summary_of(world, runs: dict, observations=None):
     result = metrics.summarize(world['golds'], runs, 3, prepared())
     result['setup'] = None
-    result['triggers'] = triggers.evaluate(result, observations)
+    result['b'] = triggers.b_conclusions(observations)
+    result['triggers'] = triggers.evaluate(result)
     result['thresholds'] = triggers.THRESHOLDS
     return result
 
@@ -196,7 +199,11 @@ def test_filling_takes_chunks_by_rank_up_to_the_budget_and_skips_what_does_not_f
 def test_retrieval_is_deterministic_and_stays_within_the_same_cost_as_the_fixed_path(world):
     found = retrieval.chunks(corpus())
     index = retrieval.Index(found)
-    limit = prepared()['questions']['constraint_conflict.what']['contexts']['fixed']['used_chars']
+    # 同成本对照：上限是固定路径这一问交给模型的字符数（写进提示词的取上下文返回），不是 Markdown 的 used_chars
+    fixed = prepared()['questions']['constraint_conflict.what']['contexts']['fixed']
+    limit = fixed['chars']
+    assert limit > fixed['used_chars'] and prepared()['questions']['constraint_conflict.what']['contexts']['rag'][
+        'max_chars'] == limit
     first = retrieval.retrieve(index, '四种取法对照（含 RAG）与实验报告', '这个 Task 要做成什么、打算怎么做？', limit)
     again = retrieval.retrieve(retrieval.Index(retrieval.chunks(corpus())), '四种取法对照（含 RAG）与实验报告',
                                '这个 Task 要做成什么、打算怎么做？', limit)
@@ -401,24 +408,56 @@ def test_cost_is_the_characters_handed_to_the_model_in_each_groups_own_terms(tmp
     assert {name for name, item in groups.items() if item['verdict']['passed']} == set()
 
 
-# ------------------------------------------------------------------ the four triggers
-OBSERVATIONS = {'format': triggers.OBSERVATIONS_FORMAT, 'script': {'id': 'trial'},
-                'conclusion': {'activity': 'component', 'because': []}}
+# ------------------------------------------------------------------ experiment B and the four triggers
+def smoke_observations(coarse_only=False):
+    """#66 录好的冒烟运行日志经 b_observe 算出的观测。coarse_only：假设 Task-only 线被拒的步骤都只是粗粒度（#66 的
+    测试同样这样改日志），#66 口径的结论就成了降为组件。"""
+    task_only = json.loads((B_FIXTURES / 'task_only.json').read_text(encoding='utf-8'))
+    task_activity = json.loads((B_FIXTURES / 'task_activity.json').read_text(encoding='utf-8'))
+    if coarse_only:
+        for record in task_only['steps']:
+            if record['expression'] == 'rejected':
+                record['expression'] = 'coarse'
+    return b_observe.observe(task_only, task_activity)
+
+
+def test_the_b_digest_lists_both_conclusions_and_the_strict_one_comes_from_the_coarse_lists():
+    digest = triggers.b_conclusions(smoke_observations())
+    assert digest['smoke'] and digest['script']['id'] == 'smoke' and digest['agent_subject'] == 'Activity'
+    assert digest['expressions']['task_only'] == {'native': 20, 'coarse': 21, 'rejected': 8}
+    assert {name: (item['occurred'], item['task_only']) for name, item in digest['observations'].items()} == {
+        'assign': (True, 'coarse'), 'execute': (True, 'inexpressible'), 'retry': (True, 'coarse'),
+        'accept': (True, 'coarse'), 'manage': (True, 'inexpressible')}
+    # #66 的口径：粗粒度算能表达，只有执行与管理表达不了
+    assert digest['conclusion']['activity'] == 'object' and digest['conclusion']['because'] == ['execute', 'manage']
+    # 更严的口径：coarse 清单不为空的也留对象
+    assert digest['strict'] == {'activity': 'object', 'because': ['assign', 'execute', 'retry', 'accept', 'manage'],
+                                'rule': triggers.STRICT_RULE}
+    assert [step['step'] for step in digest['observations']['assign']['coarse']] == ['plan:integration', '15']
+    assert digest['observations']['assign']['coarse'][0]['writing'] == 'plan_item'
+    relaxed = triggers.b_conclusions(smoke_observations(coarse_only=True))
+    assert relaxed['conclusion']['activity'] == 'component' and relaxed['strict']['activity'] == 'object'
+    assert triggers.b_conclusions(None) is None
+    with pytest.raises(ValueError):
+        triggers.b_conclusions({'format': 'other'})
 
 
 def test_activity_to_component_needs_both_the_b_conclusion_and_the_task_only_scenario(world):
-    passed = summary_of(world, {'fixed': perfect_runs(world['golds'])})
+    component, smoke = smoke_observations(coarse_only=True), smoke_observations()
+    perfect = {'fixed': perfect_runs(world['golds'])}
     check = triggers.activity_to_component
-    assert check(passed, OBSERVATIONS)['status'] == triggers.TRIGGERED
-    assert check(passed, {**OBSERVATIONS, 'conclusion': {'activity': 'object'}})['status'] == triggers.NOT_TRIGGERED
-    missing = check(passed, None)
+    triggered = check(summary_of(world, perfect, component))
+    assert triggered['status'] == triggers.TRIGGERED
+    assert triggered['evidence']['b']['strict']['activity'] == 'object'  # 更严的口径只列在依据里，不改判定
+    assert check(summary_of(world, perfect, smoke))['status'] == triggers.NOT_TRIGGERED
+    missing = check(summary_of(world, perfect))
     assert missing['status'] == triggers.NO_DATA and '#66' in missing['missing'][0] and len(missing['missing']) == 1
-    assert check(passed, {'format': 'other'})['status'] == triggers.NO_DATA
     failing = [run for run in perfect_runs(world['golds'])
                if not (run['scenario'] == 'task_only' and run['question'] == 'why' and run['attempt'] == 3)]
-    assert check(summary_of(world, {'fixed': failing}), OBSERVATIONS)['status'] == triggers.NOT_TRIGGERED
-    empty = check(summary_of(world, {}), OBSERVATIONS)
+    assert check(summary_of(world, {'fixed': failing}, component))['status'] == triggers.NOT_TRIGGERED
+    empty = check(summary_of(world, {}, component))
     assert empty['status'] == triggers.NO_DATA and 'task_only' in empty['missing'][0]
+    assert check(summary_of(world, {}, smoke))['status'] == triggers.NOT_TRIGGERED  # B 留对象，不必等 E
 
 
 def test_component_ref_instability_on_the_scan_of_the_read_projection(world):
@@ -456,6 +495,16 @@ def test_why_coverage_low_is_triggered_from_the_context_side_alone_and_not_trigg
     low = triggers.why_coverage_low(trimmed)
     assert low['status'] == triggers.TRIGGERED and low['missing'] == []
     assert low['evidence']['low'] == ['cross_unit', 'constraint_conflict', 'version_change']
+    # 回答覆盖的阈值与召回门一致（0.9）：三个场景的 Why 回答少引一项（6/7、6/7、8/9）就触发
+    assert triggers.WHY_COVERAGE == triggers.WHY_RECALL == metrics.GATES['recall'] == 0.9
+    runs = perfect_runs(world['golds'])
+    for run in runs:
+        if run['question'] == 'why' and run['scenario'] in ('cross_unit', 'constraint_conflict', 'version_change'):
+            run['answer']['claims'] = run['answer']['claims'][1:]
+    answered = triggers.why_coverage_low(summary_of(world, {'fixed': runs}))
+    assert answered['status'] == triggers.TRIGGERED
+    assert [round(row['answer_coverage'], 3) for row in answered['evidence']['scenarios'].values()] == [
+        round(6 / 7, 3), round(6 / 7, 3), round(8 / 9, 3), 1.0, 1.0]
 
 
 def test_issue_detached_follows_each_issue_event_to_the_primarys_snapshot_at_that_time(world):
@@ -506,20 +555,30 @@ def test_summarize_uses_approved_gold_and_the_report_is_generated_from_the_summa
     output, _ = recorded(tmp_path, world)
     (output / 'prepared.json').write_text(json.dumps({**prepared(), 'content_sha256': manifest['content_sha256']},
                                                      ensure_ascii=False))
-    (tmp_path / 'observations.json').write_text(json.dumps(OBSERVATIONS))
+    (tmp_path / 'observations.json').write_text(json.dumps(smoke_observations(), ensure_ascii=False))
     result = experiment.summarize(seeded_output, output, gold_path, tmp_path / 'observations.json')
-    assert json.loads((output / 'summary.json').read_text())['groups'] == json.loads(json.dumps(result['groups']))
+    saved = json.loads((output / 'summary.json').read_text())
+    assert saved['groups'] == json.loads(json.dumps(result['groups'])) and saved['b'] == result['b'] is not None
     assert [item['status'] for item in result['triggers']] == [triggers.NOT_TRIGGERED, triggers.NO_DATA,
                                                                triggers.NO_DATA, triggers.NO_DATA]
-    text = report.render(json.loads((output / 'summary.json').read_text()))
+    assert saved['thresholds']['WHY_COVERAGE'] == 0.9 and saved['thresholds']['REFERENCE'] == 'fixed'
+    text = report.render(saved)
     assert text == report.render(json.loads((output / 'summary.json').read_text()))
     traverse = result['groups']['traverse']
     assert f"{traverse['recall']:.2f}（{traverse['recall_counts'][0]}/{traverse['recall_counts'][1]}）" in text
-    assert f"{round(result['groups']['fixed']['chars']):,}" in text
-    assert '## 七、对照实验 B\n\n待 #66 与试用。' in text and '**未运行**' in text
+    assert f"{round(result['groups']['fixed']['chars']):,}" in text and '**未运行**' in text
     for item in result['triggers']:
         assert f"{item['condition']} → {item['action']}：{report.STATUS[item['status']]}" in text
     assert '12,000' in text and '8,785 / 12,000' in text  # 预算读自取上下文的返回，逐问给出
+    first = prepared()['questions']['cross_unit.why']['contexts']
+    assert f"| {first['fixed']['chars']:,} | {first['rag']['chars']:,}（{first['rag']['kept']} 块）" in text  # RAG 上限
+    # 对照实验 B：两种口径都列，粗粒度清单逐条写出，冒烟另行注明
+    b = text.split('## 七、对照实验 B')[1].split('## 八')[0]
+    assert '冒烟脚本（`smoke`）' in b and '| 指派 | 是否要把一段单独指派给别人或 Agent | 是 | 粗粒度 | 0 / 2 / 0 |' in b
+    assert '**按 #66 的口径（粗粒度算能表达）**：Activity 留作对象（执行、管理）' in b
+    assert '**按更严的口径（粗粒度也算表达不了，由 coarse 清单算出）**：Activity 留作对象（指派、执行、重试、验收、管理）' in b
+    assert '- 指派：`plan:integration`（改计划条目）、`15`（改计划条目）' in b and 'Agent 写入需要以谁为主体：Activity' in b
+    assert report.B_MISSING in report.render({**saved, 'b': None})
     changed = json.loads((output / 'summary.json').read_text())
     changed['groups']['traverse']['recall'] = 0.123
     assert '0.12（8/9）' in report.render(changed) and '0.12（8/9）' not in text

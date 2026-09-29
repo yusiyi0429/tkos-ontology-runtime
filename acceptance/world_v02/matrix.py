@@ -1150,6 +1150,14 @@ CHECKS = {
         'experiment_b_seeding_and_driving_again_resume_from_the_log_and_write_nothing',
         'experiment_b_the_five_observations_come_out_of_the_logs_with_events_of_the_task_activity_scope',
         'experiment_b_the_smoke_observations_match_the_documented_outcome')},
+    # 四种取法对照（#68）：新 scope 里播种实验 E，跑实验跑器的准备、核对交给模型的文本，不调模型；不证明矩阵的格。
+    'experiment_r': {name: () for name in (
+        'experiment_r_the_five_scenarios_are_seeded_over_http_into_another_fresh_scope',
+        'experiment_r_the_full_text_holds_every_object_and_event_of_the_scope',
+        'experiment_r_every_chunk_carries_exactly_its_own_reference',
+        'experiment_r_every_taken_reference_is_written_in_the_text_handed_to_the_model',
+        'experiment_r_every_taken_reference_reads_back_through_the_read_projection',
+        'experiment_r_each_rag_text_stays_within_the_characters_the_fixed_path_hands_to_the_model')},
 }
 
 TITLES = {
@@ -1164,6 +1172,7 @@ TITLES = {
     'revocation': '撤掉指派后不能重放',
     'experiment_e': '实验 E 的五个场景：播种与回放',
     'experiment_b': '对照实验 B 的两条线',
+    'experiment_r': '四种取法对照：准备与引用核对',
 }
 
 # 没有驱动、没有验证的路径与部署边界（摘自 README「没有驱动的路径」），报告里单列。
@@ -1180,6 +1189,7 @@ UNVERIFIED = [
     '代记 Mission 的生命周期动作、代记撤回、代记指定本轮与 Strategy 的确认与再确认：机制同其余代记，由无库测试核对。',
     '工作台与看板、证据上传、真实模型：没有驱动。',
     '对照实验 B（#66）：只在隔离库上用合成的冒烟脚本驱动；实例上的供给、播种与驱动没有跑，真实记录的转写与回放要等试用。',
+    '四种取法对照（#68）：只跑准备与引用核对，不调模型；四组作答、指标、触发检查与报告只由无库测试按录好的运行核对。',
 ]
 
 # 补检查时发现的服务与契约不符之处（格、期望、实际、复现），由人分派；没有时为空。

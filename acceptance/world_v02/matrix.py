@@ -1122,6 +1122,21 @@ CHECKS = {
     'revocation': {
         'a_revoked_ceo_cannot_replay_the_0_2_creation_into_success': R('world_create_object'),
     },
+    # 实验 E 的五个场景（#67）：新 scope 里播种与回放，不在票面十项里，检查照列、不证明格。
+    'experiment_e': {name: () for name in (
+        'experiment_e_the_scenarios_and_the_gold_answers_are_consistent',
+        'experiment_e_the_five_scenarios_are_seeded_over_http_into_a_fresh_scope',
+        'experiment_e_the_manifest_carries_no_credentials',
+        'experiment_e_cross_unit_recovers_the_six_questions_from_its_start',
+        'experiment_e_cross_unit_has_its_decoys_in_place',
+        'experiment_e_constraint_conflict_recovers_the_six_questions_from_its_start',
+        'experiment_e_constraint_conflict_has_its_decoys_in_place',
+        'experiment_e_version_change_recovers_the_six_questions_from_its_start',
+        'experiment_e_version_change_has_its_decoys_in_place',
+        'experiment_e_rework_restart_recovers_the_six_questions_from_its_start',
+        'experiment_e_rework_restart_has_its_decoys_in_place',
+        'experiment_e_task_only_recovers_the_six_questions_from_its_start',
+        'experiment_e_task_only_has_its_decoys_in_place')},
 }
 
 TITLES = {
@@ -1134,6 +1149,7 @@ TITLES = {
     'goal_closure': '长期目标与周期目标的收口', 'strategy_gates': 'Strategy 的门', 'context_fill': '取上下文补齐',
     'state_cells': '状态表逐格',
     'revocation': '撤掉指派后不能重放',
+    'experiment_e': '实验 E 的五个场景：播种与回放',
 }
 
 # 没有驱动、没有验证的路径与部署边界（摘自 README「没有驱动的路径」），报告里单列。

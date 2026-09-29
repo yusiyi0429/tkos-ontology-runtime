@@ -30,6 +30,7 @@ from acceptance.world_v01.fixture import ROOT, _grant, _seed_actor, register_wor
 from acceptance.world_v01.flow import Flow as V01Flow
 from .agent_face import mcp_end_to_end
 from .context_fill import context_fill
+from .experiment_e import experiment_e
 from .goal_closure import goal_closure
 from .issues import issues
 from .listing import list_objects
@@ -44,7 +45,7 @@ MIGRATION = '0039_world_v02.sql'
 SCENARIOS = ['migration', 'control_plane', 'company', 'objects', 'rejections', 'coexistence', 'references',
              'revise_relate', 'state_events', 'assign_lifecycle', 'gates', 'context_packs', 'mission_lifecycle',
              'delegation', 'mcp_end_to_end', 'list_objects', 'issues', 'goal_closure', 'strategy_gates',
-             'context_fill', 'state_cells', 'revocation']
+             'context_fill', 'state_cells', 'revocation', 'experiment_e']
 EVENT_KINDS = {item['kind']: item for item in json.loads(REGISTRY.read_text())['event_kinds']}
 OBJECTS = {item['type']: item for item in json.loads(REGISTRY.read_text())['objects']}
 TYPES = ['Company', 'Strategy', 'ResponsibilityUnit', 'LongTermGoal', 'PeriodGoal', 'Mission', 'Task', 'Activity']
@@ -2576,6 +2577,8 @@ def run(book, h, source, upgrade_evidence):
             state_cells(book, h, f, flow, trunk)
         with scenario('revocation'):
             revocation(book, h, f, flow, made['command'])
+        with scenario('experiment_e'):
+            experiment_e(book, h, source, url)
     finally:
         flow.close()
 

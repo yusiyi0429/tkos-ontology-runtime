@@ -54,6 +54,17 @@ def load_approved(path: Path = GOLD, manifest: dict | None = None) -> dict:
     return {'gold': answers, 'scenarios': scenarios}
 
 
+def load_for_rehearsal(path: Path = GOLD, manifest: dict | None = None) -> dict:
+    """彩排用（票 #74）：不要求 E&O DRI 批准，结果不作数；但给了播种的 manifest 时，那次播种用的必须正是当前的场景与
+    标准答案。"""
+    answers, scenarios = _read(path)
+    if manifest is not None and manifest.get('content_sha256') != content_sha256(answers, scenarios):
+        raise NotApproved('this world was seeded from content other than the current scenarios and gold answers')
+    spec.validate(scenarios)
+    spec.validate_gold(answers, scenarios)
+    return {'gold': answers, 'scenarios': scenarios}
+
+
 def approve(path: Path, by: str) -> dict:
     """由 E&O DRI 签：先校验两份文件自洽，再写批准段。"""
     answers, scenarios = _read(path)

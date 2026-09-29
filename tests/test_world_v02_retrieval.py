@@ -314,6 +314,37 @@ def test_the_runner_refuses_gold_answers_the_eo_dri_has_not_approved(tmp_path, w
         experiment.summarize(seeded_output, tmp_path / 'o')
 
 
+def test_a_rehearsal_needs_no_approval_but_only_runs_on_a_world_seeded_from_the_current_content(tmp_path, world):
+    loaded = gold.load_for_rehearsal(manifest=world['manifest'])
+    assert loaded['gold'] == world['answers'] and loaded['gold']['approval']['approved_by'] is None
+    with pytest.raises(gold.NotApproved, match='other than the current'):
+        gold.load_for_rehearsal(manifest={**world['manifest'], 'content_sha256': '0' * 64})
+    seeded_private, seeded_output = seeded(tmp_path, world['manifest'])
+    with pytest.raises(ValueError, match='at least 1'):
+        experiment.run(tmp_path / 'env.json', seeded_private, seeded_output, tmp_path / 'p', tmp_path / 'o', 'm', 'e',
+                       attempts=0, rehearsal=True)
+
+
+def test_summarize_takes_the_mode_and_attempts_from_the_run_and_marks_a_rehearsal_in_the_report(tmp_path, world):
+    seeded_private, seeded_output = seeded(tmp_path, world['manifest'])
+    output, _ = recorded(tmp_path, world)
+    (output / 'prepared.json').write_text(json.dumps({**prepared(), 'content_sha256': world['manifest']['content_sha256']},
+                                                     ensure_ascii=False))
+    setup = {'started_at': '2026-09-29T12:00:00+00:00', 'model': 'm', 'effort': 'e', 'codex': 'codex-cli x',
+             'identity': experiment.AGENT, 'contract_version': experiment.CONTRACT, 'groups': {}, 'attempts': 1,
+             'rehearsal': True, 'content_sha256': world['manifest']['content_sha256'],
+             'source': {'commit': '0' * 40, 'src_or_experiments_modified': False, 'modified_paths': []}}
+    (output / 'setup.json').write_text(json.dumps(setup))
+    result = experiment.summarize(seeded_output, output)  # 未经批准的标准答案：彩排照样汇总
+    assert result['rehearsal'] is True and result['attempts'] == 1
+    text = report.render(json.loads((output / 'summary.json').read_text()))
+    assert report.REHEARSAL in text and '每问 1 次' in text
+    # 同一批运行记为正式：标准答案未批准就拒绝汇总，彩排的产出不能拿去当正式结果
+    (output / 'setup.json').write_text(json.dumps({**setup, 'rehearsal': False, 'attempts': 3}))
+    with pytest.raises(gold.NotApproved):
+        experiment.summarize(seeded_output, output)
+
+
 def test_prepare_runs_before_approval_but_refuses_a_world_seeded_from_other_content(tmp_path, world):
     manifest = {**world['manifest'], 'content_sha256': '0' * 64}
     seeded_private, seeded_output = seeded(tmp_path, manifest)

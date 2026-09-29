@@ -21,6 +21,8 @@ WRITINGS = {'plan_item': '改计划条目', 'task_subject': '以 Task 为主体�
             'activity': 'Activity', 'task': 'Task', 'mission': 'Mission', 'issue': '问题'}
 EXPRESSIONS = {'native': '原生', 'coarse': '粗粒度', 'inexpressible': '表达不了', None: '—'}
 ACTIVITY = {'object': 'Activity 留作对象', 'component': 'Activity 降为组件'}
+REHEARSAL = ('> **彩排（票 #74），结果不作数**：标准答案未经 E&O DRI 批准，Company 与 Strategy 仍是占位材料；'
+             '这次运行只用来检验跑器、量耗时与成本。')
 
 
 def _ratio(value: float | None, counts: list[int] | None = None) -> str:
@@ -262,10 +264,12 @@ def _runs(summary: dict) -> list[str]:
 
 def render(summary: dict) -> str:
     lines = ['# tkos.world/0.2 四种取法对照（含 RAG）实验报告', '',
-             '> 由 `experiments/world_v02/report.py` 从 summary.json 生成，不要手改。', '',
-             '票 #68（规格 #46 第十节，用户故事 81、82）。同一批问题——实验 E 五个场景的六问——全量塞入、固定路径、'
-             '模型遍历与 RAG 四组都作答，同一模型、同一推理档、同一回答形状，每问三次；召回、可追溯、确定性与反例作门，'
-             '成本按交给模型的字符数只报告。', '']
+             '> 由 `experiments/world_v02/report.py` 从 summary.json 生成，不要手改。', '']
+    if summary.get('rehearsal'):
+        lines += [REHEARSAL, '']
+    lines += ['票 #68（规格 #46 第十节，用户故事 81、82）。同一批问题——实验 E 五个场景的六问——全量塞入、固定路径、'
+              f"模型遍历与 RAG 四组都作答，同一模型、同一推理档、同一回答形状，每问 {summary['attempts']} 次；"
+              '召回、可追溯、确定性与反例作门，成本按交给模型的字符数只报告。', '']
     lines += _setup(summary) + _conclusion(summary) + _basis(summary) + _scenarios(summary) + _budget(summary)
     lines += _triggers(summary) + _b(summary) + _runs(summary)
     return '\n'.join(lines)

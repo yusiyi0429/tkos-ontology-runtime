@@ -16,7 +16,7 @@
     python -m experiments.world_v02.experiment prepare --env-file P/env.json --seeded-private P2 --seeded-output O2 \\
         --private P3 --output O3                       # 不调模型：生成三组的上下文并核对引用，批准前也能跑
     python -m experiments.world_v02.experiment run --env-file P/env.json --seeded-private P2 --seeded-output O2 \\
-        --private P3 --output O3 --model M --effort E [--groups full fixed traverse rag]
+        --private P3 --output O3 --model M --effort E [--groups full fixed traverse rag] [--attempts N] [--rehearsal]
     python -m experiments.world_v02.experiment summarize --seeded-output O2 --output O3 [--b-observations F]
 
 P2、O2 是 experiments.world_v02.seed 的 --private 与 --output（那次播种的凭据与 manifest.json）。
@@ -32,7 +32,9 @@ P2、O2 是 experiments.world_v02.seed 的 --private 与 --output（那次播种
 一致。这是对 MCP 两个私有函数的依赖。成本按这段文本计，比包里 Markdown 的 used_chars 大一层 JSON 外壳（六问覆盖与
 预算摘要，0.1 报告已指出）；RAG 的上限也按这段文本的长度定，两组同一口径。
 
-跑（run）先经 ``gold.load_approved`` 取标准答案并核对播种，未经 E&O DRI 批准或批准后内容改过就拒跑；再在同一个输出
+跑（run）先经 ``gold.load_approved`` 取标准答案并核对播种，未经 E&O DRI 批准或批准后内容改过就拒跑。彩排（--rehearsal，
+票 #74）改用 ``gold.load_for_rehearsal``：不要求批准，只核对播种用的正是当前内容；setup.json 记 rehearsal，summarize
+按它选同一种取法并在 summary 里带上，报告开头写明结果不作数。--attempts 改每问的作答次数（默认 ATTEMPTS）。再在同一个输出
 目录里做一次准备，核对不通过就停；然后按组跑模型。每次作答都隔离：空目录、不读用户的 Codex 配置，关掉 shell、记忆、
 联网搜索、插件、apps 与子代理（DISABLED 同 0.1）；模型遍历组只开 tkos-world-mcp 的四个读工具，其余三组不配 MCP
 server。事件流里出现别的工具就记为污染；污染与失败的运行不计入指标，同一次重跑到有效为止（最多再试 RETRIES 次），
@@ -344,12 +346,15 @@ def _source() -> dict:
 
 
 def run(env_file: Path, seeded_private: Path, seeded_output: Path, private: Path, output: Path, model: str,
-        effort: str, groups=tuple(GROUPS), gold_path: Path = gold.GOLD) -> dict:
+        effort: str, groups=tuple(GROUPS), gold_path: Path = gold.GOLD, attempts: int = ATTEMPTS,
+        rehearsal: bool = False) -> dict:
     if private.exists() or output.exists():
         raise ValueError('use fresh private and output paths')
+    if attempts < 1:
+        raise ValueError('attempts must be at least 1')
     private, output = private.resolve(), output.resolve()  # codex 在临时空目录里运行，传给它的路径都要是绝对路径
     manifest, actor = _seeded(seeded_private, seeded_output)
-    answers = gold.load_approved(gold_path, manifest)['gold']  # 未批准、批准后改过或播种用的不是批准的内容，都拒跑
+    answers = _gold(rehearsal)(gold_path, manifest)['gold']  # 正式：未批准、批准后改过或播种用的不是批准的内容，都拒跑
     codex = subprocess.run(['codex', '--version'], capture_output=True, text=True).stdout.strip()
     chosen = select(groups)
     h = MethodHarness(env_file.resolve(), output, private)
@@ -359,7 +364,7 @@ def run(env_file: Path, seeded_private: Path, seeded_output: Path, private: Path
         public_json(output / 'setup.json', {
             'started_at': datetime.now(timezone.utc).isoformat(), 'model': model, 'effort': effort, 'codex': codex,
             'identity': AGENT, 'contract_version': CONTRACT, 'groups': {name: list(tools) for name, tools in chosen.items()},
-            'disabled_features': list(DISABLED), 'attempts': ATTEMPTS,
+            'disabled_features': list(DISABLED), 'attempts': attempts, 'rehearsal': rehearsal,
             'content_sha256': manifest['content_sha256'], 'source': _source()})
         try:
             prepared = prepare(client, manifest, answers, output)
@@ -376,7 +381,7 @@ def run(env_file: Path, seeded_private: Path, seeded_output: Path, private: Path
                     key = metrics.key(scenario['id'], item['id'])
                     context = (None if group == 'traverse' else full if group == 'full'
                                else json.loads((output / f'contexts/{key}.{group}.json').read_text()))
-                    for attempt in range(1, ATTEMPTS + 1):
+                    for attempt in range(1, attempts + 1):
                         for retry in range(RETRIES + 1):
                             name = f'{key}-{attempt}' + (f'-retry{retry}' if retry else '')
                             if run_model(output / group / name, model, effort, url, actor['token'], start,
@@ -387,18 +392,27 @@ def run(env_file: Path, seeded_private: Path, seeded_output: Path, private: Path
     return summarize(seeded_output, output, gold_path)
 
 
+def _gold(rehearsal: bool):
+    return gold.load_for_rehearsal if rehearsal else gold.load_approved
+
+
 def summarize(seeded_output: Path, output: Path, gold_path: Path = gold.GOLD, observations: Path | None = None) -> dict:
     """按输出目录重算：跑过的每一组各算一份，加上准备结果与四个触发检查。observations 是 #66 的观测结论
-    （b_observe 的输出），经 triggers.b_conclusions 摘成 summary 的 b，报告的对照实验 B 一节与第 1 条检查都读它。"""
+    （b_observe 的输出），经 triggers.b_conclusions 摘成 summary 的 b，报告的对照实验 B 一节与第 1 条检查都读它。
+    正式还是彩排、每问几次，都按这次运行的 setup.json；没有 setup.json（只做了准备）按正式处理。"""
     manifest = json.loads((seeded_output / 'manifest.json').read_text())
-    answers = gold.load_approved(gold_path, manifest)['gold']
+    setup = output / 'setup.json'
+    setup = json.loads(setup.read_text()) if setup.exists() else None
+    rehearsal = bool(setup and setup.get('rehearsal'))
+    answers = _gold(rehearsal)(gold_path, manifest)['gold']
     prepared = json.loads((output / 'prepared.json').read_text())
     if prepared['content_sha256'] != manifest['content_sha256']:
         raise ValueError('the prepared contexts come from another seeding')
     runs = {name: metrics.load_runs(output / name) for name in metrics.GROUPS}
-    result = metrics.summarize(metrics.resolve(answers, manifest), runs, ATTEMPTS, prepared)
-    setup = output / 'setup.json'
-    result['setup'] = json.loads(setup.read_text()) if setup.exists() else None
+    result = metrics.summarize(metrics.resolve(answers, manifest), runs, setup['attempts'] if setup else ATTEMPTS,
+                               prepared)
+    result['setup'] = setup
+    result['rehearsal'] = rehearsal
     result['b'] = triggers.b_conclusions(json.loads(observations.read_text()) if observations else None)
     result['triggers'] = triggers.evaluate(result)
     result['thresholds'] = triggers.THRESHOLDS
@@ -419,6 +433,9 @@ def main():
     parser.add_argument('--groups', nargs='+', choices=list(GROUPS), default=list(GROUPS),
                         help='要跑的组：full 全量塞入、fixed 固定路径、traverse 模型遍历、rag；默认都跑')
     parser.add_argument('--b-observations', type=Path, help='#66 对照实验 B 的观测结论（summarize 用）')
+    parser.add_argument('--attempts', type=int, default=ATTEMPTS, help=f'run：每问作答几次，默认 {ATTEMPTS}')
+    parser.add_argument('--rehearsal', action='store_true',
+                        help='run：彩排，标准答案不要求批准，结果不作数（summarize 按 setup.json 自动识别）')
     args = parser.parse_args()
     if args.command == 'summarize':
         result = summarize(args.seeded_output, args.output, observations=args.b_observations)
@@ -437,7 +454,7 @@ def main():
         if None in (args.model, args.effort):
             parser.error('run needs --model and --effort')
         result = run(args.env_file, args.seeded_private, args.seeded_output, args.private, args.output, args.model,
-                     args.effort, args.groups)
+                     args.effort, args.groups, attempts=args.attempts, rehearsal=args.rehearsal)
     shown = ('runs', 'short', 'recall', 'traceability', 'determinism', 'counterexamples', 'chars', 'verdict')
     print(json.dumps({name: {key: result['groups'][name][key] for key in shown} for name in GROUPS}
                      | {'triggers': {item['id']: item['status'] for item in result['triggers']}}, ensure_ascii=False))

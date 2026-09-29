@@ -172,7 +172,7 @@ python3 -m experiments.world_v02.b_observe $B/task-only/b-run.json $B/task-activ
 
 ## 四种取法对照（含 RAG）
 
-票 #68（规格 #46 第十节，用户故事 81、82）。结构沿用 0.1 的 `experiments/world_v01/`，0.1 的模块一行不改。同一批问题——上面实验 E 五个场景的六问——四组都作答：同一模型、同一推理档、同一回答形状（断言列表 `{claim, kind: fact|gap|conflict, refs}`），每问三次，只差模型拿到上下文的方式。
+票 #68（规格 #46 第十节，用户故事 81、82）。结构沿用 0.1 的 `experiments/world_v01/`，0.1 的模块一行不改。同一批问题——上面实验 E 五个场景的六问——四组都作答：同一模型、同一推理档、同一回答形状（断言列表 `{claim, kind: fact|gap|conflict, refs}`），每问三次（`--attempts` 可改，彩排按实测耗时减次数），只差模型拿到上下文的方式。
 
 | 组 | 模型拿到什么 | 工具 |
 | --- | --- | --- |
@@ -223,7 +223,9 @@ R=$(date +%Y%m%d-%H%M%S)
   --env-file .runtime-acceptance/world-e-db-$STAMP/env.json \
   --seeded-private .runtime-acceptance/world-e-$RUN --seeded-output artifacts/runtime-acceptance/world-e-$RUN \
   --private .runtime-acceptance/world-r-$R --output artifacts/runtime-acceptance/world-r-$R \
-  --model <模型> --effort <推理档> [--groups full fixed traverse rag]
+  --model <模型> --effort <推理档> [--groups full fixed traverse rag] [--attempts N]
+# 彩排（票 #74）：同上再加 --rehearsal。标准答案不要求批准，只核对播种用的正是当前内容；setup.json 记 rehearsal，
+# summarize 自动按彩排汇总，报告开头写明结果不作数。彩排的报告用 --output 写到 artifacts/，不写 docs/
 # 只重算指标；有了 #66 的观测结论就带上
 .venv/bin/python -m experiments.world_v02.experiment summarize \
   --seeded-output artifacts/runtime-acceptance/world-e-$RUN --output artifacts/runtime-acceptance/world-r-$R \
@@ -238,7 +240,7 @@ R=$(date +%Y%m%d-%H%M%S)
 | --- | --- |
 | `prepared.json` | scope 规模与分块数；每问三组的字符数、取到召回与缺的应引项；固定路径的预算、六问覆盖与检索计划里被裁的项；RAG 的上限与装入块数；读投影扫描；引用核对（`verified`） |
 | `contexts/` | 全量文本（`full.json`），每问的固定路径返回与 RAG 结果（`<场景>.<问>.fixed.json`、`.rag.json`） |
-| `setup.json` | 模型、推理档、Codex 版本、各组工具、关掉的功能、每问次数、内容哈希、提交 |
+| `setup.json` | 模型、推理档、Codex 版本、各组工具、关掉的功能、每问次数、是否彩排、内容哈希、提交 |
 | `<组>/<场景>.<问>-<次>[-retryN]/` | `run.json`、`answer.json`、`codex.jsonl`、`codex.stderr`；全量、固定路径、RAG 另有 `context.json`，模型遍历有 `mcp/` 运行日志 |
 | `summary.json` | 四组逐问、逐场景与合计的指标和判定，准备结果，对照实验 B 的摘要（`b`，带了 `--b-observations` 才有），四个触发检查与阈值 |
 

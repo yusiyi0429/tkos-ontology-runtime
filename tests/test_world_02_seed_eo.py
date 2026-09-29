@@ -251,15 +251,15 @@ PINYIN_DIGESTS = {"4e54dfd7486137e1fd0ff3fd0307897604e9c44ebb27b238374fef9b7e3d2
 
 
 def test_no_real_name_and_no_person_numbered_tianshu_id_is_in_the_repository_files() -> None:
-    """真名只在主机的 spec.json：样例名单里人的显示名是角色名。天枢编号只有不带人名的 capability:05；个人任务编号
-    （mission:<编号>，带人名拼音）不进计划、名单与说明。"""
+    """真名只在主机的 spec.json：样例名单里人的显示名是角色名。天枢编号只有不带人名的 capability:05 与实测示例用的
+    mission:demo-<run>；个人任务编号（mission:<编号>，带人名拼音）不进计划、名单与说明。"""
     humans = {key: item["display_name"] for key, item in EO_SPEC["principals"].items() if item["type"] == "human"}
     assert humans == {"ceo": "CEO", "eo-dri": "E&O DRI", "eo-owner": "E&O Mission Owner"}
     files = [DEPLOY / name for name in ("seed-eo-2026-10.json", "spec.eo.example.json", "README.md", "seed_eo.py")]
     for path in files:
         text = path.read_text(encoding="utf-8")
         ids = set(re.findall(r"\b(?:mission|capability|todo):[A-Za-z0-9][\w.-]*", text))
-        assert ids <= {"capability:05"}, (path.name, ids)
+        assert {i for i in ids if not i.startswith("mission:demo-")} <= {"capability:05"}, (path.name, ids)
         assert not {hashlib.sha256(run.encode()).hexdigest() for run in re.findall(r"[a-z]+", text.lower())} & \
             PINYIN_DIGESTS, path.name
 

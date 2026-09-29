@@ -1,4 +1,4 @@
-"""对照实验 B 的两条线播种（票 #66）：同一份 mission_trial 内容（deploy/world-02/seed-eo-2026-10.json）分别播进
+"""对照实验 B 的两条线播种（票 #66）：同一份 mission_trial 内容（换任务卡之前的十月计划 experiments/world_v02/b_source-2026-10.json）分别播进
 Task-only 线与 Task+Activity 线的 scope，读回核对；另有隔离库上的一键冒烟。
 
     播种  python -m experiments.world_v02.b_seed seed <base_url> <目录> --line task_only|task_activity

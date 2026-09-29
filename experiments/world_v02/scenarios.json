@@ -2,7 +2,7 @@
   "format": "tkos-world-scenarios/0.2",
   "title": "实验 E：E&O 十月的五个场景",
   "contract_version": "tkos.world/0.2",
-  "notes": "五个场景共用 E&O 十月主干（base），各场景只建、只改自己的对象（owns 列出它要改的主干对象）。主干取自 deploy/world-02/seed-eo-2026-10.json（公司层正文取自 0.1 审过的 experiments/world_v01/seed.json），只改两处：Strategy 的责任结构块加 Agents 的责任单元条目组件；十月周期目标多走一轮重走（版本变化场景要的上层新修订）。不播委托与天枢主体。外部事件与状态快照的时刻写 now：取播种那一步的数据库时刻，按记录顺序即发生顺序。",
+  "notes": "五个场景共用 E&O 十月主干（base），各场景只建、只改自己的对象（owns 列出它要改的主干对象）。主干取自换任务卡之前的十月计划 experiments/world_v02/b_source-2026-10.json（公司层正文取自 0.1 审过的 experiments/world_v01/seed.json），只改两处：Strategy 的责任结构块加 Agents 的责任单元条目组件；十月周期目标多走一轮重走（版本变化场景要的上层新修订）。不播委托与天枢主体。外部事件与状态快照的时刻写 now：取播种那一步的数据库时刻，按记录顺序即发生顺序。",
   "domains": {"company": "公司", "eo": "E&O", "agents": "Agents"},
   "identities": {
     "ceo": {"type": "human", "display_name": "CEO", "roles": {"company": ["CEO"], "eo": ["CEO"], "agents": ["CEO"]}},

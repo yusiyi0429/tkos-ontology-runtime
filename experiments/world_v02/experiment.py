@@ -159,6 +159,12 @@ def _taken(context: dict) -> set[str]:
     return set(context['refs']) | {f'event:{event}' for event in context['event_ids']}
 
 
+def shown(text: str) -> list[str]:
+    """交给模型的文本里出现的全部引用与事件（带内容或只以引用形式，同 MCP 运行日志 refs 的口径）。可追溯按它算，
+    召回仍按取到的集合。"""
+    return sorted(set(FACE.ref.findall(text)))
+
+
 def _described(ref: str, labels: dict[str, str], types: dict[str, str]) -> dict:
     parsed = counterexamples.parse(ref) or {}
     return {'ref': ref, 'label': labels.get(ref, ref), 'object_type': types.get(parsed.get('object_id'))}
@@ -300,7 +306,8 @@ def run_model(folder: Path, model: str, effort: str, api_url: str, token: str, s
     folder.mkdir(parents=True)
     (folder / 'schema.json').write_text(json.dumps(ANSWER, ensure_ascii=False))
     if context is not None:
-        public_json(folder / 'context.json', {key: context[key] for key in ('refs', 'event_ids', 'chars')})
+        public_json(folder / 'context.json', {**{key: context[key] for key in ('refs', 'event_ids', 'chars')},
+                                              'shown': shown(context['text'])})
     text = prompt(group, start, question['question'], context and context['text'])
     environment = {key: value for key, value in os.environ.items() if key != 'TKOS_WORLD_AGENT_TOKEN'}
     if tools:

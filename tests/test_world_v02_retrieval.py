@@ -17,7 +17,7 @@ import uuid
 import pytest
 
 from experiments.world_v01.experiment import contamination
-from experiments.world_v02 import b_observe, experiment, gold, metrics, report, retrieval, spec, triggers
+from experiments.world_v02 import b_observe, counterexamples, experiment, gold, metrics, report, retrieval, spec, triggers
 
 ROOT = Path(__file__).resolve().parents[1]
 FOLDER = ROOT / 'experiments/world_v02'
@@ -352,6 +352,53 @@ def test_prepare_runs_before_approval_but_refuses_a_world_seeded_from_other_cont
         experiment.prepare_command(tmp_path / 'env.json', seeded_private, seeded_output, tmp_path / 'p', tmp_path / 'o')
 
 
+# ------------------------------------------------------------------ what the model was shown
+def test_traceability_counts_what_the_model_was_shown_while_recall_counts_what_it_took(tmp_path, world):
+    golds = world['golds']
+    expected = golds['cross_unit']['questions']['basis']
+    event = 'event:' + str(uuid.uuid5(NAMESPACE, 'confirm-shown-only-as-a-reference'))
+    text = f"周期目标 生命周期：已确认（事件 `{event}`），块 `{expected[0]}`。"
+    assert experiment.shown(text) == sorted({event, expected[0]})
+    claims = [{'claim': '依据', 'kind': 'fact', 'refs': [expected[0], event]}]
+    run = {'taken': set(expected), 'chars': 100, 'answer': {'claims': claims}}
+    strict = metrics.score(run, expected, golds['cross_unit'], 'basis')
+    shown = metrics.score({**run, 'shown': set(expected) | {event}}, expected, golds['cross_unit'], 'basis')
+    assert strict['traceability'] == [0, 1] and shown['traceability'] == [1, 1]
+    assert strict['recall'] == shown['recall'] == [len(expected), len(expected)]
+    # 跑器把文本里出现过的写进 context.json；模型遍历组取 MCP 运行日志的 refs 与 event_ids
+    folder = tmp_path / 'fixed' / 'cross_unit.basis-1'
+    folder.mkdir(parents=True)
+    (folder / 'run.json').write_text(json.dumps({'group': 'fixed', 'scenario': 'cross_unit', 'question': 'basis',
+                                                 'attempt': 1, 'status': 'ok'}))
+    (folder / 'context.json').write_text(json.dumps({'refs': [], 'event_ids': [], 'chars': 1, 'shown': [event]}))
+    loaded = metrics.load_runs(tmp_path / 'fixed')[0]
+    assert loaded['taken'] == set() and loaded['shown'] == {event}
+    folder = tmp_path / 'traverse' / 'cross_unit.basis-1'
+    (folder / 'mcp').mkdir(parents=True)
+    (folder / 'run.json').write_text(json.dumps({'group': 'traverse', 'scenario': 'cross_unit', 'question': 'basis',
+                                                 'attempt': 1, 'status': 'ok'}))
+    (folder / 'mcp/run.jsonl').write_text(json.dumps({'tool': 'world_get_context', 'chars': 1, 'read_refs': [],
+                                                      'read_event_ids': [], 'refs': [expected[0]],
+                                                      'event_ids': [event[len('event:'):]]}) + '\n')
+    loaded = metrics.load_runs(tmp_path / 'traverse')[0]
+    assert loaded['taken'] == set() and loaded['shown'] == {expected[0], event}
+
+
+def test_saying_a_criterion_is_not_yet_met_is_not_calling_the_block_empty(world):
+    gold_item = world['golds']['task_only']
+    acceptance = next(item['ref'] for item in gold_item['counterexamples']['content_as_empty']['decoys']
+                      if item['ref'].endswith('#acceptance'))
+    component = acceptance + '/ac-gold'  # 彩排里全量组那条 gap 断言引的就是这条验收标准
+    judged = counterexamples.judge([{'claim': '标准答案还没有批准记录', 'kind': 'gap', 'refs': [component]}],
+                                   gold_item, 'now')
+    assert judged['content_as_empty']['occurred'] is False
+    for decoy in gold_item['counterexamples']['content_as_empty']['decoys']:
+        judged = counterexamples.judge([{'claim': '没有安排', 'kind': 'gap', 'refs': [decoy['ref']]}], gold_item, 'now')
+        assert judged['content_as_empty']['occurred'] is True
+        judged = counterexamples.judge([{'claim': '有安排', 'kind': 'fact', 'refs': [decoy['ref']]}], gold_item, 'now')
+        assert judged['content_as_empty']['occurred'] is False
+
+
 # ------------------------------------------------------------------ metrics and gates
 def test_a_group_with_every_run_perfect_passes_all_four_gates(world):
     result = metrics.group(world['golds'], perfect_runs(world['golds']), 3, 30000)
@@ -536,6 +583,12 @@ def test_why_coverage_low_is_triggered_from_the_context_side_alone_and_not_trigg
     assert answered['status'] == triggers.TRIGGERED
     assert [round(row['answer_coverage'], 3) for row in answered['evidence']['scenarios'].values()] == [
         round(6 / 7, 3), round(6 / 7, 3), round(8 / 9, 3), 1.0, 1.0]
+    # 读法：取到召回就不够的是取法或主干关系的问题；都取到了、只是回答没引全的，调整的是怎么让模型答全
+    assert low['evidence']['reading'] == 'retrieval' and low['action'] == '改主干关系或取法'
+    assert answered['evidence']['reading'] == 'answering' and answered['action'] == triggers.WHY_ANSWERING
+    assert '不改主干关系' in triggers.WHY_ANSWERING
+    text = report.render({**summary_of(world, {'fixed': runs}), 'triggers': [answered], 'b': None})
+    assert f"Why 覆盖持续偏低 → {triggers.WHY_ANSWERING}：**触发**" in text and '读法：Why 链都取到了' in text
 
 
 def test_issue_detached_follows_each_issue_event_to_the_primarys_snapshot_at_that_time(world):

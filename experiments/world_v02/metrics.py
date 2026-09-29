@@ -1,8 +1,9 @@
 """四种取法对照（票 #68，规格 #46 第十节）的指标：召回、可追溯、确定性与反例作门，成本只报告。纯函数，不连库、不接模型。
 结构沿用 0.1 的 experiments/world_v01/metrics.py，每组同一口径、各自判定；0.1 的模块一行不改。
 
-一次运行的记录（load_runs）：run.json（场景、问题、第几次、状态）、answer.json（断言列表），以及取到的集合与交给模型的
-字符数——全量、固定路径、RAG 三组由跑器写进 context.json（与这一问的准备结果相同），模型遍历组取 mcp/ 下的运行日志。
+一次运行的记录（load_runs）：run.json（场景、问题、第几次、状态）、answer.json（断言列表），以及取到的集合、交给模型的
+材料里出现过的引用与交给模型的字符数——全量、固定路径、RAG 三组由跑器写进 context.json（与这一问的准备结果相同），
+模型遍历组取 mcp/ 下的运行日志。
 
 各项门用哪个集合（BASIS，原样写进 summary.json，报告从那里取）：
 
@@ -10,8 +11,10 @@
   （tkos_world_mcp.server._content 的口径）；RAG 组是装入的分块；模型遍历组是 MCP 运行日志的 read_refs 与
   read_event_ids。全量、固定路径、RAG 三组每次运行取到的集合相同。
 - 召回（门 ≥ 0.9）：标准答案应引项里被取到的比例，所有有效运行合计。全量组按构造最大（应引项都在 scope 里就是 1）。
-- 可追溯（门 100%）：refs 非空、且每条引用（counterexamples.normalize 归一后）都在这次运行取到的集合里的断言的比例，
-  所有有效运行合计。
+- 可追溯（门 100%）：refs 非空、且每条引用（counterexamples.normalize 归一后）都在这次运行交给模型的材料里出现过的
+  断言的比例，所有有效运行合计。出现过：带着内容，或只以引用形式（上层生命周期后面写的推出事件、块内引用等）；全量、
+  固定路径、RAG 三组按写进提示词的文本（context.json 的 shown），模型遍历组按 MCP 运行日志的 refs 与 event_ids。
+  它包含取到的集合；召回仍按取到的集合（2026-09-29 定，#74 彩排之后）。
 - 确定性（门 ≥ 0.9）：同一问各次有效运行取到的集合两两 Jaccard 的平均，再对各问平均。全量、固定路径、RAG 三组按构造
   为 1，不是实验发现。有效运行不足规定次数的问列为 short，确定性就不算达标。
 - 反例（门：五个场景零出现）：experiments.world_v02.counterexamples.judge 按这一问判回答的断言（所引）；每次运行每问
@@ -43,7 +46,7 @@ TAKEN = {'full': '全部分块：scope 内每个对象的最新版与每条事�
 BASIS = {
     'taken': TAKEN,
     'recall': '标准答案应引项里被取到的比例（取到的集合），所有有效运行合计',
-    'traceability': '断言所引（归一后）都在这次运行取到的集合里的比例，所有有效运行合计',
+    'traceability': '断言所引（归一后）都在这次运行交给模型的材料里出现过（带内容或只以引用形式）的比例，所有有效运行合计',
     'determinism': '同一问各次运行取到的集合两两 Jaccard 的平均，再对各问平均；全量、固定路径、RAG 按构造为 1',
     'counterexamples': '断言所引，按 counterexamples.judge 逐问判；五个场景零出现',
     'determinism_cited': '另报：同一问各次运行所引集合的 Jaccard',
@@ -81,11 +84,14 @@ def load_runs(folder: Path) -> list[dict]:
         if context.exists():
             given = json.loads(context.read_text())
             run['taken'] = set(given['refs']) | {f'event:{event}' for event in given['event_ids']}
+            run['shown'] = run['taken'] | set(given.get('shown', ()))
             run['chars'] = given['chars']
         else:
             log = _log(path)
             run['taken'] = {ref for line in log for ref in line.get('read_refs', [])} \
                 | {f'event:{event}' for line in log for event in line.get('read_event_ids', [])}
+            run['shown'] = run['taken'] | {ref for line in log for ref in line.get('refs', [])} \
+                | {f'event:{event}' for line in log for event in line.get('event_ids', [])}
             run['chars'] = sum(line['chars'] for line in log)
             run['calls'] = len(log)
         runs.append(run)
@@ -118,7 +124,8 @@ def score(run: dict, expected: list[str], gold: dict, question: str) -> dict:
     refs = [{counterexamples.normalize(ref) for ref in claim['refs']} for claim in claims]
     cited = set().union(*refs) if refs else set()
     judged = counterexamples.judge(claims, gold, question)
-    result.update(traceability=[sum(bool(item) and item <= got for item in refs), len(claims)], cited=sorted(cited),
+    seen = run.get('shown', got)  # 交给模型的材料里出现过的，包含取到的集合
+    result.update(traceability=[sum(bool(item) and item <= seen for item in refs), len(claims)], cited=sorted(cited),
                   answer_coverage=[sum(covers(ref, cited) for ref in expected), len(expected)],
                   counterexamples={category: int(item['occurred']) for category, item in judged.items()})
     return result

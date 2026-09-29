@@ -17,7 +17,8 @@
 - ``other_unit``、``stale_state``：任何种类的断言引了诱饵即出现。
 - ``stale_version``：任何种类的断言引了诱饵，或引了比这次播种结束时更旧的任一对象版本，即出现。
 - ``phantom_activity``：任何种类的断言引了 Activity 类型的对象，或引了 scope 里不存在的对象，即出现。
-- ``content_as_empty``：``gap`` 断言引了诱饵（有内容的块或其中的组件）即出现；``fact`` 与 ``conflict`` 不算。
+- ``content_as_empty``：``gap`` 断言以块级引用引了诱饵（有内容的块）即出现；引块里的某个组件（以某条计划或验收标准
+  为依据说它还没满足）不算，``fact`` 与 ``conflict`` 也不算（2026-09-29 定，#74 彩排之后）。
 - ``conflict_missed``：冲突的每一侧是一组可以接受的块或组件引用，不看版本；侧是块时其中的组件也算。一条
   ``conflict`` 断言只引到一侧即出现（原因 ``one_sided``）；判某一问时，若这一问在冲突要求的问题里，却没有一条
   ``conflict`` 断言同时引到两侧，也出现（原因 ``not_stated``，此时没有依据的断言）。不给问题即按整份回答判。
@@ -148,7 +149,8 @@ def judge(claims: Any, gold: dict[str, Any], question: str | None = None) -> dic
             result[category] = _hit(checked, lambda parsed, on_decoy=on_decoy: on_decoy(parsed) or bool(
                 parsed and 'object_id' in parsed and types.get(parsed['object_id']) in {None, 'Activity'}))
         elif category == 'content_as_empty':
-            result[category] = _hit(checked, on_decoy, kinds=('gap',))
+            result[category] = _hit(checked, lambda parsed, on_decoy=on_decoy: on_decoy(parsed)
+                                    and parsed.get('component') is None, kinds=('gap',))
         elif category == 'conflict_missed':
             result[category] = _conflict(checked, counter['conflict'], question)
         else:

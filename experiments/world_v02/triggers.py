@@ -137,9 +137,9 @@ def scan(corpus: dict[str, Any]) -> dict[str, Any]:
 
 
 # ------------------------------------------------------------------ the four checks
-def _result(check: str, status: str, evidence: dict, missing: list[str]) -> dict:
-    condition, action, sources = CHECKS[check]
-    return {'id': check, 'condition': condition, 'action': action, 'sources': sources,
+def _result(check: str, status: str, evidence: dict, missing: list[str], action: str | None = None) -> dict:
+    condition, default, sources = CHECKS[check]
+    return {'id': check, 'condition': condition, 'action': action or default, 'sources': sources,
             'status': status, 'evidence': evidence, 'missing': missing}
 
 
@@ -201,14 +201,20 @@ def why_coverage_low(summary: dict) -> dict:
             missing.append(f'{spec.SCENARIOS.get(scenario, scenario)}：参照组 Why 问的有效运行（回答覆盖要模型作答，'
                            '标准答案批准后才能跑）')
     lows = [scenario for scenario, row in rows.items() if row['low']]
-    evidence = {'group': REFERENCE, 'scenarios': rows, 'low': lows}
+    # 读法（2026-09-29 定，#74 彩排之后）：偏低的场景里有取到召回不够的，是取法或主干关系的问题；都取到了、只是回答
+    # 没引全的，要改的是怎么让模型答全（提示与上下文 Markdown 的组织），不改主干关系。
+    fetched = any(rows[scenario]['retrieval_recall'] is not None and rows[scenario]['retrieval_recall'] < WHY_RECALL
+                  for scenario in lows)
+    reading = 'retrieval' if fetched else 'answering' if lows else None
+    evidence = {'group': REFERENCE, 'scenarios': rows, 'low': lows, 'reading': reading}
     if len(lows) >= WHY_SCENARIOS:
         status = TRIGGERED
     elif rows and not missing:
         status = NOT_TRIGGERED
     else:
         status = NO_DATA
-    return _result('why_coverage_low', status, evidence, missing if status == NO_DATA else [])
+    return _result('why_coverage_low', status, evidence, missing if status == NO_DATA else [],
+                   WHY_ANSWERING if status == TRIGGERED and reading == 'answering' else None)
 
 
 def issue_detached(scanned: dict) -> dict:
@@ -242,6 +248,7 @@ CHECKS = {
         'Issue 常脱离主体快照演进', 'Issue 升为对象',
         ['读投影扫描：提出之后的问题事件，与主受影响对象在事件时刻的最新状态快照（prepared.json 的 scan）']),
 }
+WHY_ANSWERING = '改怎么让模型答全（提示与上下文 Markdown 的组织），不改主干关系'
 THRESHOLDS = {'MIN_COMPONENT_REFS': MIN_COMPONENT_REFS, 'MAX_DANGLING': MAX_DANGLING, 'WHY_RECALL': WHY_RECALL,
               'WHY_COVERAGE': WHY_COVERAGE, 'WHY_SCENARIOS': WHY_SCENARIOS, 'MIN_ISSUE_EVENTS': MIN_ISSUE_EVENTS,
               'DETACHED_SHARE': DETACHED_SHARE, 'REFERENCE': REFERENCE}

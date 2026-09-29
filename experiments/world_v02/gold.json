@@ -158,7 +158,7 @@
          "rule": "引用不存在的 Activity：本 Task 按 Task-only 写法，下面没有 Activity。断言不论哪一种，引了任一 Activity（包括兄弟 Task「对照实验 B」下的那条）或 scope 里不存在的对象，就算出现。",
          "decoys": ["@activity_b_run"]},
         {"category": "content_as_empty",
-         "rule": "把有内容的块说成空：没有 Activity 不等于没有安排，本 Task 的计划块有四条带责任人的计划条目，验收标准有一条。gap 断言引了这两块或其中的组件，就算出现。",
+         "rule": "把有内容的块说成空：没有 Activity 不等于没有安排，本 Task 的计划块有四条带责任人的计划条目，验收标准有一条。gap 断言以块级引用引了这两块，就算出现；引块里的某一条（以某条计划或验收标准为依据说它还没满足）不算。",
          "decoys": ["@task_experiment_e#plan", "@task_experiment_e#acceptance"]}
       ]
     }

@@ -197,7 +197,10 @@ def _evidence(item: dict, scenarios: dict[str, str]) -> str:
     if item['id'] == 'why_coverage_low':
         rows = [f"{scenarios[scenario]}（取到召回 {_ratio(row['retrieval_recall'])}，"
                 f"回答覆盖 {_ratio(row['answer_coverage'])}）" for scenario, row in evidence['scenarios'].items()]
-        return '偏低的场景：' + ('、'.join(scenarios[name] for name in evidence['low']) or '无') + '；' + '，'.join(rows)
+        reading = {'retrieval': '有场景取到召回就不够，问题在取法或主干关系',
+                   'answering': 'Why 链都取到了，差在回答没引全，问题在怎么让模型答全'}.get(evidence.get('reading'))
+        return ('偏低的场景：' + ('、'.join(scenarios[name] for name in evidence['low']) or '无') + '；' + '，'.join(rows)
+                + (f'。读法：{reading}' if reading else ''))
     return f"提出之后的问题事件 {evidence['issue_events']} 条，脱离主体快照 {len(evidence['detached'])} 条"
 
 

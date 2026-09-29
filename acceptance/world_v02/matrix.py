@@ -1137,6 +1137,19 @@ CHECKS = {
         'experiment_e_rework_restart_has_its_decoys_in_place',
         'experiment_e_task_only_recovers_the_six_questions_from_its_start',
         'experiment_e_task_only_has_its_decoys_in_place')},
+    # 对照实验 B（#66）：两条线的播种、驱动与观测，用实验本身的代码打本次起的 API；不证明矩阵的格。
+    'experiment_b': {name: () for name in (
+        'experiment_b_both_lines_seed_the_trial_mission_and_read_back_as_b_lines_says',
+        'experiment_b_the_objects_down_to_the_tasks_have_the_same_shape_on_both_lines',
+        'experiment_b_both_missions_are_closed_on_the_read_projection',
+        'experiment_b_the_tasks_are_closed_on_both_lines_and_the_activities_on_the_task_activity_line',
+        'experiment_b_every_committed_action_in_the_logs_has_its_event_with_the_same_kind_recorder_and_receipt',
+        'experiment_b_each_scope_holds_exactly_the_events_and_receipts_the_logs_committed',
+        'experiment_b_the_evidence_read_over_http_covers_every_event_of_the_logs',
+        'experiment_b_the_smoke_is_native_on_task_activity_and_mixes_native_coarse_and_rejected_on_task_only',
+        'experiment_b_seeding_and_driving_again_resume_from_the_log_and_write_nothing',
+        'experiment_b_the_five_observations_come_out_of_the_logs_with_events_of_the_task_activity_scope',
+        'experiment_b_the_smoke_observations_match_the_documented_outcome')},
 }
 
 TITLES = {
@@ -1150,6 +1163,7 @@ TITLES = {
     'state_cells': '状态表逐格',
     'revocation': '撤掉指派后不能重放',
     'experiment_e': '实验 E 的五个场景：播种与回放',
+    'experiment_b': '对照实验 B 的两条线',
 }
 
 # 没有驱动、没有验证的路径与部署边界（摘自 README「没有驱动的路径」），报告里单列。
@@ -1165,6 +1179,7 @@ UNVERIFIED = [
     '0.1 视图只驱动了长期目标与快照；取事件、取上下文、取子对象没有 0.2 视图参数。',
     '代记 Mission 的生命周期动作、代记撤回、代记指定本轮与 Strategy 的确认与再确认：机制同其余代记，由无库测试核对。',
     '工作台与看板、证据上传、真实模型：没有驱动。',
+    '对照实验 B（#66）：只在隔离库上用合成的冒烟脚本驱动；实例上的供给、播种与驱动没有跑，真实记录的转写与回放要等试用。',
 ]
 
 # 补检查时发现的服务与契约不符之处（格、期望、实际、复现），由人分派；没有时为空。

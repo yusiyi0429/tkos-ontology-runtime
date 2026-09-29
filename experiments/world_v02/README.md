@@ -140,4 +140,31 @@ RUN=$(date +%Y%m%d-%H%M%S)
   | 不存在的 Activity | 诱饵 Activity 在，但不在起点下面；起点下面没有任何 Activity |
   | 有内容的块 | 在起点上，非空 |
 
-独立验收 `acceptance/world_v02` 的最后一个场景 `experiment_e` 在验收库上跑同样的播种与回放。
+独立验收 `acceptance/world_v02` 的场景 `experiment_e` 在验收库上跑同样的播种与回放。
+
+## 对照实验 B：Task-only 与 Task+Activity
+
+票 #66。同一场真实 Mission（E&O 十月起点的「天枢 × 本体 0.2 试用」，`deploy/world-02/seed-eo-2026-10.json` 的 `mission_trial`）分 Task-only 与 Task+Activity 两条线执行到关闭，对照 Activity 是否需要独立的指派、执行、重试、验收与管理。设计、执行脚本格式、五项观测的记录来源与判断口径、结论规则、试用期间的做法与命令见 `docs/world-v02-experiment-b.md`。
+
+| 文件 | 内容 |
+|-|-|
+| `b_lines.json` | 两条线的播种：原计划里要的步骤（mission_trial 到 Company 的主干）、三个 Task 的责任人、每个 Task 下「谁做哪一段」的初始划分 |
+| `b_spec.json` | 两条线各自 scope 的名单（角色名，`deploy/world-02/provision.py` 的格式） |
+| `b_smoke.json` | 预置的冒烟执行脚本：两条线都推到 Mission 关闭 |
+| `b_http.py` | HTTP 传输：一条线就是一个目录（`ids.json` 与 `<键>.token`），prepare 再 commit，中断后原样重发；只用标准库 |
+| `b_seed.py` | 播种（共同播种加划段）、读回核对；隔离库上的一键冒烟（owner SQL 供给、控制面 CLI 装 0.2、起真 API） |
+| `b_drive.py` | 执行脚本的校验、驱动器（按各线的写法落下，记下动作、回执、事件与表达结果）、取证 |
+| `b_observe.py` | 五项观测与结论（纯函数，输入是两条线的运行日志） |
+
+```sh
+# 隔离库上的冒烟（建库同 0.2 验收，STAMP 为 method_v05 database create/upgrade 用的那次）
+.venv/bin/python -m experiments.world_v02.b_seed smoke --env-file .runtime-acceptance/world-v02-db-$STAMP/env.json \
+  --private .runtime-acceptance/world-v02-b-$RUN --output artifacts/runtime-acceptance/world-v02-b-$RUN
+# 已供给的实例 scope：播种、驱动、取证、观测（每条线一个目录，凭证只从文件读）
+python3 -m experiments.world_v02.b_seed seed $U $B/task-only --line task_only
+python3 -m experiments.world_v02.b_drive drive $U $B/task-only [--script <脚本>]
+python3 -m experiments.world_v02.b_drive collect $U $B/task-only
+python3 -m experiments.world_v02.b_observe $B/task-only/b-run.json $B/task-activity/b-run.json --output $B/observations.json
+```
+
+无库测试是 `tests/test_world_v02_experiment_b.py`（录好的运行日志在 `tests/fixtures/world_v02_experiment_b/`），独立验收是 `acceptance/world_v02/` 的场景 `experiment_b`。输出目录与 `--private` 目录是本地产物，不入库。

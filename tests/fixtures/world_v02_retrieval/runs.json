@@ -1,0 +1,63 @@
+{
+  "note": "录好的运行，引用写成实验 E 的占位（@键、@键#块/组件、event:键），测试按假播种清单换成具体引用后写成跑器的输出目录。模型遍历组记 MCP 运行日志（每行 tool、chars 与取到的引用），其余三组记 context.json（取到的引用与写进提示词的字符数）。",
+  "runs": [
+    {"group": "traverse", "scenario": "task_only", "question": "now", "attempt": 1, "status": "ok",
+     "log": [{"tool": "world_get_object", "chars": 2400, "taken": ["@task_experiment_e", "@task_experiment_e#definition", "@task_experiment_e#plan"]},
+             {"tool": "world_get_events", "chars": 1800, "taken": ["event:start_experiment_e", "event:ev_scope_e", "event:assign_experiment_e"]},
+             {"tool": "world_get_state", "chars": 900, "taken": ["@snap_experiment_e", "@snap_experiment_e#progress"]}],
+     "answer": {"claims": [
+       {"claim": "进行中，由开始事件推出。", "kind": "fact", "refs": ["@task_experiment_e", "event:start_experiment_e"]},
+       {"claim": "五个场景的播种、标准答案与反例判定已写完，等审阅。", "kind": "fact", "refs": ["@snap_experiment_e#progress"]}]}},
+    {"group": "traverse", "scenario": "task_only", "question": "now", "attempt": 2, "status": "contaminated", "retry": 0,
+     "log": [{"tool": "world_get_object", "chars": 2400, "taken": ["@task_experiment_e"]}],
+     "answer": {"claims": [{"claim": "不计入：这次运行被污染。", "kind": "fact", "refs": ["@activity_b_run"]}]}},
+    {"group": "traverse", "scenario": "task_only", "question": "now", "attempt": 2, "status": "ok", "retry": 1,
+     "log": [{"tool": "world_get_object", "chars": 2400, "taken": ["@task_experiment_e", "@task_experiment_e#definition", "@task_experiment_e#plan"]},
+             {"tool": "world_get_events", "chars": 1800, "taken": ["event:start_experiment_e", "event:ev_scope_e", "event:assign_experiment_e"]}],
+     "answer": {"claims": [
+       {"claim": "进行中。", "kind": "fact", "refs": ["@task_experiment_e", "event:start_experiment_e"]},
+       {"claim": "没有取到状态快照。", "kind": "gap", "refs": ["@task_experiment_e"]}]}},
+    {"group": "traverse", "scenario": "task_only", "question": "now", "attempt": 3, "status": "ok",
+     "log": [{"tool": "world_list_objects", "chars": 3000, "taken": []},
+             {"tool": "world_get_object", "chars": 2400, "taken": ["@task_experiment_e", "@task_experiment_e#definition", "@task_experiment_e#plan"]},
+             {"tool": "world_get_events", "chars": 1800, "taken": ["event:start_experiment_e", "event:ev_scope_e", "event:assign_experiment_e"]},
+             {"tool": "world_get_state", "chars": 900, "taken": ["@snap_experiment_e", "@snap_experiment_e#progress"]}],
+     "answer": {"claims": [
+       {"claim": "进行中。", "kind": "fact", "refs": ["@task_experiment_e", "event:start_experiment_e"]},
+       {"claim": "对照实验 B 的那条 Activity 已在跑。", "kind": "fact", "refs": ["@activity_b_run"]}]}},
+
+    {"group": "fixed", "scenario": "task_only", "question": "now", "attempt": 1, "status": "ok",
+     "context": {"chars": 12847, "taken": ["@task_experiment_e", "@task_experiment_e#definition", "@task_experiment_e#plan", "@snap_experiment_e", "@snap_experiment_e#progress", "event:start_experiment_e", "event:ev_scope_e"]},
+     "answer": {"claims": [
+       {"claim": "进行中，由开始事件推出。", "kind": "fact", "refs": ["@task_experiment_e", "event:start_experiment_e"]},
+       {"claim": "最近一条状态：等 E&O DRI 审阅。", "kind": "fact", "refs": ["@snap_experiment_e"]}]}},
+    {"group": "fixed", "scenario": "task_only", "question": "now", "attempt": 2, "status": "ok",
+     "context": {"chars": 12847, "taken": ["@task_experiment_e", "@task_experiment_e#definition", "@task_experiment_e#plan", "@snap_experiment_e", "@snap_experiment_e#progress", "event:start_experiment_e", "event:ev_scope_e"]},
+     "answer": {"claims": [
+       {"claim": "进行中。", "kind": "fact", "refs": ["@task_experiment_e", "event:start_experiment_e"]},
+       {"claim": "状态见快照。", "kind": "fact", "refs": ["@snap_experiment_e#progress"]}]}},
+    {"group": "fixed", "scenario": "task_only", "question": "now", "attempt": 3, "status": "ok",
+     "context": {"chars": 12847, "taken": ["@task_experiment_e", "@task_experiment_e#definition", "@task_experiment_e#plan", "@snap_experiment_e", "@snap_experiment_e#progress", "event:start_experiment_e", "event:ev_scope_e"]},
+     "answer": {"claims": [
+       {"claim": "进行中。", "kind": "fact", "refs": ["@task_experiment_e", "event:start_experiment_e"]}]}},
+    {"group": "fixed", "scenario": "task_only", "question": "what", "attempt": 1, "status": "ok",
+     "context": {"chars": 12858, "taken": ["@task_experiment_e", "@task_experiment_e#definition", "@task_experiment_e#acceptance", "@task_experiment_e#acceptance/ac-gold", "@task_experiment_e#plan", "@task_experiment_e#plan/scenarios", "@task_experiment_e#plan/judge", "@task_experiment_e#plan/review", "@task_experiment_e#plan/material"]},
+     "answer": {"claims": [
+       {"claim": "五个场景，用真实战略材料，写标准答案。", "kind": "fact", "refs": ["@task_experiment_e#definition"]},
+       {"claim": "没有 Activity，也就没有安排。", "kind": "gap", "refs": ["@task_experiment_e#plan"]}]}},
+
+    {"group": "full", "scenario": "task_only", "question": "now", "attempt": 1, "status": "ok",
+     "context": {"chars": 32141, "taken": ["@task_experiment_e", "@task_experiment_e#definition", "@task_experiment_e#plan", "@snap_experiment_e", "@snap_experiment_e#progress", "event:start_experiment_e", "event:ev_scope_e", "@activity_b_run"]},
+     "answer": {"claims": [
+       {"claim": "进行中，由开始事件推出。", "kind": "fact", "refs": ["@task_experiment_e", "event:start_experiment_e"]},
+       {"claim": "最近一条状态见快照。", "kind": "fact", "refs": ["@snap_experiment_e"]}]}},
+    {"group": "full", "scenario": "task_only", "question": "now", "attempt": 2, "status": "failed",
+     "context": {"chars": 32141, "taken": []}},
+
+    {"group": "rag", "scenario": "task_only", "question": "now", "attempt": 1, "status": "ok",
+     "context": {"chars": 9201, "taken": ["@task_experiment_e", "@snap_experiment_e", "@snap_experiment_e#progress", "event:start_experiment_e"]},
+     "answer": {"claims": [
+       {"claim": "进行中。", "kind": "fact", "refs": ["@task_experiment_e", "event:start_experiment_e"]},
+       {"claim": "状态见快照。", "kind": "fact", "refs": ["@snap_experiment_e#progress"]}]}}
+  ]
+}

@@ -1,0 +1,2187 @@
+{
+ "format": "tkos-world-02-retrieval-prepared/0.1",
+ "content_sha256": "7c4623da8f925d0797479334afed0c0a8fe5222e938ec007270bf9c52481cece",
+ "corpus": {
+  "objects": 22,
+  "snapshots": 7,
+  "events": 68,
+  "chunks": {
+   "object": 29,
+   "block": 113,
+   "component": 20,
+   "event": 68
+  }
+ },
+ "full": {
+  "chars": 32141
+ },
+ "questions": {
+  "cross_unit.why": {
+   "scenario": "cross_unit",
+   "question": "why",
+   "text": "为什么要做「试用周每周快照与问题流转」这个 Task？",
+   "start": "36d5c595-e739-5707-b52e-b7c050f52b5a@2",
+   "expected": [
+    {
+     "ref": "89a0f064-5ccf-5126-aed6-946e455d2cab@2#definition",
+     "label": "Mission《天枢 × 本体 0.2 试用》·定义",
+     "object_type": "Mission"
+    },
+    {
+     "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@2#outcome/tianshu",
+     "label": "周期目标《E&O 10 月：tkos.world 0.2 在真实经营中跑通》·结果/tianshu",
+     "object_type": "PeriodGoal"
+    },
+    {
+     "ref": "9fcc28fd-254d-56e2-9738-bb0cc67f88f6@1#outcome",
+     "label": "长期目标《E&O 六个月目标》·结果",
+     "object_type": "LongTermGoal"
+    },
+    {
+     "ref": "acf78a61-8704-5760-bd10-7a5b48b8f825@1#outcome",
+     "label": "长期目标《春节前核心业务第一次被真实证明》·结果",
+     "object_type": "LongTermGoal"
+    },
+    {
+     "ref": "0fdc1d7e-0a3b-5ef7-acd5-8957bb76af7d@1#responsibility_structure/eo",
+     "label": "战略《词元云集总体战略（存根）》·责任结构/eo",
+     "object_type": "Strategy"
+    },
+    {
+     "ref": "0fdc1d7e-0a3b-5ef7-acd5-8957bb76af7d@1#choices",
+     "label": "战略《词元云集总体战略（存根）》·战略选择",
+     "object_type": "Strategy"
+    },
+    {
+     "ref": "33da53b0-4eaf-5ac3-b09c-100ca6e63caf@1#identity",
+     "label": "公司《词元云集（TokenKing）》·身份",
+     "object_type": "Company"
+    }
+   ],
+   "contexts": {
+    "fixed": {
+     "chars": 12380,
+     "recall": [
+      7,
+      7
+     ],
+     "missing": [],
+     "used_chars": 8785,
+     "max_chars": 12000,
+     "over_budget": false,
+     "coverage": {
+      "why": true,
+      "what": true,
+      "who": true,
+      "now": true,
+      "happened": true,
+      "basis": true
+     },
+     "trimmed": []
+    },
+    "rag": {
+     "chars": 8750,
+     "recall": [
+      2,
+      7
+     ],
+     "missing": [
+      "9fcc28fd-254d-56e2-9738-bb0cc67f88f6@1#outcome",
+      "acf78a61-8704-5760-bd10-7a5b48b8f825@1#outcome",
+      "0fdc1d7e-0a3b-5ef7-acd5-8957bb76af7d@1#responsibility_structure/eo",
+      "0fdc1d7e-0a3b-5ef7-acd5-8957bb76af7d@1#choices",
+      "33da53b0-4eaf-5ac3-b09c-100ca6e63caf@1#identity"
+     ],
+     "max_chars": 8785,
+     "kept": 64,
+     "skipped": 81
+    },
+    "full": {
+     "chars": 32141,
+     "recall": [
+      7,
+      7
+     ],
+     "missing": []
+    }
+   }
+  },
+  "cross_unit.what": {
+   "scenario": "cross_unit",
+   "question": "what",
+   "text": "这个 Task 要做成什么？",
+   "start": "36d5c595-e739-5707-b52e-b7c050f52b5a@2",
+   "expected": [
+    {
+     "ref": "36d5c595-e739-5707-b52e-b7c050f52b5a@2#definition",
+     "label": "Task《试用周每周快照与问题流转（10/12–16）》·定义",
+     "object_type": "Task"
+    }
+   ],
+   "contexts": {
+    "fixed": {
+     "chars": 12367,
+     "recall": [
+      1,
+      1
+     ],
+     "missing": [],
+     "used_chars": 8772,
+     "max_chars": 12000,
+     "over_budget": false,
+     "coverage": {
+      "why": true,
+      "what": true,
+      "who": true,
+      "now": true,
+      "happened": true,
+      "basis": true
+     },
+     "trimmed": []
+    },
+    "rag": {
+     "chars": 8750,
+     "recall": [
+      1,
+      1
+     ],
+     "missing": [],
+     "max_chars": 8772,
+     "kept": 64,
+     "skipped": 81
+    },
+    "full": {
+     "chars": 32141,
+     "recall": [
+      1,
+      1
+     ],
+     "missing": []
+    }
+   }
+  },
+  "cross_unit.who": {
+   "scenario": "cross_unit",
+   "question": "who",
+   "text": "谁负责这个 Task？",
+   "start": "36d5c595-e739-5707-b52e-b7c050f52b5a@2",
+   "expected": [
+    {
+     "ref": "36d5c595-e739-5707-b52e-b7c050f52b5a@2",
+     "label": "Task《试用周每周快照与问题流转（10/12–16）》",
+     "object_type": "Task"
+    },
+    {
+     "ref": "event:16f8764d-ffa5-519e-9373-762b7a08cb2a",
+     "label": "指派（2026-09-29T02:24:40.010053Z）",
+     "object_type": null
+    }
+   ],
+   "contexts": {
+    "fixed": {
+     "chars": 12364,
+     "recall": [
+      2,
+      2
+     ],
+     "missing": [],
+     "used_chars": 8769,
+     "max_chars": 12000,
+     "over_budget": false,
+     "coverage": {
+      "why": true,
+      "what": true,
+      "who": true,
+      "now": true,
+      "happened": true,
+      "basis": true
+     },
+     "trimmed": []
+    },
+    "rag": {
+     "chars": 8750,
+     "recall": [
+      2,
+      2
+     ],
+     "missing": [],
+     "max_chars": 8769,
+     "kept": 64,
+     "skipped": 81
+    },
+    "full": {
+     "chars": 32141,
+     "recall": [
+      2,
+      2
+     ],
+     "missing": []
+    }
+   }
+  },
+  "cross_unit.now": {
+   "scenario": "cross_unit",
+   "question": "now",
+   "text": "现在进展到哪了？",
+   "start": "36d5c595-e739-5707-b52e-b7c050f52b5a@2",
+   "expected": [
+    {
+     "ref": "36d5c595-e739-5707-b52e-b7c050f52b5a@2",
+     "label": "Task《试用周每周快照与问题流转（10/12–16）》",
+     "object_type": "Task"
+    },
+    {
+     "ref": "event:347f084f-b5ee-5a12-b461-76b713a22738",
+     "label": "开始（2026-09-29T02:24:40.049099Z）",
+     "object_type": null
+    },
+    {
+     "ref": "8f36e582-7481-5cec-a7ce-fd6acbd67422@1",
+     "label": "状态快照《试用周 Task 状态》",
+     "object_type": "StateSnapshot"
+    }
+   ],
+   "contexts": {
+    "fixed": {
+     "chars": 12361,
+     "recall": [
+      3,
+      3
+     ],
+     "missing": [],
+     "used_chars": 8766,
+     "max_chars": 12000,
+     "over_budget": false,
+     "coverage": {
+      "why": true,
+      "what": true,
+      "who": true,
+      "now": true,
+      "happened": true,
+      "basis": true
+     },
+     "trimmed": []
+    },
+    "rag": {
+     "chars": 8716,
+     "recall": [
+      3,
+      3
+     ],
+     "missing": [],
+     "max_chars": 8766,
+     "kept": 66,
+     "skipped": 20
+    },
+    "full": {
+     "chars": 32141,
+     "recall": [
+      3,
+      3
+     ],
+     "missing": []
+    }
+   }
+  },
+  "cross_unit.happened": {
+   "scenario": "cross_unit",
+   "question": "happened",
+   "text": "最近发生了什么？",
+   "start": "36d5c595-e739-5707-b52e-b7c050f52b5a@2",
+   "expected": [
+    {
+     "ref": "event:347f084f-b5ee-5a12-b461-76b713a22738",
+     "label": "开始（2026-09-29T02:24:40.049099Z）",
+     "object_type": null
+    },
+    {
+     "ref": "event:a964be18-6b7c-52b4-819a-e00449d94e06",
+     "label": "外部事件（2026-09-29T02:24:40.065060Z）",
+     "object_type": null
+    }
+   ],
+   "contexts": {
+    "fixed": {
+     "chars": 12361,
+     "recall": [
+      2,
+      2
+     ],
+     "missing": [],
+     "used_chars": 8766,
+     "max_chars": 12000,
+     "over_budget": false,
+     "coverage": {
+      "why": true,
+      "what": true,
+      "who": true,
+      "now": true,
+      "happened": true,
+      "basis": true
+     },
+     "trimmed": []
+    },
+    "rag": {
+     "chars": 8710,
+     "recall": [
+      2,
+      2
+     ],
+     "missing": [],
+     "max_chars": 8766,
+     "kept": 66,
+     "skipped": 20
+    },
+    "full": {
+     "chars": 32141,
+     "recall": [
+      2,
+      2
+     ],
+     "missing": []
+    }
+   }
+  },
+  "cross_unit.basis": {
+   "scenario": "cross_unit",
+   "question": "basis",
+   "text": "凭什么这样做？受什么约束？",
+   "start": "36d5c595-e739-5707-b52e-b7c050f52b5a@2",
+   "expected": [
+    {
+     "ref": "89a0f064-5ccf-5126-aed6-946e455d2cab@2#acceptance/ac-tianshu",
+     "label": "Mission《天枢 × 本体 0.2 试用》·验收标准/ac-tianshu",
+     "object_type": "Mission"
+    },
+    {
+     "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@2#acceptance/ac-tianshu",
+     "label": "周期目标《E&O 10 月：tkos.world 0.2 在真实经营中跑通》·验收标准/ac-tianshu",
+     "object_type": "PeriodGoal"
+    },
+    {
+     "ref": "81fcaee2-0dd9-50f7-bb07-e908c6e9d202@1#constraint",
+     "label": "责任单元《E&O》·约束",
+     "object_type": "ResponsibilityUnit"
+    }
+   ],
+   "contexts": {
+    "fixed": {
+     "chars": 12366,
+     "recall": [
+      3,
+      3
+     ],
+     "missing": [],
+     "used_chars": 8771,
+     "max_chars": 12000,
+     "over_budget": false,
+     "coverage": {
+      "why": true,
+      "what": true,
+      "who": true,
+      "now": true,
+      "happened": true,
+      "basis": true
+     },
+     "trimmed": []
+    },
+    "rag": {
+     "chars": 8769,
+     "recall": [
+      2,
+      3
+     ],
+     "missing": [
+      "81fcaee2-0dd9-50f7-bb07-e908c6e9d202@1#constraint"
+     ],
+     "max_chars": 8771,
+     "kept": 69,
+     "skipped": 34
+    },
+    "full": {
+     "chars": 32141,
+     "recall": [
+      3,
+      3
+     ],
+     "missing": []
+    }
+   }
+  },
+  "constraint_conflict.why": {
+   "scenario": "constraint_conflict",
+   "question": "why",
+   "text": "为什么要做「四种取法对照（含 RAG）与实验报告」这个 Task？",
+   "start": "293565b4-840b-52f2-8ee0-73c6f3f9519e@3",
+   "expected": [
+    {
+     "ref": "90bfd291-b335-5fb4-8385-0679368a9e50@2#definition",
+     "label": "Mission《0.2 实验与报告》·定义",
+     "object_type": "Mission"
+    },
+    {
+     "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@2#outcome/lock",
+     "label": "周期目标《E&O 10 月：tkos.world 0.2 在真实经营中跑通》·结果/lock",
+     "object_type": "PeriodGoal"
+    },
+    {
+     "ref": "9fcc28fd-254d-56e2-9738-bb0cc67f88f6@1#outcome",
+     "label": "长期目标《E&O 六个月目标》·结果",
+     "object_type": "LongTermGoal"
+    },
+    {
+     "ref": "acf78a61-8704-5760-bd10-7a5b48b8f825@1#outcome",
+     "label": "长期目标《春节前核心业务第一次被真实证明》·结果",
+     "object_type": "LongTermGoal"
+    },
+    {
+     "ref": "0fdc1d7e-0a3b-5ef7-acd5-8957bb76af7d@1#responsibility_structure/eo",
+     "label": "战略《词元云集总体战略（存根）》·责任结构/eo",
+     "object_type": "Strategy"
+    },
+    {
+     "ref": "0fdc1d7e-0a3b-5ef7-acd5-8957bb76af7d@1#choices",
+     "label": "战略《词元云集总体战略（存根）》·战略选择",
+     "object_type": "Strategy"
+    },
+    {
+     "ref": "33da53b0-4eaf-5ac3-b09c-100ca6e63caf@1#identity",
+     "label": "公司《词元云集（TokenKing）》·身份",
+     "object_type": "Company"
+    }
+   ],
+   "contexts": {
+    "fixed": {
+     "chars": 12296,
+     "recall": [
+      7,
+      7
+     ],
+     "missing": [],
+     "used_chars": 8842,
+     "max_chars": 12000,
+     "over_budget": false,
+     "coverage": {
+      "why": true,
+      "what": true,
+      "who": true,
+      "now": true,
+      "happened": true,
+      "basis": true
+     },
+     "trimmed": []
+    },
+    "rag": {
+     "chars": 8805,
+     "recall": [
+      2,
+      7
+     ],
+     "missing": [
+      "04e1479e-c221-58b6-a541-e3c34930dee4@2#outcome/lock",
+      "acf78a61-8704-5760-bd10-7a5b48b8f825@1#outcome",
+      "0fdc1d7e-0a3b-5ef7-acd5-8957bb76af7d@1#responsibility_structure/eo",
+      "0fdc1d7e-0a3b-5ef7-acd5-8957bb76af7d@1#choices",
+      "33da53b0-4eaf-5ac3-b09c-100ca6e63caf@1#identity"
+     ],
+     "max_chars": 8842,
+     "kept": 63,
+     "skipped": 81
+    },
+    "full": {
+     "chars": 32141,
+     "recall": [
+      7,
+      7
+     ],
+     "missing": []
+    }
+   }
+  },
+  "constraint_conflict.what": {
+   "scenario": "constraint_conflict",
+   "question": "what",
+   "text": "这个 Task 要做成什么、打算怎么做？",
+   "start": "293565b4-840b-52f2-8ee0-73c6f3f9519e@3",
+   "expected": [
+    {
+     "ref": "293565b4-840b-52f2-8ee0-73c6f3f9519e@3#definition",
+     "label": "Task《四种取法对照（含 RAG）与实验报告》·定义",
+     "object_type": "Task"
+    },
+    {
+     "ref": "293565b4-840b-52f2-8ee0-73c6f3f9519e@3#plan/rag-graph",
+     "label": "Task《四种取法对照（含 RAG）与实验报告》·计划/rag-graph",
+     "object_type": "Task"
+    },
+    {
+     "ref": "293565b4-840b-52f2-8ee0-73c6f3f9519e@3#plan/cost",
+     "label": "Task《四种取法对照（含 RAG）与实验报告》·计划/cost",
+     "object_type": "Task"
+    },
+    {
+     "ref": "293565b4-840b-52f2-8ee0-73c6f3f9519e@3#plan/report",
+     "label": "Task《四种取法对照（含 RAG）与实验报告》·计划/report",
+     "object_type": "Task"
+    },
+    {
+     "ref": "81fcaee2-0dd9-50f7-bb07-e908c6e9d202@1#constraint",
+     "label": "责任单元《E&O》·约束",
+     "object_type": "ResponsibilityUnit"
+    }
+   ],
+   "contexts": {
+    "fixed": {
+     "chars": 12283,
+     "recall": [
+      5,
+      5
+     ],
+     "missing": [],
+     "used_chars": 8829,
+     "max_chars": 12000,
+     "over_budget": false,
+     "coverage": {
+      "why": true,
+      "what": true,
+      "who": true,
+      "now": true,
+      "happened": true,
+      "basis": true
+     },
+     "trimmed": []
+    },
+    "rag": {
+     "chars": 8805,
+     "recall": [
+      4,
+      5
+     ],
+     "missing": [
+      "81fcaee2-0dd9-50f7-bb07-e908c6e9d202@1#constraint"
+     ],
+     "max_chars": 8829,
+     "kept": 63,
+     "skipped": 81
+    },
+    "full": {
+     "chars": 32141,
+     "recall": [
+      5,
+      5
+     ],
+     "missing": []
+    }
+   }
+  },
+  "constraint_conflict.who": {
+   "scenario": "constraint_conflict",
+   "question": "who",
+   "text": "谁负责这个 Task？",
+   "start": "293565b4-840b-52f2-8ee0-73c6f3f9519e@3",
+   "expected": [
+    {
+     "ref": "293565b4-840b-52f2-8ee0-73c6f3f9519e@3",
+     "label": "Task《四种取法对照（含 RAG）与实验报告》",
+     "object_type": "Task"
+    },
+    {
+     "ref": "event:d6f670f3-cce2-5d24-ba64-d532334bb4ad",
+     "label": "指派（2026-09-29T02:24:40.145177Z）",
+     "object_type": null
+    }
+   ],
+   "contexts": {
+    "fixed": {
+     "chars": 12274,
+     "recall": [
+      2,
+      2
+     ],
+     "missing": [],
+     "used_chars": 8820,
+     "max_chars": 12000,
+     "over_budget": false,
+     "coverage": {
+      "why": true,
+      "what": true,
+      "who": true,
+      "now": true,
+      "happened": true,
+      "basis": true
+     },
+     "trimmed": []
+    },
+    "rag": {
+     "chars": 8805,
+     "recall": [
+      2,
+      2
+     ],
+     "missing": [],
+     "max_chars": 8820,
+     "kept": 63,
+     "skipped": 81
+    },
+    "full": {
+     "chars": 32141,
+     "recall": [
+      2,
+      2
+     ],
+     "missing": []
+    }
+   }
+  },
+  "constraint_conflict.now": {
+   "scenario": "constraint_conflict",
+   "question": "now",
+   "text": "现在进展到哪了？",
+   "start": "293565b4-840b-52f2-8ee0-73c6f3f9519e@3",
+   "expected": [
+    {
+     "ref": "293565b4-840b-52f2-8ee0-73c6f3f9519e@3",
+     "label": "Task《四种取法对照（含 RAG）与实验报告》",
+     "object_type": "Task"
+    },
+    {
+     "ref": "event:1b4b94d6-a255-5b63-8456-10279321d0d8",
+     "label": "开始（2026-09-29T02:24:40.226832Z）",
+     "object_type": null
+    },
+    {
+     "ref": "2c7d70bd-aa85-50bf-9cd3-6513a54370ef@1",
+     "label": "状态快照《取法对照 Task 状态》",
+     "object_type": "StateSnapshot"
+    }
+   ],
+   "contexts": {
+    "fixed": {
+     "chars": 12271,
+     "recall": [
+      3,
+      3
+     ],
+     "missing": [],
+     "used_chars": 8817,
+     "max_chars": 12000,
+     "over_budget": false,
+     "coverage": {
+      "why": true,
+      "what": true,
+      "who": true,
+      "now": true,
+      "happened": true,
+      "basis": true
+     },
+     "trimmed": []
+    },
+    "rag": {
+     "chars": 8764,
+     "recall": [
+      3,
+      3
+     ],
+     "missing": [],
+     "max_chars": 8817,
+     "kept": 66,
+     "skipped": 23
+    },
+    "full": {
+     "chars": 32141,
+     "recall": [
+      3,
+      3
+     ],
+     "missing": []
+    }
+   }
+  },
+  "constraint_conflict.happened": {
+   "scenario": "constraint_conflict",
+   "question": "happened",
+   "text": "最近发生了什么？",
+   "start": "293565b4-840b-52f2-8ee0-73c6f3f9519e@3",
+   "expected": [
+    {
+     "ref": "event:1b4b94d6-a255-5b63-8456-10279321d0d8",
+     "label": "开始（2026-09-29T02:24:40.226832Z）",
+     "object_type": null
+    },
+    {
+     "ref": "event:61cf7ff3-f179-58a3-b8c2-a8a394829296",
+     "label": "外部事件（2026-09-29T02:24:40.241943Z）",
+     "object_type": null
+    }
+   ],
+   "contexts": {
+    "fixed": {
+     "chars": 12271,
+     "recall": [
+      2,
+      2
+     ],
+     "missing": [],
+     "used_chars": 8817,
+     "max_chars": 12000,
+     "over_budget": false,
+     "coverage": {
+      "why": true,
+      "what": true,
+      "who": true,
+      "now": true,
+      "happened": true,
+      "basis": true
+     },
+     "trimmed": []
+    },
+    "rag": {
+     "chars": 8777,
+     "recall": [
+      2,
+      2
+     ],
+     "missing": [],
+     "max_chars": 8817,
+     "kept": 65,
+     "skipped": 20
+    },
+    "full": {
+     "chars": 32141,
+     "recall": [
+      2,
+      2
+     ],
+     "missing": []
+    }
+   }
+  },
+  "constraint_conflict.basis": {
+   "scenario": "constraint_conflict",
+   "question": "basis",
+   "text": "凭什么这样做？受什么约束？",
+   "start": "293565b4-840b-52f2-8ee0-73c6f3f9519e@3",
+   "expected": [
+    {
+     "ref": "81fcaee2-0dd9-50f7-bb07-e908c6e9d202@1#constraint",
+     "label": "责任单元《E&O》·约束",
+     "object_type": "ResponsibilityUnit"
+    },
+    {
+     "ref": "293565b4-840b-52f2-8ee0-73c6f3f9519e@3#plan/rag-graph",
+     "label": "Task《四种取法对照（含 RAG）与实验报告》·计划/rag-graph",
+     "object_type": "Task"
+    }
+   ],
+   "contexts": {
+    "fixed": {
+     "chars": 12276,
+     "recall": [
+      2,
+      2
+     ],
+     "missing": [],
+     "used_chars": 8822,
+     "max_chars": 12000,
+     "over_budget": false,
+     "coverage": {
+      "why": true,
+      "what": true,
+      "who": true,
+      "now": true,
+      "happened": true,
+      "basis": true
+     },
+     "trimmed": []
+    },
+    "rag": {
+     "chars": 8802,
+     "recall": [
+      1,
+      2
+     ],
+     "missing": [
+      "81fcaee2-0dd9-50f7-bb07-e908c6e9d202@1#constraint"
+     ],
+     "max_chars": 8822,
+     "kept": 71,
+     "skipped": 27
+    },
+    "full": {
+     "chars": 32141,
+     "recall": [
+      2,
+      2
+     ],
+     "missing": []
+    }
+   }
+  },
+  "version_change.why": {
+   "scenario": "version_change",
+   "question": "why",
+   "text": "为什么要做「验收冻结与钉定提交」这个 Task？",
+   "start": "2497ba8a-bfa4-5037-8fb5-660a84bff557@2",
+   "expected": [
+    {
+     "ref": "8f5159a4-1855-5996-84c1-b524a94113fc@2#definition",
+     "label": "Mission《0.2 锁版》·定义",
+     "object_type": "Mission"
+    },
+    {
+     "ref": "8f5159a4-1855-5996-84c1-b524a94113fc@2#acceptance/ac-lock",
+     "label": "Mission《0.2 锁版》·验收标准/ac-lock",
+     "object_type": "Mission"
+    },
+    {
+     "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@2#acceptance/ac-lock",
+     "label": "周期目标《E&O 10 月：tkos.world 0.2 在真实经营中跑通》·验收标准/ac-lock",
+     "object_type": "PeriodGoal"
+    },
+    {
+     "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@2#outcome/lock",
+     "label": "周期目标《E&O 10 月：tkos.world 0.2 在真实经营中跑通》·结果/lock",
+     "object_type": "PeriodGoal"
+    },
+    {
+     "ref": "9fcc28fd-254d-56e2-9738-bb0cc67f88f6@1#outcome",
+     "label": "长期目标《E&O 六个月目标》·结果",
+     "object_type": "LongTermGoal"
+    },
+    {
+     "ref": "acf78a61-8704-5760-bd10-7a5b48b8f825@1#outcome",
+     "label": "长期目标《春节前核心业务第一次被真实证明》·结果",
+     "object_type": "LongTermGoal"
+    },
+    {
+     "ref": "0fdc1d7e-0a3b-5ef7-acd5-8957bb76af7d@1#responsibility_structure/eo",
+     "label": "战略《词元云集总体战略（存根）》·责任结构/eo",
+     "object_type": "Strategy"
+    },
+    {
+     "ref": "0fdc1d7e-0a3b-5ef7-acd5-8957bb76af7d@1#choices",
+     "label": "战略《词元云集总体战略（存根）》·战略选择",
+     "object_type": "Strategy"
+    },
+    {
+     "ref": "33da53b0-4eaf-5ac3-b09c-100ca6e63caf@1#identity",
+     "label": "公司《词元云集（TokenKing）》·身份",
+     "object_type": "Company"
+    }
+   ],
+   "contexts": {
+    "fixed": {
+     "chars": 12031,
+     "recall": [
+      9,
+      9
+     ],
+     "missing": [],
+     "used_chars": 8500,
+     "max_chars": 12000,
+     "over_budget": false,
+     "coverage": {
+      "why": true,
+      "what": true,
+      "who": true,
+      "now": true,
+      "happened": true,
+      "basis": true
+     },
+     "trimmed": []
+    },
+    "rag": {
+     "chars": 8495,
+     "recall": [
+      3,
+      9
+     ],
+     "missing": [
+      "04e1479e-c221-58b6-a541-e3c34930dee4@2#outcome/lock",
+      "9fcc28fd-254d-56e2-9738-bb0cc67f88f6@1#outcome",
+      "acf78a61-8704-5760-bd10-7a5b48b8f825@1#outcome",
+      "0fdc1d7e-0a3b-5ef7-acd5-8957bb76af7d@1#responsibility_structure/eo",
+      "0fdc1d7e-0a3b-5ef7-acd5-8957bb76af7d@1#choices",
+      "33da53b0-4eaf-5ac3-b09c-100ca6e63caf@1#identity"
+     ],
+     "max_chars": 8500,
+     "kept": 72,
+     "skipped": 64
+    },
+    "full": {
+     "chars": 32141,
+     "recall": [
+      9,
+      9
+     ],
+     "missing": []
+    }
+   }
+  },
+  "version_change.what": {
+   "scenario": "version_change",
+   "question": "what",
+   "text": "这个 Task 要做成什么？",
+   "start": "2497ba8a-bfa4-5037-8fb5-660a84bff557@2",
+   "expected": [
+    {
+     "ref": "2497ba8a-bfa4-5037-8fb5-660a84bff557@2#definition",
+     "label": "Task《验收冻结与钉定提交》·定义",
+     "object_type": "Task"
+    }
+   ],
+   "contexts": {
+    "fixed": {
+     "chars": 12021,
+     "recall": [
+      1,
+      1
+     ],
+     "missing": [],
+     "used_chars": 8490,
+     "max_chars": 12000,
+     "over_budget": false,
+     "coverage": {
+      "why": true,
+      "what": true,
+      "who": true,
+      "now": true,
+      "happened": true,
+      "basis": true
+     },
+     "trimmed": []
+    },
+    "rag": {
+     "chars": 8477,
+     "recall": [
+      1,
+      1
+     ],
+     "missing": [],
+     "max_chars": 8490,
+     "kept": 72,
+     "skipped": 64
+    },
+    "full": {
+     "chars": 32141,
+     "recall": [
+      1,
+      1
+     ],
+     "missing": []
+    }
+   }
+  },
+  "version_change.who": {
+   "scenario": "version_change",
+   "question": "who",
+   "text": "谁负责这个 Task？",
+   "start": "2497ba8a-bfa4-5037-8fb5-660a84bff557@2",
+   "expected": [
+    {
+     "ref": "2497ba8a-bfa4-5037-8fb5-660a84bff557@2",
+     "label": "Task《验收冻结与钉定提交》",
+     "object_type": "Task"
+    },
+    {
+     "ref": "event:5b505a40-22ab-5448-8c03-020e399d0e30",
+     "label": "指派（2026-09-29T02:24:40.321458Z）",
+     "object_type": null
+    }
+   ],
+   "contexts": {
+    "fixed": {
+     "chars": 12018,
+     "recall": [
+      2,
+      2
+     ],
+     "missing": [],
+     "used_chars": 8487,
+     "max_chars": 12000,
+     "over_budget": false,
+     "coverage": {
+      "why": true,
+      "what": true,
+      "who": true,
+      "now": true,
+      "happened": true,
+      "basis": true
+     },
+     "trimmed": []
+    },
+    "rag": {
+     "chars": 8477,
+     "recall": [
+      1,
+      2
+     ],
+     "missing": [
+      "event:5b505a40-22ab-5448-8c03-020e399d0e30"
+     ],
+     "max_chars": 8487,
+     "kept": 72,
+     "skipped": 64
+    },
+    "full": {
+     "chars": 32141,
+     "recall": [
+      2,
+      2
+     ],
+     "missing": []
+    }
+   }
+  },
+  "version_change.now": {
+   "scenario": "version_change",
+   "question": "now",
+   "text": "现在进展到哪了？",
+   "start": "2497ba8a-bfa4-5037-8fb5-660a84bff557@2",
+   "expected": [
+    {
+     "ref": "2497ba8a-bfa4-5037-8fb5-660a84bff557@2",
+     "label": "Task《验收冻结与钉定提交》",
+     "object_type": "Task"
+    },
+    {
+     "ref": "event:304c29f4-0f8a-5d2d-81be-c61daadabdac",
+     "label": "开始（2026-09-29T02:24:40.380849Z）",
+     "object_type": null
+    },
+    {
+     "ref": "9550b165-c6bb-50a5-b9e2-7bcebc1e7b60@1",
+     "label": "状态快照《冻结 Task 状态》",
+     "object_type": "StateSnapshot"
+    }
+   ],
+   "contexts": {
+    "fixed": {
+     "chars": 12015,
+     "recall": [
+      3,
+      3
+     ],
+     "missing": [],
+     "used_chars": 8484,
+     "max_chars": 12000,
+     "over_budget": false,
+     "coverage": {
+      "why": true,
+      "what": true,
+      "who": true,
+      "now": true,
+      "happened": true,
+      "basis": true
+     },
+     "trimmed": []
+    },
+    "rag": {
+     "chars": 7147,
+     "recall": [
+      2,
+      3
+     ],
+     "missing": [
+      "event:304c29f4-0f8a-5d2d-81be-c61daadabdac"
+     ],
+     "max_chars": 8484,
+     "kept": 55,
+     "skipped": 0
+    },
+    "full": {
+     "chars": 32141,
+     "recall": [
+      3,
+      3
+     ],
+     "missing": []
+    }
+   }
+  },
+  "version_change.happened": {
+   "scenario": "version_change",
+   "question": "happened",
+   "text": "最近发生了什么？",
+   "start": "2497ba8a-bfa4-5037-8fb5-660a84bff557@2",
+   "expected": [
+    {
+     "ref": "event:fd8ced55-b60a-5e73-80d5-eacbb74f336f",
+     "label": "外部事件（2026-09-29T02:24:40.338189Z）",
+     "object_type": null
+    },
+    {
+     "ref": "event:304c29f4-0f8a-5d2d-81be-c61daadabdac",
+     "label": "开始（2026-09-29T02:24:40.380849Z）",
+     "object_type": null
+    }
+   ],
+   "contexts": {
+    "fixed": {
+     "chars": 12015,
+     "recall": [
+      2,
+      2
+     ],
+     "missing": [],
+     "used_chars": 8484,
+     "max_chars": 12000,
+     "over_budget": false,
+     "coverage": {
+      "why": true,
+      "what": true,
+      "who": true,
+      "now": true,
+      "happened": true,
+      "basis": true
+     },
+     "trimmed": []
+    },
+    "rag": {
+     "chars": 6432,
+     "recall": [
+      1,
+      2
+     ],
+     "missing": [
+      "event:304c29f4-0f8a-5d2d-81be-c61daadabdac"
+     ],
+     "max_chars": 8484,
+     "kept": 50,
+     "skipped": 0
+    },
+    "full": {
+     "chars": 32141,
+     "recall": [
+      2,
+      2
+     ],
+     "missing": []
+    }
+   }
+  },
+  "version_change.basis": {
+   "scenario": "version_change",
+   "question": "basis",
+   "text": "凭什么这样做？受什么约束？",
+   "start": "2497ba8a-bfa4-5037-8fb5-660a84bff557@2",
+   "expected": [
+    {
+     "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@2#acceptance/ac-lock",
+     "label": "周期目标《E&O 10 月：tkos.world 0.2 在真实经营中跑通》·验收标准/ac-lock",
+     "object_type": "PeriodGoal"
+    },
+    {
+     "ref": "8f5159a4-1855-5996-84c1-b524a94113fc@2#acceptance/ac-lock",
+     "label": "Mission《0.2 锁版》·验收标准/ac-lock",
+     "object_type": "Mission"
+    },
+    {
+     "ref": "81fcaee2-0dd9-50f7-bb07-e908c6e9d202@1#constraint",
+     "label": "责任单元《E&O》·约束",
+     "object_type": "ResponsibilityUnit"
+    }
+   ],
+   "contexts": {
+    "fixed": {
+     "chars": 12020,
+     "recall": [
+      3,
+      3
+     ],
+     "missing": [],
+     "used_chars": 8489,
+     "max_chars": 12000,
+     "over_budget": false,
+     "coverage": {
+      "why": true,
+      "what": true,
+      "who": true,
+      "now": true,
+      "happened": true,
+      "basis": true
+     },
+     "trimmed": []
+    },
+    "rag": {
+     "chars": 8197,
+     "recall": [
+      3,
+      3
+     ],
+     "missing": [],
+     "max_chars": 8489,
+     "kept": 69,
+     "skipped": 0
+    },
+    "full": {
+     "chars": 32141,
+     "recall": [
+      3,
+      3
+     ],
+     "missing": []
+    }
+   }
+  },
+  "rework_restart.why": {
+   "scenario": "rework_restart",
+   "question": "why",
+   "text": "为什么要做「联调与委托登记（10/9–11）」这个 Task？",
+   "start": "8e012a95-cfd8-594f-a3fd-1b5e79959a15@2",
+   "expected": [
+    {
+     "ref": "89a0f064-5ccf-5126-aed6-946e455d2cab@2#definition",
+     "label": "Mission《天枢 × 本体 0.2 试用》·定义",
+     "object_type": "Mission"
+    },
+    {
+     "ref": "89a0f064-5ccf-5126-aed6-946e455d2cab@2#acceptance/ac-tianshu",
+     "label": "Mission《天枢 × 本体 0.2 试用》·验收标准/ac-tianshu",
+     "object_type": "Mission"
+    },
+    {
+     "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@2#outcome/tianshu",
+     "label": "周期目标《E&O 10 月：tkos.world 0.2 在真实经营中跑通》·结果/tianshu",
+     "object_type": "PeriodGoal"
+    },
+    {
+     "ref": "9fcc28fd-254d-56e2-9738-bb0cc67f88f6@1#outcome",
+     "label": "长期目标《E&O 六个月目标》·结果",
+     "object_type": "LongTermGoal"
+    },
+    {
+     "ref": "acf78a61-8704-5760-bd10-7a5b48b8f825@1#outcome",
+     "label": "长期目标《春节前核心业务第一次被真实证明》·结果",
+     "object_type": "LongTermGoal"
+    },
+    {
+     "ref": "0fdc1d7e-0a3b-5ef7-acd5-8957bb76af7d@1#responsibility_structure/eo",
+     "label": "战略《词元云集总体战略（存根）》·责任结构/eo",
+     "object_type": "Strategy"
+    },
+    {
+     "ref": "0fdc1d7e-0a3b-5ef7-acd5-8957bb76af7d@1#choices",
+     "label": "战略《词元云集总体战略（存根）》·战略选择",
+     "object_type": "Strategy"
+    },
+    {
+     "ref": "33da53b0-4eaf-5ac3-b09c-100ca6e63caf@1#identity",
+     "label": "公司《词元云集（TokenKing）》·身份",
+     "object_type": "Company"
+    }
+   ],
+   "contexts": {
+    "fixed": {
+     "chars": 13276,
+     "recall": [
+      8,
+      8
+     ],
+     "missing": [],
+     "used_chars": 9378,
+     "max_chars": 12000,
+     "over_budget": false,
+     "coverage": {
+      "why": true,
+      "what": true,
+      "who": true,
+      "now": true,
+      "happened": true,
+      "basis": true
+     },
+     "trimmed": [
+      {
+       "kind": "event",
+       "level": 0,
+       "key": "event:00000000-0000-4000-8000-000000000056",
+       "reason": "over_level_cap",
+       "label": "建对象（2026-09-29T02:24:39.619502Z）",
+       "object_type": null
+      }
+     ]
+    },
+    "rag": {
+     "chars": 9378,
+     "recall": [
+      3,
+      8
+     ],
+     "missing": [
+      "9fcc28fd-254d-56e2-9738-bb0cc67f88f6@1#outcome",
+      "acf78a61-8704-5760-bd10-7a5b48b8f825@1#outcome",
+      "0fdc1d7e-0a3b-5ef7-acd5-8957bb76af7d@1#responsibility_structure/eo",
+      "0fdc1d7e-0a3b-5ef7-acd5-8957bb76af7d@1#choices",
+      "33da53b0-4eaf-5ac3-b09c-100ca6e63caf@1#identity"
+     ],
+     "max_chars": 9378,
+     "kept": 67,
+     "skipped": 76
+    },
+    "full": {
+     "chars": 32141,
+     "recall": [
+      8,
+      8
+     ],
+     "missing": []
+    }
+   }
+  },
+  "rework_restart.what": {
+   "scenario": "rework_restart",
+   "question": "what",
+   "text": "这个 Task 要做成什么？",
+   "start": "8e012a95-cfd8-594f-a3fd-1b5e79959a15@2",
+   "expected": [
+    {
+     "ref": "8e012a95-cfd8-594f-a3fd-1b5e79959a15@2#definition",
+     "label": "Task《联调与委托登记（10/9–11）》·定义",
+     "object_type": "Task"
+    }
+   ],
+   "contexts": {
+    "fixed": {
+     "chars": 13259,
+     "recall": [
+      1,
+      1
+     ],
+     "missing": [],
+     "used_chars": 9361,
+     "max_chars": 12000,
+     "over_budget": false,
+     "coverage": {
+      "why": true,
+      "what": true,
+      "who": true,
+      "now": true,
+      "happened": true,
+      "basis": true
+     },
+     "trimmed": [
+      {
+       "kind": "event",
+       "level": 0,
+       "key": "event:00000000-0000-4000-8000-000000000056",
+       "reason": "over_level_cap",
+       "label": "建对象（2026-09-29T02:24:39.619502Z）",
+       "object_type": null
+      }
+     ]
+    },
+    "rag": {
+     "chars": 9299,
+     "recall": [
+      1,
+      1
+     ],
+     "missing": [],
+     "max_chars": 9361,
+     "kept": 66,
+     "skipped": 77
+    },
+    "full": {
+     "chars": 32141,
+     "recall": [
+      1,
+      1
+     ],
+     "missing": []
+    }
+   }
+  },
+  "rework_restart.who": {
+   "scenario": "rework_restart",
+   "question": "who",
+   "text": "谁负责这个 Task？",
+   "start": "8e012a95-cfd8-594f-a3fd-1b5e79959a15@2",
+   "expected": [
+    {
+     "ref": "8e012a95-cfd8-594f-a3fd-1b5e79959a15@2",
+     "label": "Task《联调与委托登记（10/9–11）》",
+     "object_type": "Task"
+    },
+    {
+     "ref": "event:2fe87b2d-6031-57c7-8090-fc65142a5bb0",
+     "label": "指派（2026-09-29T02:24:40.450869Z）",
+     "object_type": null
+    }
+   ],
+   "contexts": {
+    "fixed": {
+     "chars": 13256,
+     "recall": [
+      2,
+      2
+     ],
+     "missing": [],
+     "used_chars": 9358,
+     "max_chars": 12000,
+     "over_budget": false,
+     "coverage": {
+      "why": true,
+      "what": true,
+      "who": true,
+      "now": true,
+      "happened": true,
+      "basis": true
+     },
+     "trimmed": [
+      {
+       "kind": "event",
+       "level": 0,
+       "key": "event:00000000-0000-4000-8000-000000000056",
+       "reason": "over_level_cap",
+       "label": "建对象（2026-09-29T02:24:39.619502Z）",
+       "object_type": null
+      }
+     ]
+    },
+    "rag": {
+     "chars": 9299,
+     "recall": [
+      2,
+      2
+     ],
+     "missing": [],
+     "max_chars": 9358,
+     "kept": 66,
+     "skipped": 77
+    },
+    "full": {
+     "chars": 32141,
+     "recall": [
+      2,
+      2
+     ],
+     "missing": []
+    }
+   }
+  },
+  "rework_restart.now": {
+   "scenario": "rework_restart",
+   "question": "now",
+   "text": "现在进展到哪了？",
+   "start": "8e012a95-cfd8-594f-a3fd-1b5e79959a15@2",
+   "expected": [
+    {
+     "ref": "8e012a95-cfd8-594f-a3fd-1b5e79959a15@2",
+     "label": "Task《联调与委托登记（10/9–11）》",
+     "object_type": "Task"
+    },
+    {
+     "ref": "event:29a91455-430c-5730-a8d4-9c4362aacb46",
+     "label": "重开（2026-09-29T02:24:40.750112Z）",
+     "object_type": null
+    },
+    {
+     "ref": "event:c9308e91-5794-59a0-9c4c-1837941f4ac0",
+     "label": "退回（2026-09-29T02:24:40.598147Z）",
+     "object_type": null
+    },
+    {
+     "ref": "578eacb0-5384-5dfe-a964-18667f626d8e@1",
+     "label": "状态快照《联调 Task 状态（重开后）》",
+     "object_type": "StateSnapshot"
+    }
+   ],
+   "contexts": {
+    "fixed": {
+     "chars": 13253,
+     "recall": [
+      4,
+      4
+     ],
+     "missing": [],
+     "used_chars": 9355,
+     "max_chars": 12000,
+     "over_budget": false,
+     "coverage": {
+      "why": true,
+      "what": true,
+      "who": true,
+      "now": true,
+      "happened": true,
+      "basis": true
+     },
+     "trimmed": [
+      {
+       "kind": "event",
+       "level": 0,
+       "key": "event:00000000-0000-4000-8000-000000000056",
+       "reason": "over_level_cap",
+       "label": "建对象（2026-09-29T02:24:39.619502Z）",
+       "object_type": null
+      }
+     ]
+    },
+    "rag": {
+     "chars": 9315,
+     "recall": [
+      4,
+      4
+     ],
+     "missing": [],
+     "max_chars": 9355,
+     "kept": 68,
+     "skipped": 7
+    },
+    "full": {
+     "chars": 32141,
+     "recall": [
+      4,
+      4
+     ],
+     "missing": []
+    }
+   }
+  },
+  "rework_restart.happened": {
+   "scenario": "rework_restart",
+   "question": "happened",
+   "text": "最近发生了什么？",
+   "start": "8e012a95-cfd8-594f-a3fd-1b5e79959a15@2",
+   "expected": [
+    {
+     "ref": "event:e58b26de-70a9-5926-a073-8fc0d6ef4a44",
+     "label": "交付（2026-09-29T02:24:40.530453Z）",
+     "object_type": null
+    },
+    {
+     "ref": "event:c9308e91-5794-59a0-9c4c-1837941f4ac0",
+     "label": "退回（2026-09-29T02:24:40.598147Z）",
+     "object_type": null
+    },
+    {
+     "ref": "event:f5d5f3ea-3e52-5b30-8d1b-461b0a169815",
+     "label": "交付（2026-09-29T02:24:40.639086Z）",
+     "object_type": null
+    },
+    {
+     "ref": "event:3dc18e8c-a537-557b-9e46-d4e12f853b4a",
+     "label": "验收通过（2026-09-29T02:24:40.680548Z）",
+     "object_type": null
+    },
+    {
+     "ref": "event:29a91455-430c-5730-a8d4-9c4362aacb46",
+     "label": "重开（2026-09-29T02:24:40.750112Z）",
+     "object_type": null
+    }
+   ],
+   "contexts": {
+    "fixed": {
+     "chars": 13253,
+     "recall": [
+      5,
+      5
+     ],
+     "missing": [],
+     "used_chars": 9355,
+     "max_chars": 12000,
+     "over_budget": false,
+     "coverage": {
+      "why": true,
+      "what": true,
+      "who": true,
+      "now": true,
+      "happened": true,
+      "basis": true
+     },
+     "trimmed": [
+      {
+       "kind": "event",
+       "level": 0,
+       "key": "event:00000000-0000-4000-8000-000000000056",
+       "reason": "over_level_cap",
+       "label": "建对象（2026-09-29T02:24:39.619502Z）",
+       "object_type": null
+      }
+     ]
+    },
+    "rag": {
+     "chars": 9258,
+     "recall": [
+      4,
+      5
+     ],
+     "missing": [
+      "event:3dc18e8c-a537-557b-9e46-d4e12f853b4a"
+     ],
+     "max_chars": 9355,
+     "kept": 66,
+     "skipped": 5
+    },
+    "full": {
+     "chars": 32141,
+     "recall": [
+      5,
+      5
+     ],
+     "missing": []
+    }
+   }
+  },
+  "rework_restart.basis": {
+   "scenario": "rework_restart",
+   "question": "basis",
+   "text": "凭什么这样做？受什么约束？",
+   "start": "8e012a95-cfd8-594f-a3fd-1b5e79959a15@2",
+   "expected": [
+    {
+     "ref": "89a0f064-5ccf-5126-aed6-946e455d2cab@2#acceptance/ac-tianshu",
+     "label": "Mission《天枢 × 本体 0.2 试用》·验收标准/ac-tianshu",
+     "object_type": "Mission"
+    },
+    {
+     "ref": "81fcaee2-0dd9-50f7-bb07-e908c6e9d202@1#constraint",
+     "label": "责任单元《E&O》·约束",
+     "object_type": "ResponsibilityUnit"
+    },
+    {
+     "ref": "event:c9308e91-5794-59a0-9c4c-1837941f4ac0",
+     "label": "退回（2026-09-29T02:24:40.598147Z）",
+     "object_type": null
+    },
+    {
+     "ref": "event:29a91455-430c-5730-a8d4-9c4362aacb46",
+     "label": "重开（2026-09-29T02:24:40.750112Z）",
+     "object_type": null
+    }
+   ],
+   "contexts": {
+    "fixed": {
+     "chars": 13258,
+     "recall": [
+      4,
+      4
+     ],
+     "missing": [],
+     "used_chars": 9360,
+     "max_chars": 12000,
+     "over_budget": false,
+     "coverage": {
+      "why": true,
+      "what": true,
+      "who": true,
+      "now": true,
+      "happened": true,
+      "basis": true
+     },
+     "trimmed": [
+      {
+       "kind": "event",
+       "level": 0,
+       "key": "event:00000000-0000-4000-8000-000000000056",
+       "reason": "over_level_cap",
+       "label": "建对象（2026-09-29T02:24:39.619502Z）",
+       "object_type": null
+      }
+     ]
+    },
+    "rag": {
+     "chars": 9277,
+     "recall": [
+      4,
+      4
+     ],
+     "missing": [],
+     "max_chars": 9360,
+     "kept": 74,
+     "skipped": 14
+    },
+    "full": {
+     "chars": 32141,
+     "recall": [
+      4,
+      4
+     ],
+     "missing": []
+    }
+   }
+  },
+  "task_only.why": {
+   "scenario": "task_only",
+   "question": "why",
+   "text": "为什么要做「实验 E：五个场景、真实战略材料与标准答案」这个 Task？",
+   "start": "b36b3a82-e9bc-5228-8154-1d90b9921b16@3",
+   "expected": [
+    {
+     "ref": "90bfd291-b335-5fb4-8385-0679368a9e50@2#definition",
+     "label": "Mission《0.2 实验与报告》·定义",
+     "object_type": "Mission"
+    },
+    {
+     "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@2#outcome/lock",
+     "label": "周期目标《E&O 10 月：tkos.world 0.2 在真实经营中跑通》·结果/lock",
+     "object_type": "PeriodGoal"
+    },
+    {
+     "ref": "9fcc28fd-254d-56e2-9738-bb0cc67f88f6@1#outcome",
+     "label": "长期目标《E&O 六个月目标》·结果",
+     "object_type": "LongTermGoal"
+    },
+    {
+     "ref": "acf78a61-8704-5760-bd10-7a5b48b8f825@1#outcome",
+     "label": "长期目标《春节前核心业务第一次被真实证明》·结果",
+     "object_type": "LongTermGoal"
+    },
+    {
+     "ref": "0fdc1d7e-0a3b-5ef7-acd5-8957bb76af7d@1#responsibility_structure/eo",
+     "label": "战略《词元云集总体战略（存根）》·责任结构/eo",
+     "object_type": "Strategy"
+    },
+    {
+     "ref": "0fdc1d7e-0a3b-5ef7-acd5-8957bb76af7d@1#choices",
+     "label": "战略《词元云集总体战略（存根）》·战略选择",
+     "object_type": "Strategy"
+    },
+    {
+     "ref": "33da53b0-4eaf-5ac3-b09c-100ca6e63caf@1#identity",
+     "label": "公司《词元云集（TokenKing）》·身份",
+     "object_type": "Company"
+    }
+   ],
+   "contexts": {
+    "fixed": {
+     "chars": 12875,
+     "recall": [
+      7,
+      7
+     ],
+     "missing": [],
+     "used_chars": 9282,
+     "max_chars": 12000,
+     "over_budget": false,
+     "coverage": {
+      "why": true,
+      "what": true,
+      "who": true,
+      "now": true,
+      "happened": true,
+      "basis": true
+     },
+     "trimmed": []
+    },
+    "rag": {
+     "chars": 9262,
+     "recall": [
+      4,
+      7
+     ],
+     "missing": [
+      "9fcc28fd-254d-56e2-9738-bb0cc67f88f6@1#outcome",
+      "acf78a61-8704-5760-bd10-7a5b48b8f825@1#outcome",
+      "33da53b0-4eaf-5ac3-b09c-100ca6e63caf@1#identity"
+     ],
+     "max_chars": 9282,
+     "kept": 71,
+     "skipped": 122
+    },
+    "full": {
+     "chars": 32141,
+     "recall": [
+      7,
+      7
+     ],
+     "missing": []
+    }
+   }
+  },
+  "task_only.what": {
+   "scenario": "task_only",
+   "question": "what",
+   "text": "这个 Task 要做成什么、怎么安排？",
+   "start": "b36b3a82-e9bc-5228-8154-1d90b9921b16@3",
+   "expected": [
+    {
+     "ref": "b36b3a82-e9bc-5228-8154-1d90b9921b16@3#definition",
+     "label": "Task《实验 E：五个场景、真实战略材料与标准答案》·定义",
+     "object_type": "Task"
+    },
+    {
+     "ref": "b36b3a82-e9bc-5228-8154-1d90b9921b16@3#acceptance/ac-gold",
+     "label": "Task《实验 E：五个场景、真实战略材料与标准答案》·验收标准/ac-gold",
+     "object_type": "Task"
+    },
+    {
+     "ref": "b36b3a82-e9bc-5228-8154-1d90b9921b16@3#plan/scenarios",
+     "label": "Task《实验 E：五个场景、真实战略材料与标准答案》·计划/scenarios",
+     "object_type": "Task"
+    },
+    {
+     "ref": "b36b3a82-e9bc-5228-8154-1d90b9921b16@3#plan/judge",
+     "label": "Task《实验 E：五个场景、真实战略材料与标准答案》·计划/judge",
+     "object_type": "Task"
+    },
+    {
+     "ref": "b36b3a82-e9bc-5228-8154-1d90b9921b16@3#plan/review",
+     "label": "Task《实验 E：五个场景、真实战略材料与标准答案》·计划/review",
+     "object_type": "Task"
+    },
+    {
+     "ref": "b36b3a82-e9bc-5228-8154-1d90b9921b16@3#plan/material",
+     "label": "Task《实验 E：五个场景、真实战略材料与标准答案》·计划/material",
+     "object_type": "Task"
+    }
+   ],
+   "contexts": {
+    "fixed": {
+     "chars": 12858,
+     "recall": [
+      6,
+      6
+     ],
+     "missing": [],
+     "used_chars": 9265,
+     "max_chars": 12000,
+     "over_budget": false,
+     "coverage": {
+      "why": true,
+      "what": true,
+      "who": true,
+      "now": true,
+      "happened": true,
+      "basis": true
+     },
+     "trimmed": []
+    },
+    "rag": {
+     "chars": 9212,
+     "recall": [
+      6,
+      6
+     ],
+     "missing": [],
+     "max_chars": 9265,
+     "kept": 70,
+     "skipped": 123
+    },
+    "full": {
+     "chars": 32141,
+     "recall": [
+      6,
+      6
+     ],
+     "missing": []
+    }
+   }
+  },
+  "task_only.who": {
+   "scenario": "task_only",
+   "question": "who",
+   "text": "谁负责这个 Task，各段由谁做？",
+   "start": "b36b3a82-e9bc-5228-8154-1d90b9921b16@3",
+   "expected": [
+    {
+     "ref": "b36b3a82-e9bc-5228-8154-1d90b9921b16@3",
+     "label": "Task《实验 E：五个场景、真实战略材料与标准答案》",
+     "object_type": "Task"
+    },
+    {
+     "ref": "event:20f03865-046e-5e85-b950-e32be0504042",
+     "label": "指派（2026-09-29T02:24:40.819686Z）",
+     "object_type": null
+    },
+    {
+     "ref": "b36b3a82-e9bc-5228-8154-1d90b9921b16@3#plan/scenarios",
+     "label": "Task《实验 E：五个场景、真实战略材料与标准答案》·计划/scenarios",
+     "object_type": "Task"
+    },
+    {
+     "ref": "b36b3a82-e9bc-5228-8154-1d90b9921b16@3#plan/judge",
+     "label": "Task《实验 E：五个场景、真实战略材料与标准答案》·计划/judge",
+     "object_type": "Task"
+    },
+    {
+     "ref": "b36b3a82-e9bc-5228-8154-1d90b9921b16@3#plan/review",
+     "label": "Task《实验 E：五个场景、真实战略材料与标准答案》·计划/review",
+     "object_type": "Task"
+    },
+    {
+     "ref": "b36b3a82-e9bc-5228-8154-1d90b9921b16@3#plan/material",
+     "label": "Task《实验 E：五个场景、真实战略材料与标准答案》·计划/material",
+     "object_type": "Task"
+    }
+   ],
+   "contexts": {
+    "fixed": {
+     "chars": 12856,
+     "recall": [
+      6,
+      6
+     ],
+     "missing": [],
+     "used_chars": 9263,
+     "max_chars": 12000,
+     "over_budget": false,
+     "coverage": {
+      "why": true,
+      "what": true,
+      "who": true,
+      "now": true,
+      "happened": true,
+      "basis": true
+     },
+     "trimmed": []
+    },
+    "rag": {
+     "chars": 9262,
+     "recall": [
+      6,
+      6
+     ],
+     "missing": [],
+     "max_chars": 9263,
+     "kept": 71,
+     "skipped": 122
+    },
+    "full": {
+     "chars": 32141,
+     "recall": [
+      6,
+      6
+     ],
+     "missing": []
+    }
+   }
+  },
+  "task_only.now": {
+   "scenario": "task_only",
+   "question": "now",
+   "text": "现在进展到哪了？",
+   "start": "b36b3a82-e9bc-5228-8154-1d90b9921b16@3",
+   "expected": [
+    {
+     "ref": "b36b3a82-e9bc-5228-8154-1d90b9921b16@3",
+     "label": "Task《实验 E：五个场景、真实战略材料与标准答案》",
+     "object_type": "Task"
+    },
+    {
+     "ref": "event:ba82ffe1-b54e-5345-aee9-7292ca8f5b88",
+     "label": "开始（2026-09-29T02:24:40.904243Z）",
+     "object_type": null
+    },
+    {
+     "ref": "5b6a3246-35b0-5022-8501-ae5d66248f04@1",
+     "label": "状态快照《实验 E Task 状态》",
+     "object_type": "StateSnapshot"
+    }
+   ],
+   "contexts": {
+    "fixed": {
+     "chars": 12847,
+     "recall": [
+      3,
+      3
+     ],
+     "missing": [],
+     "used_chars": 9254,
+     "max_chars": 12000,
+     "over_budget": false,
+     "coverage": {
+      "why": true,
+      "what": true,
+      "who": true,
+      "now": true,
+      "happened": true,
+      "basis": true
+     },
+     "trimmed": []
+    },
+    "rag": {
+     "chars": 9201,
+     "recall": [
+      3,
+      3
+     ],
+     "missing": [],
+     "max_chars": 9254,
+     "kept": 74,
+     "skipped": 66
+    },
+    "full": {
+     "chars": 32141,
+     "recall": [
+      3,
+      3
+     ],
+     "missing": []
+    }
+   }
+  },
+  "task_only.happened": {
+   "scenario": "task_only",
+   "question": "happened",
+   "text": "最近发生了什么？",
+   "start": "b36b3a82-e9bc-5228-8154-1d90b9921b16@3",
+   "expected": [
+    {
+     "ref": "event:ba82ffe1-b54e-5345-aee9-7292ca8f5b88",
+     "label": "开始（2026-09-29T02:24:40.904243Z）",
+     "object_type": null
+    },
+    {
+     "ref": "event:583190b9-1aaa-5898-9306-6ddd42cfc518",
+     "label": "外部事件（2026-09-29T02:24:40.921017Z）",
+     "object_type": null
+    }
+   ],
+   "contexts": {
+    "fixed": {
+     "chars": 12847,
+     "recall": [
+      2,
+      2
+     ],
+     "missing": [],
+     "used_chars": 9254,
+     "max_chars": 12000,
+     "over_budget": false,
+     "coverage": {
+      "why": true,
+      "what": true,
+      "who": true,
+      "now": true,
+      "happened": true,
+      "basis": true
+     },
+     "trimmed": []
+    },
+    "rag": {
+     "chars": 9178,
+     "recall": [
+      2,
+      2
+     ],
+     "missing": [],
+     "max_chars": 9254,
+     "kept": 74,
+     "skipped": 59
+    },
+    "full": {
+     "chars": 32141,
+     "recall": [
+      2,
+      2
+     ],
+     "missing": []
+    }
+   }
+  },
+  "task_only.basis": {
+   "scenario": "task_only",
+   "question": "basis",
+   "text": "凭什么这样做？受什么约束？",
+   "start": "b36b3a82-e9bc-5228-8154-1d90b9921b16@3",
+   "expected": [
+    {
+     "ref": "b36b3a82-e9bc-5228-8154-1d90b9921b16@3#acceptance/ac-gold",
+     "label": "Task《实验 E：五个场景、真实战略材料与标准答案》·验收标准/ac-gold",
+     "object_type": "Task"
+    },
+    {
+     "ref": "event:583190b9-1aaa-5898-9306-6ddd42cfc518",
+     "label": "外部事件（2026-09-29T02:24:40.921017Z）",
+     "object_type": null
+    },
+    {
+     "ref": "81fcaee2-0dd9-50f7-bb07-e908c6e9d202@1#constraint",
+     "label": "责任单元《E&O》·约束",
+     "object_type": "ResponsibilityUnit"
+    }
+   ],
+   "contexts": {
+    "fixed": {
+     "chars": 12852,
+     "recall": [
+      3,
+      3
+     ],
+     "missing": [],
+     "used_chars": 9259,
+     "max_chars": 12000,
+     "over_budget": false,
+     "coverage": {
+      "why": true,
+      "what": true,
+      "who": true,
+      "now": true,
+      "happened": true,
+      "basis": true
+     },
+     "trimmed": []
+    },
+    "rag": {
+     "chars": 9250,
+     "recall": [
+      3,
+      3
+     ],
+     "missing": [],
+     "max_chars": 9259,
+     "kept": 79,
+     "skipped": 66
+    },
+    "full": {
+     "chars": 32141,
+     "recall": [
+      3,
+      3
+     ],
+     "missing": []
+    }
+   }
+  }
+ },
+ "scan": {
+  "component_refs": [
+   {
+    "ref": "0fdc1d7e-0a3b-5ef7-acd5-8957bb76af7d@1#responsibility_structure/agents",
+    "latest_version": 1,
+    "cross_revision": false,
+    "present": true
+   },
+   {
+    "ref": "0fdc1d7e-0a3b-5ef7-acd5-8957bb76af7d@1#responsibility_structure/eo",
+    "latest_version": 1,
+    "cross_revision": false,
+    "present": true
+   },
+   {
+    "ref": "293565b4-840b-52f2-8ee0-73c6f3f9519e@3#plan/rag-graph",
+    "latest_version": 3,
+    "cross_revision": false,
+    "present": true
+   },
+   {
+    "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@1#acceptance/ac-lock",
+    "latest_version": 2,
+    "cross_revision": true,
+    "present": true
+   },
+   {
+    "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@1#acceptance/ac-tianshu",
+    "latest_version": 2,
+    "cross_revision": true,
+    "present": true
+   },
+   {
+    "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@2#acceptance/ac-lock",
+    "latest_version": 2,
+    "cross_revision": false,
+    "present": true
+   }
+  ],
+  "issue_events": []
+ },
+ "checks": {
+  "chunks_single_ref": true,
+  "refs_in_text": true,
+  "not_in_text": {},
+  "refs_read_back": true,
+  "not_read_back": [],
+  "object_versions_read": 29
+ },
+ "verified": true
+}

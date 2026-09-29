@@ -168,3 +168,107 @@ python3 -m experiments.world_v02.b_observe $B/task-only/b-run.json $B/task-activ
 ```
 
 无库测试是 `tests/test_world_v02_experiment_b.py`（录好的运行日志在 `tests/fixtures/world_v02_experiment_b/`），独立验收是 `acceptance/world_v02/` 的场景 `experiment_b`。输出目录与 `--private` 目录是本地产物，不入库。
+
+## 四种取法对照（含 RAG）
+
+票 #68（规格 #46 第十节，用户故事 81、82）。结构沿用 0.1 的 `experiments/world_v01/`，0.1 的模块一行不改。同一批问题——上面实验 E 五个场景的六问——四组都作答：同一模型、同一推理档、同一回答形状（断言列表 `{claim, kind: fact|gap|conflict, refs}`），每问三次，只差模型拿到上下文的方式。
+
+| 组 | 模型拿到什么 | 工具 |
+| --- | --- | --- |
+| `full` 全量塞入 | scope 内每个对象的最新版加每条事件，经读投影取、按分块写进提示词 | 无 |
+| `fixed` 固定路径 | 跑器调一次取上下文（不给预算，用服务端默认值），把 MCP 交给调用方的那段返回写进提示词，同 0.1 的 F 组 | 无 |
+| `traverse` 模型遍历 | 模型经 tkos-world-mcp（契约 0.2）自己走，同 0.1 的 A0 组 | 取对象、取事件、取状态、列对象（不给取上下文） |
+| `rag` RAG | 按问题检索分块写进提示词 | 无 |
+
+隔离、污染判定与重试照 0.1：每次作答在空目录里起一次 codex exec，不读用户配置，关掉 shell、记忆、联网、插件、apps 与子代理；事件流里出现本组工具之外的动作记为污染，污染与失败的运行不计入指标，同一次重跑到有效为止，每一次尝试都留在输出目录里。四组都以 E&O Agent 的身份只读。
+
+| 文件 | 内容 |
+| --- | --- |
+| `retrieval.py` | 经读投影取 scope 的全部内容、切分、全量文本、字符二元组 BM25 与装入 |
+| `experiment.py` | 准备（不调模型）、跑、重算指标 |
+| `metrics.py` | 召回、可追溯、确定性与反例四项门，另报所引集合一致率、回答覆盖与成本 |
+| `triggers.py` | 读投影扫描与四个触发条件的机械检查 |
+| `report.py` | 只由 `summary.json` 生成报告，默认写到 `docs/world-v02-retrieval-report.md` |
+
+### 切分、检索与装入
+
+- **切分**：每个分块只带一条自己的引用，就是它「取到」的那一项。
+  - 对象表头：业务对象与状态快照各一块，引用 `对象@版本`。「谁负责」「现在怎样」的标准答案引对象本身，没有这一块按构造就答不了。
+  - 块：一个块一块，空块写标准句，不含块里的组件；组件：一个组件一块，引用 `对象@版本#块/组件`。
+  - 事件：每条一块，引用 `event:<事件 id>`。否则「发生了什么」这一问按构造就答不了。状态快照同样按表头、块与组件切。
+  - 正文里照读投影写出钉着的别处引用（关系、块内引用、事件的主体），它们只是引用，不算取到。
+- **取到的口径**：用 `tkos_world_mcp.server._content` 判，与 MCP 运行日志和实验 E 的回放一致；这是对一个私有函数的依赖。切分时逐块核对 `_content(来源)` 恰好是这个分块的引用。
+- **检索**：纯 Python 的字符二元组 BM25（k1=1.2，b=0.75），不接任何外部服务或 embedding。检索文本去掉业务引用，查询是起点对象的标题加问题（有的问题不带标题）。按分数从高到低、同分按文档顺序排，分数为 0 的不取。
+- **装入：同成本对照**。每一问的上限等于固定路径组这一问取上下文返回的 `budget.used_chars`（渲染后 Markdown 的字符数）。按名次逐块装，装不下的跳过、接着看下一块。
+  - 理由：取上下文的默认预算（#70 定为 100000 字符）大到几乎装下整个 scope，RAG 按它装就退化成全量塞入；按固定路径实际用掉的字符装，比的是同样的成本下谁取得准。
+  - 代码里不写死预算：固定路径的预算读自取上下文返回的 `budget.max_chars`，RAG 的上限读自 `used_chars`。
+- **固定路径交给模型的文本**：与 MCP 交给调用方的完全相同，由 `tkos_world_mcp.server._shown` 生成（第二个私有函数依赖），含包 id、Markdown、六问覆盖与按原因计的裁剪条数。所以它的成本比 `used_chars` 大一层 JSON 外壳。
+
+### 命令
+
+前提与「播种与回放检查」相同：隔离验收栈在运行，库用 method_v05 的工具新建并升级到工作区源码，先用 `experiments.world_v02.seed` 播种一次（下面的 `$STAMP` 与 `$RUN` 是那两步的）。不要打印 env、DSN 或凭据。
+
+```sh
+# 准备：不调模型，批准前也能跑。生成三组的上下文，核对引用，做读投影扫描；核对全部通过退出码才为 0
+.venv/bin/python -m experiments.world_v02.experiment prepare \
+  --env-file .runtime-acceptance/world-e-db-$STAMP/env.json \
+  --seeded-private .runtime-acceptance/world-e-$RUN --seeded-output artifacts/runtime-acceptance/world-e-$RUN \
+  --private .runtime-acceptance/world-r-prepare-$RUN --output artifacts/runtime-acceptance/world-r-prepare-$RUN
+# 跑：标准答案经 E&O DRI 批准后才能跑（gold.load_approved），会先在同一个输出目录里再准备一次
+R=$(date +%Y%m%d-%H%M%S)
+.venv/bin/python -m experiments.world_v02.experiment run \
+  --env-file .runtime-acceptance/world-e-db-$STAMP/env.json \
+  --seeded-private .runtime-acceptance/world-e-$RUN --seeded-output artifacts/runtime-acceptance/world-e-$RUN \
+  --private .runtime-acceptance/world-r-$R --output artifacts/runtime-acceptance/world-r-$R \
+  --model <模型> --effort <推理档> [--groups full fixed traverse rag]
+# 只重算指标；有了 #66 的观测结论就带上
+.venv/bin/python -m experiments.world_v02.experiment summarize \
+  --seeded-output artifacts/runtime-acceptance/world-e-$RUN --output artifacts/runtime-acceptance/world-r-$R \
+  [--b-observations <#66 的 observations.json>]
+# 报告：只由 summary.json 生成
+.venv/bin/python -m experiments.world_v02.report --summary artifacts/runtime-acceptance/world-r-$R/summary.json
+```
+
+输出目录（本地产物，不入库）：
+
+| 路径 | 内容 |
+| --- | --- |
+| `prepared.json` | scope 规模与分块数；每问三组的字符数、取到召回与缺的应引项；固定路径的预算、六问覆盖与检索计划里被裁的项；RAG 的上限与装入块数；读投影扫描；引用核对（`verified`） |
+| `contexts/` | 全量文本（`full.json`），每问的固定路径返回与 RAG 结果（`<场景>.<问>.fixed.json`、`.rag.json`） |
+| `setup.json` | 模型、推理档、Codex 版本、各组工具、关掉的功能、每问次数、内容哈希、提交 |
+| `<组>/<场景>.<问>-<次>[-retryN]/` | `run.json`、`answer.json`、`codex.jsonl`、`codex.stderr`；全量、固定路径、RAG 另有 `context.json`，模型遍历有 `mcp/` 运行日志 |
+| `summary.json` | 四组逐问、逐场景与合计的指标和判定，准备结果，四个触发检查 |
+
+### 指标口径
+
+四组各自判定；没有有效运行的组或场景，各项门都不算达标。
+
+| 指标 | 全量塞入 | 固定路径 | 模型遍历 | RAG |
+| --- | --- | --- | --- | --- |
+| 取到的集合 | 全部分块（按构造最大） | 包里带着内容回来的（`_content`） | MCP 运行日志的 `read_refs` 与 `read_event_ids` | 装入的分块 |
+| 召回（门 ≥ 0.9） | 应引项里被取到的比例，所有有效运行合计 | 同左 | 同左 | 同左 |
+| 可追溯（门 100%） | 断言所引都在这次运行取到的集合里的比例 | 同左 | 同左 | 同左 |
+| 确定性（门 ≥ 0.9） | 取到集合两两 Jaccard，按构造为 1 | 按构造为 1 | 随运行变 | 按构造为 1 |
+| 反例（门：五个场景零出现） | 断言所引，`counterexamples.judge` 逐问判，每次运行每问每类记一次 | 同左 | 同左 | 同左 |
+| 所引集合一致率（另报） | 同一问各次运行所引集合的 Jaccard | 同左 | 同左 | 同左 |
+| 回答覆盖（另报） | 应引项里被回答引到的比例 | 同左 | 同左 | 同左 |
+| 成本（只报告） | 写进提示词的全量文本字符数 | 写进提示词的取上下文返回字符数 | 工具返回给模型的字符数之和 | 写进提示词的检索结果字符数 |
+
+- 有效运行不足三次的问列为 short，确定性不算达标。
+- 全量、固定路径、RAG 三组的上下文每问生成一次，三次作答用同一份，确定性按构造为 1；全量组的召回按构造最大。报告写明这两点，不当成实验发现。回答的稳定性看所引集合一致率。
+- 回答覆盖：完全相同；应引项是对象时，引了同一版本该对象的块或组件也算；是块时，引了同一版本这一块里的组件也算。
+
+### 四个触发条件
+
+`triggers.py` 各做成一个有名字的检查，输出触发、未触发或无数据。已有数据足以判定触发就判触发；判未触发要该有的数据都在；否则无数据，并列出缺什么。阈值是本票定的默认值，待确认。
+
+| 检查 | 条件 → 调整 | 数据源 | 判法 |
+| --- | --- | --- | --- |
+| `activity_to_component` | Task-only 线达标 → Activity 降为组件 | #66 的观测结论（`observations.json` 的 `conclusion.activity`）；固定路径组在 `task_only` 场景的四项门 | B 为 component 且 task_only 四项门全过则触发 |
+| `component_ref_instability` | 组件引用跨修订不稳 → 拆块或升对象 | 读投影扫描：钉着的组件引用，对照目标对象最新版的组件台账 | 跨修订的引用至少 10 条；悬空比例超过 0.1 则触发 |
+| `why_coverage_low` | Why 覆盖持续偏低 → 改主干关系或取法 | 固定路径组 Why 问的取到召回（准备结果）与回答覆盖（要模型运行） | 取到召回低于 0.9 或回答覆盖低于 0.5 的场景至少 3 个则触发 |
+| `issue_detached` | Issue 常脱离主体快照演进 → Issue 升为对象 | 读投影扫描：提出之后的问题事件，与主受影响对象在事件时刻的最新快照 | 问题事件至少 5 条；不在那条快照 issues 块里的比例不低于 0.5 则触发 |
+
+实验 E 的播种里跨修订的组件引用只有两条，也没有问题流转，第二、四条在这里是无数据；要的数据是试用期间（10/12–16）#66 两条线与实验实例上的真实修订与问题事件，用同一扫描读回。
+
+无库测试是 `tests/test_world_v02_retrieval.py`，fixture 在 `tests/fixtures/world_v02_retrieval/`：一次真实播种的读投影子集与准备结果（id 换成假播种清单的），以及录好的运行。

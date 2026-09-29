@@ -785,8 +785,8 @@ class WorldV02MarkCoreBattleParams(StrictModel):
     on_behalf_of: Optional[OnBehalfOf] = None
 
 
-# 代记的动作族，第一版是门、指派与生命周期（补 38）；建对象待决 6。请求模型在导入时就要，由测试与登记逐条对齐。
-DELEGATION_FAMILIES = ("gate", "assign", "lifecycle")
+# 代记的动作族，第一版是门、指派、生命周期（补 38）与议题（补 49）；建对象待决 6。请求模型在导入时就要，由测试与登记逐条对齐。
+DELEGATION_FAMILIES = ("gate", "assign", "lifecycle", "issue")
 DELEGATION_ACTIONS = ("world_grant_delegation", "world_revoke_delegation")
 
 
@@ -821,7 +821,8 @@ IssueRefText = _ref_text("component")
 
 class _IssueParams(StrictModel):
     """Issue 动作（契约第 9.1、13 节）：不带目标，以 issue_ref（状态快照 issues 块里问题组件的组件引用）指明问题；
-    可选 content 写进事件。Issue 事件是记录事件，不撤回；第一版不可代记，不带 on_behalf_of。"""
+    可选 content 写进事件。Issue 事件是记录事件，不撤回。承接、处置与退回形成可以代记（议题族，补 49），另带
+    on_behalf_of；提出与路由不可代记。"""
     issue_ref: IssueRefText
     content: Optional[_block_model((), False)] = None
 
@@ -838,13 +839,16 @@ class WorldV02RouteIssueParams(_IssueParams):
 
 
 class WorldV02OwnIssueParams(_IssueParams):
-    """承接问题：路由指定的承接人本人记，只由人记、不在 Agent 面上，不带写入声明（同指派）。"""
+    """承接问题：路由指定的承接人本人记，只由人记、不在 Agent 面上，不带写入声明（同指派）；可以代记（议题族）。"""
+    on_behalf_of: Optional[OnBehalfOf] = None
 
 
 class WorldV02DisposeIssueParams(_IssueParams):
-    """处置问题：六类之一，content 必带，最低理由写在它的文字里（补 35）；只由已承接的承接人本人记，不带写入声明。"""
+    """处置问题：六类之一，content 必带，最低理由写在它的文字里（补 35）；只由已承接的承接人本人记，不带写入声明；
+    可以代记（议题族）。"""
     disposition: Literal[DISPOSITIONS]
     content: _block_model((), False)
+    on_behalf_of: Optional[OnBehalfOf] = None
 
     @model_validator(mode="after")
     def states_its_reason(self) -> "WorldV02DisposeIssueParams":
@@ -854,8 +858,15 @@ class WorldV02DisposeIssueParams(_IssueParams):
 
 
 class WorldV02ReturnIssueParams(_IssueParams):
-    """退回形成：路由者或承接人记；在 Agent 面上（作为路由者）。"""
+    """退回形成：路由者或承接人记；在 Agent 面上（作为路由者）。可以代记（议题族），代记不带写入声明。"""
     declaration: Optional[Declaration] = None
+    on_behalf_of: Optional[OnBehalfOf] = None
+
+    @model_validator(mode="after")
+    def on_behalf_carries_no_declaration(self) -> "WorldV02ReturnIssueParams":
+        if self.on_behalf_of is not None and self.declaration is not None:
+            raise ValueError("a write on behalf of a person carries no declaration")
+        return self
 
 
 # 已接入的门动作 -> 目标类型（门按目标类型拆名，ADR-0005）。关注标记是记录事件，但和门一样由持策略角色（CEO）的人

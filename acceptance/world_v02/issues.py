@@ -9,7 +9,8 @@ DRI 是单元 a 的 DRI），其下一条指派给 ic_a 的 Task。单元里的 
   当前路由的承接人、已承接的承接人）；六类处置各一条，进入状态按登记。
 - 拒绝（错误码，prepare 与 commit 两个入口上库快照都不变）：处理中与已处置的重复提出、非承接人承接或处置、Agent
   承接与处置、不在主干上的人与没有该域角色的 Agent 提出、非路由者非承接人退回、状态表没列的组合、缺理由的处置、
-  承接人不是 scope 内有效的人、issue_ref 指向的不是快照里的问题组件、带目标或代记。
+  承接人不是 scope 内有效的人、issue_ref 指向的不是快照里的问题组件、提出时带目标或代记（承接、处置与退回形成的
+  代记在 delegation 场景里驱动，#71）。
 - 承接人不限单元（#69，补 44）：路由给另一单元的 DRI，他本人承接、退回形成与处置都放行；另一 scope 的人与 Agent 仍被拒。
 - 事件：每个动作恰好一条 0.2 的 Issue 记录事件，subject_refs 是问题组件的组件引用与 Mission 的对象引用，路由的
   detail 写承接人，处置写 disposition 与理由；不出修订、不改任何对象行，Mission 与 Task 的生命周期始终不变。
@@ -376,7 +377,7 @@ def issues(book, h, f, flow, trunk):
     targeted = body('agent_a', 'world_raise_issue', quiet)
     targeted['target'] = flow.target(mid)
     flow.deny('agent_a', targeted, codes={'INVALID_REQUEST'})
-    check('an_issue_action_takes_neither_a_target_nor_on_behalf_of')
+    check('raising_an_issue_takes_neither_a_target_nor_on_behalf_of')
 
     # ---------------------------------------------------------------- 更正指向 Issue 事件
     correction = flow.record('agent_a', {

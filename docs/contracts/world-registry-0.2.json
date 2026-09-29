@@ -181,7 +181,7 @@
    "authorization": "scope",
    "candidate": false,
    "class": "record",
-   "delegable": null,
+   "delegable": "issue",
    "display_name": "承接问题",
    "event_kind": "issue.owned",
    "gate_roles": null,
@@ -196,7 +196,7 @@
    "authorization": "scope",
    "candidate": false,
    "class": "record",
-   "delegable": null,
+   "delegable": "issue",
    "display_name": "处置问题",
    "event_kind": "issue.disposed",
    "gate_roles": null,
@@ -211,7 +211,7 @@
    "authorization": "scope",
    "candidate": false,
    "class": "record",
-   "delegable": null,
+   "delegable": "issue",
    "display_name": "退回形成",
    "event_kind": "issue.returned",
    "gate_roles": null,
@@ -895,6 +895,15 @@
     ],
     "display_name": "生命周期",
     "id": "lifecycle"
+   },
+   {
+    "actions": [
+     "world_dispose_issue",
+     "world_own_issue",
+     "world_return_issue"
+    ],
+    "display_name": "议题",
+    "id": "issue"
    }
   ],
   "grant_action": "world_grant_delegation",

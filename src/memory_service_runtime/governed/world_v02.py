@@ -14,7 +14,8 @@ Issue（契约第 13 节）：问题是主受影响对象快照里的问题组�
 指明问题；提出与路由在主受影响对象所在的域按激活策略判，承接、处置与退回形成按 scope 判（补 44，承接人是 scope 内
 有效的人、不限单元），承接与处置只由人记，然后按登记 issue.lifecycle 的状态表与记录者
 （raiser、router、route_target、owner、router_or_owner）判这条事件现在能不能记。Issue 事件只推动 Issue 自己的状态，
-不出修订、不动任何对象行（补 13、35）。
+不出修订、不动任何对象行（补 13、35）。承接、处置与退回形成可以代记（议题族，补 49，#71）：身份上下文换成被代记的人，
+所以「只由人记」与记录者类别都按他判；Agent 以自己的身份承接、处置仍被拒。
 
 指派、生命周期动作与门的判权（契约第 9.2 节）：激活策略列角色（门按目标类型拆名，ADR-0005），之后由服务算出
 调用者对目标满足的记录者类别（self、self_or_agent、parent、gate_role）与守卫事实，连同目标的事件交给生命周期引擎
@@ -433,8 +434,13 @@ class WorldExecution(ActionExecution):
         """代记写入（契约第 14 节）：目标须是本 scope 的 world 对象（否则 404）；记录者须是本 scope 的 Agent 主体，并持有
         被代记的人登记给它、当前有效、覆盖这个动作所属的族与目标所在域的委托。之后按被代记的人走他本人记时的同一条
         判权路径：他当前的角色指派对照激活策略，状态表的记录者类别与责任关系，规则相同。任一不满足是 FORBIDDEN。
-        代记写入不带写入声明（请求模型已拒）；外部确认时刻不晚于记录时刻，在委托之后、按被代记的人判权之前校验。"""
-        target = head_and_binding(self.conn, self.ctx, self.request.target.object_id)[0]
+        代记写入不带写入声明（请求模型已拒）；外部确认时刻不晚于记录时刻，在委托之后、按被代记的人判权之前校验。
+        Issue 动作不带目标（议题族，补 49）：「目标所在域」是 issue_ref 所在快照的域，即主受影响对象所在的域。"""
+        if self.kind in models.ISSUE_ACTIONS:
+            object_id = models.parse_ref(self.params["issue_ref"])["object_id"]
+        else:
+            object_id = self.request.target.object_id
+        target = head_and_binding(self.conn, self.ctx, object_id)[0]
         if self.ctx.principal_type != "agent":
             _fail("FORBIDDEN", "Only an Agent service principal of this scope records on behalf of a person.")
         self.delegation = self.delegation_in_force(target["domain_id"])
@@ -1128,11 +1134,13 @@ class WorldExecution(ActionExecution):
     def record_issue(self) -> dict[str, Any]:
         """一条 Issue 记录事件（契约第 8、13 节）：subject_refs 是问题组件的组件引用与主受影响对象的对象引用；路由的
         detail 写承接人，处置另写 disposition，内容里的引用已钉定。不出修订、不动任何对象行，只推动 Issue 自己的状态
-        （补 13、35）；回执给出记下之后的 Issue 状态。"""
+        （补 13、35）；回执给出记下之后的 Issue 状态。代记的承接、处置与退回形成（补 49）同其余代记，事件另写被代记的人
+        与外部确认记录，回执另写它们与用到的委托。"""
         detail = {"to_principal_id": self.params["to_principal_id"]} if self.kind == "world_route_issue" else None
         disposition = self.params.get("disposition")
         event_id = self.world_event(world_registry.action_spec(self.kind)["event_kind"], self.event_subjects,
-                                    content=self.content, detail=detail, disposition=disposition)
+                                    content=self.content, detail=detail, disposition=disposition,
+                                    on_behalf_of=self.on_behalf)
         result = {"contract_version": models.CONTRACT_VERSION, "event_id": event_id,
                   "subject_refs": cited(self.event_subjects),
                   "issue": {**self.issue, "status": self.effect["status"], "display_name": self.effect["display_name"]}}
@@ -1144,6 +1152,8 @@ class WorldExecution(ActionExecution):
             result["responsible_through"] = self.responsible_through
         if self.declaration is not None:
             result["declaration"] = self.declaration
+        if self.on_behalf is not None:
+            result["on_behalf_of"] = {**self.on_behalf, "delegation_event_id": self.delegation["event_id"]}
         return result
 
     def assign(self) -> dict[str, Any]:

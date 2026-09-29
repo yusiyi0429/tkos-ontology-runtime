@@ -69,8 +69,9 @@ ALTER TABLE gov_world_events
         AND external_confirmed_at IS NULL AND detail IS NULL)),
     -- 0.2 rows (contract section 8): no phase; a confirmation always has an outcome, the other gate and
     -- lifecycle events carry one only when withdrawing, record events never; a disposition exactly on
-    -- issue.disposed; on-behalf recording only for the delegable families (gates, assignments, lifecycle),
-    -- with the external record id and a confirmation time no later than the recording.
+    -- issue.disposed; on-behalf recording only for the delegable families (gates, assignments, lifecycle,
+    -- issues: owning, disposing and returning), with the external record id and a confirmation time no later
+    -- than the recording.
     ADD CONSTRAINT ck_gov_world_event_v02 CHECK (contract_version <> 'tkos.world/0.2' OR (
         phase IS NULL
         AND CASE WHEN kind = 'confirm' THEN outcome IS NOT NULL
@@ -82,7 +83,8 @@ ALTER TABLE gov_world_events
         AND (on_behalf_of IS NULL) = (external_confirmed_at IS NULL)
         AND (on_behalf_of IS NULL OR kind IN ('assign','core_battle.marked','commit','confirm','reconfirm',
                                              'agreement','review.confirmed','start','deliver','accept',
-                                             'reject','reopen','cancel'))
+                                             'reject','reopen','cancel','issue.owned','issue.disposed',
+                                             'issue.returned'))
         AND (external_record_id IS NULL OR external_record_id ~ '\S')
         AND (external_confirmed_at IS NULL OR external_confirmed_at <= recorded_at)
         AND (detail IS NULL OR jsonb_typeof(detail) = 'object')
@@ -193,10 +195,10 @@ BEGIN
         IF (prow.schema_version = 'tkos.world-profile/0.2'
             AND prow.content->'action_contract_ref'->>'contract_id' = 'tkos.world'
             AND prow.content->'action_contract_ref'->>'revision' = '0.2'
-            AND prow.content->'action_contract_ref'->>'content_sha256' = 'fb260b28283fa0fa1a0b7d17291e9b18cbbeea32db37f0408be44cd8bc24a0df'
+            AND prow.content->'action_contract_ref'->>'content_sha256' = '9e6d1c6ce465df692dcd017074ac506e152f574f8765ada86f6c52607aae022a'
             AND prow.content->'world_registry_ref'->>'registry_id' = 'tkos.world-registry'
             AND prow.content->'world_registry_ref'->>'revision' = '0.2.0'
-            AND prow.content->'world_registry_ref'->>'content_sha256' = '098dd564a5e4297602ef4e99871730998d6fff2efddcf9344b56abb8f1264bd1') IS NOT TRUE THEN
+            AND prow.content->'world_registry_ref'->>'content_sha256' = '2fc36f4f2d0631aa60a6f50afa30fb9a0e11ea152e2c97607a25c83cfccbdf40') IS NOT TRUE THEN
             RAISE EXCEPTION 'world 0.2 requires its exact business-world contract and registry' USING ERRCODE='23514';
         END IF;
     ELSE

@@ -43,8 +43,15 @@ def test_an_issue_action_is_implemented_as_a_targetless_record_event(action):
     spec = ACTIONS[action]
     assert action in models.ACTION_PARAMS and models.ACTION_TARGETS[action] == frozenset()
     assert spec["class"] == "record" and spec["target_types"] == []
-    assert spec["event_kind"].startswith("issue.") and spec["delegable"] is None  # 第一版不可代记
-    assert "on_behalf_of" not in models.ACTION_PARAMS[action].model_fields
+    assert spec["event_kind"].startswith("issue.")
+
+
+@pytest.mark.parametrize("action", sorted(MINIMAL))
+def test_owning_disposing_and_returning_are_delegable_as_the_issue_family_and_raising_and_routing_are_not(action):
+    """补 49（#71）：承接、处置与退回形成进议题族，可以带 on_behalf_of；提出与路由在 Agent 面上，不可代记。"""
+    delegable = action in {"world_own_issue", "world_dispose_issue", "world_return_issue"}
+    assert ACTIONS[action]["delegable"] == ("issue" if delegable else None)
+    assert ("on_behalf_of" in models.ACTION_PARAMS[action].model_fields) is delegable
 
 
 def test_raising_and_routing_follow_the_policy_and_owning_disposing_and_returning_the_scope():
@@ -102,8 +109,6 @@ def test_each_of_the_six_dispositions_parses_with_its_reason(disposition):
     {"target": {"object_id": OID, "revision_id": RID, "expected_version": 1}},
     {"outcome": "withdrawn"},                                  # Issue 事件是记录事件，不撤回
     {"supersedes_event_id": EID},
-    {"on_behalf_of": {"principal_id": PID, "external_record_id": "tianshu-1",
-                      "external_confirmed_at": "2026-10-12T15:30:00+08:00"}},   # 第一版不可代记
     {"content": {"text": "   "}},                              # 内容给了就要有东西
     {"content": {"text": "x", "components": [{"type": "issue", "text": "y"}]}},  # 事件内容不带组件
 ])
@@ -111,6 +116,33 @@ def test_issue_parameters_outside_their_shape_are_refused(action, change):
     params = {key: value for key, value in {**MINIMAL[action], **change}.items() if value is not None}
     with pytest.raises(ValueError):
         models.ACTION_PARAMS[action].model_validate(params)
+
+
+ON_BEHALF = {"principal_id": PID, "external_record_id": "tianshu-1", "external_confirmed_at": "2026-10-12T15:30:00+08:00"}
+
+
+def test_the_owner_of_an_issue_owned_on_behalf_is_the_person_not_the_service_principal():
+    """补 49（#71）：代记的承接，已承接的承接人是被代记的人；本人承接时是记录者。再路由换一轮。"""
+    from memory_service_runtime.governed.world_v02_readers import issue_holders
+    agent = RID
+    routed = {"action": "world_route_issue", "principal_id": agent, "on_behalf_of": None,
+              "detail": {"to_principal_id": PID}}
+    owned = {"action": "world_own_issue", "principal_id": agent, "on_behalf_of": PID, "detail": None}
+    assert issue_holders([routed, owned]) == (PID, PID)
+    assert issue_holders([routed, {**owned, "principal_id": PID, "on_behalf_of": None}]) == (PID, PID)
+    assert issue_holders([routed, owned, routed]) == (PID, None)
+
+
+@pytest.mark.parametrize("action", sorted(MINIMAL))
+def test_only_owning_disposing_and_returning_take_on_behalf_of(action):
+    """补 49（#71）：议题族的三个动作可以代记；提出与路由带 on_behalf_of 被拒。"""
+    params = {**MINIMAL[action], "on_behalf_of": ON_BEHALF}
+    if ACTIONS[action]["delegable"] == "issue":
+        value = models.ACTION_PARAMS[action].model_validate(params).model_dump(mode="json", exclude_none=True)
+        assert value["on_behalf_of"] == {**ON_BEHALF, "external_confirmed_at": "2026-10-12T07:30:00Z"}
+    else:
+        with pytest.raises(ValueError):
+            models.ACTION_PARAMS[action].model_validate(params)
 
 
 @pytest.mark.parametrize("change", [

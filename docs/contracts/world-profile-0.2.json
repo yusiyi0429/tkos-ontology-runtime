@@ -9,12 +9,12 @@
   "action_contract_ref": {
     "contract_id": "tkos.world",
     "revision": "0.2",
-    "content_sha256": "fb260b28283fa0fa1a0b7d17291e9b18cbbeea32db37f0408be44cd8bc24a0df"
+    "content_sha256": "9e6d1c6ce465df692dcd017074ac506e152f574f8765ada86f6c52607aae022a"
   },
   "world_registry_ref": {
     "registry_id": "tkos.world-registry",
     "revision": "0.2.0",
-    "content_sha256": "098dd564a5e4297602ef4e99871730998d6fff2efddcf9344b56abb8f1264bd1"
+    "content_sha256": "2fc36f4f2d0631aa60a6f50afa30fb9a0e11ea152e2c97607a25c83cfccbdf40"
   },
-  "canonical_hash": "4c00c3cd10a98648464f4e0bc1a39b73f102485877f2cdcf4e44351fbb99b3fc"
+  "canonical_hash": "0ec50f6f2cc6f4c9a7cec1f117e0225cae8cf93d044ff9335ce26f0d49d4b159"
 }

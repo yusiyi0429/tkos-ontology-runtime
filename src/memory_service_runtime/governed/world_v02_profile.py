@@ -16,10 +16,10 @@ SCHEMA_VERSION = "tkos.world-profile/0.2"
 PROFILE_ID = "urn:tkos:world"
 PROFILE_REVISION = "0.2.0"
 DISPLAY_NAME = "World 0.2 business world model draft 2026-09-28"
-CONTRACT_SHA256 = "fb260b28283fa0fa1a0b7d17291e9b18cbbeea32db37f0408be44cd8bc24a0df"
+CONTRACT_SHA256 = "9e6d1c6ce465df692dcd017074ac506e152f574f8765ada86f6c52607aae022a"
 REGISTRY_ID = "tkos.world-registry"
 REGISTRY_REVISION = "0.2.0"
-REGISTRY_SHA256 = "098dd564a5e4297602ef4e99871730998d6fff2efddcf9344b56abb8f1264bd1"
+REGISTRY_SHA256 = "2fc36f4f2d0631aa60a6f50afa30fb9a0e11ea152e2c97607a25c83cfccbdf40"
 
 
 class ContractRef(BaseModel):

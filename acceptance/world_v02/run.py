@@ -2256,6 +2256,8 @@ def delegation(book, h, f, flow, trunk):
     委托过期、已撤销、动作族或域超出范围、委托人不再是 scope 内有效的人、被代记的人自己无权，各一条 FORBIDDEN 且
     库快照不变。事件与回执同时记下记录者、被代记的人与外部确认记录；被代记的人本人撤回代记的事件；读投影 identity
     给委托范围覆盖对象所在域的当前有效委托；重放按委托与被代记的人复核。#55 合入后顺带代 CEO 记一条关注标记。
+    #71 议题族（补 49）：委托不含议题族时代承接人承接被拒、天枢以自己的身份承接被拒；承接人登记议题族后，天枢代他
+    承接、退回形成与处置各一条（他本人照样能承接），读回事件的代记字段与问题的状态，处置的重放返回原回执。
     对象都新建，不动前面场景的主干。"""
     check = book.check
     made = trunk['made']
@@ -2522,6 +2524,103 @@ def delegation(book, h, f, flow, trunk):
           all(read[e]['class'] == 'record' and read[e]['on_behalf_of'] is None for e in
               (ceo_grant['event_id'], owner_grant['event_id'], revoked['event_id']))
           and read[revoked['event_id']]['detail'] == {'delegation_event_id': owner_grant['event_id']})
+
+    # ---------------------------------------------------------------- 议题族（#71，补 49）
+    # 单元 a 的 Co-Agent 在代记 Mission 的快照里提出一个问题、路由给 ic_a；ic_a 此时只给天枢委托了生命周期族。
+    mid = mission['object_id']
+    declared = {'scene': mission['ref'], 'trigger': '天枢议题同步（#71）', 'human_acceptance': {'required': False}}
+    sync = flow.record('agent_a', {'category': 'other', 'subject_refs': [mission['ref']],
+                                   'occurred_at': later(seconds=-30), 'content': {'text': '天枢每周同步（#71）'},
+                                   'declaration': declared})['result']
+    snapshot = flow.refresh('agent_a', {
+        'title': '代记议题（#71）', 'subject_ref': mission['ref'], 'as_of': later(seconds=-20),
+        'payload_type': 'execution_state', 'source_event_refs': [f"event:{sync['event_id']}"],
+        'blocks': {'issues': {'components': [{'id': 'iss-deleg', 'type': 'issue', 'text': '试点要不要推迟一周？',
+                                              'attributes': {'core_question': '试点要不要推迟一周？'}}]}}},
+        declared)['result']
+    issue_ref = f"{snapshot['ref']}#issues/iss-deleg"
+
+    def issue_command(kind, params=None):
+        """Issue 动作不带目标，以 issue_ref 指明问题。"""
+        return flow.command(kind, {'issue_ref': issue_ref, **(params or {})})
+
+    def by_agent(kind, params=None):
+        return flow.commit('agent_a', flow.prepare('agent_a', issue_command(kind, {**(params or {}),
+                                                                                  'declaration': declared})))
+
+    def issue_on_behalf(kind, person, params=None):
+        """天枢代记一条 Issue 动作，返回（回执，带去的 on_behalf_of，提交的命令）。"""
+        sent = behalf(person)
+        body = flow.prepare('tianshu', issue_command(kind, {**(params or {}), 'on_behalf_of': sent}))
+        return flow.commit('tianshu', body), sent, body
+
+    def open_issue():
+        return {item['component_id']: item for item in flow.read('outsider', mid)['records']['open_issues']}.get(
+            'iss-deleg')
+
+    def on_behalf_row(row, person, sent):
+        return (str(row['principal_id']) == actor_id['tianshu'] and str(row['on_behalf_of']) == actor_id[person]
+                and row['external_record_id'] == sent['external_record_id']
+                and row['external_confirmed_at'] == datetime.fromisoformat(sent['external_confirmed_at'])
+                and row['external_confirmed_at'] <= row['recorded_at'] and row['occurred_at'] == row['recorded_at'])
+
+    by_agent('world_raise_issue')
+    by_agent('world_route_issue', {'to_principal_id': actor_id['ic_a']})
+    flow.deny('tianshu', issue_command('world_own_issue', {'on_behalf_of': behalf('ic_a')}), codes={'FORBIDDEN'},
+              says=unscoped)
+    check('a_delegation_without_the_issue_family_does_not_let_the_service_principal_own_an_issue',
+          open_issue()['lifecycle']['status'] == 'routed')
+    flow.deny('tianshu', issue_command('world_own_issue'), codes={'FORBIDDEN'}, says='by a person')
+    check('the_service_principal_still_does_not_own_an_issue_in_its_own_name')
+
+    issue_grant = grant('ic_a', 'tianshu', ['issue'], ['a'])
+    owned, sent, _ = issue_on_behalf('world_own_issue', 'ic_a')
+    row, entry = event(owned['result']['event_id']), open_issue()
+    check('the_service_principal_owns_an_issue_on_behalf_of_its_route_target',
+          owned['result']['issue']['status'] == 'owned' and entry['lifecycle']['status'] == 'owned'
+          and entry['lifecycle']['event_id'] == owned['result']['event_id']
+          and entry['owner']['principal_id'] == actor_id['ic_a'] and row['kind'] == 'issue.owned'
+          and on_behalf_row(row, 'ic_a', sent) and owned['actor_id'] == actor_id['tianshu']
+          and owned['result']['on_behalf_of'] == {'principal_id': actor_id['ic_a'], **confirmation(sent),
+                                                  'delegation_event_id': issue_grant['event_id']}
+          and owned['result']['required_assignment_ids'] == [f['actors']['ic_a']['assignment_id']])
+    returned, sent, _ = issue_on_behalf('world_return_issue', 'ic_a', {'content': {'text': '天枢：信息不全，退回补齐。'}})
+    row, entry = event(returned['result']['event_id']), open_issue()
+    check('the_service_principal_returns_the_owned_issue_to_forming_on_behalf_of_its_owner',
+          returned['result']['issue']['status'] == 'forming' and entry['lifecycle']['status'] == 'forming'
+          and entry['lifecycle']['event_id'] == returned['result']['event_id'] and row['kind'] == 'issue.returned'
+          and row['content']['text'] == '天枢：信息不全，退回补齐。' and on_behalf_row(row, 'ic_a', sent)
+          and returned['result']['on_behalf_of']['delegation_event_id'] == issue_grant['event_id']
+          and 'declaration' not in returned['result'])
+
+    by_agent('world_raise_issue')
+    by_agent('world_route_issue', {'to_principal_id': actor_id['ic_a']})
+    in_person = flow.commit('ic_a', flow.prepare('ic_a', issue_command('world_own_issue')))
+    row = event(in_person['result']['event_id'])
+    check('the_route_target_still_owns_the_issue_in_person',
+          in_person['result']['issue']['status'] == 'owned' and str(row['principal_id']) == actor_id['ic_a']
+          and row['on_behalf_of'] is None and 'on_behalf_of' not in in_person['result'])
+    disposed, sent, body = issue_on_behalf('world_dispose_issue', 'ic_a', {
+        'disposition': 'current_layer_action', 'content': {'text': '天枢：本层处理，试点推迟一周。'}})
+    row = event(disposed['result']['event_id'])
+    check('the_service_principal_disposes_the_issue_on_behalf_of_its_owner',
+          disposed['result']['issue']['status'] == 'disposed' and open_issue() is None
+          and row['kind'] == 'issue.disposed' and row['disposition'] == 'current_layer_action'
+          and row['content']['text'] == '天枢：本层处理，试点推迟一周。' and on_behalf_row(row, 'ic_a', sent)
+          and disposed['result']['on_behalf_of'] == {'principal_id': actor_id['ic_a'], **confirmation(sent),
+                                                     'delegation_event_id': issue_grant['event_id']})
+    replay = flow.commit('tianshu', deepcopy(body))
+    check('replaying_an_issue_action_recorded_on_behalf_returns_the_original_receipt',
+          replay['receipt_id'] == disposed['receipt_id'] and len(events_of(disposed['receipt_id'])) == 1)
+    read = {item['event_id']: item for item in flow.events('outsider', mid)['events']}
+    delegated = [read[r['result']['event_id']] for r in (owned, returned, disposed)]
+    check('reading_events_gives_the_issue_events_recorded_on_behalf_with_the_person_and_the_external_confirmation',
+          all(item['principal']['principal_id'] == actor_id['tianshu'] and item['principal']['principal_type'] == 'agent'
+              and item['on_behalf_of']['principal_id'] == actor_id['ic_a'] and item['class'] == 'record'
+              and item['external_confirmation']['external_record_id'].startswith('tianshu:confirm:')
+              for item in delegated)
+          and [item['action'] for item in delegated] == ['world_own_issue', 'world_return_issue', 'world_dispose_issue']
+          and read[in_person['result']['event_id']]['on_behalf_of'] is None)
 
 
 

@@ -755,6 +755,22 @@ CHECKS = {
         'a_write_on_behalf_carries_no_declaration_a_confirmation_not_later_than_the_recording_and_only_on_a_'
         'delegable_action': ('delegation:refused:request_shape',),
         'the_company_reads_back_the_delegation_events_as_record_events': (),
+        # #71 议题族（补 49）
+        'a_delegation_without_the_issue_family_does_not_let_the_service_principal_own_an_issue':
+            R('world_own_issue') + ('delegation:refused:family_out_of_scope',),
+        'the_service_principal_still_does_not_own_an_issue_in_its_own_name': R('world_own_issue'),
+        'the_service_principal_owns_an_issue_on_behalf_of_its_route_target':
+            P('world_own_issue') + ('delegation:passes:issue', 'delegation:recorded_fields')
+            + L(I, 'routed>owned:world_own_issue', 'enter'),
+        'the_service_principal_returns_the_owned_issue_to_forming_on_behalf_of_its_owner':
+            P('world_return_issue') + ('delegation:passes:issue',) + L(I, 'owned>forming:world_return_issue', 'enter'),
+        'the_route_target_still_owns_the_issue_in_person': P('world_own_issue'),
+        'the_service_principal_disposes_the_issue_on_behalf_of_its_owner':
+            P('world_dispose_issue') + ('delegation:passes:issue',)
+            + L(I, 'owned>disposed:world_dispose_issue:current_layer_action', 'enter'),
+        'replaying_an_issue_action_recorded_on_behalf_returns_the_original_receipt': ('delegation:replay',),
+        'reading_events_gives_the_issue_events_recorded_on_behalf_with_the_person_and_the_external_confirmation':
+            ('delegation:recorded_fields',),
     },
     'mcp_end_to_end': {
         'the_0_2_mcp_server_lists_the_agent_face_five_reads_and_eight_writes': (),
@@ -895,7 +911,7 @@ CHECKS = {
         'an_issue_ref_that_is_not_an_issue_component_of_a_snapshot_is_refused':
             R('world_raise_issue') + ('issue:request_refusals',),
         'an_issue_ref_outside_the_scope_is_not_found': R('world_raise_issue') + ('issue:request_refusals',),
-        'an_issue_action_takes_neither_a_target_nor_on_behalf_of':
+        'raising_an_issue_takes_neither_a_target_nor_on_behalf_of':
             R('world_raise_issue') + ('issue:request_refusals', 'delegation:refused:request_shape'),
         'a_correction_points_to_an_issue_event_and_leaves_the_issue_where_it_was':
             P('world_record_event') + ('issue:correction',),
@@ -1188,6 +1204,8 @@ UNVERIFIED = [
     'CLI 的 0.2 面、MCP 的列对象与三个问题工具只在无库测试里打假 HTTP 核对。',
     '0.1 视图只驱动了长期目标与快照；取事件、取上下文、取子对象没有 0.2 视图参数。',
     '代记 Mission 的生命周期动作、代记撤回、代记指定本轮与 Strategy 的确认与再确认：机制同其余代记，由无库测试核对。',
+    '议题族（#71）：承接人在另一单元时的代记（委托须覆盖问题所在的域）、委托不含议题族时代处置与代退回形成的拒绝、'
+    '被代记的人不是承接人时的拒绝，只由无库测试换掉读库的几处、跑服务里的判权路径核对。',
     '工作台与看板、证据上传、真实模型：没有驱动。',
     '对照实验 B（#66）：只在隔离库上用合成的冒烟脚本驱动；实例上的供给、播种与驱动没有跑，真实记录的转写与回放要等试用。',
     '四种取法对照（#68）：只跑准备与引用核对，不调模型；四组作答、指标、触发检查与报告只由无库测试按录好的运行核对。',

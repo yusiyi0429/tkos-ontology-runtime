@@ -200,10 +200,10 @@ ISSUE_KINDS = ["issue.raised", "issue.routed", "issue.owned", "issue.disposed", 
 def issue_events(conn: Any, ctx: Any, primary_id: str, component_id: str | None = None) -> list[dict[str, Any]]:
     """Issue 事件（契约第 13 节）：subject_refs 的第一项是问题组件的组件引用，第二项是主受影响对象。给组件 id 时取这一
     个问题（身份是主受影响对象与组件 id，跨快照延续），不给时取主受影响对象的全部问题；按记录顺序，带产生它的动作
-    （推导 Issue 状态的输入）、记录者与 detail。"""
+    （推导 Issue 状态的输入）、记录者、被代记的人（补 49）与 detail。"""
     return [db.jsonable(row) for row in conn.execute(
         """SELECT e.event_id, r.action_type AS action, e.outcome, e.disposition, e.supersedes_event_id,
-                  e.principal_id, e.detail, e.subject_refs->0->>'component' AS component_id
+                  e.principal_id, e.on_behalf_of, e.detail, e.subject_refs->0->>'component' AS component_id
              FROM gov_world_events e JOIN gov_action_receipts r ON r.scope_id=e.scope_id AND r.receipt_id=e.action_id
             WHERE e.scope_id=%s AND e.contract_version=%s AND e.kind = ANY(%s)
               AND e.subject_refs->1->>'object_id'=%s
@@ -213,15 +213,15 @@ def issue_events(conn: Any, ctx: Any, primary_id: str, component_id: str | None 
 
 
 def issue_holders(events: list[dict[str, Any]]) -> tuple[str | None, str | None]:
-    """当前路由指定的承接人（最近一条路由事件的 to_principal_id）与已承接的承接人（这次路由之后承接事件的记录者）：
-    每次路由都换一轮，此前的承接人不再算。只在状态表允许的段里有意义——承接只从已路由起，处置只从已承接起，由状态表
-    先判。"""
+    """当前路由指定的承接人（最近一条路由事件的 to_principal_id）与已承接的承接人（这次路由之后承接事件的记录者；
+    代记的承接是被代记的人，补 49）：每次路由都换一轮，此前的承接人不再算。只在状态表允许的段里有意义——承接只从
+    已路由起，处置只从已承接起，由状态表先判。"""
     route_target = owner = None
     for event in events:
         if event["action"] == "world_route_issue":
             route_target, owner = event["detail"]["to_principal_id"], None
         elif event["action"] == "world_own_issue":
-            owner = str(event["principal_id"])
+            owner = str(event.get("on_behalf_of") or event["principal_id"])
     return route_target, owner
 
 

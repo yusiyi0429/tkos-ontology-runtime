@@ -120,14 +120,14 @@
 - 错误：`issue_ref` 所在对象不在本 scope 是 404；提出、路由时在主受影响对象所在域没有角色，承接、处置、退回形成时在 scope 内没有生效指派，Agent 承接或处置，记录者不符，都是 403；正在处理或已处置的问题再提出、状态不允许是 409；参数不对（含带 `target`、缺理由、处置不在六类、Agent 缺声明、`issue_ref` 不是快照 issues 块里的问题组件、承接人不是 scope 内有效的人）是 422。
 - **承接人不限单元**（2026-09-29 定，契约补 44）：承接人是 scope 内有效的人（启用的人，持任一生效指派），不必在主受影响对象所在的域持角色，转给别的单元的人可以；承接、处置与退回形成按 scope 判权。提出与路由仍在主受影响对象所在的域判。
 - 取对象的 `records.open_issues` 列出主受影响对象是它、提出过还没处置的问题：`{component_id, issue_ref, text, core_question, responsible_hint, as_of, lifecycle, route_target, owner}`。
-- 天枢服务主体可以提出、路由、退回形成；承接与处置只能由承接人本人记，第一版不可代记（是否纳入代记，三方会上提，可能变）。
+- 天枢服务主体可以以自己的身份提出、路由、退回形成；承接与处置由承接人本人记，或由天枢按他登记的议题族委托代记（2026-09-29 定，见第八项）。
 - 正在处理的问题不能重复提出；已处置的不再提出，复发用新 id 并在内容里引用原问题。处置为「带入下次形成」「立即重开」的问题，在下一次相关的形成时由取上下文带出（第十项）。
 
 ## 八、代记：人在天枢页面确认，直接进本体
 
 0.1 的门与指派只能由人持自己的凭证记。0.2 开放代记（第 14 节）：
 
-1. **登记委托**：人（CEO、DRI、Owner、执行人）本人记 `world_grant_delegation`，参数 `delegate_principal_id`（天枢服务主体）、`families`（`gate` 门、`assign` 指派、`lifecycle` 生命周期，可多选）、`domain_ids`（范围内的域）、`valid_until`（必填）。本人可随时 `world_revoke_delegation` 撤销，参数 `delegation_event_id`（登记那条事件的 id，登记回执里有），即时生效。委托不能转委托。**每个人登记一次委托这一步要本人做**：登记与撤销只能由本人持自己的凭证经 HTTP 记，天枢不能代记；E&O 会在实例上线时协助（方式另行说明）。
+1. **登记委托**：人（CEO、DRI、Owner、执行人）本人记 `world_grant_delegation`，参数 `delegate_principal_id`（天枢服务主体）、`families`（`gate` 门、`assign` 指派、`lifecycle` 生命周期、`issue` 议题，可多选）、`domain_ids`（范围内的域）、`valid_until`（必填）。本人可随时 `world_revoke_delegation` 撤销，参数 `delegation_event_id`（登记那条事件的 id，登记回执里有），即时生效。委托不能转委托。**每个人登记一次委托这一步要本人做**：登记与撤销只能由本人持自己的凭证经 HTTP 记，天枢不能代记；E&O 会在实例上线时协助（方式另行说明）。
 2. **代记写入**：天枢以自己的凭证调用可代记的动作，另带
    ```json
    "on_behalf_of": {
@@ -152,6 +152,39 @@
 | 会后 CEO 确认的战略类条目 | Strategy：CEO 指定本轮 `world_assign_strategy_round`、被指定的人各记 Agreement `world_agree_strategy`、CEO 确认 `world_confirm_strategy` 或再确认 `world_reconfirm_strategy`；长期目标的确认 `world_confirm_long_term_goal` 与再确认 `world_reconfirm_long_term_goal` | 门 |
 | 月度复盘确认、目标取消 | 复盘确认 `world_confirm_review`（目标是快照；确认公司复盘只赋效力，确认周期目标的复盘使周期目标进入已关闭）、周期目标再确认 `world_reconfirm_period_goal`、`world_cancel`（长期目标进入已终止、周期目标进入已取消） | 门、生命周期 |
 | CEO 关注某张任务卡 | `world_mark_core_battle`（只影响可见性，不加确认门；CEO 若改方案会另行通知，可能变） | 门 |
+| 议题的承接、处置与退回（承接人在天枢里操作） | `world_own_issue`、`world_dispose_issue`、`world_return_issue` | 议题 |
+
+**议题族**（2026-09-29 定，契约补 49）：Issue 的承接 `world_own_issue`、处置 `world_dispose_issue` 与退回形成 `world_return_issue` 可以代记，动作族是 `issue`（议题），登记委托时在 `families` 里选上它。提出与路由不在这一族，天枢服务主体照旧以自己的身份记（第七项）。
+
+- 判权按被代记的人，规则同他本人记：承接是当前路由指定的承接人，处置是已承接的承接人，退回形成是路由者或承接人；这三个动作按 scope 判，承接人在别的单元也可以。
+- 委托的 `domain_ids` 要覆盖问题所在的域，也就是主受影响对象所在的域（Issue 动作不带 `target`，以 `issue_ref` 所在快照的域为准），不是承接人自己的单元：代一位 DRI 承接别的单元的问题，他的委托要含那个单元的域。
+- 委托里没有 `issue` 族、域不覆盖、被代记的人不是承接人（或路由者），都是 `403 FORBIDDEN`；天枢服务主体不带 `on_behalf_of`、以自己的身份承接或处置，仍是 403。代记的退回形成不带写入声明。
+- 回执 `result` 在第七项的字段之外另带 `on_behalf_of`（含所用委托的 `delegation_event_id`）；事件与读投影 `records.open_issues` 的变化同本人记。
+
+代记处置的请求示例（id 都是占位）。先发 `POST /v1/actions/prepare`，把返回的 `expected_versions` 原样带进 `POST /v1/actions`；Issue 动作的 `target` 为 null：
+
+```json
+{
+  "action_type": "world_dispose_issue",
+  "contract_version": "tkos.world/0.2",
+  "target": null,
+  "expected_versions": [],
+  "idempotency_key": "tianshu:issue-dispose:<天枢里这次处置的记录 id>",
+  "reason": "天枢：承接人处置议题",
+  "params": {
+    "issue_ref": "<快照 id>@<版本>#issues/<组件 id>",
+    "disposition": "current_layer_action",
+    "content": {"text": "本层处理：试点推迟一周。"},
+    "on_behalf_of": {
+      "principal_id": "<承接人的 principal id>",
+      "external_record_id": "<天枢里这次处置的记录 id>",
+      "external_confirmed_at": "2026-10-13T10:20:00+08:00"
+    }
+  }
+}
+```
+
+代记承接、退回形成同样写法：`params` 只带 `issue_ref`、可选 `content` 与 `on_behalf_of`。
 
 ## 九、外部引用与查找
 
@@ -243,7 +276,7 @@
 4. 月度计划签发、任务卡确认、指派经代记写入，带 `on_behalf_of`；请参与的人先登记委托。
 5. 战场、能力域、任务卡写 `external_refs`，按列对象接口查回，替代同步表里的对象对照。
 6. 读取改从 `business`、`identity`、`records` 三组取字段；引用解析支持组件与事件两种新形式。
-7. 议题按 Issue 的事件流转（提出、路由由天枢服务主体记；承接、处置由承接人本人记）。
+7. 议题按 Issue 的事件流转（提出、路由由天枢服务主体记；承接、处置由承接人本人记，或经议题族委托代记，见第八项）。
 8. 调用日志的约定不变（对接说明 4.4），引用集合包括组件引用与事件引用。
 
 ## 十三、时间表
@@ -256,4 +289,4 @@
 | 10 月 9 日至 11 日 | 天枢按实例联调，E&O 协助人员登记委托 |
 | 10 月 12 日至 16 日 | 试用；16 日联调验收 |
 
-三方会上要定的仍是对接说明 11.2 列的几项，另加：外部引用的 `system` 与 `id` 写法；Issue 的承接与处置是否纳入代记。
+三方会上要定的仍是对接说明 11.2 列的几项，另加外部引用的 `system` 与 `id` 写法。Issue 的承接与处置是否纳入代记已于 9 月 29 日定下：纳入，单列议题族（第八项）。

@@ -1072,8 +1072,19 @@ def test_a_pending_issue_is_carried_with_its_pinned_component_disposition_and_re
         "text": "试点客户流失", "core_question": "下个周期要不要换客户群？",
         "disposition": {"id": "roll_forward", "display_name": "带入下次形成"},
         "disposed_by": {"event_id": G_ISS, "ref": f"event:{G_ISS}", "occurred_at": "2026-09-23T08:00:00Z",
-                        "principal": {"principal_id": DRI, "principal_type": "human", "display_name": "E&O DRI"}},
+                        "principal": {"principal_id": DRI, "principal_type": "human", "display_name": "E&O DRI"},
+                        "on_behalf_of": None},
         "reason": "客户流失原因要在下个周期回答"}
+
+
+def test_a_pending_issue_disposed_on_behalf_names_the_recorder_and_the_person(world):
+    """补 49（#71）：代记的处置在带入里写成「记录者 代 被代记的人 记」，同事件行。"""
+    item = build(world, start=PERIOD)["context_pack"]["carried"]["issues"][1]
+    service = {"principal_id": OWNER, "principal_type": "agent", "display_name": "天枢"}
+    item = {**item, "disposed_by": {**item["disposed_by"], "principal": service,
+                                    "on_behalf_of": item["disposed_by"]["principal"]}}
+    assert (f"处置：带入下次形成（事件 `event:{G_ISS}`，天枢 代 E&O DRI 记，2026-09-23T08:00:00Z）"
+            in context._carried_text(item).splitlines())
 
 
 def test_without_a_confirmed_company_review_the_carry_in_names_the_gap(world, monkeypatch):

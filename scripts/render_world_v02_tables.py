@@ -42,7 +42,7 @@ GUARD_LABELS = {
     "review_of_subject": "快照以本目标为主体",
     "once": "只标一次",
 }
-FAMILY_LABELS = {"gate": "门", "assign": "指派", "lifecycle": "生命周期"}
+FAMILY_LABELS = {"gate": "门", "assign": "指派", "lifecycle": "生命周期", "issue": "议题"}
 
 LIFECYCLE_HEADER = "| 事件（动作） | 起始状态 | 进入状态 | 谁记 | 守卫 |"
 # 表名 → 所在节的标题（行首）。同一节里有两张表时按表头行区分。

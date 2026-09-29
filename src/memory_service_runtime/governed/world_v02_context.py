@@ -465,7 +465,7 @@ def _carried_issue(conn: Any, ctx: Any, event_id: str, disposition: str) -> dict
     改看本单元（同一个域）任一周期目标在处置之后记过门事件。"""
     gates = [item["kind"] for item in world_registry.registry()["event_kinds"] if item["class"] == "gate"]
     row = db.jsonable(conn.execute(
-        """SELECT e.event_id, e.occurred_at, e.content, e.subject_refs, e.principal_id,
+        """SELECT e.event_id, e.occurred_at, e.content, e.subject_refs, e.principal_id, e.on_behalf_of,
                   EXISTS (SELECT 1 FROM gov_world_events g
                            WHERE g.scope_id=e.scope_id AND g.contract_version=e.contract_version AND g.kind = ANY(%s)
                              AND g.recorded_at > e.recorded_at
@@ -498,7 +498,9 @@ def _carried_issue(conn: Any, ctx: Any, event_id: str, disposition: str) -> dict
             "disposition": {"id": disposition, "display_name": dispositions[disposition]},
             "disposed_by": {"event_id": row["event_id"], "ref": f"event:{row['event_id']}",
                             "occurred_at": utc_text(row["occurred_at"]),
-                            "principal": readers.principal(conn, ctx, row["principal_id"])},
+                            "principal": readers.principal(conn, ctx, row["principal_id"]),
+                            "on_behalf_of": (readers.principal(conn, ctx, row["on_behalf_of"])
+                                             if row.get("on_behalf_of") else None)},
             "reason": row["content"]["text"]}
 
 
@@ -622,13 +624,14 @@ def _goal_text(goal: dict[str, Any]) -> str:
 
 
 def _carried_text(item: dict[str, Any]) -> str:
-    """一条带入的问题：问题组件引用与正文、主受影响对象、核心判断问题、处置（处置事件、记录者、时刻）与理由。"""
+    """一条带入的问题：问题组件引用与正文、主受影响对象、核心判断问题、处置（处置事件、记录者——代记时写两个人、
+    时刻）与理由。"""
     primary, disposed = item["primary"], item["disposed_by"]
     return "\n".join([
         f"### 待带入的问题 `{item['issue_ref']['ref']}`" + (f"：{item['text']}" if item["text"] else ""),
         f"主受影响对象：{primary['type_display_name']}《{primary['title']}》 `{primary['ref']}`",
         f"核心判断问题：{item['core_question']}",
-        f"处置：{item['disposition']['display_name']}（事件 `{disposed['ref']}`，{disposed['principal']['display_name']} 记，"
+        f"处置：{item['disposition']['display_name']}（事件 `{disposed['ref']}`，{_recorder(disposed)} 记，"
         f"{disposed['occurred_at']}）",
         f"理由：{item['reason']}"])
 

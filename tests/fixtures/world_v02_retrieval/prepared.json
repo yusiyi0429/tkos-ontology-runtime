@@ -80,7 +80,7 @@
      "trimmed": []
     },
     "rag": {
-     "chars": 8750,
+     "chars": 8783,
      "recall": [
       2,
       7
@@ -93,8 +93,8 @@
       "33da53b0-4eaf-5ac3-b09c-100ca6e63caf@1#identity"
      ],
      "max_chars": 8785,
-     "kept": 64,
-     "skipped": 81
+     "kept": 65,
+     "skipped": 74
     },
     "full": {
      "chars": 32141,
@@ -140,7 +140,7 @@
      "trimmed": []
     },
     "rag": {
-     "chars": 8750,
+     "chars": 8708,
      "recall": [
       1,
       1
@@ -148,7 +148,7 @@
      "missing": [],
      "max_chars": 8772,
      "kept": 64,
-     "skipped": 81
+     "skipped": 75
     },
     "full": {
      "chars": 32141,
@@ -199,7 +199,7 @@
      "trimmed": []
     },
     "rag": {
-     "chars": 8750,
+     "chars": 8708,
      "recall": [
       2,
       2
@@ -207,7 +207,7 @@
      "missing": [],
      "max_chars": 8769,
      "kept": 64,
-     "skipped": 81
+     "skipped": 75
     },
     "full": {
      "chars": 32141,
@@ -263,15 +263,15 @@
      "trimmed": []
     },
     "rag": {
-     "chars": 8716,
+     "chars": 8709,
      "recall": [
       3,
       3
      ],
      "missing": [],
      "max_chars": 8766,
-     "kept": 66,
-     "skipped": 20
+     "kept": 65,
+     "skipped": 14
     },
     "full": {
      "chars": 32141,
@@ -322,7 +322,7 @@
      "trimmed": []
     },
     "rag": {
-     "chars": 8710,
+     "chars": 8740,
      "recall": [
       2,
       2
@@ -330,7 +330,7 @@
      "missing": [],
      "max_chars": 8766,
      "kept": 66,
-     "skipped": 20
+     "skipped": 13
     },
     "full": {
      "chars": 32141,
@@ -386,7 +386,7 @@
      "trimmed": []
     },
     "rag": {
-     "chars": 8769,
+     "chars": 8763,
      "recall": [
       2,
       3
@@ -395,8 +395,8 @@
       "81fcaee2-0dd9-50f7-bb07-e908c6e9d202@1#constraint"
      ],
      "max_chars": 8771,
-     "kept": 69,
-     "skipped": 34
+     "kept": 70,
+     "skipped": 26
     },
     "full": {
      "chars": 32141,
@@ -472,7 +472,7 @@
      "trimmed": []
     },
     "rag": {
-     "chars": 8805,
+     "chars": 8822,
      "recall": [
       2,
       7
@@ -552,7 +552,7 @@
      "trimmed": []
     },
     "rag": {
-     "chars": 8805,
+     "chars": 8822,
      "recall": [
       4,
       5
@@ -613,15 +613,15 @@
      "trimmed": []
     },
     "rag": {
-     "chars": 8805,
+     "chars": 8820,
      "recall": [
       2,
       2
      ],
      "missing": [],
      "max_chars": 8820,
-     "kept": 63,
-     "skipped": 81
+     "kept": 64,
+     "skipped": 80
     },
     "full": {
      "chars": 32141,
@@ -677,15 +677,15 @@
      "trimmed": []
     },
     "rag": {
-     "chars": 8764,
+     "chars": 8749,
      "recall": [
       3,
       3
      ],
      "missing": [],
      "max_chars": 8817,
-     "kept": 66,
-     "skipped": 23
+     "kept": 65,
+     "skipped": 24
     },
     "full": {
      "chars": 32141,
@@ -736,15 +736,15 @@
      "trimmed": []
     },
     "rag": {
-     "chars": 8777,
+     "chars": 8734,
      "recall": [
       2,
       2
      ],
      "missing": [],
      "max_chars": 8817,
-     "kept": 65,
-     "skipped": 20
+     "kept": 64,
+     "skipped": 21
     },
     "full": {
      "chars": 32141,
@@ -795,7 +795,7 @@
      "trimmed": []
     },
     "rag": {
-     "chars": 8802,
+     "chars": 8753,
      "recall": [
       1,
       2
@@ -804,8 +804,8 @@
       "81fcaee2-0dd9-50f7-bb07-e908c6e9d202@1#constraint"
      ],
      "max_chars": 8822,
-     "kept": 71,
-     "skipped": 27
+     "kept": 69,
+     "skipped": 29
     },
     "full": {
      "chars": 32141,
@@ -891,7 +891,7 @@
      "trimmed": []
     },
     "rag": {
-     "chars": 8495,
+     "chars": 8488,
      "recall": [
       3,
       9
@@ -905,8 +905,8 @@
       "33da53b0-4eaf-5ac3-b09c-100ca6e63caf@1#identity"
      ],
      "max_chars": 8500,
-     "kept": 72,
-     "skipped": 64
+     "kept": 60,
+     "skipped": 76
     },
     "full": {
      "chars": 32141,
@@ -952,15 +952,15 @@
      "trimmed": []
     },
     "rag": {
-     "chars": 8477,
+     "chars": 8488,
      "recall": [
       1,
       1
      ],
      "missing": [],
      "max_chars": 8490,
-     "kept": 72,
-     "skipped": 64
+     "kept": 60,
+     "skipped": 76
     },
     "full": {
      "chars": 32141,
@@ -1011,7 +1011,7 @@
      "trimmed": []
     },
     "rag": {
-     "chars": 8477,
+     "chars": 8486,
      "recall": [
       1,
       2
@@ -1020,8 +1020,8 @@
       "event:5b505a40-22ab-5448-8c03-020e399d0e30"
      ],
      "max_chars": 8487,
-     "kept": 72,
-     "skipped": 64
+     "kept": 60,
+     "skipped": 76
     },
     "full": {
      "chars": 32141,
@@ -1302,7 +1302,7 @@
      ]
     },
     "rag": {
-     "chars": 9378,
+     "chars": 9316,
      "recall": [
       3,
       8
@@ -1315,8 +1315,8 @@
       "33da53b0-4eaf-5ac3-b09c-100ca6e63caf@1#identity"
      ],
      "max_chars": 9378,
-     "kept": 67,
-     "skipped": 76
+     "kept": 65,
+     "skipped": 74
     },
     "full": {
      "chars": 32141,
@@ -1371,15 +1371,15 @@
      ]
     },
     "rag": {
-     "chars": 9299,
+     "chars": 9316,
      "recall": [
       1,
       1
      ],
      "missing": [],
      "max_chars": 9361,
-     "kept": 66,
-     "skipped": 77
+     "kept": 65,
+     "skipped": 74
     },
     "full": {
      "chars": 32141,
@@ -1439,15 +1439,15 @@
      ]
     },
     "rag": {
-     "chars": 9299,
+     "chars": 9316,
      "recall": [
       2,
       2
      ],
      "missing": [],
      "max_chars": 9358,
-     "kept": 66,
-     "skipped": 77
+     "kept": 65,
+     "skipped": 74
     },
     "full": {
      "chars": 32141,
@@ -1517,15 +1517,17 @@
      ]
     },
     "rag": {
-     "chars": 9315,
+     "chars": 9316,
      "recall": [
-      4,
+      3,
       4
      ],
-     "missing": [],
+     "missing": [
+      "event:29a91455-430c-5730-a8d4-9c4362aacb46"
+     ],
      "max_chars": 9355,
-     "kept": 68,
-     "skipped": 7
+     "kept": 66,
+     "skipped": 3
     },
     "full": {
      "chars": 32141,
@@ -1600,7 +1602,7 @@
      ]
     },
     "rag": {
-     "chars": 9258,
+     "chars": 9214,
      "recall": [
       4,
       5
@@ -1609,8 +1611,8 @@
       "event:3dc18e8c-a537-557b-9e46-d4e12f853b4a"
      ],
      "max_chars": 9355,
-     "kept": 66,
-     "skipped": 5
+     "kept": 64,
+     "skipped": 1
     },
     "full": {
      "chars": 32141,
@@ -1680,15 +1682,17 @@
      ]
     },
     "rag": {
-     "chars": 9277,
+     "chars": 9218,
      "recall": [
-      4,
+      3,
       4
      ],
-     "missing": [],
+     "missing": [
+      "event:29a91455-430c-5730-a8d4-9c4362aacb46"
+     ],
      "max_chars": 9360,
      "kept": 74,
-     "skipped": 14
+     "skipped": 8
     },
     "full": {
      "chars": 32141,
@@ -1764,19 +1768,20 @@
      "trimmed": []
     },
     "rag": {
-     "chars": 9262,
+     "chars": 9228,
      "recall": [
-      4,
+      3,
       7
      ],
      "missing": [
+      "04e1479e-c221-58b6-a541-e3c34930dee4@2#outcome/lock",
       "9fcc28fd-254d-56e2-9738-bb0cc67f88f6@1#outcome",
       "acf78a61-8704-5760-bd10-7a5b48b8f825@1#outcome",
       "33da53b0-4eaf-5ac3-b09c-100ca6e63caf@1#identity"
      ],
      "max_chars": 9282,
-     "kept": 71,
-     "skipped": 122
+     "kept": 70,
+     "skipped": 123
     },
     "full": {
      "chars": 32141,
@@ -1847,7 +1852,7 @@
      "trimmed": []
     },
     "rag": {
-     "chars": 9212,
+     "chars": 9247,
      "recall": [
       6,
       6
@@ -1926,15 +1931,15 @@
      "trimmed": []
     },
     "rag": {
-     "chars": 9262,
+     "chars": 9228,
      "recall": [
       6,
       6
      ],
      "missing": [],
      "max_chars": 9263,
-     "kept": 71,
-     "skipped": 122
+     "kept": 70,
+     "skipped": 123
     },
     "full": {
      "chars": 32141,
@@ -1990,7 +1995,7 @@
      "trimmed": []
     },
     "rag": {
-     "chars": 9201,
+     "chars": 9254,
      "recall": [
       3,
       3
@@ -2049,15 +2054,15 @@
      "trimmed": []
     },
     "rag": {
-     "chars": 9178,
+     "chars": 9249,
      "recall": [
       2,
       2
      ],
      "missing": [],
      "max_chars": 9254,
-     "kept": 74,
-     "skipped": 59
+     "kept": 75,
+     "skipped": 58
     },
     "full": {
      "chars": 32141,
@@ -2113,15 +2118,15 @@
      "trimmed": []
     },
     "rag": {
-     "chars": 9250,
+     "chars": 9251,
      "recall": [
       3,
       3
      ],
      "missing": [],
      "max_chars": 9259,
-     "kept": 79,
-     "skipped": 66
+     "kept": 80,
+     "skipped": 65
     },
     "full": {
      "chars": 32141,

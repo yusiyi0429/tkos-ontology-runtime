@@ -158,10 +158,13 @@ def test_a_chunk_whose_source_carries_a_second_reference_is_refused():
 
 
 # ------------------------------------------------------------------ RAG: BM25 and filling
-def test_tokens_are_character_bigrams_without_business_references():
+def test_tokens_are_character_bigrams_without_business_references_or_moments():
     ref = '12345678-1234-4234-8234-123456789abc@2#plan/rag-graph'
     assert retrieval.tokens(f'图数据库 `{ref}` RAG，a') == ['图数', '数据', '据库', 'ra', 'ag', 'a']
     assert retrieval.tokens('event:12345678-1234-4234-8234-123456789abc') == []
+    # 时刻每次播种都不同，不进检索文本：同样的内容在不同的播种上排出同样的名次
+    assert retrieval.tokens('- 2026-09-29T02:24:40.380849Z 开始') == retrieval.tokens('- 2026-10-01T00:00:00Z 开始') \
+        == ['开始']
 
 
 def test_bm25_ranks_by_score_then_document_order_and_is_deterministic():

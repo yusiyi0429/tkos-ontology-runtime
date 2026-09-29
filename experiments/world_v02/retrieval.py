@@ -17,7 +17,8 @@ RAG 组按字符二元组 BM25 取前若干块到字符预算为止。纯 Python
 这是对一个私有函数的依赖，MCP 改了识别口径这里跟着变。每个分块的来源是它在读投影里的那一段，切分时核对
 ``_content(来源)`` 恰好是这个分块的引用，不是就报错。
 
-检索（Index、retrieve）：分块的检索文本是它的正文去掉业务引用（UUID 的二元组只会把分数偏向起点附近的分块）；小写后
+检索（Index、retrieve）：分块的检索文本是它的正文去掉业务引用（UUID 的二元组只会把分数偏向起点附近的分块）与时刻
+（每次播种都不同，留着会让同样的内容在不同的播种上排出不同的名次）；小写后
 按非字母数字字符断开，每段取相邻两个字符为一个词，只有一个字符的段取这个字符。BM25 取 k1=1.2、b=0.75，
 idf=ln(1+(N-df+0.5)/(df+0.5))，查询词去重后求和。按分数从高到低、同分按文档顺序排，分数为 0 的不取；分数先舍入到
 小数点后 9 位再排，免得不同机器上最后一位的浮点差改变名次。
@@ -43,6 +44,7 @@ K1, B = 1.2, 0.75
 SEPARATOR = '\n\n'
 _UUID = r'[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}'
 _REFS = re.compile(rf'`?(?:event:{_UUID}|{_UUID}(?:@[0-9]+(?:#[A-Za-z0-9_]+(?:/[A-Za-z0-9_.:-]+)?)?)?)`?')
+_TIMES = re.compile(r'[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\.[0-9]+)?(?:Z|[+-][0-9]{2}:[0-9]{2})')
 _TYPES = {item['type']: item for item in spec.REGISTRY['objects']}
 _COMPONENTS = {item['id']: item for item in spec.REGISTRY['components']['types']}
 _KINDS = {item['kind']: item['display_name'] for item in spec.REGISTRY['event_kinds']}
@@ -262,9 +264,10 @@ def render(selected: list[Chunk]) -> str:
 
 # ------------------------------------------------------------------ BM25
 def tokens(text: str) -> list[str]:
-    """检索用的词：去掉业务引用、小写，按非字母数字字符断开，每段取字符二元组（一个字符的段取这个字符）。"""
+    """检索用的词：去掉业务引用与时刻、小写，按非字母数字字符断开，每段取字符二元组（一个字符的段取这个字符）。"""
     words = []
-    for run in ''.join(char if char.isalnum() else ' ' for char in _REFS.sub(' ', text).lower()).split():
+    for run in ''.join(char if char.isalnum() else ' '
+                       for char in _TIMES.sub(' ', _REFS.sub(' ', text)).lower()).split():
         if len(run) == 1:
             words.append(run)
         words += [run[index:index + 2] for index in range(len(run) - 1)]

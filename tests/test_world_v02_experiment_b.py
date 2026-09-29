@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from experiments.world_v02 import b_drive, b_observe, b_seed
+from experiments.world_v02 import b_drive, b_http, b_observe, b_seed
 
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURES = ROOT / "tests/fixtures/world_v02_experiment_b"
@@ -286,6 +286,80 @@ def test_the_three_expression_results_of_a_step(attempts, merged, grain, expecte
     record = {"attempts": [{"role": role, "committed": ok, "error_code": None if ok else "FORBIDDEN"}
                            for role, ok in attempts], "merged_into": merged, "grain": grain}
     assert b_drive.record_expression(record)[0] == expected
+
+
+# ------------------------------------------------------------------ transport: prepare, commit and resend (fake HTTP)
+class ScriptedLine:
+    """按顺序回放预设的响应（(状态码, 返回体) 或异常），记下每次调用。"""
+
+    def __init__(self, *responses):
+        self.responses, self.calls = list(responses), []
+
+    def call(self, method, path, body=None, who=None):
+        self.calls.append((path, who, deepcopy(body)))
+        response = self.responses.pop(0)
+        if isinstance(response, Exception):
+            raise response
+        return response
+
+
+RECEIPT = {"status": "committed", "receipt_id": "rc1", "recorded_at": "2026-10-12T09:00:00Z",
+           "result": {"contract_version": "tkos.world/0.2", "event_id": "ev1"}}
+PREPARED = (200, {"expected_versions": [{"object_id": "o", "expected_version": 3}]})
+
+
+def build():
+    return {"action_type": "world_start", "params": {}, "idempotency_key": ""}
+
+
+def test_submit_prepares_commits_and_keeps_the_committed_request_until_the_caller_records_it():
+    line, pending, saves = ScriptedLine(PREPARED, (200, RECEIPT)), {}, []
+    outcome = b_http.submit(line, pending, lambda: saves.append(deepcopy(pending)), "k1", "eo-ic", build)
+    assert outcome["committed"] and outcome["receipt"] == RECEIPT
+    assert [path for path, _, _ in line.calls] == ["/v1/actions/prepare", "/v1/actions"]
+    body = line.calls[1][2]
+    assert body["idempotency_key"] == "k1" and body["expected_versions"] == PREPARED[1]["expected_versions"]
+    assert pending == {"k1": {"who": "eo-ic", "body": body}} and saves  # 提交前已落盘
+
+
+@pytest.mark.parametrize("responses,stage", [
+    ([(403, {"error": {"code": "FORBIDDEN"}})], "prepare"),
+    ([PREPARED, (409, {"error": {"code": "INVALID_STATE"}})], "commit"),
+    ([(422, {"detail": []})], "prepare"),
+])
+def test_a_refused_action_is_a_result_not_an_error(responses, stage):
+    line, pending = ScriptedLine(*responses), {}
+    outcome = b_http.submit(line, pending, lambda: None, "k1", "eo-ic", build)
+    assert outcome["committed"] is False and outcome["stage"] == stage and pending == {}
+    assert outcome["error_code"] == ({"prepare": "FORBIDDEN", "commit": "INVALID_STATE"}[stage]
+                                     if responses[-1][0] != 422 else "HTTP_422")
+
+
+def test_an_interrupted_commit_is_resent_as_it_was_and_returns_the_original_receipt():
+    pending = {}
+    first = ScriptedLine(PREPARED, b_http.TransportError("连不上"))
+    with pytest.raises(b_http.TransportError):
+        b_http.submit(first, pending, lambda: None, "k1", "eo-ic", build)
+    body = first.calls[1][2]
+    assert pending["k1"]["body"] == body
+    again = ScriptedLine((200, RECEIPT))
+    outcome = b_http.submit(again, pending, lambda: None, "k1", "eo-ic", lambda: pytest.fail("不应重建请求"))
+    assert outcome == {"committed": True, "receipt": RECEIPT, "resent": True}
+    assert again.calls == [("/v1/actions", "eo-ic", body)]
+
+
+def test_a_resend_refused_by_the_service_is_dropped_and_prepared_again_a_server_error_keeps_it():
+    pending = {"k1": {"who": "eo-ic", "body": {"action_type": "world_start", "stale": True}}}
+    line = ScriptedLine((409, {"error": {"code": "IDEMPOTENCY_CONFLICT"}}), PREPARED, (200, RECEIPT))
+    outcome = b_http.submit(line, pending, lambda: None, "k1", "eo-ic", build)
+    assert outcome["committed"] and [path for path, _, _ in line.calls] == [
+        "/v1/actions", "/v1/actions/prepare", "/v1/actions"]
+    kept = {"k2": {"who": "eo-ic", "body": {"action_type": "world_start"}}}
+    with pytest.raises(b_http.TransportError, match="服务端 503"):
+        b_http.submit(ScriptedLine((503, "busy")), kept, lambda: None, "k2", "eo-ic", build)
+    assert "k2" in kept
+    with pytest.raises(b_http.TransportError, match="换成了"):
+        b_http.submit(ScriptedLine(), kept, lambda: None, "k2", "eo-owner", build)
 
 
 # ------------------------------------------------------------------ observations on the recorded smoke

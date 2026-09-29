@@ -2,7 +2,7 @@
 Task-only 线与 Task+Activity 线的 scope，读回核对；另有隔离库上的一键冒烟。
 
     播种  python -m experiments.world_v02.b_seed seed <base_url> <目录> --line task_only|task_activity
-    核对  python -m experiments.world_v02.b_seed check <base_url> <目录>
+    核对  python -m experiments.world_v02.b_seed check <base_url> <目录>     （驱动之前有效，seed 跑完也会做）
     冒烟  python -m experiments.world_v02.b_seed smoke --env-file E --private P --output O [--script S]
 
 <目录> 是一条线的 scope：ids.json 与每个主体的 <键>.token（实例上由 deploy/world-02 的 provision-and-install.sh 按
@@ -430,8 +430,11 @@ def main() -> None:
             log = b_drive.load_log(args.out)
             if log is None:
                 raise ValueError(f"{args.out} 还没有运行日志")
-        problems = check(line, log)
         print("\n".join(b_drive.status_lines(log)))
+        if log["script"] is not None:  # 驱动过之后状态都变了，播种的读回核对不再适用
+            print("读回核对：这条线已经按脚本驱动过，播种的读回核对只在驱动之前有效，跳过")
+            return
+        problems = check(line, log)
         print("读回核对：" + ("通过" if not problems else "；".join(problems)))
         if problems:
             sys.exit(2)

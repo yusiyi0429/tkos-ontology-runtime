@@ -6,7 +6,7 @@
   },
   "principals": {
     "ceo": {"type": "human", "display_name": "CEO", "roles": {"company": ["CEO"], "eo": ["CEO"]}},
-    "eo-dri": {"type": "human", "display_name": "E&O DRI", "roles": {"eo": ["DOMAIN_DRI", "IC"]}},
+    "eo-dri": {"type": "human", "display_name": "E&O DRI", "roles": {"eo": ["DOMAIN_DRI", "OWNER", "IC"]}},
     "eo-owner": {"type": "human", "display_name": "E&O Mission Owner", "roles": {"eo": ["OWNER", "IC"]}},
     "tianshu": {"type": "agent", "display_name": "天枢服务主体", "roles": {"company": ["AGENT"], "eo": ["AGENT"]}},
     "eo-coagent": {"type": "agent", "display_name": "E&O Co-Agent", "roles": {"eo": ["AGENT"]}},

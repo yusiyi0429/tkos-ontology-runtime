@@ -6,7 +6,9 @@
 
 ## 1. 同一场 Mission
 
-对照对象是 9 月 29 日选定的「天枢 × 本体 0.2 试用」：`deploy/world-02/seed-eo-2026-10.json` 里的 `mission_trial`，10/9–16 联调与试用，10/16 联调验收即关闭。它下面三个 Task：`task_trial_integration`（联调与委托登记，10/9–11）、`task_trial_week`（试用周每周快照与问题流转，10/12–16）、`task_trial_acceptance`（10/16 联调验收）。
+对照对象是 9 月 29 日选定的「天枢 × 本体 0.2 试用」：`experiments/world_v02/b_source-2026-10.json` 里的 `mission_trial`，10/9–16 联调与试用，10/16 联调验收即关闭。它下面三个 Task：`task_trial_integration`（联调与委托登记，10/9–11）、`task_trial_week`（试用周每周快照与问题流转，10/12–16）、`task_trial_acceptance`（10/16 联调验收）。
+
+`b_source-2026-10.json` 是 E&O 十月起点换任务卡之前的原计划，原样另存（#73）；实例用的 `deploy/world-02/seed-eo-2026-10.json` 已改为按天枢个人任务重播，不再有这个 Mission。冒烟用的是换任务卡之前的合成源数据；试用回放时对象改为真实的任务卡 Mission，届时再改 `b_lines.json`。
 
 两条线的播种分两段，第一段完全相同（`b_seed.py`，定义在 `b_lines.json`）：
 

@@ -3,7 +3,7 @@
   "title": "E&O 十月起点",
   "contract_version": "tkos.world/0.2",
   "event_text": "E&O 十月起点播种",
-  "notes": "world-02 实验 scope（spec.eo.example.json 的键）的 E&O 十月起点：公司层取 experiments/world_v01/seed.json（E&O 九月回放）的正文，按 0.2 的块与组件改形状；十月周期目标、三个 Mission 与各自的 Task 按用户 2026-09-29 给定。占位：@键 是该步建出的对象的当前版本，后面可带 #块 与 /组件。after 按用户给的九段顺序写，比 0.2 的守卫严（见 README）。不写 external_refs：天枢的战场、任务卡 id 联调时由天枢以修订补上。Task 不指派执行人，试用中在天枢里指派。",
+  "notes": "world-02 实验 scope（spec.eo.example.json 的键）的 E&O 十月起点，2026-09-29 按天枢里 E&O 的个人任务重播（#73）。公司层照旧：正文取 experiments/world_v01/seed.json（E&O 九月回放），按 0.2 的块与组件改形状，两个长期目标由 CEO 确认；E&O 责任单元建时就带外部引用 capability:05（system tianshu），由播种写好。十月周期目标沿用原草案，三个 Mission 取天枢里 E&O 的三个个人任务（目标写进定义块、每条验收一个验收条件组件，人名换成角色名），都只建、指派 Owner，不承诺、不确认：月度计划签发（DRI 承诺、CEO 确认）与任务卡确认（Owner 承诺、DRI 确认）的门留给天枢按委托代记。不建 Task：执行事项由天枢先写成 Mission 执行计划块里的计划条目，E&O 再建 Task。Mission 的外部引用不预写：天枢的个人任务编号带人名，不进仓库，由天枢第一批自己以修订写入（system tianshu，id mission:<编号>）；Mission 有门，外部引用是活动属性，天枢可以直接修订。三个人各给天枢登记委托：门、指派、生命周期、议题，至 2026-10-31T23:59:59+08:00。占位：@键 是该步建出的对象的当前版本，后面可带 #块 与 /组件。after 按五段顺序写，比 0.2 的守卫严（见 README）。换任务卡之前的原计划（33 步，含 Task 与门）原样存为 experiments/world_v02/b_source-2026-10.json，是对照实验 B 的源数据。",
   "steps": [
     {"key": "company", "by": "ceo", "do": "create", "after": [], "type": "Company", "domain": "company",
      "payload": {"title": "词元云集（TokenKing）", "blocks": {
@@ -21,11 +21,12 @@
          "components": [{"id": "eo", "type": "unit_entry", "text": "05 E&O"}]}}},
      "note": "正文照搬 seed.json 的 strategy；留在草稿。责任结构块只列 E&O 一个责任单元条目组件（这个实验 scope 只有 E&O 一个单元）。"},
     {"key": "unit_eo", "by": "ceo", "do": "create", "after": ["strategy"], "type": "ResponsibilityUnit", "domain": "eo",
-     "payload": {"title": "E&O", "unit_kind": "domain", "architecture_ref": "@strategy#responsibility_structure/eo", "blocks": {
+     "payload": {"title": "E&O", "unit_kind": "domain", "architecture_ref": "@strategy#responsibility_structure/eo",
+       "external_refs": [{"system": "tianshu", "id": "capability:05"}], "blocks": {
        "definition": {"text": "Engine & Ontology，战场图编号 05 的能力域：主导语义模型（本体）与 Context Runtime，主要支撑灯塔项目的 Mission 01-2、01-3、01-4。"},
        "boundary": {"text": "业务建模不归 E&O：由 CEO 与 Method 锁定业务语义，E&O 忠实翻译成语义模型、数据承载与运行时。Activity 要不要成为对象由 E&O 自己定。"},
        "constraint": {"text": "tkos.method/0.4、0.5 冻结不改；当前量级用 PostgreSQL 加 pgvector，不引入图数据库。"}}},
-     "note": "正文照搬 seed.json 的 unit_eo；architecture_ref 在 0.2 是指到责任单元条目的组件引用。"},
+     "note": "正文照搬 seed.json 的 unit_eo；architecture_ref 在 0.2 是指到责任单元条目的组件引用。外部引用由播种写好：责任单元没有门，天枢也不是它的责任人，不能以 Agent 身份修订它（#72 实测 403）。"},
     {"key": "company_goal", "by": "ceo", "do": "create", "after": ["company"], "type": "LongTermGoal", "domain": "company",
      "payload": {"title": "春节前核心业务第一次被真实证明", "scope": "company", "horizon": "2027 年春节前", "parent_ref": "@company", "blocks": {
        "outcome": {"text": "跑通「Re-architecture 进入客户 → TKOS 持续经营」这条主线，形成可复制的产品、交付与商业模式；同时跑通 TokenHub / TokenOps 的商业闭环。"}}},
@@ -39,6 +40,9 @@
      "note": "只守卫草稿；按用户的顺序与 E&O 长期目标一起确认。"},
     {"key": "confirm_eo_goal", "by": "ceo", "do": "gate", "after": ["eo_goal"],
      "action": "world_confirm_long_term_goal", "target": "eo_goal", "outcome": "accepted"},
+    {"key": "delegate_ceo", "by": "ceo", "do": "delegate", "after": ["confirm_company_goal", "confirm_eo_goal"],
+     "to": "tianshu", "families": ["gate", "assign", "lifecycle", "issue"], "domains": ["company", "eo"], "valid_until": "2026-10-31T23:59:59+08:00",
+     "note": "CEO 那段的最后一步。"},
     {"key": "october_goal", "by": "eo-dri", "do": "create", "after": ["confirm_company_goal", "confirm_eo_goal"], "type": "PeriodGoal", "domain": "eo",
      "payload": {"title": "E&O 10 月：tkos.world 0.2 在真实经营中跑通", "period": "2026-10", "goal_ref": "@eo_goal", "blocks": {
        "outcome": {"components": [
@@ -49,74 +53,41 @@
          {"id": "ac-tianshu", "type": "acceptance_criterion", "text": "10 月 16 日天枢联调验收通过"},
          {"id": "ac-records", "type": "acceptance_criterion", "text": "E&O 十月的工作全部经本体记录（每张任务卡有每周快照，执行事项的完成由交付事件推出）"},
          {"id": "ac-lock", "type": "acceptance_criterion", "text": "tkos.world 0.2 锁版（验收冻结并钉定提交）"}]}}},
-     "note": "不带 review_ref：scope 里还没有已确认的公司复盘，形成锚定放行。结果写三条的主句，验收标准写全文。"},
-    {"key": "commit_october_goal", "by": "eo-dri", "do": "gate", "after": ["october_goal"],
-     "action": "world_commit_period_goal", "target": "october_goal",
-     "note": "形成锚定：E&O 长期目标须已确认。"},
-    {"key": "confirm_october_goal", "by": "ceo", "do": "gate", "after": ["commit_october_goal"],
-     "action": "world_confirm_period_goal", "target": "october_goal", "outcome": "accepted"},
-    {"key": "delegate_ceo", "by": "ceo", "do": "delegate", "after": ["confirm_october_goal"],
-     "to": "tianshu", "families": ["gate", "assign", "lifecycle"], "domains": ["company", "eo"], "valid_until": "2026-10-31T23:59:59+08:00",
-     "note": "CEO 那段的最后一步。"},
-    {"key": "mission_trial", "by": "eo-dri", "do": "create", "after": ["confirm_october_goal"], "type": "Mission", "domain": "eo",
-     "payload": {"title": "天枢 × 本体 0.2 试用", "goal_ref": "@october_goal", "blocks": {
-       "definition": {"text": "10 月 9 日至 16 日，天枢与本体 tkos.world 0.2 联调并试用：10/9–11 联调与委托登记，10/12–16 试用周每周快照与问题流转，10/16 联调验收。"},
+     "note": "正文沿用原草案；只建不承诺、不确认，月度计划签发（DRI 承诺、CEO 确认）由天枢代记。不带 review_ref：scope 里还没有已确认的公司复盘，承诺时形成锚定放行。"},
+    {"key": "mission_grounding", "by": "eo-dri", "do": "create", "after": ["october_goal"], "type": "Mission", "domain": "eo",
+     "payload": {"title": "Ontology & Data Grounding", "goal_ref": "@october_goal", "blocks": {
+       "definition": {"text": "用 M1A / CEO Agent 跑通真实数据读取、必要蒸馏、候选写入、人工确认、正式写回及更新后再次调用；数据有来源、业务确认人、维护责任和实际使用证据。"},
        "acceptance": {"components": [
-         {"id": "ac-tianshu", "type": "acceptance_criterion", "text": "10 月 16 日天枢联调验收通过", "refs": ["@october_goal#acceptance/ac-tianshu"]}]}}}},
-    {"key": "assign_mission_trial", "by": "eo-dri", "do": "assign", "after": ["mission_trial"], "target": "mission_trial", "to": "eo-owner"},
-    {"key": "mission_experiments", "by": "eo-dri", "do": "create", "after": ["confirm_october_goal"], "type": "Mission", "domain": "eo",
-     "payload": {"title": "0.2 实验与报告", "goal_ref": "@october_goal", "blocks": {
-       "definition": {"text": "0.2 的实验与实验报告：对照实验 B（Task-only 与 Task+Activity），实验 E（五个场景、真实战略材料与标准答案），四种取法对照（含 RAG），写成实验报告。"}}},
-     "note": "验收标准没有给定，留空。"},
-    {"key": "assign_mission_experiments", "by": "eo-dri", "do": "assign", "after": ["mission_experiments"], "target": "mission_experiments", "to": "eo-owner"},
-    {"key": "mission_lock", "by": "eo-dri", "do": "create", "after": ["confirm_october_goal"], "type": "Mission", "domain": "eo",
-     "payload": {"title": "0.2 锁版", "goal_ref": "@october_goal", "blocks": {
-       "definition": {"text": "tkos.world 0.2 锁版：验收冻结并钉定提交，然后发版、切换实例。"},
+         {"id": "ac-1", "type": "acceptance_criterion", "text": "M1A 必需数据有来源、状态、更新方式和消费模块记录"},
+         {"id": "ac-2", "type": "acceptance_criterion", "text": "读取与蒸馏服务接入真实产品，未经确认的候选不得进入正式事实"},
+         {"id": "ac-3", "type": "acceptance_criterion", "text": "至少一条完整确认写回及数据更新后再次调用记录"},
+         {"id": "ac-4", "type": "acceptance_criterion", "text": "检查缺失、过期、写入失败等情况并明确处理人，仅有 Schema、接口或方案不算达成"}]}}},
+     "note": "只建并指派 Owner；任务卡确认（Owner 承诺、DRI 确认）由天枢代记。"},
+    {"key": "assign_mission_grounding", "by": "eo-dri", "do": "assign", "after": ["mission_grounding"], "target": "mission_grounding", "to": "eo-owner"},
+    {"key": "mission_blueprint", "by": "eo-dri", "do": "create", "after": ["october_goal"], "type": "Mission", "domain": "eo",
+     "payload": {"title": "ENO / Engine Blueprint", "goal_ref": "@october_goal", "blocks": {
+       "definition": {"text": "形成 ENO / Engine Blueprint，说明 ENO 在 TKOS 中的角色，以及 Ontology、Context、Memory、Runtime、Harness、Eval 的边界与关系。"},
        "acceptance": {"components": [
-         {"id": "ac-lock", "type": "acceptance_criterion", "text": "tkos.world 0.2 锁版（验收冻结并钉定提交）", "refs": ["@october_goal#acceptance/ac-lock"]}]}}}},
-    {"key": "assign_mission_lock", "by": "eo-dri", "do": "assign", "after": ["mission_lock"], "target": "mission_lock", "to": "eo-owner"},
-    {"key": "commit_mission_trial", "by": "eo-owner", "do": "gate", "after": ["assign_mission_trial"],
-     "action": "world_commit_mission", "target": "mission_trial", "note": "守卫 parent_goal_confirmed：十月周期目标须已确认。"},
-    {"key": "commit_mission_experiments", "by": "eo-owner", "do": "gate", "after": ["assign_mission_experiments"],
-     "action": "world_commit_mission", "target": "mission_experiments"},
-    {"key": "commit_mission_lock", "by": "eo-owner", "do": "gate", "after": ["assign_mission_lock"],
-     "action": "world_commit_mission", "target": "mission_lock"},
-    {"key": "confirm_mission_trial", "by": "eo-dri", "do": "gate", "after": ["commit_mission_trial"],
-     "action": "world_confirm_mission", "target": "mission_trial", "outcome": "accepted"},
-    {"key": "confirm_mission_experiments", "by": "eo-dri", "do": "gate", "after": ["commit_mission_experiments"],
-     "action": "world_confirm_mission", "target": "mission_experiments", "outcome": "accepted"},
-    {"key": "confirm_mission_lock", "by": "eo-dri", "do": "gate", "after": ["commit_mission_lock"],
-     "action": "world_confirm_mission", "target": "mission_lock", "outcome": "accepted"},
-    {"key": "delegate_dri", "by": "eo-dri", "do": "delegate", "after": ["confirm_mission_trial", "confirm_mission_experiments", "confirm_mission_lock"],
-     "to": "tianshu", "families": ["gate", "assign", "lifecycle"], "domains": ["eo"], "valid_until": "2026-10-31T23:59:59+08:00",
+         {"id": "ac-1", "type": "acceptance_criterion", "text": "解释本月模块与记忆服务的位置、共用能力和产品专属能力"},
+         {"id": "ac-2", "type": "acceptance_criterion", "text": "给出做与不做的决定及理由，经产品、E&O DRI 及 CEO 评审边界与取舍"},
+         {"id": "ac-3", "type": "acceptance_criterion", "text": "与运行实际一致，区分已实现、已验证、本月必做和后续演进"}]}}},
+     "note": "同上。"},
+    {"key": "assign_mission_blueprint", "by": "eo-dri", "do": "assign", "after": ["mission_blueprint"], "target": "mission_blueprint", "to": "eo-owner"},
+    {"key": "mission_context", "by": "eo-dri", "do": "create", "after": ["october_goal"], "type": "Mission", "domain": "eo",
+     "payload": {"title": "可信 Context / Memory 与真实 Agent 读写闭环", "goal_ref": "@october_goal", "blocks": {
+       "definition": {"text": "月底形成战略层与经营层 Ontology v0.1，将 8–9 月真实数据纳入统一 Context / Memory，跑通至少一条授权可追溯的真实 Agent 读写闭环，并完成最小部署与缺口报告。"},
+       "acceptance": {"components": [
+         {"id": "ac-1", "type": "acceptance_criterion", "text": "两层 Ontology 承载真实业务，完成 Design Pack、Action Catalog、Evidence Policy 评审"},
+         {"id": "ac-2", "type": "acceptance_criterion", "text": "约定范围内的 8–9 月真实数据进入统一 Context / Memory，来源、责任人、时间、版本、权限可追溯"},
+         {"id": "ac-3", "type": "acceptance_criterion", "text": "至少一条「真实输入 → 授权 Context → Agent 提案 → 人工确认 → 版本写回 → Receipt / Audit」的完整闭环"},
+         {"id": "ac-4", "type": "acceptance_criterion", "text": "治理边界验证"}]}}},
+     "note": "Owner 是 E&O DRI 本人：任务卡确认时他以 Owner 承诺、以 DRI 确认，都由天枢代记。"},
+    {"key": "assign_mission_context", "by": "eo-dri", "do": "assign", "after": ["mission_context"], "target": "mission_context", "to": "eo-dri"},
+    {"key": "delegate_dri", "by": "eo-dri", "do": "delegate", "after": ["assign_mission_grounding", "assign_mission_blueprint", "assign_mission_context"],
+     "to": "tianshu", "families": ["gate", "assign", "lifecycle", "issue"], "domains": ["eo"], "valid_until": "2026-10-31T23:59:59+08:00",
      "note": "DRI 那段的最后一步。"},
-    {"key": "task_trial_integration", "by": "eo-owner", "do": "create", "after": ["confirm_mission_trial"], "type": "Task", "domain": "eo",
-     "payload": {"title": "联调与委托登记（10/9–11）", "parent_ref": "@mission_trial", "blocks": {
-       "definition": {"text": "10 月 9 日至 11 日：天枢与本体 0.2 联调，登记给天枢的委托。"}}}},
-    {"key": "task_trial_week", "by": "eo-owner", "do": "create", "after": ["confirm_mission_trial"], "type": "Task", "domain": "eo",
-     "payload": {"title": "试用周每周快照与问题流转（10/12–16）", "parent_ref": "@mission_trial", "blocks": {
-       "definition": {"text": "10 月 12 日至 16 日试用周：每周快照与问题流转经本体记录。"}}}},
-    {"key": "task_trial_acceptance", "by": "eo-owner", "do": "create", "after": ["confirm_mission_trial"], "type": "Task", "domain": "eo",
-     "payload": {"title": "10/16 联调验收", "parent_ref": "@mission_trial", "blocks": {
-       "definition": {"text": "10 月 16 日天枢联调验收。"}}}},
-    {"key": "task_experiment_b", "by": "eo-owner", "do": "create", "after": ["confirm_mission_experiments"], "type": "Task", "domain": "eo",
-     "payload": {"title": "对照实验 B：Task-only 与 Task+Activity", "parent_ref": "@mission_experiments", "blocks": {
-       "definition": {"text": "对照 Task-only 与 Task+Activity 两种做法。"}}}},
-    {"key": "task_experiment_e", "by": "eo-owner", "do": "create", "after": ["confirm_mission_experiments"], "type": "Task", "domain": "eo",
-     "payload": {"title": "实验 E：五个场景、真实战略材料与标准答案", "parent_ref": "@mission_experiments", "blocks": {
-       "definition": {"text": "五个场景，用真实战略材料，写标准答案。"}}}},
-    {"key": "task_retrieval_report", "by": "eo-owner", "do": "create", "after": ["confirm_mission_experiments"], "type": "Task", "domain": "eo",
-     "payload": {"title": "四种取法对照（含 RAG）与实验报告", "parent_ref": "@mission_experiments", "blocks": {
-       "definition": {"text": "对照四种取法（含 RAG），写成实验报告。"}}}},
-    {"key": "task_freeze", "by": "eo-owner", "do": "create", "after": ["confirm_mission_lock"], "type": "Task", "domain": "eo",
-     "payload": {"title": "验收冻结与钉定提交", "parent_ref": "@mission_lock", "blocks": {
-       "definition": {"text": "0.2 验收冻结，钉定提交。"}}}},
-    {"key": "task_release", "by": "eo-owner", "do": "create", "after": ["confirm_mission_lock"], "type": "Task", "domain": "eo",
-     "payload": {"title": "发版与实例切换", "parent_ref": "@mission_lock", "blocks": {
-       "definition": {"text": "按钉定的提交发版，实例切换到发版的版本。"}}}},
-    {"key": "delegate_owner", "by": "eo-owner", "do": "delegate",
-     "after": ["task_trial_integration", "task_trial_week", "task_trial_acceptance", "task_experiment_b", "task_experiment_e", "task_retrieval_report", "task_freeze", "task_release"],
-     "to": "tianshu", "families": ["gate", "assign", "lifecycle"], "domains": ["eo"], "valid_until": "2026-10-31T23:59:59+08:00",
-     "note": "Owner 那段的最后一步。"}
+    {"key": "delegate_owner", "by": "eo-owner", "do": "delegate", "after": ["assign_mission_grounding", "assign_mission_blueprint"],
+     "to": "tianshu", "families": ["gate", "assign", "lifecycle", "issue"], "domains": ["eo"], "valid_until": "2026-10-31T23:59:59+08:00",
+     "note": "Owner 被指派为两个 Mission 的 Owner 之后登记；Owner 那段只有这一步。"}
   ]
 }

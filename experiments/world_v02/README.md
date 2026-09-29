@@ -8,7 +8,7 @@
 - **验收失败重启**：Task 退回、再交付、验收通过又被重开，回答反映当前状态与退回原因；
 - **无 Activity 的 Task**：Task-only 写法，计划块里是带责任人的计划条目，六问仍可恢复。
 
-五个场景共用 E&O 十月主干，主干取自 `deploy/world-02/seed-eo-2026-10.json`，公司层正文取自 0.1 审过的材料。真实战略材料未到，Company 与 Strategy 先用存根。块与组件的位置已按真实材料预留，在场景文件的 `pending_material` 与审阅稿里标「待真实战略材料」。业务真实性由用户审；标准答案须经 E&O DRI 批准后，才能交给实验跑器（票 #68）。
+五个场景共用 E&O 十月主干，主干取自换任务卡之前的十月起点原计划（原样存为 `b_source-2026-10.json`），公司层正文取自 0.1 审过的材料。真实战略材料未到，Company 与 Strategy 先用存根。块与组件的位置已按真实材料预留，在场景文件的 `pending_material` 与审阅稿里标「待真实战略材料」。业务真实性由用户审；标准答案须经 E&O DRI 批准后，才能交给实验跑器（票 #68）。
 
 | 文件 | 内容 |
 | --- | --- |
@@ -144,10 +144,11 @@ RUN=$(date +%Y%m%d-%H%M%S)
 
 ## 对照实验 B：Task-only 与 Task+Activity
 
-票 #66。同一场真实 Mission（E&O 十月起点的「天枢 × 本体 0.2 试用」，`deploy/world-02/seed-eo-2026-10.json` 的 `mission_trial`）分 Task-only 与 Task+Activity 两条线执行到关闭，对照 Activity 是否需要独立的指派、执行、重试、验收与管理。设计、执行脚本格式、五项观测的记录来源与判断口径、结论规则、试用期间的做法与命令见 `docs/world-v02-experiment-b.md`。
+票 #66。同一场真实 Mission（E&O 十月起点的「天枢 × 本体 0.2 试用」，`b_source-2026-10.json` 的 `mission_trial`）分 Task-only 与 Task+Activity 两条线执行到关闭，对照 Activity 是否需要独立的指派、执行、重试、验收与管理。设计、执行脚本格式、五项观测的记录来源与判断口径、结论规则、试用期间的做法与命令见 `docs/world-v02-experiment-b.md`。冒烟用的是换任务卡之前的合成源数据；试用回放时对象改为真实的任务卡 Mission，届时再改 `b_lines.json`。
 
 | 文件 | 内容 |
 |-|-|
+| `b_source-2026-10.json` | 源数据：E&O 十月起点换任务卡之前的原计划，原样另存（#73）；实例用的 `deploy/world-02/seed-eo-2026-10.json` 已改为按天枢个人任务重播 |
 | `b_lines.json` | 两条线的播种：原计划里要的步骤（mission_trial 到 Company 的主干）、三个 Task 的责任人、每个 Task 下「谁做哪一段」的初始划分 |
 | `b_spec.json` | 两条线各自 scope 的名单（角色名，`deploy/world-02/provision.py` 的格式） |
 | `b_smoke.json` | 预置的冒烟执行脚本：两条线都推到 Mission 关闭 |

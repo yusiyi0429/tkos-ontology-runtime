@@ -40,7 +40,7 @@ def test_the_experiment_scope_roster_is_the_company_and_eo_with_placeholder_name
     provision.check_spec(EO_EXAMPLE)
     assert set(EO_EXAMPLE["domains"]) == {"company", "eo"}
     assert {key: p["roles"] for key, p in EO_EXAMPLE["principals"].items()} == {
-        "ceo": {"company": ["CEO"], "eo": ["CEO"]}, "eo-dri": {"eo": ["DOMAIN_DRI", "IC"]},
+        "ceo": {"company": ["CEO"], "eo": ["CEO"]}, "eo-dri": {"eo": ["DOMAIN_DRI", "OWNER", "IC"]},
         "eo-owner": {"eo": ["OWNER", "IC"]}, "tianshu": {"company": ["AGENT"], "eo": ["AGENT"]},
         "eo-coagent": {"eo": ["AGENT"]}, "exec-agent": {"eo": ["AGENT"]}}
     humans = {key: p["display_name"] for key, p in EO_EXAMPLE["principals"].items() if p["type"] == "human"}

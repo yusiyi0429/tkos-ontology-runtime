@@ -14,7 +14,7 @@ from experiments.world_v02 import b_drive, b_http, b_observe, b_seed
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURES = ROOT / "tests/fixtures/world_v02_experiment_b"
 REGISTRY = json.loads((ROOT / "docs/contracts/world-registry-0.2.json").read_text(encoding="utf-8"))
-SOURCE = json.loads((ROOT / "deploy/world-02/seed-eo-2026-10.json").read_text(encoding="utf-8"))
+SOURCE = json.loads((ROOT / "experiments/world_v02/b_source-2026-10.json").read_text(encoding="utf-8"))
 SPEC = json.loads(b_seed.SPEC_FILE.read_text(encoding="utf-8"))
 SMOKE = json.loads(b_seed.SMOKE_FILE.read_text(encoding="utf-8"))
 DERIVED, _ = b_seed.load()

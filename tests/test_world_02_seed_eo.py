@@ -1,12 +1,17 @@
 """deploy/world-02 的「E&O 十月起点」播种：计划按 0.2 的模型与判权成立、按人分段的顺序、按人筛选、状态视图、代录说明，
-以及脚本的提交与重发（假服务）。不连库、不起服务。"""
+以及脚本的提交与重发（假服务）。不连库、不起服务。
+
+2026-09-29 起（#73）计划按天枢个人任务重播：公司层照旧，十月周期目标与三个 Mission 只建不过门（门留给天枢代记），
+不建 Task，三人各给天枢登记含议题族的委托。"""
 from __future__ import annotations
 
 from copy import deepcopy
 from datetime import datetime, timezone
+import hashlib
 import importlib.util
 import json
 from pathlib import Path
+import re
 import uuid
 
 import pytest
@@ -24,7 +29,10 @@ PLAN = json.loads((DEPLOY / "seed-eo-2026-10.json").read_text(encoding="utf-8"))
 EO_SPEC = json.loads((DEPLOY / "spec.eo.example.json").read_text(encoding="utf-8"))
 REPLAY = json.loads((ROOT / "experiments/world_v01/seed.json").read_text(encoding="utf-8"))
 STEPS = {step["key"]: step for step in PLAN["steps"]}
-SEGMENTS = ["ceo", "eo-dri", "ceo", "eo-dri", "ceo", "eo-dri", "eo-owner", "eo-dri", "eo-owner"]
+SEGMENTS = ["ceo", "eo-dri", "ceo", "eo-dri", "eo-owner"]
+MISSIONS = {"mission_grounding": "eo-owner", "mission_blueprint": "eo-owner", "mission_context": "eo-dri"}
+FAMILIES = ["gate", "assign", "lifecycle", "issue"]
+UNIT_REFS = [{"system": "tianshu", "id": "capability:05"}]
 FAKE = {key: str(uuid.uuid5(uuid.NAMESPACE_URL, key)) for key in [*STEPS, *EO_SPEC["principals"], *EO_SPEC["domains"]]}
 
 
@@ -73,7 +81,6 @@ def test_every_step_of_the_plan_validates_under_the_0_2_models() -> None:
                     if relation["target_component"]:
                         found = [c for c in STEPS[target]["payload"]["blocks"][block]["components"] if c["id"] == component]
                         assert [c["type"] for c in found] == [relation["target_component"]], step["key"]
-            assert "external_refs" not in step["payload"], "天枢的战场、任务卡 id 联调时才给"
         elif step["do"] == "gate":
             for text in (PLAN["event_text"], PLAN["event_text"] + "。由E&O DRI代CEO录入，待本人复核"):
                 params = {"content": {"text": text}, **({"outcome": step["outcome"]} if "outcome" in step else {})}
@@ -131,18 +138,16 @@ def test_each_step_is_recorded_by_the_person_0_2_lets_record_it() -> None:
         else:
             assert EO_SPEC["principals"][step["to"]]["type"] == "agent", key
             assert step["domains"] == list(EO_SPEC["principals"][who]["roles"]), key
-            assert step["families"] == ["gate", "assign", "lifecycle"] and step["valid_until"] == "2026-10-31T23:59:59+08:00"
+            assert step["families"] == FAMILIES and step["valid_until"] == "2026-10-31T23:59:59+08:00"
 
 
 def test_the_order_satisfies_the_0_2_guards() -> None:
-    assert "confirm_eo_goal" in ancestors("commit_october_goal"), "形成锚定：长期目标须已确认"
-    assert "commit_october_goal" in ancestors("confirm_october_goal")
-    for mission in ("mission_trial", "mission_experiments", "mission_lock"):
-        commit, confirm = f"commit_{mission}", f"confirm_{mission}"
-        assert {"confirm_october_goal", f"assign_{mission}"} <= ancestors(commit), "parent_goal_confirmed；Owner 本人"
-        assert commit in ancestors(confirm)
-        tasks = [key for key, step in STEPS.items() if step.get("payload", {}).get("parent_ref") == f"@{mission}"]
-        assert tasks and all(f"assign_{mission}" in ancestors(task) for task in tasks), "Task 由 Mission 的 Owner 建"
+    assert {"confirm_company_goal", "confirm_eo_goal"} <= ancestors("october_goal"), "按用户的段序：长期目标确认后才建"
+    for mission in MISSIONS:
+        assert "october_goal" in ancestors(mission)
+        assert STEPS[f"assign_{mission}"]["after"] == [mission]
+    assert {f"assign_{mission}" for mission, owner in MISSIONS.items() if owner == "eo-owner"} <= ancestors(
+        "delegate_owner"), "Owner 被指派之后才登记委托"
     for key, step in STEPS.items():
         if key != "company":
             assert "company" in ancestors(key), "委托以 Company 为主体，其余都挂在它下面"
@@ -150,6 +155,20 @@ def test_the_order_satisfies_the_0_2_guards() -> None:
             mine = [other for other, item in STEPS.items() if item["by"] == step["by"] and other != key]
             assert set(mine) <= ancestors(key), "委托放在那个人那段的最后"
             assert [item["key"] for item in PLAN["steps"] if item["by"] == step["by"]][-1] == key
+
+
+def test_the_period_goal_and_the_missions_are_left_for_tianshu_to_gate_and_no_task_is_seeded() -> None:
+    """周期目标与三个 Mission 只建（Mission 另指派 Owner），门留给天枢代记；不建 Task；三人各登记一条含四族的委托。"""
+    assert not [key for key, step in STEPS.items() if step["do"] == "create" and step["type"] in ("Task", "Activity")]
+    gated = {"october_goal", *MISSIONS}
+    assert not [key for key, step in STEPS.items() if step["do"] == "gate" and step["target"] in gated]
+    assert {step["target"] for step in PLAN["steps"] if step["do"] == "gate"} == {"company_goal", "eo_goal"}
+    assert {step["target"]: step["to"] for step in PLAN["steps"] if step["do"] == "assign"} == MISSIONS
+    delegations = {step["by"]: step for step in PLAN["steps"] if step["do"] == "delegate"}
+    assert set(delegations) == {"ceo", "eo-dri", "eo-owner"}
+    assert all(step["to"] == "tianshu" and step["families"] == FAMILIES for step in delegations.values())
+    assert delegations["ceo"]["domains"] == ["company", "eo"]
+    assert delegations["eo-dri"]["domains"] == delegations["eo-owner"]["domains"] == ["eo"]
 
 
 def test_the_segments_alternate_as_given_and_each_says_who_is_next() -> None:
@@ -162,7 +181,7 @@ def test_the_segments_alternate_as_given_and_each_says_who_is_next() -> None:
         assert [person for person, _ in up] == SEGMENTS[number + 1:number + 2], number
     assert done == set(STEPS)
     counts = {who: sum(1 for step in PLAN["steps"] if step["by"] == who) for who in ("ceo", "eo-dri", "eo-owner")}
-    assert counts == {"ceo": 8, "eo-dri": 13, "eo-owner": 12}
+    assert counts == {"ceo": 7, "eo-dri": 9, "eo-owner": 1}
 
 
 def test_a_segment_takes_only_that_persons_steps_whose_prerequisites_are_met() -> None:
@@ -172,7 +191,10 @@ def test_a_segment_takes_only_that_persons_steps_whose_prerequisites_are_met() -
     first = set(seed.runnable(PLAN, set(), "ceo"))
     assert seed.runnable(PLAN, first, "ceo") == [], "CEO 的确认要等 DRI 建 E&O 长期目标"
     assert seed.runnable(PLAN, first, "eo-dri") == ["eo_goal"]
-    assert seed.runnable(PLAN, first | {"eo_goal", "confirm_company_goal"}, "ceo") == ["confirm_eo_goal"]
+    assert seed.runnable(PLAN, first | {"eo_goal", "confirm_company_goal"}, "ceo") == ["confirm_eo_goal", "delegate_ceo"]
+    before_missions = set(STEPS) - {"october_goal", *MISSIONS, *(f"assign_{m}" for m in MISSIONS), "delegate_dri",
+                                    "delegate_owner"}
+    assert seed.runnable(PLAN, before_missions, "eo-owner") == [], "Owner 的委托要等他被指派"
 
 
 # ------------------------------------------------------------------ the content
@@ -183,7 +205,8 @@ def test_the_company_layer_copies_the_september_replay_text() -> None:
         assert (STEPS[key]["type"], STEPS[key]["domain"]) == (replay[key]["type"], replay[key]["domain"]), key
         assert {k: v for k, v in mine.items() if k != "blocks"} == {
             k: v for k, v in theirs.items() if k not in ("blocks", "architecture_ref")} | (
-            {"architecture_ref": "@strategy#responsibility_structure/eo"} if key == "unit_eo" else {}), key
+            {"architecture_ref": "@strategy#responsibility_structure/eo", "external_refs": UNIT_REFS}
+            if key == "unit_eo" else {}), key
         assert {block: value["text"] for block, value in mine["blocks"].items()} == {
             block: value["text"] for block, value in theirs["blocks"].items()}, key
         assert not any(value.get("artifacts") for value in mine["blocks"].values()), "feishu.example 占位链接不带"
@@ -191,26 +214,54 @@ def test_the_company_layer_copies_the_september_replay_text() -> None:
     assert [(c["id"], c["type"]) for c in entries] == [("eo", "unit_entry")], "责任结构只列 E&O 一个条目"
 
 
-def test_the_october_goal_missions_and_tasks_are_the_ones_asked_for() -> None:
+def test_the_october_goal_and_the_three_missions_are_the_ones_asked_for() -> None:
+    """周期目标沿用原草案（换任务卡之前的原计划原样存在 experiments/world_v02/b_source-2026-10.json）；三个 Mission 取
+    天枢里 E&O 的三个个人任务：定义块写目标，每条验收一个验收条件组件（ac-1 起编号），不写打法与约束。"""
     goal = STEPS["october_goal"]["payload"]
+    original = {step["key"]: step for step in json.loads(
+        (ROOT / "experiments/world_v02/b_source-2026-10.json").read_text(encoding="utf-8"))["steps"]}
+    assert goal == original["october_goal"]["payload"] and "review_ref" not in goal
     assert (goal["title"], goal["period"], goal["goal_ref"]) == (
-        "E&O 10 月：tkos.world 0.2 在真实经营中跑通", "2026-10", "@eo_goal") and "review_ref" not in goal
-    assert [c["text"] for c in goal["blocks"]["acceptance"]["components"]] == [
-        "10 月 16 日天枢联调验收通过",
-        "E&O 十月的工作全部经本体记录（每张任务卡有每周快照，执行事项的完成由交付事件推出）",
-        "tkos.world 0.2 锁版（验收冻结并钉定提交）"]
-    assert len(goal["blocks"]["outcome"]["components"]) == 3
-    tasks = {}
-    for step in PLAN["steps"]:
-        if step["do"] == "create" and step["type"] == "Task":
-            tasks.setdefault(STEPS[step["payload"]["parent_ref"][1:]]["payload"]["title"], []).append(step["payload"]["title"])
-    assert tasks == {
-        "天枢 × 本体 0.2 试用": ["联调与委托登记（10/9–11）", "试用周每周快照与问题流转（10/12–16）", "10/16 联调验收"],
-        "0.2 实验与报告": ["对照实验 B：Task-only 与 Task+Activity", "实验 E：五个场景、真实战略材料与标准答案",
-                        "四种取法对照（含 RAG）与实验报告"],
-        "0.2 锁版": ["验收冻结与钉定提交", "发版与实例切换"]}
-    assert all(STEPS[step["target"]]["type"] == "Mission" for step in PLAN["steps"] if step["do"] == "assign"), \
-        "Task 先不指派执行人"
+        "E&O 10 月：tkos.world 0.2 在真实经营中跑通", "2026-10", "@eo_goal")
+    missions = {key: STEPS[key]["payload"] for key in MISSIONS}
+    assert [STEPS[key]["type"] for key in MISSIONS] == ["Mission"] * 3
+    assert [payload["title"] for payload in missions.values()] == [
+        "Ontology & Data Grounding", "ENO / Engine Blueprint", "可信 Context / Memory 与真实 Agent 读写闭环"]
+    assert all(payload["goal_ref"] == "@october_goal" and "external_refs" not in payload for payload in missions.values())
+    assert [len(payload["blocks"]["acceptance"]["components"]) for payload in missions.values()] == [4, 3, 4]
+    for key, payload in missions.items():
+        assert set(payload["blocks"]) == {"definition", "acceptance"}, key
+        assert payload["blocks"]["definition"]["text"].strip(), key
+        components = payload["blocks"]["acceptance"]["components"]
+        assert [c["id"] for c in components] == [f"ac-{n}" for n in range(1, len(components) + 1)], key
+        assert all(c["type"] == "acceptance_criterion" and c["text"].strip() for c in components), key
+    assert "Receipt / Audit" in missions["mission_context"]["blocks"]["acceptance"]["components"][2]["text"]
+
+
+def test_the_unit_carries_its_tianshu_reference_from_the_seed_and_nothing_else_does() -> None:
+    """E&O 责任单元的外部引用由播种写好（责任单元无门，天枢不能以 Agent 身份修订它）；Mission 的外部引用
+    mission:<编号> 由天枢以修订写入，不预写。"""
+    assert STEPS["unit_eo"]["payload"]["external_refs"] == UNIT_REFS
+    assert [key for key, step in STEPS.items() if "external_refs" in step.get("payload", {})] == ["unit_eo"]
+
+
+# 两个拼音样例以摘要存，不把它们本身写进仓库；按整个字母串比对（编号里的拼音在数字与标点处断开）。
+PINYIN_DIGESTS = {"4e54dfd7486137e1fd0ff3fd0307897604e9c44ebb27b238374fef9b7e3d2379",
+                  "9ecd2947a7832336c3656fe2ca932fe2805ecd6d59eb6bd9229e1a7e46c7f851"}
+
+
+def test_no_real_name_and_no_person_numbered_tianshu_id_is_in_the_repository_files() -> None:
+    """真名只在主机的 spec.json：样例名单里人的显示名是角色名。天枢编号只有不带人名的 capability:05；个人任务编号
+    （mission:<编号>，带人名拼音）不进计划、名单与说明。"""
+    humans = {key: item["display_name"] for key, item in EO_SPEC["principals"].items() if item["type"] == "human"}
+    assert humans == {"ceo": "CEO", "eo-dri": "E&O DRI", "eo-owner": "E&O Mission Owner"}
+    files = [DEPLOY / name for name in ("seed-eo-2026-10.json", "spec.eo.example.json", "README.md", "seed_eo.py")]
+    for path in files:
+        text = path.read_text(encoding="utf-8")
+        ids = set(re.findall(r"\b(?:mission|capability|todo):[A-Za-z0-9][\w.-]*", text))
+        assert ids <= {"capability:05"}, (path.name, ids)
+        assert not {hashlib.sha256(run.encode()).hexdigest() for run in re.findall(r"[a-z]+", text.lower())} & \
+            PINYIN_DIGESTS, path.name
 
 
 # ------------------------------------------------------------------ plan and ids checks
@@ -252,12 +303,13 @@ def test_the_status_view_says_who_did_each_step_in_person_or_by_proxy_and_who_is
     done = {"company": {"event_id": "e1", "proxy": "eo-dri"}, "strategy": {"event_id": "e2", "proxy": None}}
     lines = seed.status_lines(PLAN, {"steps": done, "notes": []}, NAMES)
     text = "\n".join(lines)
-    assert lines[0].startswith("== 状态：E&O 十月起点，共 33 步，已做 2（其中代录 1）")
+    assert lines[0].startswith("== 状态：E&O 十月起点，共 17 步，已做 2（其中代录 1）")
     assert "建公司「词元云集（TokenKing）」 —— 已做·代录（eo-dri 代） event:e1" in text
     assert "建战略「词元云集总体战略（存根）」 —— 已做·本人 event:e2" in text
     assert "建责任单元「E&O」 —— 可以做" in text
     assert "建长期目标「E&O 六个月目标」 —— 在等 ceo：建责任单元「E&O」 等 2 步" in text
-    assert "确认 Mission「0.2 锁版」 —— 在等 eo-owner：承诺 Mission「0.2 锁版」" in text
+    assert ("eo-owner 登记给 tianshu 的委托（门、指派、生命周期、议题；域 eo） —— "
+            "在等 eo-dri：指派 Mission「Ontology & Data Grounding」给 eo-owner 等 2 步") in text
     assert lines[-1] == "下一步：CEO（ceo）做 建责任单元「E&O」 等 2 步"
     everything = {key: {"event_id": key, "proxy": None} for key in STEPS}
     assert seed.status_lines(PLAN, {"steps": everything, "notes": []}, NAMES)[-1] == "全部完成"
@@ -357,15 +409,14 @@ def test_the_segments_seed_everything_once_with_fixed_keys_and_a_proxy_note_per_
     assert len(commits) == len(set(commits)) == len(STEPS) + len(state["notes"])
     assert {key for key in commits if ":proxy-note:" not in key} == {seed.KEY_PREFIX + key for key in STEPS}
     assert [(note["person"], note["operator"], len(note["steps"])) for note in state["notes"]] == [
-        ("ceo", "eo-dri", 4), ("ceo", "eo-dri", 2), ("ceo", "eo-dri", 2), ("eo-owner", "eo-dri", 3), ("eo-owner", "eo-dri", 9)]
+        ("ceo", "eo-dri", 4), ("ceo", "eo-dri", 3), ("eo-owner", "eo-dri", 1)]
     for note in state["notes"]:
         sent = fake.receipts[("eo-dri", note["idempotency_key"])][0]["params"]
         assert sent["content"]["refs"] == [f"event:{state['steps'][key]['event_id']}" for key in note["steps"]]
         assert all(state["steps"][key]["note"] == note["event_id"] for key in note["steps"])
     gates = [body for body, _ in fake.receipts.values() if body["action_type"] in seed.GATES]
-    assert {body["params"]["content"]["text"] for body in gates} == {
-        "E&O 十月起点播种", "E&O 十月起点播种。由E&O DRI代CEO录入，待本人复核",
-        "E&O 十月起点播种。由E&O DRI代E&O Mission Owner录入，待本人复核"}
+    assert len(gates) == 2 and {body["params"]["content"]["text"] for body in gates} == {
+        "E&O 十月起点播种。由E&O DRI代CEO录入，待本人复核"}, "门只剩 CEO 确认两个长期目标"
     assert all(record["proxy"] == ("eo-dri" if record["by"] != "eo-dri" else None) for record in state["steps"].values())
     posts = len(fake.posts)
     for who in SEGMENTS:

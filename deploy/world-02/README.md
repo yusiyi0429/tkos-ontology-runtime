@@ -221,39 +221,56 @@ rm -rf /tmp/tkos-secrets
 | 键 | 是谁 | 角色 |
 |-|-|-|
 | `ceo` | CEO | company、eo：CEO |
-| `eo-dri` | E&O DRI（兼 IC） | eo：DOMAIN_DRI、IC |
+| `eo-dri` | E&O DRI（兼 Mission Owner 与 IC） | eo：DOMAIN_DRI、OWNER、IC |
 | `eo-owner` | E&O Mission Owner（兼 IC） | eo：OWNER、IC |
 | `tianshu` | 天枢服务主体 | company、eo：AGENT |
 | `eo-coagent` | E&O Co-Agent | eo：AGENT |
 | `exec-agent` | 执行 Agent | eo：AGENT |
 
-第 2 步由它生成主机上的 `spec.json`（构建提交要含本节的文件），三个人的 `display_name` 在主机上改成真名。真名只出现在主机的 `spec.json`、库里的主体与事件、tkos-secrets 的归档里；仓库里的样例、计划与测试一律用占位（「CEO」「E&O DRI」「E&O Mission Owner」）。已经按旧名单（`spec.example.json`）供给过的实验 scope 随第 9 或 9.5 节的重建换名单；不要在同一个库里删掉 `out/` 重新供给，那样旧 scope 与它的凭证还留在库里。
+E&O DRI 持 OWNER，是因为三个 Mission 里有一个的 Owner 是他本人：被指派为 Mission Owner 的人须在该域持 OWNER。
 
-**播种计划** `seed-eo-2026-10.json`（33 步）只写主体与域的键，id 与显示名运行时取 `ids.json`：
+第 2 步由它生成主机上的 `spec.json`（构建提交要含本节的文件），三个人的 `display_name` 在主机上改成真名。真名只出现在主机的 `spec.json`、库里的主体与事件、tkos-secrets 的归档里；仓库里的样例、计划与测试一律用占位（「CEO」「E&O DRI」「E&O Mission Owner」）。已经按旧名单供给过的实验 scope（`spec.example.json` 的，或 E&O DRI 还没有 OWNER 的）随第 9 或 9.5 节的重建换名单；不要在同一个库里删掉 `out/` 重新供给，那样旧 scope 与它的凭证还留在库里。
 
-- 公司层：Company、Strategy（草稿，责任结构块只有 E&O 一个责任单元条目组件）、E&O 责任单元（`architecture_ref` 以组件引用指到那个条目）、公司级与 E&O 长期目标。正文照搬 `experiments/world_v01/seed.json`（E&O 九月回放），原稿的 `feishu.example` 占位链接不带。
-- E&O 十月周期目标（2026-10，`goal_ref` 指 E&O 长期目标，不带 `review_ref`）：结果与验收标准各三条。
-- 三个 Mission（天枢 × 本体 0.2 试用、0.2 实验与报告、0.2 锁版），Owner 都是 `eo-owner`，下面共 8 个 Task；Task 不指派执行人，试用中在天枢里指派。拿不准的块留空块。
-- 每个人最后一步给天枢登记委托：门、指派、生命周期，域是他持角色的域，至 2026-10-31T23:59:59+08:00。
-- 不写 `external_refs`：天枢的战场、任务卡 id 联调时由天枢以修订补上。
+**播种计划** `seed-eo-2026-10.json`（17 步）只写主体与域的键，id 与显示名运行时取 `ids.json`。2026-09-29 E&O 定：本体的 Mission 以天枢里的个人任务为准（#73）。E&O 的三个个人任务分属两张任务卡，都还没在天枢里确认，十月月度计划也没签发，所以周期目标与 Mission 都建成未确认，门留给天枢按委托代记。
 
-**按人分段**：播种会让记录挂在真人名下，所以 `seed_eo.py` 每一段只用一个人的凭证（`<out>/<键>.token`，不打印），只做他名下前置已满足、还没做过的步骤；要等别人时停下，打印状态视图（每步谁做、做没做、本人执行还是代录、在等谁）与「下一步：谁 做 什么」。每一段由本人在场执行，或经本人同意代为执行（代录，见下）。九段（CEO 8 步、DRI 13 步、Owner 12 步）：
+- 公司层照旧：Company、Strategy（草稿，责任结构块只有 E&O 一个责任单元条目组件）、E&O 责任单元（`architecture_ref` 以组件引用指到那个条目）、公司级与 E&O 长期目标，两个长期目标由 CEO 确认。正文照搬 `experiments/world_v01/seed.json`（E&O 九月回放），原稿的 `feishu.example` 占位链接不带。
+- E&O 责任单元建时就带外部引用：system `tianshu`，id `capability:05`。责任单元没有门，天枢也不是它的责任人，不能以 Agent 身份修订它（#72 实测 403），所以由播种写好；这个编号不带人名。
+- E&O 十月周期目标（2026-10，`goal_ref` 指 E&O 长期目标，不带 `review_ref`）：正文沿用原草案，结果与验收标准各三条。只建，不承诺、不确认。
+- 三个 Mission，`goal_ref` 指十月周期目标，内容取天枢里 E&O 的个人任务（标题、目标与验收，人名换成角色名）：目标写进定义块，每条验收一个验收条件组件（id 为 `ac-1`、`ac-2` 等），不写打法与约束。只建并指派 Owner，不承诺、不确认。
+
+  | 键 | 标题 | Owner | 验收条件 |
+  |-|-|-|-|
+  | `mission_grounding` | Ontology & Data Grounding | `eo-owner` | 4 条 |
+  | `mission_blueprint` | ENO / Engine Blueprint | `eo-owner` | 3 条 |
+  | `mission_context` | 可信 Context / Memory 与真实 Agent 读写闭环 | `eo-dri` | 4 条 |
+
+- 不建 Task：执行事项由天枢先写成 Mission 执行计划块里的计划条目（组件 id 为 `todo:<天枢里的 id>`，`responsible` 写某个人），E&O 再在 Mission 下建 Task，`external_refs` 带同一个 `todo:<id>`。
+- 三个人各给天枢登记一条委托：门、指派、生命周期与议题（议题族是 #71 加的，含承接、处置与退回形成），域是他持角色的域（CEO 为公司域与 E&O 域，另两人为 E&O 域），有效期至 2026-10-31T23:59:59+08:00。
+- Mission 的外部引用不预写：天枢的个人任务编号带人名拼音，不进仓库。由天枢第一批自己以修订写入，写法是 system `tianshu`、id `mission:<编号>`。Mission 有门，但外部引用是活动属性，天枢以 Agent 身份带写入声明就能直接修订。
+
+换任务卡之前的原计划（33 步：三个 Mission 下 8 个 Task，周期目标与 Mission 都过门）原样另存为 `experiments/world_v02/b_source-2026-10.json`，是对照实验 B 的源数据，实验 E 的主干也照它核对；实例不再用它。
+
+**门与之后的事由天枢代记**：播种之后，天枢以自己的凭证带 `on_behalf_of`（被代记的人、天枢里的记录 id、外部确认时刻）代记：
+
+- 月度计划签发：代 E&O DRI 承诺十月周期目标（形成锚定：E&O 长期目标已确认；scope 里还没有已确认的公司复盘，不带 `review_ref` 放行），代 CEO 确认。
+- 任务卡确认：每个 Mission 代 Owner 承诺、代 E&O DRI 确认（守卫：十月周期目标已确认）。`mission_context` 的 Owner 就是 E&O DRI，承诺与确认都代他本人记。
+- 之后 Task 的指派（代 Mission Owner）、开始与交付（代执行人）、打回与验收（代 Mission Owner），以及议题的承接与处置（代承接人）。议题的提出与路由由天枢以自己的身份记，不是代记。
+
+**按人分段**：播种会让记录挂在真人名下，所以 `seed_eo.py` 每一段只用一个人的凭证（`<out>/<键>.token`，不打印），只做他名下前置已满足、还没做过的步骤；要等别人时停下，打印状态视图（每步谁做、做没做、本人执行还是代录、在等谁）与「下一步：谁 做 什么」。每一段由本人在场执行，或经本人同意代为执行（代录，见下）。五段（CEO 7 步、DRI 9 步、Owner 1 步）：
 
 | 段 | 谁 | 做什么 |
 |-|-|-|
-| 1 | ceo | 建 Company、Strategy、E&O 责任单元、公司级长期目标 |
+| 1 | ceo | 建 Company、Strategy、E&O 责任单元（带 `capability:05`）、公司级长期目标 |
 | 2 | eo-dri | 建 E&O 长期目标（草稿） |
-| 3 | ceo | 确认公司级与 E&O 长期目标 |
-| 4 | eo-dri | 建十月周期目标并承诺（形成锚定：E&O 长期目标已确认；scope 里还没有已确认的公司复盘，不带 `review_ref` 放行） |
-| 5 | ceo | 确认十月周期目标；登记委托（company、eo） |
-| 6 | eo-dri | 建三个 Mission，各自指派 Owner |
-| 7 | eo-owner | 承诺三个 Mission（守卫：十月周期目标已确认） |
-| 8 | eo-dri | 确认三个 Mission；登记委托（eo） |
-| 9 | eo-owner | 每个 Mission 下建 Task；登记委托（eo） |
+| 3 | ceo | 确认公司级与 E&O 长期目标；登记委托（company、eo） |
+| 4 | eo-dri | 建十月周期目标；建三个 Mission 并各自指派 Owner；登记委托（eo） |
+| 5 | eo-owner | 登记委托（eo） |
 
-计划的前置按这九段写，比 0.2 本身严。0.2 只要求：E&O 长期目标确认后才能承诺、确认十月周期目标；十月周期目标确认后才能承诺、确认 Mission；Owner 被指派后才能承诺 Mission、在它下面建 Task（经 Mission 的 `responsible` 成为主干上一级的责任人）；登记委托时 scope 里已有 Company。责任单元的 DRI 按角色解析，不用指派。
+计划的前置按这五段写，比 0.2 本身严。0.2 只要求：建对象时主干上一级已存在、建的人是主干上某一级的责任人；被指派为 Mission Owner 的人在 E&O 域持 OWNER；登记委托时 scope 里已有 Company。Owner 那一段挂在两个 Mission 指派给他之后。责任单元的 DRI 按角色解析，不用指派。
 
-**命令**：主机没有仓库检出，脚本只用标准库，在本机仓库检出里经域名跑（同 `smoke.py --mcp-cli`）。`<out>` 用第 10 节归档里实验 scope 的那份（`ids.json` 与凭证）；状态文件 `seed-eo-state.json` 写在同一目录，回执、事件与对象 id 都在里面，重跑沿用，每段跑完推回 tkos-secrets（段与段隔了时间就每段重新克隆、跑完删掉）。幂等键固定为 `world-02-eo-seed:<步骤>`；提交前请求先记进状态文件，中断后重跑原样重发，已提交的拿回原回执。状态文件丢了，重跑时建对象与代录说明拿回原回执（同键同请求），第一个门步骤在 prepare 就被拒（对象已经过了那一步），不会记两次；从 tkos-secrets 取回状态文件再跑。实验 scope 重建后，旧状态文件随第 10 节的整目录替换一起作废（脚本拒绝另一个 scope 的状态文件）。
+**命令**：主机没有仓库检出，脚本只用标准库，在本机仓库检出里经域名跑（同 `smoke.py --mcp-cli`）。`<out>` 用第 10 节归档里实验 scope 的那份（`ids.json` 与凭证）；状态文件 `seed-eo-state.json` 写在同一目录，回执、事件与对象 id 都在里面，重跑沿用，每段跑完推回 tkos-secrets（段与段隔了时间就每段重新克隆、跑完删掉）。幂等键固定为 `world-02-eo-seed:<步骤>`；提交前请求先记进状态文件，中断后重跑原样重发，已提交的拿回原回执。实验 scope 重建后，旧状态文件随第 10 节的整目录替换一起作废（脚本拒绝另一个 scope 的状态文件）。
+
+状态文件丢了不要直接重跑，先从 tkos-secrets 取回。直接重跑时不会建出第二个对象，但会多记一条代录说明：CEO 第一段里 Company 与 Strategy 拿回原回执，E&O 责任单元在 prepare 被拒（`INVALID_STATE`：外部引用 `capability:05` 已指向那个单元），这一段停下；停下前脚本按新的状态文件为拿回的两步补记一条代录说明（本机预演实测）。
 
 ```bash
 git clone https://github.com/TokenkingOS/tkos-secrets.git /tmp/tkos-secrets
@@ -264,20 +281,16 @@ python3 deploy/world-02/seed_eo.py $U $O $P --as ceo --proxy-operator eo-dri    
 python3 deploy/world-02/seed_eo.py $U $O $P --as eo-dri                                  # 2 DRI 段：本人执行
 python3 deploy/world-02/seed_eo.py $U $O $P --as ceo --proxy-operator eo-dri             # 3
 python3 deploy/world-02/seed_eo.py $U $O $P --as eo-dri                                  # 4
-python3 deploy/world-02/seed_eo.py $U $O $P --as ceo --proxy-operator eo-dri             # 5
-python3 deploy/world-02/seed_eo.py $U $O $P --as eo-dri                                  # 6
-python3 deploy/world-02/seed_eo.py $U $O $P --as eo-owner --proxy-operator eo-dri        # 7 Owner 段：代录，operator eo-dri
-python3 deploy/world-02/seed_eo.py $U $O $P --as eo-dri                                  # 8
-python3 deploy/world-02/seed_eo.py $U $O $P --as eo-owner --proxy-operator eo-dri        # 9
+python3 deploy/world-02/seed_eo.py $U $O $P --as eo-owner --proxy-operator eo-dri        # 5 Owner 段：代录，operator eo-dri
 python3 deploy/world-02/smoke.py $U $O --probe-only
 cd /tmp/tkos-secrets && git add ontology-runtime/world-02/seed-eo-state.json && git commit -m "world-02: E&O 十月起点播种状态" && git push
 rm -rf /tmp/tkos-secrets
 ```
 
-**代录**：`--proxy-operator <键>` 表示这一段仍用 `--as` 那个人的凭证写，实际由 operator 代为录入；只在本人同意时用。记录里如实写明：
+**代录**：`--proxy-operator <键>` 表示这一段仍用 `--as` 那个人的凭证写，实际由 operator 代为录入；只在本人同意时用。CEO 两段与 Owner 一段按上面的命令代录（operator eo-dri），DRI 两段本人执行。记录里如实写明：
 
-- 收内容的门动作（承诺、确认）：`content.text` 是「E&O 十月起点播种。由<operator>代<本人>录入，待本人复核」，显示名取 `ids.json`；`--proxy-note` 换后一句的模板（可用 `{operator}`、`{person}`、`{date}`）。本人执行时只有「E&O 十月起点播种」。
-- 建对象、指派、登记委托不收内容，所以一段代录跑完后，以 operator 自己的凭证补记一条外部事件（category `other`，operator 是人不带写入声明）作代录说明：主体是这一段涉及的对象（对象形式，钉到当前版本；委托的主体是 Company）；正文「以下<本人>名下的记录由<operator>于 <日期> 代为录入，待本人复核：」之后逐条列出这一段写下的事件 id 与动作名，门事件也列；`content.refs` 是这些事件的 `event:<id>` 引用；发生时刻取这一段最后一张回执的记录时刻。幂等键 `world-02-eo-seed:proxy-note:<本人键>:<步骤集合的摘要>`，重跑不重复记；一段中途失败，已写下的也补记。
+- 收内容的门动作（这份计划里只有 CEO 确认两个长期目标）：`content.text` 是「E&O 十月起点播种。由<operator>代<本人>录入，待本人复核」，显示名取 `ids.json`；`--proxy-note` 换后一句的模板（可用 `{operator}`、`{person}`、`{date}`）。本人执行时只有「E&O 十月起点播种」。
+- 建对象、指派、登记委托不收内容，所以一段代录跑完后，以 operator 自己的凭证补记一条外部事件（category `other`，operator 是人不带写入声明）作代录说明：主体是这一段涉及的对象（对象形式，钉到当前版本；委托的主体是 Company）；正文「以下<本人>名下的记录由<operator>于 <日期> 代为录入，待本人复核：」之后逐条列出这一段写下的事件 id 与动作名，门事件也列；`content.refs` 是这些事件的 `event:<id>` 引用；发生时刻取这一段最后一张回执的记录时刻。幂等键 `world-02-eo-seed:proxy-note:<本人键>:<步骤集合的摘要>`，重跑不重复记；一段中途失败，已写下的也补记。按上面的命令共 3 条代录说明：CEO 两段各一条，分别列 4 条与 3 条事件；Owner 一段一条，列 1 条。
 - 状态视图与状态文件标出每步是本人执行还是代录、由谁代录。
 
 真名与代录说明里的姓名只出现在主机（库里的主体与事件）与 tkos-secrets 的数据里，不进仓库、文档与聊天。

@@ -67,12 +67,12 @@ def test_every_why_reaches_the_strategy_and_the_company_through_slots_waiting_fo
 
 
 def test_the_trunk_repeats_the_october_starting_point_and_the_reviewed_september_text():
-    """主干的正文照搬十月起点（公司层来自 0.1 审过的材料），只有 Strategy 多一条责任单元条目；Agents 单元的正文取自
-    0.1 审过的 seed.json，只把结果改成结果组件。"""
+    """主干的正文照搬换任务卡之前的十月起点（原样存在 b_source-2026-10.json，公司层来自 0.1 审过的材料），只有 Strategy
+    多一条责任单元条目；Agents 单元的正文取自 0.1 审过的 seed.json，只把结果改成结果组件。"""
     scenarios, _ = committed()
     trunk = {step['key']: step for step in scenarios['base']['steps'] if step.get('key')}
     scenario_steps = {step['key']: step for item in scenarios['scenarios'] for step in item['steps'] if step.get('key')}
-    october = {step['key']: step for step in json.loads((ROOT / 'deploy/world-02/seed-eo-2026-10.json').read_text())['steps']}
+    october = {step['key']: step for step in json.loads((ROOT / 'experiments/world_v02/b_source-2026-10.json').read_text())['steps']}
     for key in ('company', 'unit_eo', 'company_goal', 'eo_goal', 'october_goal', 'mission_trial', 'mission_experiments',
                 'mission_lock', 'task_trial_integration', 'task_trial_week', 'task_trial_acceptance', 'task_experiment_b',
                 'task_experiment_e', 'task_retrieval_report', 'task_freeze', 'task_release'):

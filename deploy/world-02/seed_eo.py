@@ -52,7 +52,7 @@ GATES = {"world_confirm_long_term_goal": "确认长期目标", "world_commit_per
          "world_confirm_mission": "确认 Mission"}
 TYPES = {"Company": "公司", "Strategy": "战略", "ResponsibilityUnit": "责任单元", "LongTermGoal": "长期目标",
          "PeriodGoal": "周期目标", "Mission": "Mission", "Task": "Task", "Activity": "Activity"}
-FAMILIES = {"gate": "门", "assign": "指派", "lifecycle": "生命周期"}
+FAMILIES = {"gate": "门", "assign": "指派", "lifecycle": "生命周期", "issue": "议题"}
 
 
 def fail(message: str) -> None:

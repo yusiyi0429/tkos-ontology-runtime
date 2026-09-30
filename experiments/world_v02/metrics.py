@@ -15,6 +15,15 @@
   断言的比例，所有有效运行合计。出现过：带着内容，或只以引用形式（上层生命周期后面写的推出事件、块内引用等）；全量、
   固定路径、RAG 三组按写进提示词的文本（context.json 的 shown），模型遍历组按 MCP 运行日志的 refs 与 event_ids。
   它包含取到的集合；召回仍按取到的集合（2026-09-29 定，#74 彩排之后）。
+- 投影项（#79 的 Mission「Task 预期结果与质量标准」、责任单元「战役引用」，读取时从下级对象投影；2026-09-30 定，#84）：
+  召回只算取到，可追溯算看过。投影里给了正文的组件（Task 定义块里的工作结果与成功 / 验收标准：读投影给完整组件视图，
+  取上下文的 Markdown 逐条写正文）算取到；只给标题与引用的下级对象（Task、Mission 本身）只算看过——进可追溯的材料，
+  不进召回。全量、RAG 的对象表头只列下级对象的引用，组件正文在下级对象自己的分块里。固定路径与模型遍历的取到由
+  MCP 的 _content 判（context.json 的 refs、运行日志的 read_refs）：投影项里只算带正文的组件，下级对象的引用只在
+  交给模型的文本与运行日志的 refs 里。load_runs 不另做修正：取到只有 _content 这一个落点，两组口径一致。实验 E
+  五个场景都从 Task 出发，取上下文只给出发对象投影项，固定路径组的包里没有投影项。
+  同一口径：取上下文形成时带入的长期目标只给对象表头与定义类块的引用、不带块的内容，只算看过（_content 按
+  carried.long_term_goals 这个位置判）；带入只在出发对象有门时才有，实验 E 从 Task 出发，包里没有。
 - 确定性（门 ≥ 0.9）：同一问各次有效运行取到的集合两两 Jaccard 的平均，再对各问平均。全量、固定路径、RAG 三组按构造
   为 1，不是实验发现。有效运行不足规定次数的问列为 short，确定性就不算达标。
 - 反例（门：五个场景零出现）：experiments.world_v02.counterexamples.judge 按这一问判回答的断言（所引）；每次运行每问
@@ -47,6 +56,11 @@ BASIS = {
     'taken': TAKEN,
     'recall': '标准答案应引项里被取到的比例（取到的集合），所有有效运行合计',
     'traceability': '断言所引（归一后）都在这次运行交给模型的材料里出现过（带内容或只以引用形式）的比例，所有有效运行合计',
+    'projection': ('投影项（Mission 的「Task 预期结果与质量标准」、责任单元的「战役引用」）：给了正文的组件（Task 的工作结果'
+                   '与成功 / 验收标准）算取到；只给标题与引用的下级对象（Task、Mission 本身）只算看过，进可追溯、不进召回。'
+                   '全量、RAG 的表头只列下级对象的引用；固定路径与模型遍历按 MCP 的 _content 判，下级对象的引用只进'
+                   '交给模型的文本与运行日志的 refs。取上下文形成时带入的长期目标只给对象表头、不带块的内容，同样只算'
+                   '看过（#84）'),
     'determinism': '同一问各次运行取到的集合两两 Jaccard 的平均，再对各问平均；全量、固定路径、RAG 按构造为 1',
     'counterexamples': '断言所引，按 counterexamples.judge 逐问判；五个场景零出现',
     'determinism_cited': '另报：同一问各次运行所引集合的 Jaccard',
@@ -74,7 +88,9 @@ def _log(folder: Path) -> list[dict]:
 
 def load_runs(folder: Path) -> list[dict]:
     """一组的全部运行：每个子目录一次。取到的集合与字符数取自 context.json（全量、固定路径、RAG），没有就取 mcp/ 下的
-    运行日志（模型遍历）。这一组没跑（目录不在）就没有运行。"""
+    运行日志（模型遍历）。这一组没跑（目录不在）就没有运行。投影项在这里不另做处理：取到是 context.json 的 refs 或
+    日志的 read_refs（_content 口径），看过另加 context.json 的 shown 或日志的 refs；投影项怎么分由 _content 定（见
+    模块说明与 BASIS 的 projection）。"""
     runs = []
     for path in sorted(item for item in (folder.iterdir() if folder.is_dir() else ()) if (item / 'run.json').exists()):
         run = json.loads((path / 'run.json').read_text())

@@ -154,7 +154,7 @@ rm -rf /tmp/tkos-secrets
 ```
 
 - 只认 tenant 以 `-smoke` 结尾的 scope，对实验 scope 在发出任何请求之前 FAIL。凭证只从目录读，不打印，也不写进任何输出。
-- 十一步依次是：列对象与按外部引用查回、天枢写 Mission 的外部引用、每周同步（来源事件与执行状态快照）、会议事件、代记门、天枢写执行计划的计划条目、Task 的建与代记指派和生命周期、Co-Agent 再加一条计划条目、议题（提出、路由与代记承接、退回形成、处置）、取上下文、典型错误；末尾撤销本次登记的委托。每步断言返回码与关键字段，失败即停并以 1 退出，停之前尽力撤销已登记的委托。议题的代记要求服务含 #71（386f7f5）的议题族。
+- 十一步依次是：列对象与按外部引用查回、天枢写 Mission 的外部引用、每周同步（来源事件与执行状态快照）、会议事件、代记门（月度计划提交与任务卡提交带 Content Pact 新块的候选内容，确认接受后读回写回）、天枢写执行计划的计划条目、Task 的建与代记指派和生命周期、Co-Agent 再加一条计划条目、议题（提出、路由与代记承接、退回形成、处置）、取上下文、典型错误；末尾撤销本次登记的委托。每步断言返回码与关键字段，失败即停并以 1 退出，停之前尽力撤销已登记的委托。议题的代记要求服务含 #71（386f7f5）的议题族。
 - 外部 id 按天枢定下的写法，`system` 一律 `tianshu`：Mission 是 `mission:demo-<run>`，执行事项是 `todo:<uuid>`（每跑一次新生成的真 uuid，进展条目、计划条目的组件 id 与 Task 的外部引用共用），E&O 责任单元是能力域 `capability:05`。单元的那一对由 E&O DRI 本人在准备阶段写（天枢改单元的外部引用是 403，列在典型错误里）。
 - 每跑一次新建一套对象（标题以「示例 <run>」开头）；骨架里只重写 E&O 责任单元的外部引用，同一对原样再写。骨架已在时 `smoke-world-02.json` 不变，不用推回 tkos-secrets。
 - 输出：原始记录 `~/tkos-world-02-examples/examples-<run>.json`（含真实 id，不含凭证，0600，不入库）；文档写到 `--doc`，不给时写在输出目录里。文档里的 id 按指向换成占位（`<mission-1>`、`<event-3>`、`<principal:tianshu>`、`<todo-uuid>`……），显示名换成冒烟名单的角色名，运行标记写作 `<run>`；有说不出指向什么的 uuid、残留的凭证或真名，就不写文档。
@@ -233,10 +233,17 @@ E&O DRI 持 OWNER，是因为三个 Mission 里有一个的 Owner 是他本人�
 
 **播种计划** `seed-eo-2026-10.json`（17 步）只写主体与域的键，id 与显示名运行时取 `ids.json`。2026-09-29 E&O 定：本体的 Mission 以天枢里的个人任务为准（#73）。E&O 的三个个人任务分属两张任务卡，都还没在天枢里确认，十月月度计划也没签发，所以周期目标与 Mission 都建成未确认，门留给天枢按委托代记。
 
-- 公司层照旧：Company、Strategy（草稿，责任结构块只有 E&O 一个责任单元条目组件）、E&O 责任单元（`architecture_ref` 以组件引用指到那个条目）、公司级与 E&O 长期目标，两个长期目标由 CEO 确认。正文照搬 `experiments/world_v01/seed.json`（E&O 九月回放），原稿的 `feishu.example` 占位链接不带。
+- 公司层照旧：Company、Strategy（草稿，责任结构块只有 E&O 一个责任单元条目组件）、E&O 责任单元（`architecture_ref` 以组件引用指到那个条目）、公司级与 E&O 长期目标，两个长期目标由 CEO 确认。正文取自 `experiments/world_v01/seed.json`（E&O 九月回放），2026-09-30 按方法侧 Content Pact 的块与组件重排（#81，映射表 `docs/world-v02-content-pact-mapping.md`）：原有正文按意思放进最合适的新组件，不另写内容，没有原文的组件留空，每步的 `note` 写明怎么放、哪些留空。原稿的 `feishu.example` 占位链接不带。
+
+  | 对象 | 新块｛有原文的组件｝ | 留空的组件 |
+  |-|-|-|
+  | Company | `identity`｛`vision`（原身份前一句）、`business_definition`（拟定的长期身份）、`values_principles`（原约束：不追求 Token 用量最大化）｝ | `corporate_purpose` |
+  | Strategy | `strategy_core`｛`strategic_thesis`（原战略选择）、`competitive_advantage`（原能力：共同底座）、`go_to_market`（原路径）｝；`business_logic`｛`assumption`｝；`responsibility_structure`（原样，带 `eo` 条目） | `target_customers`、`target_markets`、`value_proposition`、`trade_offs`、`business_model`、`value_logic`、`strategy_constraint` |
+  | E&O 责任单元 | `definition`｛`contribution`（支撑哪些 Mission）、`mandate`（能力域与它主导的事）、`scope_boundary`（原边界）、`key_constraint`（原约束）｝ | 无 |
+  | 公司级与 E&O 长期目标 | `target`｛`outcome`｝ | `success_criterion`、`realization_logic`；`alignment` 整块 |
 - E&O 责任单元建时就带外部引用：system `tianshu`，id `capability:05`。责任单元没有门，天枢也不是它的责任人，不能以 Agent 身份修订它（#72 实测 403），所以由播种写好；这个编号不带人名。
-- E&O 十月周期目标（2026-10，`goal_ref` 指 E&O 长期目标，不带 `review_ref`）：正文沿用原草案，结果与验收标准各三条。只建，不承诺、不确认。
-- 三个 Mission，`goal_ref` 指十月周期目标，内容取天枢里 E&O 的个人任务（标题、目标与验收，人名换成角色名）：目标写进定义块，每条验收一个验收条件组件（id 为 `ac-1`、`ac-2` 等），不写打法与约束。只建并指派 Owner，不承诺、不确认。
+- E&O 十月周期目标（2026-10，`goal_ref` 指 E&O 长期目标，不带 `review_ref`）：正文沿用原草案，结果与验收标准各三条，组件 id 不变，同在目标定义块 `target`；`alignment` 整块与 `target` 的 `time_boundary`、`realization_logic` 没有原文，留空。只建，不承诺、不确认。
+- 三个 Mission，`goal_ref` 指十月周期目标，内容取天枢里 E&O 的个人任务（标题、目标与验收，人名换成角色名）：目标写成战役定义块 `definition` 里的战役结果组件（id `outcome`），每条验收一个成功 / 验收标准组件（id 为 `ac-1`、`ac-2` 等），同在战役定义块；`contribution`、`time_boundary`、`scope_boundary` 与 Mission 计划块 `mission_plan` 没有原文，留空，由任务卡提交时天枢代记的候选写入。只建并指派 Owner，不承诺、不确认。
 
   | 键 | 标题 | Owner | 验收条件 |
   |-|-|-|-|
@@ -325,4 +332,6 @@ rm -rf /tmp/tkos-secrets
 
 主机上踩到的坑：经 `ssh … 'bash -s' <<EOS` 远程跑脚本时，`docker compose exec -T` 同样会吃掉 stdin，把后面的脚本当输入读走，要接 `</dev/null`（`run -T` 已在脚本里这样做）；但别给管道的下游加：`gunzip -c … | docker load </dev/null` 会让 `docker load` 读到空输入、什么都不加载，之后 compose 转去 Docker Hub 拉镜像超时。远程脚本里先解到文件再 `docker load -i`。本机对域名跑冒烟时遇到过一次连接超时，重跑即过。
 
-未验证：并发写下的外部引用唯一性；大数据量下列对象的性能；天枢凭这三条委托实际代记。
+2026-09-30 分支 `world/0.2-pact`（#81，按 Content Pact 替换块与组件）在本机隔离验收栈上预演，实例没有重建：`acceptance/method_v05/database.py` 新建一个库并升级到本分支源码（含 #79 重钉的 0039），经 owner SQL 与控制面 CLI 供给实验 scope（`spec.eo.example.json`）与冒烟 scope（`spec.example.json`，tenant 以 `-smoke` 结尾），起真 API。十月起点按第 11 节五段播完（CEO 两段与 Owner 一段代录、operator eo-dri）：17 步全部提交，代录 8 步，代录说明 3 条，再跑一段不做事；读回 9 个对象的块与组件与计划一致，两个长期目标已确认，周期目标与三个 Mission 是草稿，Owner 照计划，单元带 `capability:05`。实验 scope 的 `--probe-only` 10 项全过；冒烟 scope 完整冒烟 94 项、第二遍带 `--mcp-cli` 92 项全过；`examples.py` 准备到第 11 步与收尾 129 项全过，重生成 `docs/world-v02-tianshu-examples.md`。
+
+未验证：并发写下的外部引用唯一性；大数据量下列对象的性能；天枢凭这三条委托实际代记；Content Pact 新块在主机实例上的播种与冒烟（要等 10 月 8 日定下切换、按第 9.5 节重建）。

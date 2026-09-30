@@ -229,28 +229,28 @@ class Smoke:
         # 长期目标：公司级（CEO 建）与单元级（DRI 建），都由 CEO 确认。
         company_goal, _ = self.create("ceo", "LongTermGoal", "company", {
             "title": f"{title} 公司长期目标", "scope": "company", "horizon": "2028", "parent_ref": self.ref(company),
-            "blocks": {"measures": {"components": [{"id": "sc-1", "type": "success_criterion", "text": "冒烟：衡量一"}]}}})
+            "blocks": {"target": {"components": [{"id": "sc-1", "type": "success_criterion", "text": "冒烟：衡量一"}]}}})
         keep("company_goal", company_goal["object_id"])
         self.act("ceo", "world_confirm_long_term_goal", {"outcome": "accepted"}, company_goal["object_id"])
         self.expect("company long-term goal confirmed by the CEO", company_goal["object_id"], "confirmed")
         unit_goal, view = self.create("eo-dri", "LongTermGoal", "eo", {
             "title": f"{title} E&O 长期目标", "scope": "unit", "horizon": "2027", "parent_ref": self.ref(unit),
             "goal_ref": self.ref(company_goal["object_id"]),
-            "blocks": {"outcome": {"components": [{"id": "uo-1", "type": "outcome", "text": "冒烟：结果一",
-                                                   "refs": [f"{self.ref(company_goal['object_id'])}#measures/sc-1"]}]}}})
+            "blocks": {"target": {"components": [{"id": "uo-1", "type": "outcome", "text": "冒烟：结果一",
+                                                  "refs": [f"{self.ref(company_goal['object_id'])}#target/sc-1"]}]}}})
         keep("unit_goal", unit_goal["object_id"])
-        check("an outcome references the company goal's measure as a component",
-              blocks(view)["outcome"]["components"][0]["refs"][0]["component"] == "sc-1")
+        check("an outcome references the company goal's success criterion as a component",
+              blocks(view)["target"]["components"][0]["refs"][0]["component"] == "sc-1")
         self.act("ceo", "world_confirm_long_term_goal", {"outcome": "accepted"}, unit_goal["object_id"])
         self.expect("unit long-term goal confirmed by the CEO", unit_goal["object_id"], "confirmed")
 
         # 周期目标：DRI 建并承诺，CEO 确认。
         goal, _ = self.create("eo-dri", "PeriodGoal", "eo", {
             "title": f"{title} 周期目标", "period": period, "goal_ref": self.ref(unit_goal["object_id"]),
-            "blocks": {"outcome": {"components": [{"id": "pg-o1", "type": "outcome", "text": "冒烟：本期结果",
-                                                   "refs": [f"{self.ref(unit_goal['object_id'])}#outcome/uo-1"]}]},
-                       "acceptance": {"components": [{"id": "pg-ac1", "type": "acceptance_criterion",
-                                                      "text": "冒烟：本期验收"}]}}})
+            "blocks": {"target": {"components": [{"id": "pg-o1", "type": "outcome", "text": "冒烟：本期结果",
+                                                  "refs": [f"{self.ref(unit_goal['object_id'])}#target/uo-1"]},
+                                                 {"id": "pg-ac1", "type": "acceptance_criterion",
+                                                  "text": "冒烟：本期验收"}]}}})
         goal_id = keep("period_goal", goal["object_id"])
         self.act("eo-dri", "world_commit_period_goal", {}, goal_id)
         self.expect("period goal committed by the DRI", goal_id, "committed")
@@ -260,10 +260,10 @@ class Smoke:
         # Mission：DRI 建并指派 Owner，Owner 承诺，DRI 确认，Owner 开始。
         mission, _ = self.create("eo-dri", "Mission", "eo", {
             "title": f"{title} Mission", "goal_ref": self.ref(goal_id),
-            "blocks": {"definition": {"text": "冒烟：Mission 定义"},
-                       "acceptance": {"components": [{"id": "m-ac1", "type": "acceptance_criterion", "text": "冒烟：交付可用",
-                                                      "refs": [f"{self.ref(goal_id)}#acceptance/pg-ac1"]}]},
-                       "play": {"text": "冒烟：核心路径"},
+            "blocks": {"definition": {"text": "冒烟：Mission 定义", "components": [
+                           {"id": "m-ac1", "type": "acceptance_criterion", "text": "冒烟：交付可用",
+                            "refs": [f"{self.ref(goal_id)}#target/pg-ac1"]}]},
+                       "mission_plan": {"components": [{"id": "mp-path", "type": "core_path", "text": "冒烟：核心路径"}]},
                        "execution_plan": {"components": [{"id": "mp-1", "type": "plan_item", "text": "冒烟：一段计划",
                                                           "attributes": {"responsible": self.pid["eo-ic"]}}]}}})
         mission_id = keep("mission", mission["object_id"])
@@ -281,10 +281,9 @@ class Smoke:
         # Task：Owner 建并指派 IC，IC 开始。
         task, _ = self.create("eo-owner", "Task", "eo", {
             "title": f"{title} Task", "parent_ref": self.ref(mission_id),
-            "blocks": {"definition": {"text": "冒烟：Task 定义"},
-                       "acceptance": {"components": [
+            "blocks": {"definition": {"text": "冒烟：Task 定义", "components": [
                            {"id": "t-ac1", "type": "acceptance_criterion", "text": "冒烟：验收一",
-                            "refs": [f"{self.ref(mission_id)}#acceptance/m-ac1"]},
+                            "refs": [f"{self.ref(mission_id)}#definition/m-ac1"]},
                            {"id": "t-ac2", "type": "acceptance_criterion", "text": "冒烟：验收二"}]},
                        "plan": {"components": [{"id": "tp-1", "type": "plan_item", "text": "冒烟：先做一段"}]}}})
         task_id = keep("task", task["object_id"])
@@ -297,7 +296,7 @@ class Smoke:
         # Activity：Task 的责任人建并指派执行 Agent，Agent 开始、交付（带写入声明），Task 的责任人验收。
         activity, _ = self.create("eo-ic", "Activity", "eo", {
             "title": f"{title} Activity", "parent_ref": self.ref(task_id),
-            "blocks": {"instruction": {"text": "冒烟：按验收一执行", "refs": [f"{self.ref(task_id)}#acceptance/t-ac1"]}}})
+            "blocks": {"instruction": {"text": "冒烟：按验收一执行", "refs": [f"{self.ref(task_id)}#definition/t-ac1"]}}})
         activity_id = keep("activity", activity["object_id"])
         self.act("eo-ic", "world_assign", {"principal_id": self.pid["exec-agent"]}, activity_id)
         self.expect("activity assigned to the execution agent", activity_id, "assigned")
@@ -364,7 +363,8 @@ class Smoke:
         check("the revoked delegation is no longer in force", granted["event_id"] not in [
             d["event_id"] for d in self.read(mission_id)["identity"]["delegations"]])
 
-        # 取上下文：执行 Agent 从 Activity 出发，沿主干到 Company；Task 的验收条件以组件引用返回。
+        # 取上下文：执行 Agent 从 Activity 出发，沿主干到 Company；Task 的验收条件（任务定义块里的成功 / 验收标准
+        # 组件）以组件引用返回。
         status, context = self.call("POST", f"/v1/world/objects/{activity_id}/context",
                                     {"question": "这条 Activity 为什么做、做什么、谁负责、现在怎样？"}, who="exec-agent")
         layers = context["context_pack"]["layers"] if status == 200 else []
@@ -372,9 +372,10 @@ class Smoke:
               status == 200 and context["contract_version"] == V02
               and [layer["object"]["object_type"] for layer in layers] == SPINE, f"{status} {str(context)[:300]}")
         task_layer = layers[1]
-        criteria = {b["id"]: b for b in task_layer["blocks"]}["acceptance"]["components"]
+        criteria = [c for c in {b["id"]: b for b in task_layer["blocks"]}["definition"]["components"]
+                    if c["type"] == "acceptance_criterion"]
         check("the task's acceptance criteria come back as pinned component references",
-              [c["ref"] for c in criteria] == [f"{task_layer['object']['ref']}#acceptance/{cid}" for cid in ("t-ac1", "t-ac2")]
+              [c["ref"] for c in criteria] == [f"{task_layer['object']['ref']}#definition/{cid}" for cid in ("t-ac1", "t-ac2")]
               and all(c["pinned"]["component"] == c["id"] and f"`{c['ref']}`" in context["context_pack"]["markdown"]
                       for c in criteria))
         keep("context_pack_id", context["context_pack_id"])

@@ -308,14 +308,15 @@ def fake(monkeypatch):
     return sent, rules
 
 
-def driver(line_name, steps=()):
+def driver(line_name, steps=(), script=None):
+    """假 HTTP 的驱动器；script 给出时段表另含脚本里 plan 划的段（每个 Task 的段数随之算）。"""
     log = {"line": line_name, "mission": "mission_trial", "objects": {
         "mission_trial": {"object_id": "mission", "type": "Mission", "domain": "eo"},
         **{task: {"object_id": task, "type": "Task", "domain": "eo"} for task in DERIVED["tasks"]},
         **({f"segment:{key}": {"object_id": f"act-{key}", "type": "Activity", "domain": "eo", "task": value["task"]}
             for key, value in DERIVED["segments"].items()} if line_name == "task_activity" else {})},
         "seed": {"x": {"recorded_at": "2026-10-12T08:00:00Z"}}, "steps": list(steps), "pending": {}}
-    return b_drive.Driver(FakeLine(), log, lambda: None, b_drive.segment_table(DERIVED["segments"], None)), log
+    return b_drive.Driver(FakeLine(), log, lambda: None, b_drive.segment_table(DERIVED["segments"], script)), log
 
 
 def run(drv, log, step, key):
@@ -360,8 +361,7 @@ def test_task_only_writes_a_segment_of_a_split_task_as_its_plan_item_and_keeps_t
 def test_a_segment_is_a_plan_item_with_its_attributes_on_task_only_and_an_activity_instruction_on_task_activity(fake):
     """同一段在两条线上的写法（#83）：Task-only 线是带四个可选属性的计划条目，每次改都整条带上；Task+Activity 线的
     Activity 把执行事项、预期产出与质量标准写成 instruction 块的组件，执行主体由指派承担、分工没有对应组件。"""
-    drv, log = driver("task_only")
-    drv.segments = b_drive.segment_table(DERIVED["segments"], {"steps": [PLANNED]})
+    drv, log = driver("task_only", script={"steps": [PLANNED]})
     run(drv, log, PLANNED, "1")
     run(drv, log, {"do": "assign", "by": "eo-owner", "segment": "extra", "to": "eo-ic"}, "2")
     run(drv, log, {"do": "start", "by": "eo-owner", "segment": "delegation_setup"}, "3")
@@ -373,8 +373,7 @@ def test_a_segment_is_a_plan_item_with_its_attributes_on_task_only_and_an_activi
         ("delegation_setup", {"responsible": "p-eo-owner", "executor": "CEO、E&O DRI 与 Mission Owner"})]
     assert written[0]["text"] == "补齐代记撤回的用例。" and "状态：开始" in written[2]["text"]
     fake[0].clear()
-    drv, log = driver("task_activity")
-    drv.segments = b_drive.segment_table(DERIVED["segments"], {"steps": [PLANNED]})
+    drv, log = driver("task_activity", script={"steps": [PLANNED]})
     record = run(drv, log, PLANNED, "1")
     assert actions(record)[0][:2] == ("primary", "world_create_object") and record["expression"] == "native"
     payload = fake[0][0][1]["params"]["payload"]

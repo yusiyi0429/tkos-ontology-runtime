@@ -230,22 +230,22 @@ def test_the_company_layer_moves_the_september_replay_text_into_the_new_blocks_w
     assert {key: {block: [(c["id"], c["type"]) for c in value.get("components", [])]
                   for block, value in STEPS[key]["payload"]["blocks"].items()} for key in replay
             if key in ("company", "strategy", "unit_eo", "company_goal", "eo_goal")} == {
-        "company": {"identity": [("vision", "vision"), ("business_definition", "business_definition"),
-                                 ("values_principles", "values_principles")]},
-        "strategy": {"strategy_core": [("strategic_thesis", "strategic_thesis"),
-                                       ("competitive_advantage", "competitive_advantage"),
-                                       ("go_to_market", "go_to_market")],
-                     "business_logic": [("assumption", "assumption")],
+        "company": {"identity": [("long-term-identity", "business_definition"), ("vision", "vision"),
+                                 ("token-principle", "values_principles")]},
+        "strategy": {"strategy_core": [("main-line", "strategic_thesis"), ("path", "strategic_thesis"),
+                                       ("foundation", "competitive_advantage")],
+                     "business_logic": [("token-traction", "assumption")],
                      "responsibility_structure": [("eo", "unit_entry")]},
         "unit_eo": {"definition": [("contribution", "contribution"), ("mandate", "mandate"),
-                                   ("scope_boundary", "scope_boundary"), ("key_constraint", "key_constraint")]},
+                                   ("boundary", "scope_boundary"), ("method-frozen", "key_constraint"),
+                                   ("no-graph-db", "key_constraint")]},
         "company_goal": {"target": [("outcome", "outcome")]},
         "eo_goal": {"target": [("outcome", "outcome")]}}, "责任结构只列 E&O 一个条目；没有原文的组件留空"
 
 
 def test_the_october_goal_and_the_three_missions_are_the_ones_asked_for() -> None:
-    """周期目标沿用原草案（换任务卡之前的原计划原样存在 experiments/world_v02/b_source-2026-10.json）：原结果与验收标准
-    两块的组件原样合进目标定义块。三个 Mission 取天枢里 E&O 的三个个人任务：目标是战役定义块里的战役结果组件，每条
+    """周期目标沿用原草案（换任务卡之前的原计划存在 experiments/world_v02/b_source-2026-10.json）：目标定义块与
+    那里的相同（原结果与验收标准两块的组件原样合进目标定义块）。三个 Mission 取天枢里 E&O 的三个个人任务：目标是战役定义块里的战役结果组件，每条
     验收一个成功 / 验收标准组件（ac-1 起编号），同在战役定义块；不写 Mission 计划块。"""
     goal = STEPS["october_goal"]["payload"]
     original = {step["key"]: step for step in json.loads(
@@ -253,8 +253,7 @@ def test_the_october_goal_and_the_three_missions_are_the_ones_asked_for() -> Non
     before = original["october_goal"]["payload"]
     assert {k: v for k, v in goal.items() if k != "blocks"} == {k: v for k, v in before.items() if k != "blocks"}
     assert "review_ref" not in goal and list(goal["blocks"]) == ["target"]
-    assert goal["blocks"]["target"]["components"] == (before["blocks"]["outcome"]["components"]
-                                                      + before["blocks"]["acceptance"]["components"])
+    assert goal["blocks"]["target"]["components"] == before["blocks"]["target"]["components"]
     assert (goal["title"], goal["period"], goal["goal_ref"]) == (
         "E&O 10 月：tkos.world 0.2 在真实经营中跑通", "2026-10", "@eo_goal")
     missions = {key: STEPS[key]["payload"] for key in MISSIONS}

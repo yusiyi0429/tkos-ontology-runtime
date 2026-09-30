@@ -8,7 +8,7 @@
 
 **试用回放**的对象（#75）是 E&O 十月起点（`deploy/world-02/seed-eo-2026-10.json`，按天枢个人任务重播的那份）里的 `mission_context`「可信 Context / Memory 与真实 Agent 读写闭环」：这条 Mission 的 Owner 就是 E&O DRI 本人，10/12–16 试用，10/16 联调验收之后由开发会话转写、E&O DRI 审阅，再在两条线上回放（第 8 节）。仓库里只用步骤键 `mission_context` 指它，不写天枢的任务编号。
 
-**冒烟**用的仍是 9 月 29 日最初选定的「天枢 × 本体 0.2 试用」：`experiments/world_v02/b_source-2026-10.json`（E&O 十月起点换任务卡之前的原计划，原样另存，#73）里的 `mission_trial`，下面三个 Task：`task_trial_integration`（联调与委托登记）、`task_trial_week`（试用周每周快照与问题流转）、`task_trial_acceptance`（联调验收）。冒烟内容是合成的，只证明代码与口径跑得通。
+**冒烟**用的仍是 9 月 29 日最初选定的「天枢 × 本体 0.2 试用」：`experiments/world_v02/b_source-2026-10.json`（E&O 十月起点换任务卡之前的原计划，正文与顺序原样另存，#73）里的 `mission_trial`，下面三个 Task：`task_trial_integration`（联调与委托登记）、`task_trial_week`（试用周每周快照与问题流转）、`task_trial_acceptance`（联调验收）。冒烟内容是合成的，只证明代码与口径跑得通。
 
 播什么由 lines 文件定（格式 `tkos-world-02-experiment-b-lines`），`b_seed` 按 `--lines` 选：
 

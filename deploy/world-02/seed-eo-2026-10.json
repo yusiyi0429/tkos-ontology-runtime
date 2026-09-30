@@ -8,31 +8,32 @@
     {"key": "company", "by": "ceo", "do": "create", "after": [], "type": "Company", "domain": "company",
      "payload": {"title": "词元云集（TokenKing）", "blocks": {
        "identity": {"components": [
+         {"id": "long-term-identity", "type": "business_definition", "text": "拟定的长期身份是「企业经营范式重构与 Token 运营中枢」（七月稿中待管理层确认的六个问题之一）。"},
          {"id": "vision", "type": "vision", "text": "长期愿景是建设系统性 Token 工厂。"},
-         {"id": "business_definition", "type": "business_definition", "text": "拟定的长期身份是「企业经营范式重构与 Token 运营中枢」（七月稿中待管理层确认的六个问题之一）。"},
-         {"id": "values_principles", "type": "values_principles", "text": "创业公司，不追求 Token 用量最大化：研发按需用模型。"}]}}},
+         {"id": "token-principle", "type": "values_principles", "text": "创业公司，不追求 Token 用量最大化：研发按需用模型。"}]}}},
      "note": "正文取自 seed.json 的 company，按意思放进企业身份与长期意图块的组件：原身份块前一句是愿景，后一句（拟定的长期身份）是业务定义；公司不再有约束块，原约束一句是公司经营原则，放进价值观与公司原则。企业使命没有原文，留空。原稿的 feishu.example 占位链接不带。"},
     {"key": "strategy", "by": "ceo", "do": "create", "after": ["company"], "type": "Strategy", "domain": "company",
      "payload": {"title": "词元云集总体战略（存根）", "parent_ref": "@company", "blocks": {
        "strategy_core": {"components": [
-         {"id": "strategic_thesis", "type": "strategic_thesis", "text": "主线是 AI 企业智能决策网络；辅线 TokenOps 只做轻量验证。"},
-         {"id": "competitive_advantage", "type": "competitive_advantage", "text": "Foundry / Ontology、引擎与 TokenHub 是两条业务的共同底座。"},
-         {"id": "go_to_market", "type": "go_to_market", "text": "到 8 月 31 日做内部灯塔；8 月 31 日到春节前做内部验证加少量外部试点；下一轮注资后扩张。"}]},
+         {"id": "main-line", "type": "strategic_thesis", "text": "主线是 AI 企业智能决策网络；辅线 TokenOps 只做轻量验证。"},
+         {"id": "path", "type": "strategic_thesis", "text": "到 8 月 31 日做内部灯塔；8 月 31 日到春节前做内部验证加少量外部试点；下一轮注资后扩张。"},
+         {"id": "foundation", "type": "competitive_advantage", "text": "Foundry / Ontology、引擎与 TokenHub 是两条业务的共同底座。"}]},
        "business_logic": {"components": [
-         {"id": "assumption", "type": "assumption", "text": "不能把 Token 消纳设为唯一牵引。"}]},
+         {"id": "token-traction", "type": "assumption", "text": "不能把 Token 消纳设为唯一牵引。"}]},
        "responsibility_structure": {
          "text": "3 个战场：01 灯塔项目、02 Token Ops、03 002 客户。7 个能力域：02 Re-architecture、03 Method、04 Agents、05 E&O、07 TokenHub、08 Talent & Organization、09 Finance, Compliance & Operations。",
          "components": [{"id": "eo", "type": "unit_entry", "text": "05 E&O"}]}}},
-     "note": "正文取自 seed.json 的 strategy，按意思放进新组件：战略选择（主线与辅线）是总体战略，能力（两条业务的共同底座）是核心壁垒，路径（内部灯塔 → 内部验证加少量外部试点 → 注资后扩张）是市场进入方式，都在战略块；关键假设放商业模式与成立逻辑块。目标客户、目标市场、产品与价值主张、战略取舍、商业模式、价值实现逻辑、战略约束没有原文，留空。留在草稿。责任结构块只列 E&O 一个责任单元条目组件（这个实验 scope 只有 E&O 一个单元）。"},
+     "note": "正文取自 seed.json 的 strategy，按意思放进新组件：战略选择（主线与辅线）是总体战略，能力（两条业务的共同底座）是核心壁垒，路径（内部灯塔 → 内部验证加少量外部试点 → 注资后扩张）是总体战略的第二条，都在战略块；关键假设放商业模式与成立逻辑块。目标客户、目标市场、产品与价值主张、市场进入与获客方式、战略取舍、商业模式、价值实现逻辑、战略约束没有原文，留空。留在草稿。责任结构块只列 E&O 一个责任单元条目组件（这个实验 scope 只有 E&O 一个单元）。"},
     {"key": "unit_eo", "by": "ceo", "do": "create", "after": ["strategy"], "type": "ResponsibilityUnit", "domain": "eo",
      "payload": {"title": "E&O", "unit_kind": "domain", "architecture_ref": "@strategy#responsibility_structure/eo",
        "external_refs": [{"system": "tianshu", "id": "capability:05"}], "blocks": {
        "definition": {"components": [
          {"id": "contribution", "type": "contribution", "text": "主要支撑灯塔项目的 Mission 01-2、01-3、01-4。"},
          {"id": "mandate", "type": "mandate", "text": "Engine & Ontology，战场图编号 05 的能力域：主导语义模型（本体）与 Context Runtime。"},
-         {"id": "scope_boundary", "type": "scope_boundary", "text": "业务建模不归 E&O：由 CEO 与 Method 锁定业务语义，E&O 忠实翻译成语义模型、数据承载与运行时。Activity 要不要成为对象由 E&O 自己定。"},
-         {"id": "key_constraint", "type": "key_constraint", "text": "tkos.method/0.4、0.5 冻结不改；当前量级用 PostgreSQL 加 pgvector，不引入图数据库。"}]}}},
-     "note": "正文取自 seed.json 的 unit_eo，都进责任定义块：原定义一句拆成核心责任（能力域与它主导的事）与战略贡献（支撑哪些 Mission），原边界块是责任边界，原约束块是关键约束。architecture_ref 在 0.2 是指到责任单元条目的组件引用。外部引用由播种写好：责任单元没有门，天枢也不是它的责任人，不能以 Agent 身份修订它（#72 实测 403）。"},
+         {"id": "boundary", "type": "scope_boundary", "text": "业务建模不归 E&O：由 CEO 与 Method 锁定业务语义，E&O 忠实翻译成语义模型、数据承载与运行时。Activity 要不要成为对象由 E&O 自己定。"},
+         {"id": "method-frozen", "type": "key_constraint", "text": "tkos.method/0.4、0.5 冻结不改。"},
+         {"id": "no-graph-db", "type": "key_constraint", "text": "当前量级用 PostgreSQL 加 pgvector，不引入图数据库。"}]}}},
+     "note": "正文取自 seed.json 的 unit_eo，都进责任定义块：原定义一句拆成核心责任（能力域与它主导的事）与战略贡献（支撑哪些 Mission），原边界块是责任边界，原约束块按分号拆成两条关键约束。组件的 id 与放法和实验 E 的主干（experiments/world_v02/b_source-2026-10.json）一致。architecture_ref 在 0.2 是指到责任单元条目的组件引用。外部引用由播种写好：责任单元没有门，天枢也不是它的责任人，不能以 Agent 身份修订它（#72 实测 403）。"},
     {"key": "company_goal", "by": "ceo", "do": "create", "after": ["company"], "type": "LongTermGoal", "domain": "company",
      "payload": {"title": "春节前核心业务第一次被真实证明", "scope": "company", "horizon": "2027 年春节前", "parent_ref": "@company", "blocks": {
        "target": {"components": [

@@ -1119,6 +1119,8 @@ CHECKS = {
         'a_delegated_event_line_names_both_the_recorder_and_the_person_recorded_on_behalf_of',
         'the_same_world_state_gives_the_same_markdown_pack_plan_and_coverage',
         'an_assignment_event_line_names_the_recorder_and_the_assignee',
+        'from_a_mission_the_pack_projects_its_tasks_expected_results_under_what_and_never_trims_them',
+        'from_a_responsibility_unit_the_pack_lists_the_missions_of_its_domain_as_a_projection',
         'a_tight_budget_trims_in_the_0_2_order_keeps_the_current_object_and_the_guide_only_points_at_what_is_left',
         'after_a_roll_forward_the_affected_gated_object_carries_the_issue_into_its_formation',
         'carried_issues_are_never_trimmed',

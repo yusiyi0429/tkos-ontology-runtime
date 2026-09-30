@@ -32,6 +32,12 @@ def at(text):
     return datetime.fromisoformat(text.replace('Z', '+00:00'))
 
 
+def sections(markdown):
+    """Markdown 按二级标题切成节：节名 → 正文。"""
+    return {part.split('\n', 1)[0]: (part.split('\n', 1) + [''])[1].strip('\n')
+            for part in ('\n' + markdown).split('\n## ')[1:]}
+
+
 def why_chain(whole):
     """契约补 48：从一次没裁过的取上下文，按读回的字段算 Why 链上的项（条目 key）。上溯各层定义类的块、多取的一跳，
     以及被层号更小的内容钉到的上溯各层的块：主干那一步的引用字段（检索计划 walked 的 pinned，第 i 步算第 i 层），
@@ -96,10 +102,6 @@ def context_fill(book, h, f, flow, trunk):
         business = flow.read('outsider', oid)['business']
         return f"{oid}@{business['version']}"
 
-    def sections(markdown):
-        return {part.split('\n', 1)[0]: (part.split('\n', 1) + [''])[1].strip('\n')
-                for part in ('\n' + markdown).split('\n## ')[1:]}
-
     # ---------------------------------------------------------------- 播种：周期目标（代 CEO 确认）与它下面的 Mission
     unit_goal, company_goal = made['LongTermGoal.unit']['object_id'], made['LongTermGoal']['object_id']
     strategy, company = made['Strategy']['object_id'], made['Company']['object_id']
@@ -108,8 +110,9 @@ def context_fill(book, h, f, flow, trunk):
     goal = flow.create('a', 'PeriodGoal', 'a', {
         'title': '3 月目标（取上下文）', 'period': '2027-03', 'goal_ref': latest(unit_goal),
         **({'review_ref': review['snapshot']['ref']} if review else {}),
-        'blocks': {'outcome': {'components': [{'id': 'fill-o1', 'type': 'outcome', 'text': '续签两家'}]},
-                   'acceptance': {'components': [{'id': 'fill-ac1', 'type': 'acceptance_criterion', 'text': '合同归档'}]}}}
+        'blocks': {'alignment': {'components': [{'id': 'fill-why', 'type': 'why_this_period', 'text': '三月是续约季'}]},
+                   'target': {'components': [{'id': 'fill-o1', 'type': 'outcome', 'text': '续签两家'},
+                                             {'id': 'fill-ac1', 'type': 'acceptance_criterion', 'text': '合同归档'}]}}}
     )['result']
     pid = goal['object_id']
     committed = flow.gate('a', 'world_commit_period_goal', pid, {})['result']
@@ -157,10 +160,13 @@ def context_fill(book, h, f, flow, trunk):
         elif isinstance(value, list):
             pending.extend(value)
     guide_why = parts['六问指引'].splitlines()[1]
+    # #79 起「为什么」先给当前对象带贡献角色的组件（本周期必要性），再由近及远到上层。
+    contribution = f"{goal['ref']}#alignment/fill-why"
     check('from_a_unit_period_goal_why_covers_blocks_or_components_of_the_company_goal_the_strategy_and_the_company',
           coverage['why']['answered'] and all(reached.values()) and set(why) <= refs
-          and any('/' in ref for ref in reached[company_goal])  # 公司级目标的衡量是组件，引用细到组件
-          and guide_why.startswith('- 为什么：长期目标 `')
+          and any('/' in ref for ref in reached[company_goal])  # 公司级目标的成功标准是组件，引用细到组件
+          and why[0] == contribution
+          and guide_why.startswith(f'- 为什么：当前对象的贡献 `{contribution}`；长期目标 `')
           and all(f"{label} `{targets[oid]}" in guide_why
                   for label, oid in (('公司级长期目标', company_goal), ('战略', strategy), ('公司', company)))
           and guide_why.index('公司级长期目标') < guide_why.index('战略') < guide_why.index('→ 公司 '))
@@ -170,9 +176,12 @@ def context_fill(book, h, f, flow, trunk):
           and [line for line in markdown.splitlines() if line.startswith('## ')] == FORMING
           and [line.split('：', 1)[0] for line in parts['六问指引'].splitlines()[1:]]
           == ['- 为什么', '- 做什么', '- 谁负责', '- 现在怎样', '- 发生了什么', '- 凭什么']
-          and f"`{targets[strategy]}#choices`" in parts['为什么'] and f"`{targets[company]}#identity`" in parts['为什么']
-          and f"`{goal['ref']}#outcome/fill-o1`" in parts['做什么']
-          and f"`{goal['ref']}#constraint`" in parts['凭什么']
+          and f"`{targets[strategy]}#strategy_core`" in parts['为什么']
+          and f"`{targets[company]}#identity`" in parts['为什么']
+          and f"`{goal['ref']}#target/fill-o1`" in parts['做什么']
+          # #79 起约束不再单独成块：「凭什么」是逐层带约束与验收角色的组件引用清单。
+          and parts['凭什么'].splitlines()[0] == '按组件的取上下文角色逐层列出约束与验收（内容在它们所在的块里）：'
+          and f"`{goal['ref']}#target/fill-ac1`（成功 / 验收标准）" in parts['凭什么'].splitlines()[1]
           and all(f"`{layer['object']['ref']}`" in parts['谁负责'] for layer in layers)
           and f"生命周期：已确认（事件 `event:{confirmed['event_id']}`）" in parts['现在怎样']
           and all(f"（事件 `event:{event_id}`" in parts['发生了什么'] for event_id in events))
@@ -198,6 +207,12 @@ def context_fill(book, h, f, flow, trunk):
 
     mission = flow.create('a', 'Mission', 'a', {'title': '取上下文 Mission', 'goal_ref': latest(pid)})['result']
     assigned = flow.assign('a', mission['object_id'], actor_id['owner_a'])['result']
+    # 投影项（#79）：Mission 下一条 Task 的任务定义带贡献、工作结果与成功 / 验收标准，投影只取后两个。
+    projected_task = flow.create('a', 'Task', 'a', {
+        'title': '投影 Task', 'parent_ref': latest(mission['object_id']), 'blocks': {'definition': {'components': [
+            {'id': 'fill-t-c1', 'type': 'contribution', 'text': '为续签铺路'},
+            {'id': 'fill-t-o1', 'type': 'outcome', 'text': '续签方案成稿'},
+            {'id': 'fill-t-ac1', 'type': 'acceptance_criterion', 'text': '客户确认方案'}]}}})['result']
     assignment = {event['event_id']: event for event in flow.events('outsider', mission['object_id'])['events']}[
         assigned['event_id']]
     from_mission = flow.context('agent_a', mission['object_id'], question)
@@ -211,6 +226,53 @@ def context_fill(book, h, f, flow, trunk):
           and mission_events[assigned['event_id']]['assignee'] == owner
           and all(event['assignee'] is None for key, event in mission_events.items() if key != assigned['event_id'])
           and from_mission['plan']['hops'][0]['read'] == targets[company_goal])
+
+    projection = from_mission['context_pack']['layers'][0]['projection']
+    doing = sections(from_mission['context_pack']['markdown'])['做什么'].split('\n\n')[-1]
+    mission_guide = sections(from_mission['context_pack']['markdown'])['六问指引']
+    tiny_mission = flow.context('agent_a', mission['object_id'], {**question, 'budget': {'max_chars': 10}})
+    check('from_a_mission_the_pack_projects_its_tasks_expected_results_under_what_and_never_trims_them',
+          (projection['id'], projection['display_name']) == ('task_expectations', 'Task 预期结果与质量标准')
+          and [(item['ref'], [(c['id'], c['type'], c['ref']) for c in item['components']])
+               for item in projection['items']]
+          == [(projected_task['ref'], [(cid, kind, f"{projected_task['ref']}#definition/{cid}")
+                                       for cid, kind in (('fill-t-o1', 'outcome'), ('fill-t-ac1', 'acceptance_criterion'))])]
+          and projection == flow.read('outsider', mission['object_id'])['business']['projection']
+          and all(layer['projection'] is None for layer in from_mission['context_pack']['layers'][1:])
+          and doing.splitlines()[:2] == ['### Mission·Task 预期结果与质量标准（读取时从下级对象投影，不存）',
+                                         f"- Task《投影 Task》 `{projected_task['ref']}`"]
+          and all(f"`{c['ref']}`" in doing for c in projection['items'][0]['components']) and 'fill-t-c1' not in doing
+          and '当前对象的投影项「Task 预期结果与质量标准」（1 项，读取时从下级对象投影）' in mission_guide
+          and tiny_mission['budget']['over_budget'] is True
+          and tiny_mission['context_pack']['layers'][0]['projection'] == projection
+          and doing in tiny_mission['context_pack']['markdown']
+          and not [entry for entry in tiny_mission['plan']['trimmed'] if entry['kind'] == 'projection'])
+
+    def every(**query):
+        """列对象按页取完（每页 100 条）。"""
+        found, cursor = [], None
+        while True:
+            page = flow.clients['outsider'].json('GET', '/v1/world/objects?' + urlencode(
+                {**query, 'limit': 100, **({'cursor': cursor} if cursor else {})}))
+            found += page['items']
+            cursor = page['next_cursor']
+            if cursor is None:
+                return found
+
+    unit_id = made['ResponsibilityUnit']['object_id']
+    from_unit = flow.context('agent_a', unit_id, question)
+    unit_projection = from_unit['context_pack']['layers'][0]['projection']
+    missions = every(domain_id=f['domains']['a'], type='Mission')
+    check('from_a_responsibility_unit_the_pack_lists_the_missions_of_its_domain_as_a_projection',
+          (unit_projection['id'], unit_projection['display_name']) == ('mission_refs', '战役引用')
+          and [(item['object_id'], item['ref'], item['title']) for item in unit_projection['items']]
+          == [(item['object_id'], f"{item['object_id']}@{item['version']}", item['title']) for item in missions]
+          and mission['object_id'] in [item['object_id'] for item in missions]
+          and not any('components' in item for item in unit_projection['items'])
+          and '### 责任单元·战役引用（读取时从下级对象投影，不存）'
+          in sections(from_unit['context_pack']['markdown'])['做什么']
+          and f"当前对象的投影项「战役引用」（{len(missions)} 项，读取时从下级对象投影）"
+          in sections(from_unit['context_pack']['markdown'])['六问指引'])
 
     # ---------------------------------------------------------------- 预算（#70，契约第 15.3 节与补 48）
     def trimmed_in_order(result):
@@ -367,8 +429,10 @@ def context_fill(book, h, f, flow, trunk):
     check('after_a_company_review_is_confirmed_forming_a_period_goal_carries_it_pinned_to_its_snapshot',
           review['snapshot']['ref'] == first_review['ref']
           and review['snapshot']['pinned']['revision_id'] == first_review['revision_id']
+          # 材料不带；#79 新加的整体经营状态、关键风险与问题照带，没写的给标准句。
           and [block['id'] for block in review['snapshot']['blocks']]
-          == ['results', 'gaps', 'causes', 'key_changes', 'implications']
+          == ['overall_state', 'results', 'gaps', 'causes', 'key_changes', 'implications', 'key_risks', 'issues']
+          and '当前没有整体经营状态' in review_md and '当前没有关键风险' in review_md
           and all(block['pinned']['revision_id'] == first_review['revision_id'] for block in review['snapshot']['blocks'])
           and review['principal']['principal_id'] == actor_id['ceo']
           and f"### 已确认的公司复盘《公司复盘 2036-01》 `{first_review['ref']}`" in review_md
@@ -391,7 +455,7 @@ def context_fill(book, h, f, flow, trunk):
     def unit_goal_of(title):
         return flow.create('a', 'LongTermGoal', 'a', {
             'title': title, 'scope': 'unit', 'horizon': '2030', 'parent_ref': latest(unit),
-            'goal_ref': latest(company_goal), 'blocks': {'outcome': {'text': f'{title}：结果'}}})['result']
+            'goal_ref': latest(company_goal), 'blocks': {'target': {'text': f'{title}：结果'}}})['result']
 
     effective = unit_goal_of('有效的单元目标（#64）')
     flow.gate('ceo', 'world_confirm_long_term_goal', effective['object_id'], {'outcome': 'accepted'})
@@ -409,10 +473,11 @@ def context_fill(book, h, f, flow, trunk):
           and not {ended['object_id'], draft['object_id'], unit_goal} & {goal['object_id'] for goal in goals}
           and all(goal['lifecycle']['status'] == 'confirmed' and goal['object_type'] == 'LongTermGoal' for goal in goals)
           and [block['ref'] for block in next(goal for goal in goals if goal['ref'] == effective['ref'])['definition_refs']]
-          == [f"{effective['ref']}#outcome", f"{effective['ref']}#measures"]
+          == [f"{effective['ref']}#alignment", f"{effective['ref']}#target"]
           and f"### 有效的长期目标《有效的单元目标（#64）》 `{effective['ref']}`" in goals_md
           and f"### 有效的长期目标《终止的单元目标（#64）》" not in goals_md
-          and {'ref': f"{effective['ref']}#outcome"} in three['coverage']['why']['evidence']
+          and {'ref': f"{effective['ref']}#target"} in three['coverage']['why']['evidence']
+          and {'ref': f"{effective['ref']}#alignment"} not in three['coverage']['why']['evidence']
           and flow.context('outsider', pid, question)['context_pack'] == three['context_pack'])
     tiny_form = flow.context('agent_a', pid, {**question, 'budget': {'max_chars': 10}})
     check('the_formation_carry_in_is_never_trimmed',

@@ -340,6 +340,6 @@ rm -rf /tmp/tkos-secrets
 - 十月起点按五段播完（第四次代录，用户同意）：17 步全部提交，代录 8 步，代录说明 3 条；再跑一遍不做事。用天枢凭证读回 9 个对象（Company、Strategy、责任单元、两个长期目标、十月周期目标、三个 Mission）：长期目标已确认，Strategy、周期目标与 Mission 是草稿，责任单元带 `capability:05`，按外部引用能查回。Content Pact 新块与组件因此在主机实例上完成了播种与冒烟。
 - `examples.py` 在冒烟 scope 上经域名跑完，准备到第 11 步与收尾全部通过（129 项），重新生成 `docs/world-v02-tianshu-examples.md`。
 - 归档：tkos-secrets c8df814。**播种状态文件 `seed-eo-state.json` 没有存档**（推送前误删了本机克隆）：库里的数据完整，但不要用 `seed_eo.py` 重跑这个 scope（会多记代录说明）；下次重建后播种，每段跑完就把状态文件提交进 tkos-secrets。
-- world-lab 全程 200；主机上旧的 `world-02-24e6202-amd64` 镜像与 `releases/world-02-24e6202` 尚未删除。
+- world-lab 全程 200；确认不回退后，主机上旧的 `world-02-24e6202-amd64` 两个镜像、`releases/world-02-24e6202`（含旧 `private/` 密钥副本）、旧构建产物目录与 `.env.bak-20260930` 已删，`docker images` 里不再有 24e6202。
 
 未验证：并发写下的外部引用唯一性；大数据量下列对象的性能；天枢凭这三条委托实际代记；v0.6.0 之后再换版本是否能不重建（0039 已冻结，原地升级路径没有演练过）。

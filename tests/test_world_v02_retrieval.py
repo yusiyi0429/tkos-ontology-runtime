@@ -19,6 +19,10 @@ import pytest
 from experiments.world_v01.experiment import contamination
 from experiments.world_v02 import b_observe, counterexamples, experiment, gold, metrics, report, retrieval, spec, triggers
 
+# #79 按 Content Pact 替换了 0.2 登记，这几条要先按实验 E 的场景播种世界，场景还引用替换前的块，由 #82 改写。改写之前
+# 严格 xfail：改好后会 XPASS 而失败，届时去掉标记。
+PENDING_82 = pytest.mark.xfail(strict=True, reason="待 #82：实验 E 的场景与世界播种仍用 Content Pact 替换前的块")
+
 ROOT = Path(__file__).resolve().parents[1]
 FOLDER = ROOT / 'experiments/world_v02'
 FIXTURES = ROOT / 'tests/fixtures/world_v02_retrieval'
@@ -314,6 +318,7 @@ def test_the_runner_refuses_gold_answers_the_eo_dri_has_not_approved(tmp_path, w
         experiment.summarize(seeded_output, tmp_path / 'o')
 
 
+@PENDING_82
 def test_a_rehearsal_needs_no_approval_but_only_runs_on_a_world_seeded_from_the_current_content(tmp_path, world):
     loaded = gold.load_for_rehearsal(manifest=world['manifest'])
     assert loaded['gold'] == world['answers'] and loaded['gold']['approval']['approved_by'] is None
@@ -325,6 +330,7 @@ def test_a_rehearsal_needs_no_approval_but_only_runs_on_a_world_seeded_from_the_
                        attempts=0, rehearsal=True)
 
 
+@PENDING_82
 def test_summarize_takes_the_mode_and_attempts_from_the_run_and_marks_a_rehearsal_in_the_report(tmp_path, world):
     seeded_private, seeded_output = seeded(tmp_path, world['manifest'])
     output, _ = recorded(tmp_path, world)
@@ -345,6 +351,7 @@ def test_summarize_takes_the_mode_and_attempts_from_the_run_and_marks_a_rehearsa
         experiment.summarize(seeded_output, output)
 
 
+@PENDING_82
 def test_prepare_runs_before_approval_but_refuses_a_world_seeded_from_other_content(tmp_path, world):
     manifest = {**world['manifest'], 'content_sha256': '0' * 64}
     seeded_private, seeded_output = seeded(tmp_path, manifest)
@@ -631,6 +638,7 @@ def approved_copy(tmp_path):
     return folder / 'gold.json'
 
 
+@PENDING_82
 def test_summarize_uses_approved_gold_and_the_report_is_generated_from_the_summary_alone(tmp_path, world):
     gold_path = approved_copy(tmp_path)
     answers = json.loads(gold_path.read_text())

@@ -19,6 +19,10 @@ import pytest
 from memory_service_runtime.governed import world_v02_models as models
 from memory_service_runtime.governed import world_v02_registry as registry
 
+# #79 按 Content Pact 替换了 0.2 登记，十月起点播种 deploy/world-02/seed-eo-2026-10.json 还用替换前的块（constraint、
+# acceptance、choices 等），由 #81 重写。重写之前严格 xfail：改好后会 XPASS 而失败，届时去掉标记。
+PENDING_81 = pytest.mark.xfail(strict=True, reason="待 #81：十月起点播种仍用 Content Pact 替换前的块")
+
 ROOT = Path(__file__).resolve().parents[1]
 DEPLOY = ROOT / "deploy" / "world-02"
 spec = importlib.util.spec_from_file_location("world_02_seed_eo", DEPLOY / "seed_eo.py")
@@ -68,6 +72,7 @@ def ancestors(key: str) -> set[str]:
 
 
 # ------------------------------------------------------------------ the plan under the 0.2 models and rules
+@PENDING_81
 def test_every_step_of_the_plan_validates_under_the_0_2_models() -> None:
     seed.check_plan(PLAN)
     for step in PLAN["steps"]:

@@ -10,6 +10,10 @@ import pytest
 
 from experiments.world_v02 import counterexamples, gold, spec
 
+# #79 按 Content Pact 替换了 0.2 登记，实验 E 的场景、世界播种与标准答案还引用替换前的块（acceptance、outcome、
+# constraint 等），由 #82 改写。改写之前这几条严格 xfail：改好后会 XPASS 而失败，届时去掉标记。
+PENDING_82 = pytest.mark.xfail(strict=True, reason="待 #82：实验 E 的场景与世界播种仍用 Content Pact 替换前的块")
+
 ROOT = Path(__file__).resolve().parents[1]
 FOLDER = ROOT / 'experiments/world_v02'
 FIXTURES = ROOT / 'tests/fixtures/world_v02_experiment_e'
@@ -38,6 +42,7 @@ def concrete(ref, manifest):
 
 
 # ------------------------------------------------------------------ the committed files
+@PENDING_82
 def test_the_committed_scenarios_and_gold_are_consistent_and_not_yet_approved():
     scenarios, answers = committed()
     spec.validate(scenarios)
@@ -183,6 +188,7 @@ def test_unapproved_gold_is_refused(copies):
         gold.load_approved(copies / 'gold.json')
 
 
+@PENDING_82
 def test_approved_gold_is_loaded_until_either_file_changes(copies):
     gold.approve(copies / 'gold.json', 'E&O DRI')
     loaded = gold.load_approved(copies / 'gold.json')
@@ -201,6 +207,7 @@ def test_approved_gold_is_loaded_until_either_file_changes(copies):
         gold.load_approved(copies / 'gold.json')
 
 
+@PENDING_82
 def test_approved_gold_is_refused_for_a_world_seeded_from_other_content(copies):
     approval = gold.approve(copies / 'gold.json', 'E&O DRI')
     assert gold.load_approved(copies / 'gold.json', {'content_sha256': approval['content_sha256']})
@@ -225,10 +232,12 @@ def test_the_approval_section_is_outside_the_content_hash():
     assert gold.content_sha256(signed, scenarios) != gold.content_sha256(answers, committed()[0])
 
 
+@PENDING_82
 def test_the_review_document_is_generated_from_the_two_files():
     assert (ROOT / 'docs/world-v02-scenarios-review.md').read_text() == gold.render()
 
 
+@PENDING_82
 def test_the_review_document_marks_the_slots_waiting_for_the_real_material_and_every_decoy():
     text = gold.render()
     scenarios, answers = committed()

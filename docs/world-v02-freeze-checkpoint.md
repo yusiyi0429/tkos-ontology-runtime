@@ -6,7 +6,7 @@
 - profile：`urn:tkos:world` 修订 0.2.0，结构版本 `tkos.world-profile/0.2`，显示名 `World 0.2 business world model 2026-09-30`，`canonical_hash` `a0ab401d435353bc21748ba955cc5c1629e119b3533cb3494eaaa6dc0f9a57b6`
 - 登记：`tkos.world-registry` 0.2.0，`status: frozen`
 - 迁移：`0039_world_v02.sql` 冻结，之后不可重写
-- 验收：验证门 2026-09-30 跑完，各项全部通过（见最后一节）；0.2 独立矩阵钉在 `7cda4d5`（分支 `world/0.2-gate`，只比 `a790d19` 多了验收跑器的钉提交开关，钉定文件逐字节未变）写出 `world_v02_accepted: true`
+- 验收：验证门 2026-09-30 跑完，已跑的各项全部通过；A1 完整 runner、A2、A3 未重跑，默认库未重建（见最后一节）；0.2 独立矩阵钉在 `7cda4d5`（分支 `world/0.2-gate`，只比 `a790d19` 多了验收跑器的钉提交开关，钉定文件逐字节未变）写出 `world_v02_accepted: true`
 
 ## 钉定哈希
 
@@ -61,7 +61,7 @@
 
 ## 验证数字
 
-2026-09-30 在本机跑完，分支 `world/0.2-gate`。验收用的源码是提交 `7cda4d548075f80b47892db6784a9973fcc31612`（`7cda4d5`）：它在 `a790d19` 之上只改了 0.2 验收跑器（`acceptance/world_v02/` 与它的无库测试，加 `--commit`），上面七个钉定文件的 SHA256 与本页一致，0.2 的报告也逐个记下了这七个哈希（`frozen_files`）。所有库都在隔离验收栈（`tkos-ontology-runtime-acceptance`，PostgreSQL 127.0.0.1:55212、MinIO 55213）上新建，没有连 54350/54351 的 Clark 联动栈。原始报告在本机 `artifacts/runtime-acceptance/` 与 `.runtime-acceptance/` 下，不入库。
+2026-09-30 在本机跑完，分支 `world/0.2-gate`。验收用的源码是提交 `7cda4d548075f80b47892db6784a9973fcc31612`（`7cda4d5`）：它在 `a790d19` 之上只改了 0.2 验收跑器（`acceptance/world_v02/` 与它的无库测试，加 `--commit`），上面七个钉定文件的 SHA256 与本页一致，c、d1、d2 三份 0.2 报告的 `frozen_files` 都与上面的表逐个相同（读回核对过）。所有库都在隔离验收栈（`tkos-ontology-runtime-acceptance`，PostgreSQL 127.0.0.1:55212、MinIO 55213）上新建，没有连 54350/54351 的 Clark 联动栈。原始报告在本机 `artifacts/runtime-acceptance/` 与 `.runtime-acceptance/` 下，不入库。
 
 | 项 | 库 | 总数 | 通过 | 失败 | 跳过 | 说明 |
 |-|-|-|-|-|-|-|

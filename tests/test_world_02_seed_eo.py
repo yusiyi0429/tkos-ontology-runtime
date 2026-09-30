@@ -2,7 +2,7 @@
 以及脚本的提交与重发（假服务）。不连库、不起服务。
 
 2026-09-29 起（#73）计划按天枢个人任务重播：公司层照旧，十月周期目标与三个 Mission 只建不过门（门留给天枢代记），
-不建 Task，三人各给天枢登记含议题族的委托。"""
+不建 Task，三人各给天枢登记含议题族的委托。2026-09-30 起（#81）块与组件按方法侧 Content Pact 重排，正文不变。"""
 from __future__ import annotations
 
 from copy import deepcopy
@@ -18,10 +18,6 @@ import pytest
 
 from memory_service_runtime.governed import world_v02_models as models
 from memory_service_runtime.governed import world_v02_registry as registry
-
-# #79 按 Content Pact 替换了 0.2 登记，十月起点播种 deploy/world-02/seed-eo-2026-10.json 还用替换前的块（constraint、
-# acceptance、choices 等），由 #81 重写。重写之前严格 xfail：改好后会 XPASS 而失败，届时去掉标记。
-PENDING_81 = pytest.mark.xfail(strict=True, reason="待 #81：十月起点播种仍用 Content Pact 替换前的块")
 
 ROOT = Path(__file__).resolve().parents[1]
 DEPLOY = ROOT / "deploy" / "world-02"
@@ -72,7 +68,6 @@ def ancestors(key: str) -> set[str]:
 
 
 # ------------------------------------------------------------------ the plan under the 0.2 models and rules
-@PENDING_81
 def test_every_step_of_the_plan_validates_under_the_0_2_models() -> None:
     seed.check_plan(PLAN)
     for step in PLAN["steps"]:
@@ -203,7 +198,18 @@ def test_a_segment_takes_only_that_persons_steps_whose_prerequisites_are_met() -
 
 
 # ------------------------------------------------------------------ the content
-def test_the_company_layer_copies_the_september_replay_text() -> None:
+def texts(payload: dict) -> list[str]:
+    """一个对象正文里的全部文字：块的 text 与各组件的 text。"""
+    found = []
+    for value in payload["blocks"].values():
+        found += [value["text"]] if value.get("text") else []
+        found += [item["text"] for item in value.get("components", [])]
+    return found
+
+
+def test_the_company_layer_moves_the_september_replay_text_into_the_new_blocks_without_adding_any() -> None:
+    """公司层正文取自九月回放（experiments/world_v01/seed.json），按 Content Pact 放进新块与组件（#81）：每一段正文都是
+    同一对象某个原块正文的一段（去掉句末标点），原块正文拆出去之后只剩标点——不编造，也不丢。"""
     replay = {step["key"]: step for step in REPLAY["steps"] if step["do"] == "create"}
     for key in ("company", "strategy", "unit_eo", "company_goal", "eo_goal"):
         mine, theirs = STEPS[key]["payload"], replay[key]["payload"]
@@ -212,20 +218,43 @@ def test_the_company_layer_copies_the_september_replay_text() -> None:
             k: v for k, v in theirs.items() if k not in ("blocks", "architecture_ref")} | (
             {"architecture_ref": "@strategy#responsibility_structure/eo", "external_refs": UNIT_REFS}
             if key == "unit_eo" else {}), key
-        assert {block: value["text"] for block, value in mine["blocks"].items()} == {
-            block: value["text"] for block, value in theirs["blocks"].items()}, key
-        assert not any(value.get("artifacts") for value in mine["blocks"].values()), "feishu.example 占位链接不带"
-    entries = STEPS["strategy"]["payload"]["blocks"]["responsibility_structure"]["components"]
-    assert [(c["id"], c["type"]) for c in entries] == [("eo", "unit_entry")], "责任结构只列 E&O 一个条目"
+        pieces = [text.rstrip("。；") for text in texts(mine)]
+        originals = [value["text"] for value in theirs["blocks"].values()]
+        assert all(any(piece in original for original in originals) for piece in pieces), key
+        for original in originals:
+            for piece in sorted(pieces, key=len, reverse=True):
+                original = original.replace(piece, "")
+            assert re.fullmatch(r"[，。；：\s]*", original), (key, original)
+        assert not any(value.get("artifacts") or any(item.get("artifacts") for item in value.get("components", []))
+                       for value in mine["blocks"].values()), "feishu.example 占位链接不带"
+    assert {key: {block: [(c["id"], c["type"]) for c in value.get("components", [])]
+                  for block, value in STEPS[key]["payload"]["blocks"].items()} for key in replay
+            if key in ("company", "strategy", "unit_eo", "company_goal", "eo_goal")} == {
+        "company": {"identity": [("vision", "vision"), ("business_definition", "business_definition"),
+                                 ("values_principles", "values_principles")]},
+        "strategy": {"strategy_core": [("strategic_thesis", "strategic_thesis"),
+                                       ("competitive_advantage", "competitive_advantage"),
+                                       ("go_to_market", "go_to_market")],
+                     "business_logic": [("assumption", "assumption")],
+                     "responsibility_structure": [("eo", "unit_entry")]},
+        "unit_eo": {"definition": [("contribution", "contribution"), ("mandate", "mandate"),
+                                   ("scope_boundary", "scope_boundary"), ("key_constraint", "key_constraint")]},
+        "company_goal": {"target": [("outcome", "outcome")]},
+        "eo_goal": {"target": [("outcome", "outcome")]}}, "责任结构只列 E&O 一个条目；没有原文的组件留空"
 
 
 def test_the_october_goal_and_the_three_missions_are_the_ones_asked_for() -> None:
-    """周期目标沿用原草案（换任务卡之前的原计划原样存在 experiments/world_v02/b_source-2026-10.json）；三个 Mission 取
-    天枢里 E&O 的三个个人任务：定义块写目标，每条验收一个验收条件组件（ac-1 起编号），不写打法与约束。"""
+    """周期目标沿用原草案（换任务卡之前的原计划原样存在 experiments/world_v02/b_source-2026-10.json）：原结果与验收标准
+    两块的组件原样合进目标定义块。三个 Mission 取天枢里 E&O 的三个个人任务：目标是战役定义块里的战役结果组件，每条
+    验收一个成功 / 验收标准组件（ac-1 起编号），同在战役定义块；不写 Mission 计划块。"""
     goal = STEPS["october_goal"]["payload"]
     original = {step["key"]: step for step in json.loads(
         (ROOT / "experiments/world_v02/b_source-2026-10.json").read_text(encoding="utf-8"))["steps"]}
-    assert goal == original["october_goal"]["payload"] and "review_ref" not in goal
+    before = original["october_goal"]["payload"]
+    assert {k: v for k, v in goal.items() if k != "blocks"} == {k: v for k, v in before.items() if k != "blocks"}
+    assert "review_ref" not in goal and list(goal["blocks"]) == ["target"]
+    assert goal["blocks"]["target"]["components"] == (before["blocks"]["outcome"]["components"]
+                                                      + before["blocks"]["acceptance"]["components"])
     assert (goal["title"], goal["period"], goal["goal_ref"]) == (
         "E&O 10 月：tkos.world 0.2 在真实经营中跑通", "2026-10", "@eo_goal")
     missions = {key: STEPS[key]["payload"] for key in MISSIONS}
@@ -233,14 +262,14 @@ def test_the_october_goal_and_the_three_missions_are_the_ones_asked_for() -> Non
     assert [payload["title"] for payload in missions.values()] == [
         "Ontology & Data Grounding", "ENO / Engine Blueprint", "可信 Context / Memory 与真实 Agent 读写闭环"]
     assert all(payload["goal_ref"] == "@october_goal" and "external_refs" not in payload for payload in missions.values())
-    assert [len(payload["blocks"]["acceptance"]["components"]) for payload in missions.values()] == [4, 3, 4]
     for key, payload in missions.items():
-        assert set(payload["blocks"]) == {"definition", "acceptance"}, key
-        assert payload["blocks"]["definition"]["text"].strip(), key
-        components = payload["blocks"]["acceptance"]["components"]
-        assert [c["id"] for c in components] == [f"ac-{n}" for n in range(1, len(components) + 1)], key
-        assert all(c["type"] == "acceptance_criterion" and c["text"].strip() for c in components), key
-    assert "Receipt / Audit" in missions["mission_context"]["blocks"]["acceptance"]["components"][2]["text"]
+        assert set(payload["blocks"]) == {"definition"}, key
+        outcome, *criteria = payload["blocks"]["definition"]["components"]
+        assert (outcome["id"], outcome["type"]) == ("outcome", "outcome") and outcome["text"].strip(), key
+        assert [c["id"] for c in criteria] == [f"ac-{n}" for n in range(1, len(criteria) + 1)], key
+        assert all(c["type"] == "acceptance_criterion" and c["text"].strip() for c in criteria), key
+    assert [len(payload["blocks"]["definition"]["components"]) - 1 for payload in missions.values()] == [4, 3, 4]
+    assert "Receipt / Audit" in missions["mission_context"]["blocks"]["definition"]["components"][3]["text"]
 
 
 def test_the_unit_carries_its_tianshu_reference_from_the_seed_and_nothing_else_does() -> None:

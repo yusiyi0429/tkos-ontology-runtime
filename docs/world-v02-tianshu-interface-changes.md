@@ -349,4 +349,4 @@
 - **外部引用**：属性 `external_refs`、写法（`mission:<编号>`、`todo:<uuid>`、`capability:05`）、同一 scope 内唯一与按外部引用查找都不变（第九、十项）。
 - **委托与代记**：委托族 `gate` 门、`assign` 指派、`lifecycle` 生命周期、`issue` 议题，登记与撤销（`world_grant_delegation`、`world_revoke_delegation`），`on_behalf_of` 的三个字段，第八项对照表里可代记的动作，都不变。
 - **动作与写入流程**：动作名、prepare 再 commit、幂等键、回执、写入声明、生命周期动作（`world_start`、`world_deliver`、`world_accept`、`world_reject`、`world_reopen`、`world_cancel`）、议题动作（`world_raise_issue`、`world_route_issue`、`world_own_issue`、`world_dispose_issue`、`world_return_issue`）、外部事件 `world_record_event`、状态刷新 `world_refresh_state`、修订 `world_revise_object` 都不变；Agent 面（MCP）仍是十三个工具。
-- **读**：列对象、取对象的三组、取事件、取状态的接口与字段不变。只加不换：取对象的 `business` 组多一项 `projection`（投影项，读取时从下级对象投影，不存）：Mission 是「Task 预期结果与质量标准」，列出下级 Task 任务定义块里的工作结果与成功 / 验收标准组件；责任单元是「战役引用」，列出本单元的 Mission；其他类型为 null。取上下文里约束、验收与贡献改按组件取，「凭什么」一节是逐层的组件引用清单。
+- **读**：列对象、取对象的三组、取事件、取状态的接口与字段不变。Activity 已定为正式类型（契约待决 4），取对象的 `business.candidate` 对各类型都是 false（锁版前 Activity 为 true）。只加不换：取对象的 `business` 组多一项 `projection`（投影项，读取时从下级对象投影，不存）：Mission 是「Task 预期结果与质量标准」，列出下级 Task 任务定义块里的工作结果与成功 / 验收标准组件；责任单元是「战役引用」，列出本单元的 Mission；其他类型为 null。取上下文里约束、验收与贡献改按组件取，「凭什么」一节是逐层的组件引用清单。

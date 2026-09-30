@@ -100,7 +100,7 @@
 
 删除：`acceptance`、`constraint`。
 
-### Activity（活动，候选）
+### Activity（活动）
 
 | Content Pact | 0.2 |
 |-|-|

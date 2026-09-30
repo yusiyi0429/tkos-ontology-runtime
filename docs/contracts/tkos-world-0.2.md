@@ -17,7 +17,7 @@
 
 | 层 | 成员 | 含义 | 存储与读取 |
 |-|-|-|-|
-| 业务对象 | Company、Strategy、ResponsibilityUnit、LongTermGoal、PeriodGoal、Mission、Task；Activity 是候选类型（第 3.1 节）；Issue 不是类型，是问题组件（第 13 节）[决 2] | 有定义、有责任人、有正式内容、可被引用 | 对象存储与不可变修订；有门的按门写回 |
+| 业务对象 | Company、Strategy、ResponsibilityUnit、LongTermGoal、PeriodGoal、Mission、Task、Activity [决 4]；Issue 不是类型，是问题组件（第 13 节）[决 2] | 有定义、有责任人、有正式内容、可被引用 | 对象存储与不可变修订；有门的按门写回 |
 | 身份投影 | 责任主体（人与 Agent）、角色指派、当前有效的代记委托 | 谁在什么范围担任什么角色、可以代谁记什么，带生效与失效时间 | 由身份、角色指派与委托事件投影，不是对象 |
 | 时间记录 | 状态快照、事件、上下文包 [决 16] | 某一时刻发生或观察到了什么 | 只追加；只读最新，或按时点、按窗口读；不确认、不修订 |
 
@@ -38,10 +38,10 @@
 | PeriodGoal | 周期目标 | RU DRI | 承诺由 RU DRI；确认、再确认、复盘确认由 CEO | 第 10.3 节 |
 | Mission | Mission | Mission DRI | 立项：承诺由 Mission DRI，确认由 RU DRI | 第 10.4 节 |
 | Task | Task | Task DRI（人） | 无 | 第 10.5 节 |
-| Activity（候选） | Activity | 人或 Agent | 无 | 第 10.6 节 |
+| Activity | Activity | 人或 Agent | 无 | 第 10.6 节 |
 
 - Company 与 Strategy 不再是存根。Strategy 成为有门对象；两者的实验播种都用真实战略材料。
-- Activity 是候选类型，登记标 `candidate: true`，契约不冻结这一部分。去留由方案第三节的对照实验决定 [决 4]。结论若是 Task-only，Activity 类型作废，它的内容改由 Mission 的 Task 全景块（`execution_plan`）里带责任人的计划条目表达（第 4 节）。
+- Activity 是正式类型，即最小任务单元 [决 4]；登记里各类型的 `candidate` 都是 false。
 - 责任主体（人与 Agent）由身份与角色指派投影，不是对象类型。
 
 ### 3.2 块、块类别与块清单
@@ -59,7 +59,7 @@
 | PeriodGoal | alignment 定位与承接、target 目标定义 | — |
 | Mission | definition 战役定义、mission_plan Mission 计划 | execution_plan Task 全景 |
 | Task | definition 任务定义、task_plan Task 计划 | plan Activity 全景 |
-| Activity（候选） | instruction 执行目的与要求 | — |
+| Activity | instruction 执行目的与要求 | — |
 
 - 块按 Content Pact 重组：方法侧的「属性」就是块内的组件类型；块 id 能留就留（Company 的 `identity`，Mission、Task、责任单元的 `definition`，Activity 的 `instruction`，Mission 的 `execution_plan`，Task 的 `plan`，Strategy 的 `responsibility_structure`），只改显示名与可用组件，其余旧块删除、新块用新 id（映射表第 1 节）。
 - Mission 的计划拆成两块（映射表对齐点 4）：正式的「Mission 计划」`mission_plan`（核心路径、关键取舍、关键里程碑、关键约束与依赖）随 Mission 过门；活动块「Task 全景」`execution_plan` 沿用 0.2 原执行计划块的 id 与计划条目，随时写、不过门。Task 同样拆成正式的「Task 计划」`task_plan` 与活动块「Activity 全景」`plan`。Task 全景完整到 Task，当前推进的部分展开到 Activity 或计划条目；Mission 计划只写核心路径、关键取舍与里程碑，局部做法写进 Task 全景 [补 1]。
@@ -413,7 +413,7 @@
 - 指派由 Mission DRI 记；开始、交付由 Task DRI 记；验收通过、退回、重开、取消由 Mission DRI 记。
 - 相对 0.1：进行中由开始推出，不再由此后第一条状态快照推出；已交付、已关闭由交付、验收通过推出，不再由交付类、验收类外部事件推出；新增调整中、重开与取消。
 
-### 10.6 Activity（候选）
+### 10.6 Activity
 
 | 事件（动作） | 起始状态 | 进入状态 | 谁记 | 守卫 |
 |-|-|-|-|-|
@@ -428,7 +428,6 @@
 
 - 与 Task 同一张表，责任人可以是 Agent。指派与验收改由 Task DRI 记；0.1 是 Mission 的 Owner（本稿称 Mission DRI）指派。
 - Agent 记的交付必须由人验收：上一级责任人是 Task DRI，只能是人。
-- 对照实验的结论若是 Task-only，本表作废。
 
 ## 11. 重复、乱序、撤回、更正
 
@@ -532,7 +531,7 @@
 
 - scope 内有任一生效角色指派的责任主体，可读该 scope 的全部 world 对象、事件与快照；scope 外 404。不做单元级读隔离。
 - 读投影的输出按三层分组，键为 `business`、`identity`、`records` [补 41]：
-  - `business`：对象 id、类型、类别、是否候选类型、版本与修订 id、属性、关系引用、块与组件（空块给标准句）、投影项、组件台账、正式内容指针、进行中的一轮。投影项读取时从下级对象投影，不存（映射表对齐点 5）：Mission 的「Task 预期结果与质量标准」是各下级 Task 任务定义块里的工作结果与成功 / 验收标准组件；责任单元的「战役引用」是本单元域里的 Mission，只作导航。其余类型没有投影项。
+  - `business`：对象 id、类型、类别、是否候选类型（`candidate`，本版各类型都为否）、版本与修订 id、属性、关系引用、块与组件（空块给标准句）、投影项、组件台账、正式内容指针、进行中的一轮。投影项读取时从下级对象投影，不存（映射表对齐点 5）：Mission 的「Task 预期结果与质量标准」是各下级 Task 任务定义块里的工作结果与成功 / 验收标准组件；责任单元的「战役引用」是本单元域里的 Mission，只作导航。其余类型没有投影项。
   - `identity`：责任人（按第 3.3 节解析，注明来自属性还是角色）、与该对象有关的当前有效委托。
   - `records`：生命周期与推出它的事件、最新快照（标明未经确认）、最近的已确认复盘、主受影响对象是它且未处置的问题。
 - 取对象：输出如上；`version` 取指定修订。
@@ -566,7 +565,7 @@
 
 ## 16. 与 0.1 的差异
 
-1. 类型分三层；状态快照归时间记录；Activity 成为候选类型；Strategy 成为有门对象；Company 与 Strategy 不再是存根。
+1. 类型分三层；状态快照归时间记录；Strategy 成为有门对象；Company 与 Strategy 不再是存根。
 2. 块值加组件列表；引用加组件与事件两种形式；责任单元的 `architecture_ref` 指到责任单元条目。
 3. 块分正式块与活动块；块与组件按方法侧 Content Pact 重组，约束成为组件、按取上下文角色读；Mission 加 Mission 计划与 Task 全景（执行计划）两块；业务对象加外部引用。
 4. 事件分三类；新增 `reconfirm`、`agreement`、`review.confirmed`、`start`、`deliver`、`accept`、`reject`、`reopen`、`cancel`、`issue.*`、`delegation.*`；取消 `phase`。

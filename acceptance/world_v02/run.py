@@ -430,8 +430,8 @@ def objects(book, h, f, flow, company):
     activity, activity_view = create('a', 'Activity', 'a', {
         'title': '录屏', 'parent_ref': task['ref'],
         'blocks': {'instruction': {'text': '按脚本录屏。', 'refs': [task['ref'] + '#plan']}}})
-    check('the_activity_is_marked_as_a_candidate_type',
-          activity_view['business']['candidate'] is True and task_view['business']['candidate'] is False)
+    check('the_activity_is_a_formal_type_not_a_candidate',
+          activity_view['business']['candidate'] is False and task_view['business']['candidate'] is False)
 
     # 投影项（#79，契约第 15.1 节）：读取时从下级对象投影、不存。Mission 在建 Task 之前读是空的，之后读到 Task 任务定义
     # 块里的工作结果与成功 / 验收标准（贡献不投影），Mission 的版本不动，存下的修订里没有投影项；责任单元同理列本域的 Mission。

@@ -659,7 +659,7 @@
     "Task",
     "Activity"
    ],
-   "note": "有定义、有责任人、有正式内容、可被引用。Activity 为候选类型；Issue 按待决 2 是问题组件，不是类型。"
+   "note": "有定义、有责任人、有正式内容、可被引用。Activity 按待决 4 是正式类型（最小任务单元）；Issue 按待决 2 是问题组件，不是类型。"
   },
   {
    "display_name": "身份投影",
@@ -3628,7 +3628,7 @@
      "kind": "definition"
     }
    ],
-   "candidate": true,
+   "candidate": false,
    "category": "business_object",
    "display_name": "Activity",
    "gated": false,

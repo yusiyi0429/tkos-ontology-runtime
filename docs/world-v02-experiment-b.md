@@ -1,6 +1,6 @@
 # tkos.world/0.2 对照实验 B：Task-only 与 Task+Activity
 
-票 #66（试用回放的转写是 #75），规格 #46 的用户故事 77、78 与第十节。契约把 Activity 登记为候选类型（第 3.1 节，决 4），去留由这个对照实验决定：同一场真实 Mission 分两条线执行到关闭，看 Activity 是否需要独立的指派、执行、重试、验收与管理。结论是 Task-only 时，Activity 类型作废，它的内容改由执行计划块里带责任人的计划条目表达（第 4 节，决 8）。
+票 #66（试用回放的转写是 #75），规格 #46 的用户故事 77、78 与第十节。立项时契约把 Activity 登记为候选类型，去留由这个对照实验决定：同一场真实 Mission 分两条线执行到关闭，看 Activity 是否需要独立的指派、执行、重试、验收与管理；结论是 Task-only 时，Activity 类型作废，它的内容改由执行计划块里带责任人的计划条目表达（第 4 节，决 8）。2026-09-30 锁版前用户定 Activity 留，是正式类型（最小任务单元，契约第 3.1 节，决 4）：本实验照做，结论不再决定 0.2 里 Activity 的去留，只作以后版本调整对象结构的依据（见 `docs/world-v02-freeze-checkpoint.md`「划出去的事」）。
 
 2026-09-30 按方法侧 Content Pact 改写（#83，依据 `docs/world-v02-content-pact-mapping.md`）：Task 的块是任务定义 `definition`、Task 计划 `task_plan`（正式）与 Activity 全景 `plan`（活动块），Mission 的是战役定义 `definition`、Mission 计划 `mission_plan`（正式）与 Task 全景 `execution_plan`（活动块），Activity 的是执行目的与要求 `instruction`。计划条目 `plan_item` 在责任人之外多了四个可选属性：`expected_output` 预期产出、`quality_standard` 质量标准、`executor` 执行主体（人或 Agent 名，只作记录）、`division` 人 + Agent 分工。Task-only 线就用这四个属性承载「一段工作」的内容，与 Task+Activity 线 Activity 的 `instruction` 组件对照（第 3 节）。
 

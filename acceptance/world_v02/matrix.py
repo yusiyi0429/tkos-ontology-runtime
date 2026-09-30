@@ -361,7 +361,7 @@ CHECKS = {
         'responsibility_by_attribute_is_named_as_such_and_empty_until_assigned': ('read:identity:responsible',),
         'a_plan_item_takes_the_four_optional_attributes_and_reads_them_back':
             ('read:business:blocks_components_ledger',),
-        'the_activity_is_marked_as_a_candidate_type': ('read:business:blocks_components_ledger',),
+        'the_activity_is_a_formal_type_not_a_candidate': ('read:business:blocks_components_ledger',),
         'a_mission_projects_its_tasks_expected_results_at_read_time_and_stores_none': ('read:business:projection',),
         'a_responsibility_unit_projects_the_missions_of_its_domain_as_navigation_only': ('read:business:projection',),
         'each_of_the_seven_types_reads_back_blocks_components_ledger_and_pinned_relations':

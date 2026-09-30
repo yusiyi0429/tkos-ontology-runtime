@@ -263,7 +263,7 @@ def test_a_mission_view_gives_blocks_components_ledger_relations_and_attribute_r
     assert view["records"]["lifecycle"] is None
 
 
-def test_the_activity_is_marked_as_a_candidate_type():
+def test_the_activity_is_a_formal_type_not_a_candidate():
     from memory_service_runtime.governed import world_v02_readers as readers
     pin = {"object_id": OID, "object_version": 1, "revision_id": RID, "block": None, "component": None}
     payload = {"title": "A", "responsible": None, "external_refs": [], "parent_ref": pin, "component_ledger": [],
@@ -272,4 +272,4 @@ def test_the_activity_is_marked_as_a_candidate_type():
             "latest_revision_id": RID, "effective_revision_id": RID, "domain_id": "d"}
     view = readers.object_view(head, {"revision_id": RID, "object_version": 1, "payload": payload},
                                {"interpretation_status": "world_v0_2"}, responsible=[])
-    assert view["business"]["candidate"] is True
+    assert view["business"]["candidate"] is False

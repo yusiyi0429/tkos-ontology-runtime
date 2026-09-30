@@ -1212,7 +1212,14 @@ UNVERIFIED = [
 ]
 
 # 补检查时发现的服务与契约不符之处（格、期望、实际、复现），由人分派；没有时为空。
-DEVIATIONS: list[dict] = []
+DEVIATIONS: list[dict] = [
+    {'cell': 'read:legacy_0_1_view',
+     'expected': '0.1 对象带 view=tkos.world/0.2 读时按第 15.1 节分组（契约第 15.4 节），business 的键同 0.2 取对象'
+                 '（#63 起验收这样核）；#79 给 0.2 的 business 加了 projection（没有投影项的类型为 null）',
+     'actual': 'world_v02_legacy.object_view 的 business 没有 projection 这个键，其余键相同（#80 发现，未改 src）',
+     'reproduce': 'GET /v1/world/objects/<0.1 长期目标>?view=tkos.world/0.2 与 GET /v1/world/objects/<0.2 长期目标>，'
+                  '比较 business 的键集合；list_objects 场景的 LEGACY_BUSINESS 按实际形状核对'},
+]
 
 
 # ------------------------------------------------------------------ 判定

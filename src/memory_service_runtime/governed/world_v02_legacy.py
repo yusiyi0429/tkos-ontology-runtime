@@ -66,6 +66,7 @@ def object_view(head: dict[str, Any], revision: dict[str, Any], metadata: dict[s
                        "value": cited(pinned(payload.get(field["field"])))} for field in spec["relation_fields"]],
         "blocks": blocks(head["object_id"], version, spec["blocks"], payload["blocks"]),
         "component_ledger": [],
+        "projection": None,  # 键同 0.2 取对象（契约第 15.4 节按第 15.1 节分组）；0.1 对象没有投影项
         "formal": {"lifecycle_status": head["lifecycle_status"], "effective_revision_id": head["effective_revision_id"]},
         "round": None,
     }

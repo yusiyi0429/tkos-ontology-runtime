@@ -213,7 +213,8 @@ def test_a_0_1_mission_is_read_in_three_groups_under_the_0_1_registry():
     business = view["business"]
     assert set(business) == {"object_id", "object_type", "type_display_name", "category", "candidate", "version",
                              "revision_id", "object_version", "title", "attributes", "relations", "blocks",
-                             "component_ledger", "formal", "round"}
+                             "component_ledger", "projection", "formal", "round"}
+    assert business["projection"] is None
     assert (business["object_type"], business["category"], business["candidate"], business["version"],
             business["object_version"], business["title"]) == (
         "Mission", {"id": "business_object", "display_name": "业务对象"}, False, 2, 5, "试点一")

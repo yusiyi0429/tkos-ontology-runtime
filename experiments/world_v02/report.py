@@ -111,8 +111,9 @@ def _basis(summary: dict) -> list[str]:
     lines += _table(['组', '取到的集合'], [[names[name], text] for name, text in basis['taken'].items()])
     lines += ['']
     lines += [f"- **{label}**：{basis[key]}。" for key, label in (
-        ('recall', '召回'), ('traceability', '可追溯'), ('determinism', '确定性'), ('counterexamples', '反例'),
-        ('determinism_cited', '所引集合一致率'), ('answer_coverage', '回答覆盖'), ('cost', '成本'))]
+        ('recall', '召回'), ('traceability', '可追溯'), ('projection', '投影项'), ('determinism', '确定性'),
+        ('counterexamples', '反例'), ('determinism_cited', '所引集合一致率'), ('answer_coverage', '回答覆盖'),
+        ('cost', '成本')) if key in basis]  # #84 之前的 summary.json 没有 projection
     return lines + ['']
 
 

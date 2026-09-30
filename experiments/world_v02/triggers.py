@@ -11,6 +11,7 @@ not_triggered（未触发）或 no_data（无数据），并写明数据源、�
 2. component_ref_instability：组件引用跨修订不稳则拆块或升对象。
    数据源：读投影扫描（scan 的 component_refs）：scope 内全部对象与事件里钉着的组件引用，只看跨修订的——钉的版本早于
    目标对象的最新版；对照目标对象最新版的组件台账，组件已删（removed_in_version 不为空）或不在台账里即悬空。
+   Mission 与责任单元的投影项不算钉着的引用：读取时从下级对象最新修订投影、不存（#84）。
    跨修订的组件引用至少 MIN_COMPONENT_REFS 条才判；悬空的比例超过 MAX_DANGLING 触发。
 3. why_coverage_low：Why 覆盖持续偏低则改主干关系或取法。
    数据源：参照组 Why 问的取到召回（准备结果，不要模型）与回答覆盖（summary.json，要模型运行），逐场景。
@@ -82,12 +83,15 @@ def b_conclusions(observations: dict | None) -> dict | None:
 
 # ------------------------------------------------------------------ scan of the read projection
 def _pins(value: Any):
-    """一段读投影里全部钉定的组件引用（钉定结构带 object_id、object_version 与不为空的 component）。"""
+    """一段读投影里全部钉定的组件引用（钉定结构带 object_id、object_version 与不为空的 component）。投影项（#79）
+    不算：它是读取时对着下级对象最新修订算出来的，不存；给了正文的组件是取到的内容，只列引用的下级对象是看过的引用
+    （同 metrics.BASIS 的 projection，#84），都不是存着、会随修订悬空的钉定引用。"""
     if isinstance(value, dict):
         if value.get('component') and {'object_id', 'object_version', 'block'} <= value.keys():
             yield value
-        for item in value.values():
-            yield from _pins(item)
+        for key, item in value.items():
+            if key != 'projection':
+                yield from _pins(item)
     elif isinstance(value, list):
         for item in value:
             yield from _pins(item)

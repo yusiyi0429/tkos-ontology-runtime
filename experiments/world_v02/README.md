@@ -157,7 +157,7 @@ RUN=$(date +%Y%m%d-%H%M%S)
 
 | 文件 | 内容 |
 |-|-|
-| `b_source-2026-10.json` | 源数据：E&O 十月起点换任务卡之前的原计划，另存（#73；正文与顺序原样，块形状 9/30 按 Content Pact 改过，#82）；实例用的 `deploy/world-02/seed-eo-2026-10.json` 已改为按天枢个人任务重播 |
+| `b_source-2026-10.json` | 源数据：E&O 十月起点换任务卡之前的原计划，另存（#73；正文与顺序原样，块形状 9/30 按 Content Pact 改过，#82；Company 与 Strategy 的正文同日换成战略材料原句，#67）；实例用的 `deploy/world-02/seed-eo-2026-10.json` 已改为按天枢个人任务重播 |
 | `b_smoke_lines.json` | 冒烟的播种（lines 0.1，`b_seed` 的默认）：原计划里要的步骤（mission_trial 到 Company 的主干）、三个 Task 的责任人、每个 Task 下「谁做哪一段」的初始划分（段只带正文里原样写着的可选属性，#83） |
 | `b_lines.json` | 试用回放的主干（lines 0.2）：十月起点里 `mission_context` 到 Company 的 10 步；门、Task 与段由转写填进转写产物 `b-lines.json` |
 | `b_spec.json` | 两条线各自 scope 的名单（角色名，`deploy/world-02/provision.py` 的格式；eo-dri 另持 OWNER） |

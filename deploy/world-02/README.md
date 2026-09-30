@@ -233,13 +233,13 @@ E&O DRI 持 OWNER，是因为三个 Mission 里有一个的 Owner 是他本人�
 
 **播种计划** `seed-eo-2026-10.json`（17 步）只写主体与域的键，id 与显示名运行时取 `ids.json`。2026-09-29 E&O 定：本体的 Mission 以天枢里的个人任务为准（#73）。E&O 的三个个人任务分属两张任务卡，都还没在天枢里确认，十月月度计划也没签发，所以周期目标与 Mission 都建成未确认，门留给天枢按委托代记。
 
-- 公司层照旧：Company、Strategy（草稿，责任结构块只有 E&O 一个责任单元条目组件）、E&O 责任单元（`architecture_ref` 以组件引用指到那个条目）、公司级与 E&O 长期目标，两个长期目标由 CEO 确认。正文取自 `experiments/world_v01/seed.json`（E&O 九月回放），2026-09-30 按方法侧 Content Pact 的块与组件重排（#81，映射表 `docs/world-v02-content-pact-mapping.md`）：原有正文按意思放进最合适的新组件，不另写内容，没有原文的组件留空，每步的 `note` 写明怎么放、哪些留空。原稿的 `feishu.example` 占位链接不带。
+- 公司层照旧：Company、Strategy（草稿，责任结构块只有 E&O 一个责任单元条目组件）、E&O 责任单元（`architecture_ref` 以组件引用指到那个条目）、公司级与 E&O 长期目标，两个长期目标由 CEO 确认。正文取自 `experiments/world_v01/seed.json`（E&O 九月回放），2026-09-30 按方法侧 Content Pact 的块与组件重排（#81，映射表 `docs/world-v02-content-pact-mapping.md`）：原有正文按意思放进最合适的新组件，不另写内容，没有原文的组件留空，每步的 `note` 写明怎么放、哪些留空。组件的 id 与放法和实验 E 的主干（`experiments/world_v02/b_source-2026-10.json`）一致；表里「id：类型」的写法是组件 id 与类型不同时。原稿的 `feishu.example` 占位链接不带。
 
   | 对象 | 新块｛有原文的组件｝ | 留空的组件 |
   |-|-|-|
-  | Company | `identity`｛`vision`（原身份前一句）、`business_definition`（拟定的长期身份）、`values_principles`（原约束：不追求 Token 用量最大化）｝ | `corporate_purpose` |
-  | Strategy | `strategy_core`｛`strategic_thesis`（原战略选择）、`competitive_advantage`（原能力：共同底座）、`go_to_market`（原路径）｝；`business_logic`｛`assumption`｝；`responsibility_structure`（原样，带 `eo` 条目） | `target_customers`、`target_markets`、`value_proposition`、`trade_offs`、`business_model`、`value_logic`、`strategy_constraint` |
-  | E&O 责任单元 | `definition`｛`contribution`（支撑哪些 Mission）、`mandate`（能力域与它主导的事）、`scope_boundary`（原边界）、`key_constraint`（原约束）｝ | 无 |
+  | Company | `identity`｛`long-term-identity`：`business_definition`（拟定的长期身份）、`vision`（原身份前一句）、`token-principle`：`values_principles`（原约束：不追求 Token 用量最大化）｝ | `corporate_purpose` |
+  | Strategy | `strategy_core`｛`main-line`、`path`：两条 `strategic_thesis`（原战略选择、原路径）；`foundation`：`competitive_advantage`（原能力：共同底座）｝；`business_logic`｛`token-traction`：`assumption`｝；`responsibility_structure`（原样，带 `eo` 条目） | `target_customers`、`target_markets`、`value_proposition`、`go_to_market`、`trade_offs`、`business_model`、`value_logic`、`strategy_constraint` |
+  | E&O 责任单元 | `definition`｛`contribution`（支撑哪些 Mission）、`mandate`（能力域与它主导的事）、`boundary`：`scope_boundary`（原边界）、`method-frozen` 与 `no-graph-db`：两条 `key_constraint`（原约束按分号拆开）｝ | 无 |
   | 公司级与 E&O 长期目标 | `target`｛`outcome`｝ | `success_criterion`、`realization_logic`；`alignment` 整块 |
 - E&O 责任单元建时就带外部引用：system `tianshu`，id `capability:05`。责任单元没有门，天枢也不是它的责任人，不能以 Agent 身份修订它（#72 实测 403），所以由播种写好；这个编号不带人名。
 - E&O 十月周期目标（2026-10，`goal_ref` 指 E&O 长期目标，不带 `review_ref`）：正文沿用原草案，结果与验收标准各三条，组件 id 不变，同在目标定义块 `target`；`alignment` 整块与 `target` 的 `time_boundary`、`realization_logic` 没有原文，留空。只建，不承诺、不确认。

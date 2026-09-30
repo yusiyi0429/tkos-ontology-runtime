@@ -159,6 +159,11 @@ def test_the_script_replays_the_trial_in_record_order_with_role_keys_only():
     assert steps[27]["text"] == "打回：缺验收材料" and steps[35]["text"] == "并入接入任务"
 
 
+# #81 按 Content Pact 重写了十月起点（deploy/world-02/seed-eo-2026-10.json）：mission_context 的验收条件搬进战役定义块
+# （definition/ac-3），而录好的读投影（tests/fixtures/world_v02_transcribe/bundle.json）是替换前录的，Task 仍以
+# #acceptance/ac-3 指回 Mission，转写找不到这个主干组件就不带这条引用。读投影由 #83 按新块重录；重录之前严格 xfail，
+# 改好后会 XPASS 而失败，届时去掉标记。
+@pytest.mark.xfail(strict=True, reason="待 #83：转写用的读投影是 Content Pact 替换前录的，Task 仍指回 Mission 的 acceptance 块")
 def test_the_seed_carries_the_gates_and_the_tasks_with_their_first_assignment():
     assert LINES["format"] == b_seed.LINES_FORMAT_02 and LINES["source"] == json.loads(
         b_seed.LINES_FILE.read_text(encoding="utf-8"))["source"]

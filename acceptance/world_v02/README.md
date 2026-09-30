@@ -171,7 +171,7 @@
 
 - 隔离验收栈正在运行：`python3 acceptance/runtime/infra.py status`（项目 `tkos-ontology-runtime-acceptance`）。不连 54350/54351 的 Clark 联动栈。
 - 基础 env 为仅本人可读的 `.runtime-acceptance/env.json`。不要打印 env、DSN 或令牌，也不要提交 `.runtime-acceptance/`。
-- 分支 `world/0.2-pact` 上（#80）：实验 E、四种取法对照所用的 `experiments/world_v02` 场景与标准答案、对照实验 B 的两条线仍是替换前的块，待 #82、#83 改写；在那之前整跑停在 `experiment_e` 的第一条检查（首败即停），B 与四种取法对照到不了，`passed` 为 false。
+- 分支 `world/0.2-pact` 上（#80）：实验 E、四种取法对照所用的场景与标准答案（#82）、对照实验 B 的两条线（#83）都已按新块改写；#83 的分支在隔离栈新库上整跑 871 项全过（2026-09-30）。矩阵要求库里事先只有 0.1 的事件行：跑过 `b_seed smoke`、`b_rehearse` 的库已有 0.2 事件，迁移组的检查会失败，矩阵另用新库。
 - 0039 在锁版前可以重写（ADR-0009）。改写后，已应用旧 0039 的库再迁移会报「已应用的迁移文件被改动过」，每次都用新建的库。`infra.py up` 会把隔离栈的共享库 `tkos_runtime_acceptance` 迁移到当前检出的源码，它同样受这条限制。
 
 ## 建库并运行

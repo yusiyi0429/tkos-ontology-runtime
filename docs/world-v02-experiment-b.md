@@ -263,7 +263,7 @@ python3 -m experiments.world_v02.b_drive status $B/task-only           # 只看�
 ## 10. 验证
 
 - 无库测试 `tests/test_world_v02_experiment_b.py`：共同播种就是原计划里 mission_trial 的主干、名单只有角色名且过 `provision.check_spec`、段与角色合登记；冒烟的段只带正文里原样写着的可选属性、写了的不能为空；脚本校验（只有 `plan` 带四个可选属性）；驱动器按线的写法（假 HTTP）：Activity 与它的 `instruction` 组件、带可选属性的计划条目（每次改都整条带上）、只有一段的 Task 与配对、退路、快照前的外部事件、问题引用、行动者不换人；取证里 Task-only 线的计划条目带段的属性、Task+Activity 线的 Task 计划块为空；三种表达结果；传输（假 HTTP）：被拒是结果不是错误，提交中途断掉原样重发拿回原回执，重发被拒则重新 prepare，服务端错误留着请求；用录好的冒烟运行日志核对五项观测的发生与未发生（去掉对应步骤）、独立的判定、Task-only 线的三种表达、结论规则（粗粒度不留对象、不独立的不留对象、五项都没发生）、Agent 写入的主体、两份日志必须是同一次对照。
-- 独立验收 `acceptance/world_v02/` 的场景 `experiment_b`：隔离库上两条线播种、读回、按冒烟脚本推到 Mission 关闭，经读投影与只读 SQL 核对（见该目录 README）。
+- 独立验收 `acceptance/world_v02/` 的场景 `experiment_b`：隔离库上两条线播种、读回、按冒烟脚本推到 Mission 关闭，经读投影与只读 SQL 核对（见该目录 README）。按新块（#83，2026-09-30，分支 `world/0.2-pact-83`）：新库 `tkos_a1_method_f2b0d9f281cd4ba6` 上整跑 871 项全过（25 组都跑完，其中 `experiment_b` 11 项，矩阵 445 格覆盖 440、不适用 5）；同库回归库 `tkos_a1_world_f2063232ec014d29` 上 0.1 的 248 项与四个门槛全过，其后 0.2 同样 871 项全过（库里原有的 125 条 0.1 事件行只被校验）。
 - 实例上的冒烟（2026-09-29，world-02 跑 c29e7d5 镜像，实验代码取 d82d176）：
   - 按上面「实例 scope」的命令，在主机上各供给一个 scope：Task-only 线 `885495de`，Task+Activity 线 `1816d844`，tenant `tokenking-world-02-experiment-b`。
   - 在本机经域名跑完 seed、drive、collect、observe、status，全部退出码 0，两条线的 Mission 都读回已关闭。

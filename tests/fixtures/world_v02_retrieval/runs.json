@@ -41,7 +41,7 @@
      "answer": {"claims": [
        {"claim": "进行中。", "kind": "fact", "refs": ["@task_experiment_e", "event:start_experiment_e"]}]}},
     {"group": "fixed", "scenario": "task_only", "question": "what", "attempt": 1, "status": "ok",
-     "context": {"chars": 12858, "taken": ["@task_experiment_e", "@task_experiment_e#definition", "@task_experiment_e#acceptance", "@task_experiment_e#acceptance/ac-gold", "@task_experiment_e#plan", "@task_experiment_e#plan/scenarios", "@task_experiment_e#plan/judge", "@task_experiment_e#plan/review", "@task_experiment_e#plan/material"]},
+     "context": {"chars": 12858, "taken": ["@task_experiment_e", "@task_experiment_e#definition", "@task_experiment_e#definition/ac-gold", "@task_experiment_e#plan", "@task_experiment_e#plan/scenarios", "@task_experiment_e#plan/judge", "@task_experiment_e#plan/review", "@task_experiment_e#plan/material"]},
      "answer": {"claims": [
        {"claim": "五个场景，用真实战略材料，写标准答案。", "kind": "fact", "refs": ["@task_experiment_e#definition"]},
        {"claim": "没有 Activity，也就没有安排。", "kind": "gap", "refs": ["@task_experiment_e#plan"]}]}},

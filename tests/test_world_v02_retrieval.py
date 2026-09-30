@@ -3,9 +3,11 @@
 无库、不接模型。对照实验 B 用 #66 录好的冒烟运行日志（tests/fixtures/world_v02_experiment_b/）经 b_observe 算出的观测。
 
 fixture（tests/fixtures/world_v02_retrieval/）：
-- corpus.json：一次真实播种（实验 E）的读投影里取的 8 个对象与 25 条事件，id 按实验 E 测试的假播种清单换过
-  （有键的对象与事件用 uuid5，其余顺序编号），正文不变；
-- prepared.json：同一次播种上准备命令的输出，id 同样换过；
+- corpus.json：9/29 一次真实播种（实验 E）的读投影里取的 8 个对象与 25 条事件，id 按实验 E 测试的假播种清单换过
+  （有键的对象与事件用 uuid5，其余顺序编号）。#82 按 Content Pact 的新块改写，没有在新库上重跑：业务对象的块、
+  组件台账与投影项、快照的块、事件里钉着的块按新场景文件与读投影的形状重建，其余字段原样；
+- prepared.json：同一次播种上准备命令的输出，id 同样换过；#82 改写的口径写在文件的 note 里（应引项、标签与召回
+  按新标准答案，字符数、预算与装入块数沿用那次运行）；
 - runs.json：录好的运行（引用写成占位，测试里换成具体引用后写成跑器的输出目录）。
 """
 from copy import deepcopy
@@ -18,10 +20,6 @@ import pytest
 
 from experiments.world_v01.experiment import contamination
 from experiments.world_v02 import b_observe, counterexamples, experiment, gold, metrics, report, retrieval, spec, triggers
-
-# #79 按 Content Pact 替换了 0.2 登记，这几条要先按实验 E 的场景播种世界，场景还引用替换前的块，由 #82 改写。改写之前
-# 严格 xfail：改好后会 XPASS 而失败，届时去掉标记。
-PENDING_82 = pytest.mark.xfail(strict=True, reason="待 #82：实验 E 的场景与世界播种仍用 Content Pact 替换前的块")
 
 ROOT = Path(__file__).resolve().parents[1]
 FOLDER = ROOT / 'experiments/world_v02'
@@ -153,7 +151,11 @@ def test_objects_are_cut_into_a_header_their_blocks_and_components_and_every_eve
     assert found[snapshot].kind == 'object' and '主体' in found[snapshot].text  # 快照：表头加块
     assert found[concrete('@snap_retrieval#progress', manifest)].kind == 'block'
     assert found[concrete('event:start_retrieval', manifest)].kind == 'event'
-    assert found[concrete('@task_freeze#plan', manifest)].text.endswith('当前没有计划')  # 空块写标准句
+    assert found[concrete('@task_freeze#plan', manifest)].text.endswith('当前没有Activity 全景')  # 空块写标准句
+    # 投影项只在出发对象的表头里列下级对象的引用（内容在下级对象自己的分块里），表头只带自己的引用
+    mission = found[concrete('@mission_experiments', manifest)]
+    assert '投影项「Task 预期结果与质量标准」' in mission.text and concrete('@task_retrieval_report', manifest) in mission.text
+    assert retrieval.taken([mission]) == ({mission.ref}, set())
     assert len([chunk for chunk in found.values() if chunk.kind == 'event']) == len(corpus()['events'])
 
 
@@ -318,7 +320,6 @@ def test_the_runner_refuses_gold_answers_the_eo_dri_has_not_approved(tmp_path, w
         experiment.summarize(seeded_output, tmp_path / 'o')
 
 
-@PENDING_82
 def test_a_rehearsal_needs_no_approval_but_only_runs_on_a_world_seeded_from_the_current_content(tmp_path, world):
     loaded = gold.load_for_rehearsal(manifest=world['manifest'])
     assert loaded['gold'] == world['answers'] and loaded['gold']['approval']['approved_by'] is None
@@ -330,7 +331,6 @@ def test_a_rehearsal_needs_no_approval_but_only_runs_on_a_world_seeded_from_the_
                        attempts=0, rehearsal=True)
 
 
-@PENDING_82
 def test_summarize_takes_the_mode_and_attempts_from_the_run_and_marks_a_rehearsal_in_the_report(tmp_path, world):
     seeded_private, seeded_output = seeded(tmp_path, world['manifest'])
     output, _ = recorded(tmp_path, world)
@@ -351,7 +351,6 @@ def test_summarize_takes_the_mode_and_attempts_from_the_run_and_marks_a_rehearsa
         experiment.summarize(seeded_output, output)
 
 
-@PENDING_82
 def test_prepare_runs_before_approval_but_refuses_a_world_seeded_from_other_content(tmp_path, world):
     manifest = {**world['manifest'], 'content_sha256': '0' * 64}
     seeded_private, seeded_output = seeded(tmp_path, manifest)
@@ -393,9 +392,9 @@ def test_traceability_counts_what_the_model_was_shown_while_recall_counts_what_i
 
 def test_saying_a_criterion_is_not_yet_met_is_not_calling_the_block_empty(world):
     gold_item = world['golds']['task_only']
-    acceptance = next(item['ref'] for item in gold_item['counterexamples']['content_as_empty']['decoys']
-                      if item['ref'].endswith('#acceptance'))
-    component = acceptance + '/ac-gold'  # 彩排里全量组那条 gap 断言引的就是这条验收标准
+    definition = next(item['ref'] for item in gold_item['counterexamples']['content_as_empty']['decoys']
+                      if item['ref'].endswith('#definition'))
+    component = definition + '/ac-gold'  # 彩排里全量组那条 gap 断言引的就是这条验收标准（#82 起在任务定义块里）
     judged = counterexamples.judge([{'claim': '标准答案还没有批准记录', 'kind': 'gap', 'refs': [component]}],
                                    gold_item, 'now')
     assert judged['content_as_empty']['occurred'] is False
@@ -454,7 +453,7 @@ def test_counterexamples_count_once_per_run_question_and_category_and_fail_the_g
     for run in runs:
         if run['scenario'] == 'version_change' and run['question'] == 'basis' and run['attempt'] == 1:
             run['answer']['claims'].append({'claim': '旧版', 'kind': 'fact',
-                                            'refs': [concrete('@october_goal@1#acceptance/ac-lock', manifest)] * 2})
+                                            'refs': [concrete('@october_goal@1#target/ac-lock', manifest)] * 2})
         if run['scenario'] == 'constraint_conflict' and run['question'] == 'basis' and run['attempt'] == 2:
             run['answer']['claims'] = [claim for claim in run['answer']['claims'] if claim['kind'] != 'conflict']
     result = metrics.group(golds, runs, 3, 30000)
@@ -549,9 +548,9 @@ def test_component_ref_instability_on_the_scan_of_the_read_projection(world):
     manifest = world['manifest']
     scanned = triggers.scan(corpus())
     pinned = {item['ref']: item for item in scanned['component_refs']}
-    old = concrete('@october_goal@1#acceptance/ac-lock', manifest)
+    old = concrete('@october_goal@1#target/ac-lock', manifest)
     assert pinned[old]['cross_revision'] and pinned[old]['present'] and pinned[old]['latest_version'] == 2
-    assert not pinned[concrete('@october_goal#acceptance/ac-lock', manifest)]['cross_revision']
+    assert not pinned[concrete('@october_goal#target/ac-lock', manifest)]['cross_revision']
     broken = corpus()
     goal = next(view for view in broken['objects']
                 if 'business' in view and view['business']['object_id'] == concrete('@october_goal', manifest).split('@')[0])
@@ -638,7 +637,6 @@ def approved_copy(tmp_path):
     return folder / 'gold.json'
 
 
-@PENDING_82
 def test_summarize_uses_approved_gold_and_the_report_is_generated_from_the_summary_alone(tmp_path, world):
     gold_path = approved_copy(tmp_path)
     answers = json.loads(gold_path.read_text())

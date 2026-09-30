@@ -36,54 +36,211 @@
     "blocks": [
      {
       "id": "definition",
-      "display_name": "定义",
+      "display_name": "责任定义",
       "kind": "definition",
       "class": "formal",
       "value": {
        "refs": [],
-       "text": "Engine & Ontology，战场图编号 05 的能力域：主导语义模型（本体）与 Context Runtime，主要支撑灯塔项目的 Mission 01-2、01-3、01-4。",
+       "text": "",
        "artifacts": [],
-       "components": []
+       "components": [
+        {
+         "id": "contribution",
+         "refs": [],
+         "text": "主要支撑灯塔项目的 Mission 01-2、01-3、01-4。",
+         "type": "contribution",
+         "scope": null,
+         "artifacts": [],
+         "attributes": {},
+         "ref": "81fcaee2-0dd9-50f7-bb07-e908c6e9d202@1#definition/contribution"
+        },
+        {
+         "id": "mandate",
+         "refs": [],
+         "text": "Engine & Ontology，战场图编号 05 的能力域：主导语义模型（本体）与 Context Runtime。",
+         "type": "mandate",
+         "scope": null,
+         "artifacts": [],
+         "attributes": {},
+         "ref": "81fcaee2-0dd9-50f7-bb07-e908c6e9d202@1#definition/mandate"
+        },
+        {
+         "id": "boundary",
+         "refs": [],
+         "text": "业务建模不归 E&O：由 CEO 与 Method 锁定业务语义，E&O 忠实翻译成语义模型、数据承载与运行时。Activity 要不要成为对象由 E&O 自己定。",
+         "type": "scope_boundary",
+         "scope": null,
+         "artifacts": [],
+         "attributes": {},
+         "ref": "81fcaee2-0dd9-50f7-bb07-e908c6e9d202@1#definition/boundary"
+        },
+        {
+         "id": "method-frozen",
+         "refs": [],
+         "text": "tkos.method/0.4、0.5 冻结不改。",
+         "type": "key_constraint",
+         "scope": null,
+         "artifacts": [],
+         "attributes": {},
+         "ref": "81fcaee2-0dd9-50f7-bb07-e908c6e9d202@1#definition/method-frozen"
+        },
+        {
+         "id": "no-graph-db",
+         "refs": [],
+         "text": "当前量级用 PostgreSQL 加 pgvector，不引入图数据库。",
+         "type": "key_constraint",
+         "scope": null,
+         "artifacts": [],
+         "attributes": {},
+         "ref": "81fcaee2-0dd9-50f7-bb07-e908c6e9d202@1#definition/no-graph-db"
+        }
+       ]
       },
       "empty": false,
-      "text": "Engine & Ontology，战场图编号 05 的能力域：主导语义模型（本体）与 Context Runtime，主要支撑灯塔项目的 Mission 01-2、01-3、01-4。",
-      "components": [],
+      "text": "",
+      "components": [
+       {
+        "id": "contribution",
+        "refs": [],
+        "text": "主要支撑灯塔项目的 Mission 01-2、01-3、01-4。",
+        "type": "contribution",
+        "scope": null,
+        "artifacts": [],
+        "attributes": {},
+        "ref": "81fcaee2-0dd9-50f7-bb07-e908c6e9d202@1#definition/contribution"
+       },
+       {
+        "id": "mandate",
+        "refs": [],
+        "text": "Engine & Ontology，战场图编号 05 的能力域：主导语义模型（本体）与 Context Runtime。",
+        "type": "mandate",
+        "scope": null,
+        "artifacts": [],
+        "attributes": {},
+        "ref": "81fcaee2-0dd9-50f7-bb07-e908c6e9d202@1#definition/mandate"
+       },
+       {
+        "id": "boundary",
+        "refs": [],
+        "text": "业务建模不归 E&O：由 CEO 与 Method 锁定业务语义，E&O 忠实翻译成语义模型、数据承载与运行时。Activity 要不要成为对象由 E&O 自己定。",
+        "type": "scope_boundary",
+        "scope": null,
+        "artifacts": [],
+        "attributes": {},
+        "ref": "81fcaee2-0dd9-50f7-bb07-e908c6e9d202@1#definition/boundary"
+       },
+       {
+        "id": "method-frozen",
+        "refs": [],
+        "text": "tkos.method/0.4、0.5 冻结不改。",
+        "type": "key_constraint",
+        "scope": null,
+        "artifacts": [],
+        "attributes": {},
+        "ref": "81fcaee2-0dd9-50f7-bb07-e908c6e9d202@1#definition/method-frozen"
+       },
+       {
+        "id": "no-graph-db",
+        "refs": [],
+        "text": "当前量级用 PostgreSQL 加 pgvector，不引入图数据库。",
+        "type": "key_constraint",
+        "scope": null,
+        "artifacts": [],
+        "attributes": {},
+        "ref": "81fcaee2-0dd9-50f7-bb07-e908c6e9d202@1#definition/no-graph-db"
+       }
+      ],
       "ref": "81fcaee2-0dd9-50f7-bb07-e908c6e9d202@1#definition"
+     }
+    ],
+    "component_ledger": [
+     {
+      "id": "contribution",
+      "type": "contribution",
+      "block": "definition",
+      "added_in_version": 1,
+      "removed_in_version": null
+     },
+     {
+      "id": "mandate",
+      "type": "mandate",
+      "block": "definition",
+      "added_in_version": 1,
+      "removed_in_version": null
      },
      {
       "id": "boundary",
-      "display_name": "边界",
-      "kind": "definition",
-      "class": "formal",
-      "value": {
-       "refs": [],
-       "text": "业务建模不归 E&O：由 CEO 与 Method 锁定业务语义，E&O 忠实翻译成语义模型、数据承载与运行时。Activity 要不要成为对象由 E&O 自己定。",
-       "artifacts": [],
-       "components": []
-      },
-      "empty": false,
-      "text": "业务建模不归 E&O：由 CEO 与 Method 锁定业务语义，E&O 忠实翻译成语义模型、数据承载与运行时。Activity 要不要成为对象由 E&O 自己定。",
-      "components": [],
-      "ref": "81fcaee2-0dd9-50f7-bb07-e908c6e9d202@1#boundary"
+      "type": "scope_boundary",
+      "block": "definition",
+      "added_in_version": 1,
+      "removed_in_version": null
      },
      {
-      "id": "constraint",
-      "display_name": "约束",
-      "kind": "constraint",
-      "class": "formal",
-      "value": {
-       "refs": [],
-       "text": "tkos.method/0.4、0.5 冻结不改；当前量级用 PostgreSQL 加 pgvector，不引入图数据库。",
-       "artifacts": [],
-       "components": []
-      },
-      "empty": false,
-      "text": "tkos.method/0.4、0.5 冻结不改；当前量级用 PostgreSQL 加 pgvector，不引入图数据库。",
-      "components": [],
-      "ref": "81fcaee2-0dd9-50f7-bb07-e908c6e9d202@1#constraint"
+      "id": "method-frozen",
+      "type": "key_constraint",
+      "block": "definition",
+      "added_in_version": 1,
+      "removed_in_version": null
+     },
+     {
+      "id": "no-graph-db",
+      "type": "key_constraint",
+      "block": "definition",
+      "added_in_version": 1,
+      "removed_in_version": null
      }
     ],
-    "component_ledger": [],
+    "projection": {
+     "id": "mission_refs",
+     "display_name": "战役引用",
+     "items": [
+      {
+       "object_id": "89a0f064-5ccf-5126-aed6-946e455d2cab",
+       "object_type": "Mission",
+       "type_display_name": "Mission",
+       "title": "天枢 × 本体 0.2 试用",
+       "ref": "89a0f064-5ccf-5126-aed6-946e455d2cab@2",
+       "pinned": {
+        "object_id": "89a0f064-5ccf-5126-aed6-946e455d2cab",
+        "object_version": 2,
+        "revision_id": "00000000-0000-4000-8000-000000000057",
+        "block": null,
+        "component": null,
+        "ref": "89a0f064-5ccf-5126-aed6-946e455d2cab@2"
+       }
+      },
+      {
+       "object_id": "90bfd291-b335-5fb4-8385-0679368a9e50",
+       "object_type": "Mission",
+       "type_display_name": "Mission",
+       "title": "0.2 实验与报告",
+       "ref": "90bfd291-b335-5fb4-8385-0679368a9e50@2",
+       "pinned": {
+        "object_id": "90bfd291-b335-5fb4-8385-0679368a9e50",
+        "object_version": 2,
+        "revision_id": "00000000-0000-4000-8000-000000000006",
+        "block": null,
+        "component": null,
+        "ref": "90bfd291-b335-5fb4-8385-0679368a9e50@2"
+       }
+      },
+      {
+       "object_id": "8f5159a4-1855-5996-84c1-b524a94113fc",
+       "object_type": "Mission",
+       "type_display_name": "Mission",
+       "title": "0.2 锁版",
+       "ref": "8f5159a4-1855-5996-84c1-b524a94113fc@2",
+       "pinned": {
+        "object_id": "8f5159a4-1855-5996-84c1-b524a94113fc",
+        "object_version": 2,
+        "revision_id": "00000000-0000-4000-8000-000000000009",
+        "block": null,
+        "component": null,
+        "ref": "8f5159a4-1855-5996-84c1-b524a94113fc@2"
+       }
+      }
+     ]
+    },
     "formal": {
      "lifecycle_status": "recorded",
      "effective_revision_id": "00000000-0000-4000-8000-000000000001"
@@ -156,8 +313,19 @@
     ],
     "blocks": [
      {
-      "id": "outcome",
-      "display_name": "结果",
+      "id": "alignment",
+      "display_name": "定位与承接",
+      "kind": "definition",
+      "class": "formal",
+      "value": null,
+      "empty": true,
+      "text": "当前没有定位与承接",
+      "components": [],
+      "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@2#alignment"
+     },
+     {
+      "id": "target",
+      "display_name": "目标定义",
       "kind": "definition",
       "class": "formal",
       "value": {
@@ -173,7 +341,7 @@
          "scope": null,
          "artifacts": [],
          "attributes": {},
-         "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@2#outcome/tianshu"
+         "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@2#target/tianshu"
         },
         {
          "id": "records",
@@ -183,7 +351,7 @@
          "scope": null,
          "artifacts": [],
          "attributes": {},
-         "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@2#outcome/records"
+         "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@2#target/records"
         },
         {
          "id": "lock",
@@ -193,7 +361,37 @@
          "scope": null,
          "artifacts": [],
          "attributes": {},
-         "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@2#outcome/lock"
+         "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@2#target/lock"
+        },
+        {
+         "id": "ac-tianshu",
+         "refs": [],
+         "text": "10 月 16 日天枢联调验收通过",
+         "type": "acceptance_criterion",
+         "scope": null,
+         "artifacts": [],
+         "attributes": {},
+         "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@2#target/ac-tianshu"
+        },
+        {
+         "id": "ac-records",
+         "refs": [],
+         "text": "E&O 十月的工作全部经本体记录（每张任务卡有每周快照，执行事项的完成由交付事件推出）",
+         "type": "acceptance_criterion",
+         "scope": null,
+         "artifacts": [],
+         "attributes": {},
+         "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@2#target/ac-records"
+        },
+        {
+         "id": "ac-lock",
+         "refs": [],
+         "text": "10 月 20 日 CEO 定下对象结构之后，tkos.world 0.2 锁版（验收冻结并钉定提交）",
+         "type": "acceptance_criterion",
+         "scope": null,
+         "artifacts": [],
+         "attributes": {},
+         "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@2#target/ac-lock"
         }
        ]
       },
@@ -208,7 +406,7 @@
         "scope": null,
         "artifacts": [],
         "attributes": {},
-        "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@2#outcome/tianshu"
+        "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@2#target/tianshu"
        },
        {
         "id": "records",
@@ -218,7 +416,7 @@
         "scope": null,
         "artifacts": [],
         "attributes": {},
-        "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@2#outcome/records"
+        "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@2#target/records"
        },
        {
         "id": "lock",
@@ -228,67 +426,8 @@
         "scope": null,
         "artifacts": [],
         "attributes": {},
-        "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@2#outcome/lock"
-       }
-      ],
-      "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@2#outcome"
-     },
-     {
-      "id": "realization_logic",
-      "display_name": "实现逻辑",
-      "kind": "definition",
-      "class": "formal",
-      "value": null,
-      "empty": true,
-      "text": "当前没有实现逻辑",
-      "components": [],
-      "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@2#realization_logic"
-     },
-     {
-      "id": "acceptance",
-      "display_name": "验收标准",
-      "kind": "definition",
-      "class": "formal",
-      "value": {
-       "refs": [],
-       "text": "",
-       "artifacts": [],
-       "components": [
-        {
-         "id": "ac-tianshu",
-         "refs": [],
-         "text": "10 月 16 日天枢联调验收通过",
-         "type": "acceptance_criterion",
-         "scope": null,
-         "artifacts": [],
-         "attributes": {},
-         "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@2#acceptance/ac-tianshu"
-        },
-        {
-         "id": "ac-records",
-         "refs": [],
-         "text": "E&O 十月的工作全部经本体记录（每张任务卡有每周快照，执行事项的完成由交付事件推出）",
-         "type": "acceptance_criterion",
-         "scope": null,
-         "artifacts": [],
-         "attributes": {},
-         "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@2#acceptance/ac-records"
-        },
-        {
-         "id": "ac-lock",
-         "refs": [],
-         "text": "10 月 20 日 CEO 定下对象结构之后，tkos.world 0.2 锁版（验收冻结并钉定提交）",
-         "type": "acceptance_criterion",
-         "scope": null,
-         "artifacts": [],
-         "attributes": {},
-         "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@2#acceptance/ac-lock"
-        }
-       ]
-      },
-      "empty": false,
-      "text": "",
-      "components": [
+        "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@2#target/lock"
+       },
        {
         "id": "ac-tianshu",
         "refs": [],
@@ -297,7 +436,7 @@
         "scope": null,
         "artifacts": [],
         "attributes": {},
-        "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@2#acceptance/ac-tianshu"
+        "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@2#target/ac-tianshu"
        },
        {
         "id": "ac-records",
@@ -307,7 +446,7 @@
         "scope": null,
         "artifacts": [],
         "attributes": {},
-        "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@2#acceptance/ac-records"
+        "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@2#target/ac-records"
        },
        {
         "id": "ac-lock",
@@ -317,67 +456,57 @@
         "scope": null,
         "artifacts": [],
         "attributes": {},
-        "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@2#acceptance/ac-lock"
+        "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@2#target/ac-lock"
        }
       ],
-      "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@2#acceptance"
-     },
-     {
-      "id": "constraint",
-      "display_name": "约束",
-      "kind": "constraint",
-      "class": "formal",
-      "value": null,
-      "empty": true,
-      "text": "当前没有约束",
-      "components": [],
-      "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@2#constraint"
+      "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@2#target"
      }
     ],
     "component_ledger": [
      {
       "id": "tianshu",
       "type": "outcome",
-      "block": "outcome",
+      "block": "target",
       "added_in_version": 1,
       "removed_in_version": null
      },
      {
       "id": "records",
       "type": "outcome",
-      "block": "outcome",
+      "block": "target",
       "added_in_version": 1,
       "removed_in_version": null
      },
      {
       "id": "lock",
       "type": "outcome",
-      "block": "outcome",
+      "block": "target",
       "added_in_version": 1,
       "removed_in_version": null
      },
      {
       "id": "ac-tianshu",
       "type": "acceptance_criterion",
-      "block": "acceptance",
+      "block": "target",
       "added_in_version": 1,
       "removed_in_version": null
      },
      {
       "id": "ac-records",
       "type": "acceptance_criterion",
-      "block": "acceptance",
+      "block": "target",
       "added_in_version": 1,
       "removed_in_version": null
      },
      {
       "id": "ac-lock",
       "type": "acceptance_criterion",
-      "block": "acceptance",
+      "block": "target",
       "added_in_version": 1,
       "removed_in_version": null
      }
     ],
+    "projection": null,
     "formal": {
      "lifecycle_status": "confirmed",
      "effective_revision_id": "00000000-0000-4000-8000-000000000004"
@@ -456,66 +585,237 @@
     "blocks": [
      {
       "id": "definition",
-      "display_name": "定义",
+      "display_name": "战役定义",
       "kind": "definition",
       "class": "formal",
       "value": {
        "refs": [],
-       "text": "0.2 的实验与实验报告：对照实验 B（Task-only 与 Task+Activity），实验 E（五个场景、真实战略材料与标准答案），四种取法对照（含 RAG），写成实验报告。",
+       "text": "",
        "artifacts": [],
-       "components": []
+       "components": [
+        {
+         "id": "report",
+         "refs": [],
+         "text": "0.2 的实验与实验报告。",
+         "type": "outcome",
+         "scope": null,
+         "artifacts": [],
+         "attributes": {},
+         "ref": "90bfd291-b335-5fb4-8385-0679368a9e50@2#definition/report"
+        }
+       ]
       },
       "empty": false,
-      "text": "0.2 的实验与实验报告：对照实验 B（Task-only 与 Task+Activity），实验 E（五个场景、真实战略材料与标准答案），四种取法对照（含 RAG），写成实验报告。",
-      "components": [],
+      "text": "",
+      "components": [
+       {
+        "id": "report",
+        "refs": [],
+        "text": "0.2 的实验与实验报告。",
+        "type": "outcome",
+        "scope": null,
+        "artifacts": [],
+        "attributes": {},
+        "ref": "90bfd291-b335-5fb4-8385-0679368a9e50@2#definition/report"
+       }
+      ],
       "ref": "90bfd291-b335-5fb4-8385-0679368a9e50@2#definition"
      },
      {
-      "id": "acceptance",
-      "display_name": "验收标准",
+      "id": "mission_plan",
+      "display_name": "Mission 计划",
       "kind": "definition",
       "class": "formal",
-      "value": null,
-      "empty": true,
-      "text": "当前没有验收标准",
-      "components": [],
-      "ref": "90bfd291-b335-5fb4-8385-0679368a9e50@2#acceptance"
-     },
-     {
-      "id": "play",
-      "display_name": "打法",
-      "kind": "definition",
-      "class": "formal",
-      "value": null,
-      "empty": true,
-      "text": "当前没有打法",
-      "components": [],
-      "ref": "90bfd291-b335-5fb4-8385-0679368a9e50@2#play"
+      "value": {
+       "refs": [],
+       "text": "",
+       "artifacts": [],
+       "components": [
+        {
+         "id": "path",
+         "refs": [],
+         "text": "对照实验 B（Task-only 与 Task+Activity），实验 E（五个场景、真实战略材料与标准答案），四种取法对照（含 RAG），写成实验报告。",
+         "type": "core_path",
+         "scope": null,
+         "artifacts": [],
+         "attributes": {},
+         "ref": "90bfd291-b335-5fb4-8385-0679368a9e50@2#mission_plan/path"
+        }
+       ]
+      },
+      "empty": false,
+      "text": "",
+      "components": [
+       {
+        "id": "path",
+        "refs": [],
+        "text": "对照实验 B（Task-only 与 Task+Activity），实验 E（五个场景、真实战略材料与标准答案），四种取法对照（含 RAG），写成实验报告。",
+        "type": "core_path",
+        "scope": null,
+        "artifacts": [],
+        "attributes": {},
+        "ref": "90bfd291-b335-5fb4-8385-0679368a9e50@2#mission_plan/path"
+       }
+      ],
+      "ref": "90bfd291-b335-5fb4-8385-0679368a9e50@2#mission_plan"
      },
      {
       "id": "execution_plan",
-      "display_name": "执行计划",
+      "display_name": "Task 全景",
       "kind": "plan",
       "class": "activity",
       "value": null,
       "empty": true,
-      "text": "当前没有执行计划",
+      "text": "当前没有Task 全景",
       "components": [],
       "ref": "90bfd291-b335-5fb4-8385-0679368a9e50@2#execution_plan"
-     },
-     {
-      "id": "constraint",
-      "display_name": "约束",
-      "kind": "constraint",
-      "class": "formal",
-      "value": null,
-      "empty": true,
-      "text": "当前没有约束",
-      "components": [],
-      "ref": "90bfd291-b335-5fb4-8385-0679368a9e50@2#constraint"
      }
     ],
-    "component_ledger": [],
+    "component_ledger": [
+     {
+      "id": "report",
+      "type": "outcome",
+      "block": "definition",
+      "added_in_version": 1,
+      "removed_in_version": null
+     },
+     {
+      "id": "path",
+      "type": "core_path",
+      "block": "mission_plan",
+      "added_in_version": 1,
+      "removed_in_version": null
+     }
+    ],
+    "projection": {
+     "id": "task_expectations",
+     "display_name": "Task 预期结果与质量标准",
+     "items": [
+      {
+       "object_id": "deed8ddf-fbd5-5b5c-bb24-2799e0cbfce0",
+       "object_type": "Task",
+       "type_display_name": "Task",
+       "title": "对照实验 B：Task-only 与 Task+Activity",
+       "ref": "deed8ddf-fbd5-5b5c-bb24-2799e0cbfce0@2",
+       "pinned": {
+        "object_id": "deed8ddf-fbd5-5b5c-bb24-2799e0cbfce0",
+        "object_version": 2,
+        "revision_id": "00000000-0000-4000-8000-000000000058",
+        "block": null,
+        "component": null,
+        "ref": "deed8ddf-fbd5-5b5c-bb24-2799e0cbfce0@2"
+       },
+       "components": [
+        {
+         "id": "outcome",
+         "refs": [],
+         "text": "对照 Task-only 与 Task+Activity 两种做法。",
+         "type": "outcome",
+         "scope": null,
+         "artifacts": [],
+         "attributes": {},
+         "ref": "deed8ddf-fbd5-5b5c-bb24-2799e0cbfce0@2#definition/outcome",
+         "pinned": {
+          "object_id": "deed8ddf-fbd5-5b5c-bb24-2799e0cbfce0",
+          "object_version": 2,
+          "revision_id": "00000000-0000-4000-8000-000000000058",
+          "block": "definition",
+          "component": "outcome",
+          "ref": "deed8ddf-fbd5-5b5c-bb24-2799e0cbfce0@2#definition/outcome"
+         }
+        }
+       ]
+      },
+      {
+       "object_id": "b36b3a82-e9bc-5228-8154-1d90b9921b16",
+       "object_type": "Task",
+       "type_display_name": "Task",
+       "title": "实验 E：五个场景、真实战略材料与标准答案",
+       "ref": "b36b3a82-e9bc-5228-8154-1d90b9921b16@3",
+       "pinned": {
+        "object_id": "b36b3a82-e9bc-5228-8154-1d90b9921b16",
+        "object_version": 3,
+        "revision_id": "00000000-0000-4000-8000-000000000059",
+        "block": null,
+        "component": null,
+        "ref": "b36b3a82-e9bc-5228-8154-1d90b9921b16@3"
+       },
+       "components": [
+        {
+         "id": "outcome",
+         "refs": [],
+         "text": "五个场景，用真实战略材料，写标准答案。",
+         "type": "outcome",
+         "scope": null,
+         "artifacts": [],
+         "attributes": {},
+         "ref": "b36b3a82-e9bc-5228-8154-1d90b9921b16@3#definition/outcome",
+         "pinned": {
+          "object_id": "b36b3a82-e9bc-5228-8154-1d90b9921b16",
+          "object_version": 3,
+          "revision_id": "00000000-0000-4000-8000-000000000059",
+          "block": "definition",
+          "component": "outcome",
+          "ref": "b36b3a82-e9bc-5228-8154-1d90b9921b16@3#definition/outcome"
+         }
+        },
+        {
+         "id": "ac-gold",
+         "refs": [],
+         "text": "五个场景各有播种、标准答案与反例判定；标准答案经 E&O DRI 批准，跑器拒用未批准或已改动的标准答案。",
+         "type": "acceptance_criterion",
+         "scope": null,
+         "artifacts": [],
+         "attributes": {},
+         "ref": "b36b3a82-e9bc-5228-8154-1d90b9921b16@3#definition/ac-gold",
+         "pinned": {
+          "object_id": "b36b3a82-e9bc-5228-8154-1d90b9921b16",
+          "object_version": 3,
+          "revision_id": "00000000-0000-4000-8000-000000000059",
+          "block": "definition",
+          "component": "ac-gold",
+          "ref": "b36b3a82-e9bc-5228-8154-1d90b9921b16@3#definition/ac-gold"
+         }
+        }
+       ]
+      },
+      {
+       "object_id": "293565b4-840b-52f2-8ee0-73c6f3f9519e",
+       "object_type": "Task",
+       "type_display_name": "Task",
+       "title": "四种取法对照（含 RAG）与实验报告",
+       "ref": "293565b4-840b-52f2-8ee0-73c6f3f9519e@3",
+       "pinned": {
+        "object_id": "293565b4-840b-52f2-8ee0-73c6f3f9519e",
+        "object_version": 3,
+        "revision_id": "00000000-0000-4000-8000-000000000010",
+        "block": null,
+        "component": null,
+        "ref": "293565b4-840b-52f2-8ee0-73c6f3f9519e@3"
+       },
+       "components": [
+        {
+         "id": "outcome",
+         "refs": [],
+         "text": "对照四种取法（含 RAG），写成实验报告。",
+         "type": "outcome",
+         "scope": null,
+         "artifacts": [],
+         "attributes": {},
+         "ref": "293565b4-840b-52f2-8ee0-73c6f3f9519e@3#definition/outcome",
+         "pinned": {
+          "object_id": "293565b4-840b-52f2-8ee0-73c6f3f9519e",
+          "object_version": 3,
+          "revision_id": "00000000-0000-4000-8000-000000000010",
+          "block": "definition",
+          "component": "outcome",
+          "ref": "293565b4-840b-52f2-8ee0-73c6f3f9519e@3#definition/outcome"
+         }
+        }
+       ]
+      }
+     ]
+    },
     "formal": {
      "lifecycle_status": "confirmed",
      "effective_revision_id": "00000000-0000-4000-8000-000000000006"
@@ -596,23 +896,7 @@
     "blocks": [
      {
       "id": "definition",
-      "display_name": "定义",
-      "kind": "definition",
-      "class": "formal",
-      "value": {
-       "refs": [],
-       "text": "tkos.world 0.2 锁版：验收冻结并钉定提交，然后发版、切换实例。",
-       "artifacts": [],
-       "components": []
-      },
-      "empty": false,
-      "text": "tkos.world 0.2 锁版：验收冻结并钉定提交，然后发版、切换实例。",
-      "components": [],
-      "ref": "8f5159a4-1855-5996-84c1-b524a94113fc@2#definition"
-     },
-     {
-      "id": "acceptance",
-      "display_name": "验收标准",
+      "display_name": "战役定义",
       "kind": "definition",
       "class": "formal",
       "value": {
@@ -621,15 +905,25 @@
        "artifacts": [],
        "components": [
         {
+         "id": "lock",
+         "refs": [],
+         "text": "tkos.world 0.2 锁版。",
+         "type": "outcome",
+         "scope": null,
+         "artifacts": [],
+         "attributes": {},
+         "ref": "8f5159a4-1855-5996-84c1-b524a94113fc@2#definition/lock"
+        },
+        {
          "id": "ac-lock",
          "refs": [
           {
-           "block": "acceptance",
+           "block": "target",
            "component": "ac-lock",
            "object_id": "04e1479e-c221-58b6-a541-e3c34930dee4",
            "revision_id": "00000000-0000-4000-8000-000000000008",
            "object_version": 1,
-           "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@1#acceptance/ac-lock"
+           "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@1#target/ac-lock"
           }
          ],
          "text": "tkos.world 0.2 锁版（验收冻结并钉定提交）",
@@ -637,7 +931,7 @@
          "scope": null,
          "artifacts": [],
          "attributes": {},
-         "ref": "8f5159a4-1855-5996-84c1-b524a94113fc@2#acceptance/ac-lock"
+         "ref": "8f5159a4-1855-5996-84c1-b524a94113fc@2#definition/ac-lock"
         }
        ]
       },
@@ -645,15 +939,25 @@
       "text": "",
       "components": [
        {
+        "id": "lock",
+        "refs": [],
+        "text": "tkos.world 0.2 锁版。",
+        "type": "outcome",
+        "scope": null,
+        "artifacts": [],
+        "attributes": {},
+        "ref": "8f5159a4-1855-5996-84c1-b524a94113fc@2#definition/lock"
+       },
+       {
         "id": "ac-lock",
         "refs": [
          {
-          "block": "acceptance",
+          "block": "target",
           "component": "ac-lock",
           "object_id": "04e1479e-c221-58b6-a541-e3c34930dee4",
           "revision_id": "00000000-0000-4000-8000-000000000008",
           "object_version": 1,
-          "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@1#acceptance/ac-lock"
+          "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@1#target/ac-lock"
          }
         ],
         "text": "tkos.world 0.2 锁版（验收冻结并钉定提交）",
@@ -661,54 +965,160 @@
         "scope": null,
         "artifacts": [],
         "attributes": {},
-        "ref": "8f5159a4-1855-5996-84c1-b524a94113fc@2#acceptance/ac-lock"
+        "ref": "8f5159a4-1855-5996-84c1-b524a94113fc@2#definition/ac-lock"
        }
       ],
-      "ref": "8f5159a4-1855-5996-84c1-b524a94113fc@2#acceptance"
+      "ref": "8f5159a4-1855-5996-84c1-b524a94113fc@2#definition"
      },
      {
-      "id": "play",
-      "display_name": "打法",
+      "id": "mission_plan",
+      "display_name": "Mission 计划",
       "kind": "definition",
       "class": "formal",
-      "value": null,
-      "empty": true,
-      "text": "当前没有打法",
-      "components": [],
-      "ref": "8f5159a4-1855-5996-84c1-b524a94113fc@2#play"
+      "value": {
+       "refs": [],
+       "text": "",
+       "artifacts": [],
+       "components": [
+        {
+         "id": "path",
+         "refs": [],
+         "text": "验收冻结并钉定提交，然后发版、切换实例。",
+         "type": "core_path",
+         "scope": null,
+         "artifacts": [],
+         "attributes": {},
+         "ref": "8f5159a4-1855-5996-84c1-b524a94113fc@2#mission_plan/path"
+        }
+       ]
+      },
+      "empty": false,
+      "text": "",
+      "components": [
+       {
+        "id": "path",
+        "refs": [],
+        "text": "验收冻结并钉定提交，然后发版、切换实例。",
+        "type": "core_path",
+        "scope": null,
+        "artifacts": [],
+        "attributes": {},
+        "ref": "8f5159a4-1855-5996-84c1-b524a94113fc@2#mission_plan/path"
+       }
+      ],
+      "ref": "8f5159a4-1855-5996-84c1-b524a94113fc@2#mission_plan"
      },
      {
       "id": "execution_plan",
-      "display_name": "执行计划",
+      "display_name": "Task 全景",
       "kind": "plan",
       "class": "activity",
       "value": null,
       "empty": true,
-      "text": "当前没有执行计划",
+      "text": "当前没有Task 全景",
       "components": [],
       "ref": "8f5159a4-1855-5996-84c1-b524a94113fc@2#execution_plan"
-     },
-     {
-      "id": "constraint",
-      "display_name": "约束",
-      "kind": "constraint",
-      "class": "formal",
-      "value": null,
-      "empty": true,
-      "text": "当前没有约束",
-      "components": [],
-      "ref": "8f5159a4-1855-5996-84c1-b524a94113fc@2#constraint"
      }
     ],
     "component_ledger": [
      {
+      "id": "lock",
+      "type": "outcome",
+      "block": "definition",
+      "added_in_version": 1,
+      "removed_in_version": null
+     },
+     {
       "id": "ac-lock",
       "type": "acceptance_criterion",
-      "block": "acceptance",
+      "block": "definition",
+      "added_in_version": 1,
+      "removed_in_version": null
+     },
+     {
+      "id": "path",
+      "type": "core_path",
+      "block": "mission_plan",
       "added_in_version": 1,
       "removed_in_version": null
      }
     ],
+    "projection": {
+     "id": "task_expectations",
+     "display_name": "Task 预期结果与质量标准",
+     "items": [
+      {
+       "object_id": "2497ba8a-bfa4-5037-8fb5-660a84bff557",
+       "object_type": "Task",
+       "type_display_name": "Task",
+       "title": "验收冻结与钉定提交",
+       "ref": "2497ba8a-bfa4-5037-8fb5-660a84bff557@2",
+       "pinned": {
+        "object_id": "2497ba8a-bfa4-5037-8fb5-660a84bff557",
+        "object_version": 2,
+        "revision_id": "00000000-0000-4000-8000-000000000013",
+        "block": null,
+        "component": null,
+        "ref": "2497ba8a-bfa4-5037-8fb5-660a84bff557@2"
+       },
+       "components": [
+        {
+         "id": "outcome",
+         "refs": [],
+         "text": "0.2 验收冻结，钉定提交。",
+         "type": "outcome",
+         "scope": null,
+         "artifacts": [],
+         "attributes": {},
+         "ref": "2497ba8a-bfa4-5037-8fb5-660a84bff557@2#definition/outcome",
+         "pinned": {
+          "object_id": "2497ba8a-bfa4-5037-8fb5-660a84bff557",
+          "object_version": 2,
+          "revision_id": "00000000-0000-4000-8000-000000000013",
+          "block": "definition",
+          "component": "outcome",
+          "ref": "2497ba8a-bfa4-5037-8fb5-660a84bff557@2#definition/outcome"
+         }
+        }
+       ]
+      },
+      {
+       "object_id": "7cd6c496-929e-5be7-b29b-a8d536578875",
+       "object_type": "Task",
+       "type_display_name": "Task",
+       "title": "发版与实例切换",
+       "ref": "7cd6c496-929e-5be7-b29b-a8d536578875@1",
+       "pinned": {
+        "object_id": "7cd6c496-929e-5be7-b29b-a8d536578875",
+        "object_version": 1,
+        "revision_id": "00000000-0000-4000-8000-000000000060",
+        "block": null,
+        "component": null,
+        "ref": "7cd6c496-929e-5be7-b29b-a8d536578875@1"
+       },
+       "components": [
+        {
+         "id": "outcome",
+         "refs": [],
+         "text": "按钉定的提交发版，实例切换到发版的版本。",
+         "type": "outcome",
+         "scope": null,
+         "artifacts": [],
+         "attributes": {},
+         "ref": "7cd6c496-929e-5be7-b29b-a8d536578875@1#definition/outcome",
+         "pinned": {
+          "object_id": "7cd6c496-929e-5be7-b29b-a8d536578875",
+          "object_version": 1,
+          "revision_id": "00000000-0000-4000-8000-000000000060",
+          "block": "definition",
+          "component": "outcome",
+          "ref": "7cd6c496-929e-5be7-b29b-a8d536578875@1#definition/outcome"
+         }
+        }
+       ]
+      }
+     ]
+    },
     "formal": {
      "lifecycle_status": "confirmed",
      "effective_revision_id": "00000000-0000-4000-8000-000000000009"
@@ -783,34 +1193,83 @@
     "blocks": [
      {
       "id": "definition",
-      "display_name": "定义",
+      "display_name": "任务定义",
       "kind": "definition",
       "class": "formal",
       "value": {
        "refs": [],
-       "text": "对照四种取法（含 RAG），写成实验报告。",
+       "text": "",
        "artifacts": [],
-       "components": []
+       "components": [
+        {
+         "id": "outcome",
+         "refs": [],
+         "text": "对照四种取法（含 RAG），写成实验报告。",
+         "type": "outcome",
+         "scope": null,
+         "artifacts": [],
+         "attributes": {},
+         "ref": "293565b4-840b-52f2-8ee0-73c6f3f9519e@3#definition/outcome"
+        }
+       ]
       },
       "empty": false,
-      "text": "对照四种取法（含 RAG），写成实验报告。",
-      "components": [],
+      "text": "",
+      "components": [
+       {
+        "id": "outcome",
+        "refs": [],
+        "text": "对照四种取法（含 RAG），写成实验报告。",
+        "type": "outcome",
+        "scope": null,
+        "artifacts": [],
+        "attributes": {},
+        "ref": "293565b4-840b-52f2-8ee0-73c6f3f9519e@3#definition/outcome"
+       }
+      ],
       "ref": "293565b4-840b-52f2-8ee0-73c6f3f9519e@3#definition"
      },
      {
-      "id": "acceptance",
-      "display_name": "验收标准",
+      "id": "task_plan",
+      "display_name": "Task 计划",
       "kind": "definition",
       "class": "formal",
-      "value": null,
-      "empty": true,
-      "text": "当前没有验收标准",
-      "components": [],
-      "ref": "293565b4-840b-52f2-8ee0-73c6f3f9519e@3#acceptance"
+      "value": {
+       "refs": [],
+       "text": "",
+       "artifacts": [],
+       "components": [
+        {
+         "id": "graph-db",
+         "refs": [],
+         "text": "RAG 组的检索环境：切块与对象关系存进单独部署的图数据库，用邻接检索补向量检索的召回。",
+         "type": "execution_context",
+         "scope": null,
+         "artifacts": [],
+         "attributes": {},
+         "ref": "293565b4-840b-52f2-8ee0-73c6f3f9519e@3#task_plan/graph-db"
+        }
+       ]
+      },
+      "empty": false,
+      "text": "",
+      "components": [
+       {
+        "id": "graph-db",
+        "refs": [],
+        "text": "RAG 组的检索环境：切块与对象关系存进单独部署的图数据库，用邻接检索补向量检索的召回。",
+        "type": "execution_context",
+        "scope": null,
+        "artifacts": [],
+        "attributes": {},
+        "ref": "293565b4-840b-52f2-8ee0-73c6f3f9519e@3#task_plan/graph-db"
+       }
+      ],
+      "ref": "293565b4-840b-52f2-8ee0-73c6f3f9519e@3#task_plan"
      },
      {
       "id": "plan",
-      "display_name": "计划",
+      "display_name": "Activity 全景",
       "kind": "plan",
       "class": "activity",
       "value": {
@@ -897,20 +1356,23 @@
        }
       ],
       "ref": "293565b4-840b-52f2-8ee0-73c6f3f9519e@3#plan"
-     },
-     {
-      "id": "constraint",
-      "display_name": "约束",
-      "kind": "constraint",
-      "class": "formal",
-      "value": null,
-      "empty": true,
-      "text": "当前没有约束",
-      "components": [],
-      "ref": "293565b4-840b-52f2-8ee0-73c6f3f9519e@3#constraint"
      }
     ],
     "component_ledger": [
+     {
+      "id": "outcome",
+      "type": "outcome",
+      "block": "definition",
+      "added_in_version": 1,
+      "removed_in_version": null
+     },
+     {
+      "id": "graph-db",
+      "type": "execution_context",
+      "block": "task_plan",
+      "added_in_version": 3,
+      "removed_in_version": null
+     },
      {
       "id": "rag-graph",
       "type": "plan_item",
@@ -933,6 +1395,7 @@
       "removed_in_version": null
      }
     ],
+    "projection": null,
     "formal": {
      "lifecycle_status": "recorded",
      "effective_revision_id": "00000000-0000-4000-8000-000000000010"
@@ -999,6 +1462,17 @@
      },
      "blocks": [
       {
+       "id": "current_state",
+       "display_name": "当前状态",
+       "kind": "state",
+       "class": null,
+       "value": null,
+       "empty": true,
+       "text": "当前没有当前状态",
+       "components": [],
+       "ref": "2c7d70bd-aa85-50bf-9cd3-6513a54370ef@1#current_state"
+      },
+      {
        "id": "progress",
        "display_name": "进展",
        "kind": "state",
@@ -1016,12 +1490,12 @@
       },
       {
        "id": "blockers",
-       "display_name": "阻塞与偏差",
+       "display_name": "关键风险与阻塞",
        "kind": "state",
        "class": null,
        "value": null,
        "empty": true,
-       "text": "当前没有阻塞与偏差",
+       "text": "当前没有关键风险与阻塞",
        "components": [],
        "ref": "2c7d70bd-aa85-50bf-9cd3-6513a54370ef@1#blockers"
       },
@@ -1095,55 +1569,75 @@
     "blocks": [
      {
       "id": "definition",
-      "display_name": "定义",
+      "display_name": "任务定义",
       "kind": "definition",
       "class": "formal",
       "value": {
        "refs": [],
-       "text": "0.2 验收冻结，钉定提交。",
+       "text": "",
        "artifacts": [],
-       "components": []
+       "components": [
+        {
+         "id": "outcome",
+         "refs": [],
+         "text": "0.2 验收冻结，钉定提交。",
+         "type": "outcome",
+         "scope": null,
+         "artifacts": [],
+         "attributes": {},
+         "ref": "2497ba8a-bfa4-5037-8fb5-660a84bff557@2#definition/outcome"
+        }
+       ]
       },
       "empty": false,
-      "text": "0.2 验收冻结，钉定提交。",
-      "components": [],
+      "text": "",
+      "components": [
+       {
+        "id": "outcome",
+        "refs": [],
+        "text": "0.2 验收冻结，钉定提交。",
+        "type": "outcome",
+        "scope": null,
+        "artifacts": [],
+        "attributes": {},
+        "ref": "2497ba8a-bfa4-5037-8fb5-660a84bff557@2#definition/outcome"
+       }
+      ],
       "ref": "2497ba8a-bfa4-5037-8fb5-660a84bff557@2#definition"
      },
      {
-      "id": "acceptance",
-      "display_name": "验收标准",
+      "id": "task_plan",
+      "display_name": "Task 计划",
       "kind": "definition",
       "class": "formal",
       "value": null,
       "empty": true,
-      "text": "当前没有验收标准",
+      "text": "当前没有Task 计划",
       "components": [],
-      "ref": "2497ba8a-bfa4-5037-8fb5-660a84bff557@2#acceptance"
+      "ref": "2497ba8a-bfa4-5037-8fb5-660a84bff557@2#task_plan"
      },
      {
       "id": "plan",
-      "display_name": "计划",
+      "display_name": "Activity 全景",
       "kind": "plan",
       "class": "activity",
       "value": null,
       "empty": true,
-      "text": "当前没有计划",
+      "text": "当前没有Activity 全景",
       "components": [],
       "ref": "2497ba8a-bfa4-5037-8fb5-660a84bff557@2#plan"
-     },
-     {
-      "id": "constraint",
-      "display_name": "约束",
-      "kind": "constraint",
-      "class": "formal",
-      "value": null,
-      "empty": true,
-      "text": "当前没有约束",
-      "components": [],
-      "ref": "2497ba8a-bfa4-5037-8fb5-660a84bff557@2#constraint"
      }
     ],
-    "component_ledger": [],
+    "component_ledger": [
+     {
+      "id": "outcome",
+      "type": "outcome",
+      "block": "definition",
+      "added_in_version": 1,
+      "removed_in_version": null
+     }
+    ],
+    "projection": null,
     "formal": {
      "lifecycle_status": "recorded",
      "effective_revision_id": "00000000-0000-4000-8000-000000000013"
@@ -1210,6 +1704,17 @@
      },
      "blocks": [
       {
+       "id": "current_state",
+       "display_name": "当前状态",
+       "kind": "state",
+       "class": null,
+       "value": null,
+       "empty": true,
+       "text": "当前没有当前状态",
+       "components": [],
+       "ref": "9550b165-c6bb-50a5-b9e2-7bcebc1e7b60@1#current_state"
+      },
+      {
        "id": "progress",
        "display_name": "进展",
        "kind": "state",
@@ -1227,12 +1732,12 @@
       },
       {
        "id": "blockers",
-       "display_name": "阻塞与偏差",
+       "display_name": "关键风险与阻塞",
        "kind": "state",
        "class": null,
        "value": null,
        "empty": true,
-       "text": "当前没有阻塞与偏差",
+       "text": "当前没有关键风险与阻塞",
        "components": [],
        "ref": "9550b165-c6bb-50a5-b9e2-7bcebc1e7b60@1#blockers"
       },
@@ -1303,6 +1808,17 @@
    },
    "blocks": [
     {
+     "id": "current_state",
+     "display_name": "当前状态",
+     "kind": "state",
+     "class": null,
+     "value": null,
+     "empty": true,
+     "text": "当前没有当前状态",
+     "components": [],
+     "ref": "2c7d70bd-aa85-50bf-9cd3-6513a54370ef@1#current_state"
+    },
+    {
      "id": "progress",
      "display_name": "进展",
      "kind": "state",
@@ -1320,12 +1836,12 @@
     },
     {
      "id": "blockers",
-     "display_name": "阻塞与偏差",
+     "display_name": "关键风险与阻塞",
      "kind": "state",
      "class": null,
      "value": null,
      "empty": true,
-     "text": "当前没有阻塞与偏差",
+     "text": "当前没有关键风险与阻塞",
      "components": [],
      "ref": "2c7d70bd-aa85-50bf-9cd3-6513a54370ef@1#blockers"
     },
@@ -1392,6 +1908,17 @@
    },
    "blocks": [
     {
+     "id": "current_state",
+     "display_name": "当前状态",
+     "kind": "state",
+     "class": null,
+     "value": null,
+     "empty": true,
+     "text": "当前没有当前状态",
+     "components": [],
+     "ref": "9550b165-c6bb-50a5-b9e2-7bcebc1e7b60@1#current_state"
+    },
+    {
      "id": "progress",
      "display_name": "进展",
      "kind": "state",
@@ -1409,12 +1936,12 @@
     },
     {
      "id": "blockers",
-     "display_name": "阻塞与偏差",
+     "display_name": "关键风险与阻塞",
      "kind": "state",
      "class": null,
      "value": null,
      "empty": true,
-     "text": "当前没有阻塞与偏差",
+     "text": "当前没有关键风险与阻塞",
      "components": [],
      "ref": "9550b165-c6bb-50a5-b9e2-7bcebc1e7b60@1#blockers"
     },
@@ -1990,7 +2517,7 @@
    "detail": {
     "candidate": {
      "blocks": {
-      "acceptance": {
+      "target": {
        "components": [
         {
          "id": "ac-lock",
@@ -2190,12 +2717,12 @@
    "content": {
     "refs": [
      {
-      "block": "plan",
-      "component": "rag-graph",
+      "block": "task_plan",
+      "component": "graph-db",
       "object_id": "293565b4-840b-52f2-8ee0-73c6f3f9519e",
       "revision_id": "00000000-0000-4000-8000-000000000010",
       "object_version": 3,
-      "ref": "293565b4-840b-52f2-8ee0-73c6f3f9519e@3#plan/rag-graph"
+      "ref": "293565b4-840b-52f2-8ee0-73c6f3f9519e@3#task_plan/graph-db"
      }
     ],
     "text": "RAG 组检索方案评审：切块与对象关系存进图数据库，邻接检索补向量检索的召回；按这个方案搭环境。",
@@ -2322,12 +2849,12 @@
    "content": {
     "refs": [
      {
-      "block": "acceptance",
+      "block": "target",
       "component": "ac-lock",
       "object_id": "04e1479e-c221-58b6-a541-e3c34930dee4",
       "revision_id": "00000000-0000-4000-8000-000000000004",
       "object_version": 2,
-      "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@2#acceptance/ac-lock"
+      "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@2#target/ac-lock"
      }
     ],
     "text": "锁版时间对齐：十月周期目标经一轮重走改了锁版那条验收条件，锁版放到 10 月 20 日 CEO 定下对象结构之后；本 Mission 与下面的 Task 按新条件排期。",

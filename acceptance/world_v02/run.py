@@ -1,10 +1,11 @@
-"""tkos.world/0.2 独立 API 验收（票 #49 起逐票追加，票 #65 汇总成矩阵，不冻结）：真 API 进程、隔离库、
+"""tkos.world/0.2 独立 API 验收（票 #49 起逐票追加，票 #65 汇总成矩阵，#86 锁版）：真 API 进程、隔离库、
 真 HTTP 与 PostgreSQL。
 
 业务成功只来自 /v1/actions/prepare 与 /v1/actions；SQL 只用于播种身份与独立核对。每个拒绝用例都在它能到达的
 入口上核对 scope 的库快照不变。每条检查记下所在的场景，按矩阵（matrix.py）判覆盖：检查全过、场景全跑完、矩阵
-没有未覆盖的格、没有矩阵外的检查、源码运行中不变时 passed 为 true、退出码为 0；锁版前不冻结，不写「验收通过」
-（world_v02_accepted 恒为 false）。报告同目录另写中文的 report.md。
+没有未覆盖的格、没有矩阵外的检查、源码运行中不变时 passed 为 true、退出码为 0。只有 passed 为 true、且用
+--commit 钉在一个提交上（工作区开跑前与跑完后都与该提交一致）时，才写 world_v02_accepted: true。
+报告同目录另写中文的 report.md。
 库可以是 method_v05 工具新建的，也可以是刚跑完 0.1 独立验收的同一个库（同库回归，0.1 先跑）。
 """
 from __future__ import annotations
@@ -16,6 +17,7 @@ from datetime import datetime, timedelta, timezone
 import hashlib
 import json
 from pathlib import Path
+import subprocess
 import time
 
 from psycopg.conninfo import conninfo_to_dict
@@ -53,6 +55,33 @@ OBJECTS = {item['type']: item for item in json.loads(REGISTRY.read_text())['obje
 PAYLOADS = {item['id']: item for item in json.loads(REGISTRY.read_text())['state']['payload_types']}
 COMPONENTS = json.loads(REGISTRY.read_text())['components']
 TYPES = ['Company', 'Strategy', 'ResponsibilityUnit', 'LongTermGoal', 'PeriodGoal', 'Mission', 'Task', 'Activity']
+# 锁版钉定的文件（docs/world-v02-freeze-checkpoint.md 的「钉定哈希」），钉提交时逐个记下 SHA256。
+FROZEN = ('docs/contracts/tkos-world-0.2.md', 'docs/contracts/world-registry-0.2.json',
+          'docs/contracts/world-profile-0.2.json', 'docs/runtime-world-support-0.2.json',
+          'src/memory_service_app/migrations/0039_world_v02.sql',
+          'src/memory_service_runtime/governed/resources/world-registry-0.2.json',
+          'src/memory_service_runtime/governed/world_v02_profile.py')
+SCOPE = (f"tkos.world/0.2 APIs (frozen: profile {PROFILE['profile_id']} {PROFILE['revision']} canonical_hash "
+         f"{PROFILE['canonical_hash']}, contract sha256 {PROFILE['action_contract_ref']['content_sha256']}, "
+         f"registry {PROFILE['world_registry_ref']['revision']} sha256 {PROFILE['world_registry_ref']['content_sha256']})")
+
+
+def _git(*args):
+    return subprocess.check_output(['git', *args], cwd=ROOT, text=True).strip()
+
+
+def drift(sha):
+    """工作区里与该提交不一致的文件（改过的与未跟踪的，忽略的产物目录不算）。API、控制面与 MCP 都跑工作区的 src，
+    所以钉提交时整个工作区都要与它一致。"""
+    return _git('diff', '--name-only', sha).split() + _git('ls-files', '--others', '--exclude-standard').split()
+
+
+def pin(commit):
+    """钉定的完整提交号；工作区与它不一致就拒绝开跑。"""
+    sha = _git('rev-parse', '--verify', commit + '^{commit}')
+    if drift(sha):
+        raise ValueError('the working tree differs from the pinned commit: ' + ', '.join(drift(sha)))
+    return sha
 
 
 class Book:
@@ -76,14 +105,15 @@ class Book:
         scenarios = self.metadata.get('scenarios', {})
         complete = all(scenarios.get(name, {}).get('status') == 'completed' for name in SCENARIOS)
         matrix = evaluate(self.checks, self.where, scenarios)
-        result = {**self.metadata, 'scope': 'tkos.world/0.2 APIs (acceptance matrix, not frozen)',
+        passed = (complete and all(self.checks.values()) and not self.metadata.get('run_error')
+                  and matrix['matrix_passed'] and self.metadata.get('source_unchanged', True) is True)
+        result = {**self.metadata, 'scope': SCOPE,
                   'started_at': self.started_at, 'updated_at': now(), 'checks': self.checks,
                   'check_scenarios': self.where,
                   'checks_passed': sum(self.checks.values()), 'checks_failed': len(self.checks) - sum(self.checks.values()),
-                  'all_scenarios_completed': complete, **matrix,
-                  'passed': (complete and all(self.checks.values()) and not self.metadata.get('run_error')
-                             and matrix['matrix_passed'] and self.metadata.get('source_unchanged', True) is True),
-                  'world_v02_accepted': False, 'released': False, 'deployed': False}
+                  'all_scenarios_completed': complete, **matrix, 'passed': passed,
+                  'world_v02_accepted': passed and bool(self.metadata.get('source_commit')),
+                  'released': False, 'deployed': False}
         public_json(self.output / 'report.json', result)
         return result
 
@@ -2917,16 +2947,20 @@ def main():
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--upgrade-evidence', type=Path, required=True,
                         help='method_v05 或 world_v01 的 database upgrade 写的 upgrade.json')
+    parser.add_argument('--commit', help='钉定验收的提交（工作区必须与它一致）；不给是开发运行，报告不写验收通过')
     args = parser.parse_args()
     if not __debug__:
         raise SystemExit('the acceptance oracle is written as assertions; run without -O')
     if args.private.exists() or args.output.exists():
         raise ValueError('Use fresh private and output paths')
+    commit = pin(args.commit) if args.commit else None
     args.private.mkdir(parents=True, mode=0o700)
     source = (ROOT / 'src').resolve()
     h = MethodHarness(args.env_file.resolve(), args.output.resolve(), args.private.resolve())
     book = Book(h.output)
-    book.save(scenarios={}, source_root=str(source))
+    book.save(scenarios={}, source_root=str(source), source_commit=commit,
+              frozen_files={path: hashlib.sha256((ROOT / path).read_bytes()).hexdigest() for path in FROZEN}
+              if commit else {})
     initial = source_manifest(source)
     error = None
     try:
@@ -2942,11 +2976,14 @@ def main():
         try:
             h.close()
         finally:
-            unchanged = source_manifest(source) == initial
-            result = book.save(source_unchanged=unchanged)
+            # 钉提交时，跑完后工作区仍要与该提交一致。
+            moved = drift(commit) if commit else []
+            unchanged = source_manifest(source) == initial and not moved
+            result = book.save(source_unchanged=unchanged, working_tree_drift=moved)
             (h.output / 'report.md').write_text(render_markdown(result), encoding='utf-8')
-            print(json.dumps({key: result[key] for key in ('passed', 'checks_passed', 'checks_failed',
-                                                           'all_scenarios_completed', 'matrix_passed')}
+            print(json.dumps({key: result[key] for key in ('passed', 'world_v02_accepted', 'checks_passed',
+                                                           'checks_failed', 'all_scenarios_completed',
+                                                           'matrix_passed')}
                              | {'cells': result['matrix']['cells'], 'covered': result['matrix']['covered'],
                                 'not_applicable': result['matrix']['not_applicable'],
                                 'uncovered': len(result['matrix']['uncovered'])}))

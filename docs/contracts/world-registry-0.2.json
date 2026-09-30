@@ -265,7 +265,7 @@
    "outcomes": [
     "withdrawn"
    ],
-   "recorded_by": "单元 DRI",
+   "recorded_by": "RU DRI",
    "target_types": [
     "PeriodGoal"
    ]
@@ -328,7 +328,7 @@
    "outcomes": [
     "withdrawn"
    ],
-   "recorded_by": "该 Mission 的 Owner 本人",
+   "recorded_by": "该 Mission 的 Mission DRI 本人",
    "target_types": [
     "Mission"
    ]
@@ -351,7 +351,7 @@
     "returned",
     "withdrawn"
    ],
-   "recorded_by": "单元 DRI",
+   "recorded_by": "RU DRI",
    "target_types": [
     "Mission"
    ]
@@ -483,7 +483,7 @@
   {
    "action": "world_start",
    "agent_face": true,
-   "agent_note": "Mission 作为 Owner 的 Agent；Activity 作为其责任人",
+   "agent_note": "Mission 作为 Mission DRI 的 Agent；Activity 作为其责任人",
    "authorization": "policy",
    "candidate": false,
    "class": "lifecycle",
@@ -683,6 +683,20 @@
   }
  ],
  "components": {
+  "context_roles": [
+   {
+    "display_name": "约束",
+    "id": "constraint"
+   },
+   {
+    "display_name": "验收",
+    "id": "acceptance"
+   },
+   {
+    "display_name": "贡献",
+    "id": "contribution"
+   }
+  ],
   "id_pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$",
   "id_source": "writer_or_server",
   "id_unique_within": "object",
@@ -740,33 +754,350 @@
   "types": [
    {
     "attributes": [],
-    "display_name": "结果",
-    "id": "outcome",
-    "source": "方案 2.2 第一批"
+    "context_role": null,
+    "display_name": "业务定义",
+    "id": "business_definition",
+    "source": "方法侧 Content Pact 4.1（Business Definition）"
    },
    {
     "attributes": [],
+    "context_role": null,
+    "display_name": "企业使命",
+    "id": "corporate_purpose",
+    "source": "方法侧 Content Pact 4.1（Corporate Purpose）"
+   },
+   {
+    "attributes": [],
+    "context_role": null,
+    "display_name": "愿景",
+    "id": "vision",
+    "source": "方法侧 Content Pact 4.1（Vision）"
+   },
+   {
+    "attributes": [],
+    "context_role": null,
+    "display_name": "价值观与公司原则",
+    "id": "values_principles",
+    "source": "方法侧 Content Pact 4.1（Values & Company Principles）"
+   },
+   {
+    "attributes": [],
+    "context_role": null,
+    "display_name": "总体战略",
+    "id": "strategic_thesis",
+    "source": "方法侧 Content Pact 4.1（Strategic Thesis）"
+   },
+   {
+    "attributes": [],
+    "context_role": null,
+    "display_name": "目标客户",
+    "id": "target_customers",
+    "source": "方法侧 Content Pact 4.1（Target Customers）"
+   },
+   {
+    "attributes": [],
+    "context_role": null,
+    "display_name": "目标市场",
+    "id": "target_markets",
+    "source": "方法侧 Content Pact 4.1（Target Markets）"
+   },
+   {
+    "attributes": [],
+    "context_role": null,
+    "display_name": "产品与价值主张",
+    "id": "value_proposition",
+    "source": "方法侧 Content Pact 4.1（Offering & Value Proposition）"
+   },
+   {
+    "attributes": [],
+    "context_role": null,
+    "display_name": "核心壁垒",
+    "id": "competitive_advantage",
+    "source": "方法侧 Content Pact 4.1（Competitive Advantage）"
+   },
+   {
+    "attributes": [],
+    "context_role": null,
+    "display_name": "市场进入与获客方式",
+    "id": "go_to_market",
+    "source": "方法侧 Content Pact 4.1（Go-to-Market）"
+   },
+   {
+    "attributes": [],
+    "context_role": null,
+    "display_name": "战略取舍",
+    "id": "trade_offs",
+    "source": "方法侧 Content Pact 4.1（Trade-offs & Exclusions）"
+   },
+   {
+    "attributes": [],
+    "context_role": null,
+    "display_name": "商业模式",
+    "id": "business_model",
+    "source": "方法侧 Content Pact 4.1（Business Model）"
+   },
+   {
+    "attributes": [],
+    "context_role": null,
+    "display_name": "价值实现逻辑",
+    "id": "value_logic",
+    "source": "方法侧 Content Pact 4.1（Value Logic）"
+   },
+   {
+    "attributes": [],
+    "context_role": null,
+    "display_name": "关键假设",
+    "id": "assumption",
+    "source": "方案 2.2 第一批；方法侧 Content Pact 4.1（Key Assumptions）"
+   },
+   {
+    "attributes": [],
+    "context_role": "constraint",
+    "display_name": "战略约束",
+    "id": "strategy_constraint",
+    "source": "方法侧 Content Pact 4.1（Strategy Constraints）"
+   },
+   {
+    "attributes": [],
+    "context_role": null,
+    "display_name": "责任单元条目（战场 / 责任域）",
+    "id": "unit_entry",
+    "source": "方案 2.2 第一批；方法侧 Content Pact 4.1（Battlefield / Domain References）"
+   },
+   {
+    "attributes": [],
+    "context_role": "contribution",
+    "display_name": "贡献 / 存在必要性",
+    "id": "contribution",
+    "source": "方法侧 Content Pact 4.1（Contribution / Why Necessary）"
+   },
+   {
+    "attributes": [],
+    "context_role": null,
+    "display_name": "核心责任",
+    "id": "mandate",
+    "source": "方法侧 Content Pact 4.1（Responsibility Mandate）"
+   },
+   {
+    "attributes": [],
+    "context_role": "constraint",
+    "display_name": "责任 / 工作 / 执行边界",
+    "id": "scope_boundary",
+    "source": "方法侧 Content Pact 4.1（Scope & Boundary）"
+   },
+   {
+    "attributes": [],
+    "context_role": "constraint",
+    "display_name": "关键约束",
+    "id": "key_constraint",
+    "source": "方法侧 Content Pact 4.1（Key Constraints）"
+   },
+   {
+    "attributes": [],
+    "context_role": null,
+    "display_name": "责任范围",
+    "id": "responsibility_scope",
+    "source": "方法侧 Content Pact 4.1（Responsibility Scope）"
+   },
+   {
+    "attributes": [],
+    "context_role": "contribution",
+    "display_name": "承接关系",
+    "id": "alignment_note",
+    "source": "方法侧 Content Pact 4.1（Alignment）"
+   },
+   {
+    "attributes": [],
+    "context_role": "contribution",
+    "display_name": "本周期必要性",
+    "id": "why_this_period",
+    "source": "方法侧 Content Pact 4.1（Why This Period）"
+   },
+   {
+    "attributes": [],
+    "context_role": "contribution",
+    "display_name": "预计长期目标推进",
+    "id": "expected_lt_advance",
+    "source": "方法侧 Content Pact 4.1（Expected LT Progress Advance）"
+   },
+   {
+    "attributes": [],
+    "context_role": null,
+    "display_name": "目标结果 / 战役结果 / 工作结果",
+    "id": "outcome",
+    "source": "方案 2.2 第一批；方法侧 Content Pact 4.1（Outcome）"
+   },
+   {
+    "attributes": [],
+    "context_role": "acceptance",
     "display_name": "成功标准",
     "id": "success_criterion",
-    "source": "方案 2.2 第一批"
+    "source": "方案 2.2 第一批；方法侧 Content Pact 4.1（Success Criteria）"
    },
    {
     "attributes": [],
-    "display_name": "验收条件",
+    "context_role": "acceptance",
+    "display_name": "成功 / 验收标准",
     "id": "acceptance_criterion",
-    "source": "方案 2.2 第一批"
+    "source": "方案 2.2 第一批；方法侧 Content Pact 4.1（Success & Acceptance Criteria）"
    },
    {
     "attributes": [],
-    "display_name": "责任单元条目",
-    "id": "unit_entry",
-    "source": "方案 2.2 第一批"
+    "context_role": null,
+    "display_name": "实现逻辑",
+    "id": "realization_logic",
+    "source": "方法侧 Content Pact 4.1（Realization Logic）"
    },
    {
     "attributes": [],
-    "display_name": "假设",
-    "id": "assumption",
-    "source": "方案 2.2 第一批"
+    "context_role": "constraint",
+    "display_name": "时间边界",
+    "id": "time_boundary",
+    "source": "方法侧 Content Pact 4.1（Time Boundary）"
+   },
+   {
+    "attributes": [],
+    "context_role": null,
+    "display_name": "核心路径",
+    "id": "core_path",
+    "source": "方法侧 Content Pact 4.1（Core Path）"
+   },
+   {
+    "attributes": [],
+    "context_role": null,
+    "display_name": "关键取舍",
+    "id": "key_trade_off",
+    "source": "方法侧 Content Pact 4.1（Key Trade-offs）"
+   },
+   {
+    "attributes": [],
+    "context_role": null,
+    "display_name": "关键里程碑",
+    "id": "milestone",
+    "source": "方法侧 Content Pact 4.1（Key Milestones）"
+   },
+   {
+    "attributes": [],
+    "context_role": "constraint",
+    "display_name": "关键约束与依赖",
+    "id": "constraint_dependency",
+    "source": "方法侧 Content Pact 4.1（Key Constraints & Dependencies）"
+   },
+   {
+    "attributes": [
+     {
+      "class": null,
+      "display_name": "责任人（只作记录）",
+      "id": "responsible",
+      "required": false,
+      "set_by": null,
+      "value": "principal",
+      "values": null
+     },
+     {
+      "class": null,
+      "display_name": "预期产出",
+      "id": "expected_output",
+      "required": false,
+      "set_by": null,
+      "value": "text",
+      "values": null
+     },
+     {
+      "class": null,
+      "display_name": "质量标准",
+      "id": "quality_standard",
+      "required": false,
+      "set_by": null,
+      "value": "text",
+      "values": null
+     },
+     {
+      "class": null,
+      "display_name": "执行主体",
+      "id": "executor",
+      "required": false,
+      "set_by": null,
+      "value": "text",
+      "values": null
+     },
+     {
+      "class": null,
+      "display_name": "人 + Agent 分工",
+      "id": "division",
+      "required": false,
+      "set_by": null,
+      "value": "text",
+      "values": null
+     }
+    ],
+    "context_role": null,
+    "display_name": "计划条目",
+    "id": "plan_item",
+    "source": "本稿补充；方法侧 Content Pact 4.1（Task / Activity Landscape）"
+   },
+   {
+    "attributes": [],
+    "context_role": null,
+    "display_name": "执行顺序与依赖",
+    "id": "execution_sequence",
+    "source": "方法侧 Content Pact 4.1（Execution Sequence & Dependencies）"
+   },
+   {
+    "attributes": [],
+    "context_role": null,
+    "display_name": "时间安排",
+    "id": "schedule",
+    "source": "方法侧 Content Pact 4.1（Schedule & Timing）"
+   },
+   {
+    "attributes": [],
+    "context_role": "constraint",
+    "display_name": "执行上下文与约束",
+    "id": "execution_context",
+    "source": "方法侧 Content Pact 4.1（Execution Context & Constraints）"
+   },
+   {
+    "attributes": [],
+    "context_role": null,
+    "display_name": "治理点",
+    "id": "governance_point",
+    "source": "方法侧 Content Pact 4.1（Governance Points）"
+   },
+   {
+    "attributes": [],
+    "context_role": null,
+    "display_name": "异常与升级规则",
+    "id": "escalation_rule",
+    "source": "方法侧 Content Pact 4.1（Exception & Escalation Rules）"
+   },
+   {
+    "attributes": [],
+    "context_role": null,
+    "display_name": "执行事项",
+    "id": "work_definition",
+    "source": "方法侧 Content Pact 4.1（Work Definition）"
+   },
+   {
+    "attributes": [],
+    "context_role": null,
+    "display_name": "预期产出",
+    "id": "expected_output",
+    "source": "方法侧 Content Pact 4.1（Expected Output）"
+   },
+   {
+    "attributes": [],
+    "context_role": "constraint",
+    "display_name": "执行约束",
+    "id": "execution_constraint",
+    "source": "方法侧 Content Pact 4.1（Execution Constraints）"
+   },
+   {
+    "attributes": [],
+    "context_role": null,
+    "display_name": "关键偏差",
+    "id": "variance",
+    "source": "方法侧 Content Pact 4.1（Material Variance）"
    },
    {
     "attributes": [
@@ -789,25 +1120,10 @@
       "values": null
      }
     ],
+    "context_role": null,
     "display_name": "问题",
     "id": "issue",
-    "source": "方案 2.2 第一批、2.6"
-   },
-   {
-    "attributes": [
-     {
-      "class": null,
-      "display_name": "责任人（只作记录）",
-      "id": "responsible",
-      "required": false,
-      "set_by": null,
-      "value": "principal",
-      "values": null
-     }
-    ],
-    "display_name": "计划条目",
-    "id": "plan_item",
-    "source": "本稿补充"
+    "source": "方案 2.2 第一批、2.6；方法侧 Content Pact 4.1（Issues）"
    },
    {
     "attributes": [
@@ -848,6 +1164,7 @@
       "values": null
      }
     ],
+    "context_role": null,
     "display_name": "进展条目",
     "id": "progress_item",
     "source": "本稿补充，字段取对接说明 11.2 草案"
@@ -1015,7 +1332,7 @@
    "display_name": "生命周期事件",
    "drives": "推动生命周期",
    "id": "lifecycle",
-   "recorded_by": "对象责任人或其上一级（开始可由 Owner 的 Agent 记）"
+   "recorded_by": "对象责任人或其上一级（开始可由 Mission DRI 的 Agent 记）"
   },
   {
    "display_name": "记录事件",
@@ -1210,7 +1527,7 @@
    "outcomes": [
     "withdrawn"
    ],
-   "recorded_by": "周期目标由 DRI；Mission 由 Owner 本人"
+   "recorded_by": "周期目标由 RU DRI；Mission 由 Mission DRI 本人"
   },
   {
    "backdating": false,
@@ -1225,7 +1542,7 @@
     "returned",
     "withdrawn"
    ],
-   "recorded_by": "长期目标、周期目标、Strategy 由 CEO；Mission 由 DRI"
+   "recorded_by": "长期目标、周期目标、Strategy 由 CEO；Mission 由 RU DRI"
   },
   {
    "backdating": false,
@@ -1275,7 +1592,7 @@
    "outcomes": [
     "withdrawn"
    ],
-   "recorded_by": "对象责任人；Mission 也可由 Owner 的 Agent"
+   "recorded_by": "对象责任人；Mission 也可由 Mission DRI 的 Agent"
   },
   {
    "backdating": false,
@@ -2613,17 +2930,15 @@
    "blocks": [
     {
      "class": "formal",
-     "components": [],
-     "display_name": "身份",
+     "components": [
+      "business_definition",
+      "corporate_purpose",
+      "vision",
+      "values_principles"
+     ],
+     "display_name": "企业身份与长期意图",
      "id": "identity",
      "kind": "definition"
-    },
-    {
-     "class": "formal",
-     "components": [],
-     "display_name": "约束",
-     "id": "constraint",
-     "kind": "constraint"
     }
    ],
    "candidate": false,
@@ -2663,32 +2978,29 @@
    "blocks": [
     {
      "class": "formal",
-     "components": [],
-     "display_name": "战略选择",
-     "id": "choices",
-     "kind": "definition"
-    },
-    {
-     "class": "formal",
-     "components": [],
-     "display_name": "路径",
-     "id": "path",
+     "components": [
+      "strategic_thesis",
+      "target_customers",
+      "target_markets",
+      "value_proposition",
+      "competitive_advantage",
+      "go_to_market",
+      "trade_offs"
+     ],
+     "display_name": "战略",
+     "id": "strategy_core",
      "kind": "definition"
     },
     {
      "class": "formal",
      "components": [
-      "assumption"
+      "business_model",
+      "value_logic",
+      "assumption",
+      "strategy_constraint"
      ],
-     "display_name": "关键假设",
-     "id": "assumptions",
-     "kind": "definition"
-    },
-    {
-     "class": "formal",
-     "components": [],
-     "display_name": "能力",
-     "id": "capabilities",
+     "display_name": "商业模式与成立逻辑",
+     "id": "business_logic",
      "kind": "definition"
     },
     {
@@ -2696,16 +3008,9 @@
      "components": [
       "unit_entry"
      ],
-     "display_name": "责任结构",
+     "display_name": "战略责任结构",
      "id": "responsibility_structure",
      "kind": "definition"
-    },
-    {
-     "class": "formal",
-     "components": [],
-     "display_name": "约束",
-     "id": "constraint",
-     "kind": "constraint"
     }
    ],
    "candidate": false,
@@ -2777,24 +3082,15 @@
    "blocks": [
     {
      "class": "formal",
-     "components": [],
-     "display_name": "定义",
+     "components": [
+      "contribution",
+      "mandate",
+      "scope_boundary",
+      "key_constraint"
+     ],
+     "display_name": "责任定义",
      "id": "definition",
      "kind": "definition"
-    },
-    {
-     "class": "formal",
-     "components": [],
-     "display_name": "边界",
-     "id": "boundary",
-     "kind": "definition"
-    },
-    {
-     "class": "formal",
-     "components": [],
-     "display_name": "约束",
-     "id": "constraint",
-     "kind": "constraint"
     }
    ],
    "candidate": false,
@@ -2876,27 +3172,23 @@
     {
      "class": "formal",
      "components": [
-      "outcome"
+      "responsibility_scope",
+      "alignment_note"
      ],
-     "display_name": "结果",
-     "id": "outcome",
+     "display_name": "定位与承接",
+     "id": "alignment",
      "kind": "definition"
     },
     {
      "class": "formal",
      "components": [
-      "success_criterion"
+      "outcome",
+      "success_criterion",
+      "realization_logic"
      ],
-     "display_name": "衡量",
-     "id": "measures",
+     "display_name": "目标定义",
+     "id": "target",
      "kind": "definition"
-    },
-    {
-     "class": "formal",
-     "components": [],
-     "display_name": "约束",
-     "id": "constraint",
-     "kind": "constraint"
     }
    ],
    "candidate": false,
@@ -2974,34 +3266,25 @@
     {
      "class": "formal",
      "components": [
-      "outcome"
+      "responsibility_scope",
+      "why_this_period",
+      "expected_lt_advance"
      ],
-     "display_name": "结果",
-     "id": "outcome",
-     "kind": "definition"
-    },
-    {
-     "class": "formal",
-     "components": [],
-     "display_name": "实现逻辑",
-     "id": "realization_logic",
+     "display_name": "定位与承接",
+     "id": "alignment",
      "kind": "definition"
     },
     {
      "class": "formal",
      "components": [
-      "acceptance_criterion"
+      "outcome",
+      "acceptance_criterion",
+      "time_boundary",
+      "realization_logic"
      ],
-     "display_name": "验收标准",
-     "id": "acceptance",
+     "display_name": "目标定义",
+     "id": "target",
      "kind": "definition"
-    },
-    {
-     "class": "formal",
-     "components": [],
-     "display_name": "约束",
-     "id": "constraint",
-     "kind": "constraint"
     }
    ],
    "candidate": false,
@@ -3080,7 +3363,7 @@
     },
     {
      "class": "server",
-     "display_name": "责任人",
+     "display_name": "Mission DRI",
      "id": "responsible",
      "required": false,
      "set_by": "assign",
@@ -3100,25 +3383,27 @@
    "blocks": [
     {
      "class": "formal",
-     "components": [],
-     "display_name": "定义",
+     "components": [
+      "contribution",
+      "outcome",
+      "acceptance_criterion",
+      "time_boundary",
+      "scope_boundary"
+     ],
+     "display_name": "战役定义",
      "id": "definition",
      "kind": "definition"
     },
     {
      "class": "formal",
      "components": [
-      "acceptance_criterion"
+      "core_path",
+      "key_trade_off",
+      "milestone",
+      "constraint_dependency"
      ],
-     "display_name": "验收标准",
-     "id": "acceptance",
-     "kind": "definition"
-    },
-    {
-     "class": "formal",
-     "components": [],
-     "display_name": "打法",
-     "id": "play",
+     "display_name": "Mission 计划",
+     "id": "mission_plan",
      "kind": "definition"
     },
     {
@@ -3126,16 +3411,9 @@
      "components": [
       "plan_item"
      ],
-     "display_name": "执行计划",
+     "display_name": "Task 全景",
      "id": "execution_plan",
      "kind": "plan"
-    },
-    {
-     "class": "formal",
-     "components": [],
-     "display_name": "约束",
-     "id": "constraint",
-     "kind": "constraint"
     }
    ],
    "candidate": false,
@@ -3207,7 +3485,7 @@
     },
     {
      "class": "server",
-     "display_name": "责任人",
+     "display_name": "Task DRI",
      "id": "responsible",
      "required": false,
      "set_by": "assign",
@@ -3227,18 +3505,28 @@
    "blocks": [
     {
      "class": "formal",
-     "components": [],
-     "display_name": "定义",
+     "components": [
+      "contribution",
+      "outcome",
+      "acceptance_criterion",
+      "time_boundary",
+      "scope_boundary"
+     ],
+     "display_name": "任务定义",
      "id": "definition",
      "kind": "definition"
     },
     {
      "class": "formal",
      "components": [
-      "acceptance_criterion"
+      "execution_sequence",
+      "schedule",
+      "execution_context",
+      "governance_point",
+      "escalation_rule"
      ],
-     "display_name": "验收标准",
-     "id": "acceptance",
+     "display_name": "Task 计划",
+     "id": "task_plan",
      "kind": "definition"
     },
     {
@@ -3246,16 +3534,9 @@
      "components": [
       "plan_item"
      ],
-     "display_name": "计划",
+     "display_name": "Activity 全景",
      "id": "plan",
      "kind": "plan"
-    },
-    {
-     "class": "formal",
-     "components": [],
-     "display_name": "约束",
-     "id": "constraint",
-     "kind": "constraint"
     }
    ],
    "candidate": false,
@@ -3333,17 +3614,18 @@
    "blocks": [
     {
      "class": "formal",
-     "components": [],
-     "display_name": "执行指令",
+     "components": [
+      "contribution",
+      "work_definition",
+      "expected_output",
+      "acceptance_criterion",
+      "time_boundary",
+      "scope_boundary",
+      "execution_constraint"
+     ],
+     "display_name": "执行目的与要求",
      "id": "instruction",
      "kind": "definition"
-    },
-    {
-     "class": "formal",
-     "components": [],
-     "display_name": "约束",
-     "id": "constraint",
-     "kind": "constraint"
     }
    ],
    "candidate": true,
@@ -3472,7 +3754,7 @@
    "id": "parent"
   },
   {
-   "description": "持激活策略为该门动作列出的角色的人；Mission 的承诺另须是它的 Owner 本人",
+   "description": "持激活策略为该门动作列出的角色的人；Mission 的承诺另须是它的 Mission DRI 本人",
    "id": "gate_role"
   },
   {
@@ -3871,6 +4153,13 @@
     "blocks": [
      {
       "class": null,
+      "components": [],
+      "display_name": "当前状态",
+      "id": "current_state",
+      "kind": "state"
+     },
+     {
+      "class": null,
       "components": [
        "progress_item"
       ],
@@ -3881,7 +4170,7 @@
      {
       "class": null,
       "components": [],
-      "display_name": "阻塞与偏差",
+      "display_name": "关键风险与阻塞",
       "id": "blockers",
       "kind": "state"
      },
@@ -3915,8 +4204,31 @@
      {
       "class": null,
       "components": [],
-      "display_name": "进展与偏差",
+      "display_name": "当前状态",
+      "id": "current_state",
+      "kind": "state"
+     },
+     {
+      "class": null,
+      "components": [],
+      "display_name": "进展",
       "id": "progress",
+      "kind": "state"
+     },
+     {
+      "class": null,
+      "components": [
+       "variance"
+      ],
+      "display_name": "关键偏差",
+      "id": "variance",
+      "kind": "state"
+     },
+     {
+      "class": null,
+      "components": [],
+      "display_name": "关键风险",
+      "id": "key_risks",
       "kind": "state"
      },
      {
@@ -3948,8 +4260,22 @@
      {
       "class": null,
       "components": [],
-      "display_name": "进展与偏差",
+      "display_name": "当前状态",
+      "id": "current_state",
+      "kind": "state"
+     },
+     {
+      "class": null,
+      "components": [],
+      "display_name": "进展",
       "id": "progress",
+      "kind": "state"
+     },
+     {
+      "class": null,
+      "components": [],
+      "display_name": "关键风险",
+      "id": "key_risks",
       "kind": "state"
      },
      {
@@ -3979,6 +4305,27 @@
     "blocks": [
      {
       "class": null,
+      "components": [],
+      "display_name": "战略有效性",
+      "id": "validity",
+      "kind": "state"
+     },
+     {
+      "class": null,
+      "components": [],
+      "display_name": "关键假设状态",
+      "id": "assumption_status",
+      "kind": "state"
+     },
+     {
+      "class": null,
+      "components": [],
+      "display_name": "关键战略风险",
+      "id": "key_risks",
+      "kind": "state"
+     },
+     {
+      "class": null,
       "components": [
        "issue"
       ],
@@ -4005,6 +4352,13 @@
      {
       "class": null,
       "components": [],
+      "display_name": "整体经营状态",
+      "id": "overall_state",
+      "kind": "state"
+     },
+     {
+      "class": null,
+      "components": [],
       "display_name": "结果",
       "id": "results",
       "kind": "state"
@@ -4012,7 +4366,7 @@
      {
       "class": null,
       "components": [],
-      "display_name": "缺口",
+      "display_name": "关键结果差距",
       "id": "gaps",
       "kind": "state"
      },
@@ -4035,6 +4389,22 @@
       "components": [],
       "display_name": "经营含义",
       "id": "implications",
+      "kind": "state"
+     },
+     {
+      "class": null,
+      "components": [],
+      "display_name": "关键风险",
+      "id": "key_risks",
+      "kind": "state"
+     },
+     {
+      "class": null,
+      "components": [
+       "issue"
+      ],
+      "display_name": "问题",
+      "id": "issues",
       "kind": "state"
      },
      {

@@ -88,9 +88,9 @@ def test_an_outcome_the_action_does_not_have_is_caught(registry):
 def test_a_block_allowing_an_unknown_component_type_is_caught(registry):
     def edit(reg):
         mission = next(item for item in reg["objects"] if item["type"] == "Mission")
-        mission["blocks"][0]["components"].append("milestone")
+        mission["blocks"][0]["components"].append("no_such_component")
 
-    assert any("milestone" in error for error in broken(registry, edit))
+    assert any("no_such_component" in error for error in broken(registry, edit))
 
 
 def test_a_component_type_no_block_allows_is_caught(registry):
@@ -100,6 +100,27 @@ def test_a_component_type_no_block_allows_is_caught(registry):
                 block["components"] = [item for item in block["components"] if item != "assumption"]
 
     assert any("assumption" in error for error in broken(registry, edit))
+
+
+def test_an_unregistered_context_role_is_caught(registry):
+    def edit(reg):
+        next(item for item in reg["components"]["types"] if item["id"] == "key_constraint")["context_role"] = "rule"
+
+    assert any("key_constraint" in error and "rule" in error for error in broken(registry, edit))
+
+
+def test_a_role_carrying_component_type_only_snapshots_allow_is_caught(registry):
+    def edit(reg):
+        next(item for item in reg["components"]["types"] if item["id"] == "variance")["context_role"] = "constraint"
+
+    assert any("variance" in error and "no object block" in error for error in broken(registry, edit))
+
+
+def test_the_context_roles_are_the_three_the_mapping_names(registry):
+    """映射表第 1 节第 4 条：约束、验收、贡献三种；每种都有组件类型带着。"""
+    roles = [item["id"] for item in registry["components"]["context_roles"]]
+    assert roles == ["constraint", "acceptance", "contribution"]
+    assert {item.get("context_role") for item in registry["components"]["types"]} == {None, *roles}
 
 
 def test_a_payload_that_does_not_list_its_subject_type_is_caught(registry):

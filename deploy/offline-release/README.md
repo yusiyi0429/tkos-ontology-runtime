@@ -7,8 +7,8 @@
 选择与目标机器一致的 `linux-amd64` 或 `linux-arm64` 包。先校验下载目录中的 `SHA256SUMS`，再执行：
 
 ```bash
-tar -xzf tkos-ontology-runtime-v0.5.0-linux-ARCH.tar.gz
-cd tkos-ontology-runtime-v0.5.0-linux-ARCH
+tar -xzf tkos-ontology-runtime-v0.6.0-linux-ARCH.tar.gz
+cd tkos-ontology-runtime-v0.6.0-linux-ARCH
 python3 deploy/offline-release/verify_bundle.py . --load
 ```
 

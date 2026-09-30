@@ -140,6 +140,8 @@ def topic_cells(registry=REGISTRY):
         'read:business:blocks_components_ledger': 'business：类别、块类别、组件、台账、空块标准句',
         'read:business:formal': 'business：正式内容指针（生效修订）',
         'read:business:round': 'business：进行中的一轮',
+        'read:business:projection': 'business：投影项（Mission 的 Task 预期结果与质量标准、责任单元的战役引用，读取时从下级'
+                                    '对象投影、不存；其余类型为空）',
         'read:identity:responsible': 'identity：责任人及其来源（角色或属性）',
         'read:identity:delegations': 'identity：覆盖对象所在域的当前有效委托',
         'read:records:lifecycle': 'records：生命周期与推出它的事件',
@@ -323,8 +325,10 @@ CHECKS = {
     'company': {
         'the_ceo_creates_the_company_over_http_under_world_0_2': P('world_create_object'),
         'the_object_is_read_back_in_three_groups': ('read:three_groups',),
-        'business_carries_type_category_blocks_with_classes_and_the_empty_block_sentence':
-            ('read:business:blocks_components_ledger', 'read:business:formal'),
+        # #80 改名：Company 只剩身份块，空块标准句挪到 objects 的
+        # an_empty_block_reads_back_with_the_standard_sentence_named_by_the_registry。
+        'business_carries_type_category_the_identity_block_with_its_components_and_no_projection':
+            ('read:business:blocks_components_ledger', 'read:business:formal', 'read:business:projection'),
         'identity_names_the_ceo_by_role_and_records_are_empty_for_the_company': ('read:identity:responsible',),
         'the_company_is_read_as_world_0_2': (),
         'exactly_one_object_created_record_event_under_0_2_points_back_to_its_receipt': P('world_create_object'),
@@ -355,9 +359,15 @@ CHECKS = {
             ('read:business:blocks_components_ledger',),
         'a_component_scope_is_pinned_as_an_object_reference': ('refs:form:object',),
         'responsibility_by_attribute_is_named_as_such_and_empty_until_assigned': ('read:identity:responsible',),
+        'a_plan_item_takes_the_four_optional_attributes_and_reads_them_back':
+            ('read:business:blocks_components_ledger',),
         'the_activity_is_marked_as_a_candidate_type': ('read:business:blocks_components_ledger',),
+        'a_mission_projects_its_tasks_expected_results_at_read_time_and_stores_none': ('read:business:projection',),
+        'a_responsibility_unit_projects_the_missions_of_its_domain_as_navigation_only': ('read:business:projection',),
         'each_of_the_seven_types_reads_back_blocks_components_ledger_and_pinned_relations':
             P('world_create_object') + ('read:business:blocks_components_ledger',),
+        'an_empty_block_reads_back_with_the_standard_sentence_named_by_the_registry':
+            ('read:business:blocks_components_ledger',),
         'every_creation_wrote_one_0_2_object_created_event_pinned_to_its_first_revision': P('world_create_object'),
     },
     'rejections': {
@@ -366,7 +376,9 @@ CHECKS = {
         'authorization_is_refused_before_any_protocol_error': R('world_create_object'),
         'a_payload_field_outside_the_contract_is_refused': R('world_create_object'),
         'an_empty_block_cannot_pose_as_content': R('world_create_object'),
-        'a_component_in_a_block_that_takes_none_is_refused':
+        # #80 改名：业务对象里已没有不收组件的块，这里拒身份块不收的组件类型；不收组件的块挪到 state_events 的
+        # a_component_in_a_state_block_that_takes_none_is_refused。
+        'a_component_type_the_identity_block_does_not_take_is_refused':
             R('world_create_object') + ('components:unique_and_typed',),
         'an_external_ref_without_an_id_is_refused': R('world_create_object') + ('external_refs:shape',),
         'a_state_snapshot_is_not_written_by_creating_an_object': R('world_create_object'),
@@ -413,6 +425,8 @@ CHECKS = {
         'a_component_reference_to_the_older_version_stays_pinned_to_that_revision': ('refs:stable_across_revisions',),
         'the_same_component_id_is_found_in_the_newer_version': ('refs:stable_across_revisions',),
         'an_ungated_object_moves_its_effective_revision_with_the_revision': ('read:business:formal',),
+        'a_mission_projection_follows_the_latest_task_revision_while_the_mission_stays_at_its_version':
+            ('read:business:projection',),
         'a_removed_component_is_recorded_in_the_ledger_with_its_removal_version': ('components:ledger',),
         'reusing_a_removed_component_id_is_refused':
             R('world_revise_object') + ('components:removed_id_not_reused',),
@@ -450,6 +464,9 @@ CHECKS = {
             P('world_refresh_state'),
         'the_generator_is_the_principal_of_the_writing_credential': (),
         'the_execution_payload_keeps_progress_items_issue_components_and_normalised_entries': (),
+        'state_blocks_left_out_read_back_empty_with_the_standard_sentence_named_by_the_registry':
+            P('world_refresh_state'),
+        'the_new_state_blocks_read_back_as_written': P('world_refresh_state'),
         'an_agent_declares_a_unit_or_a_goal_as_the_scene_of_its_snapshot': P('world_refresh_state'),
         'each_snapshot_wrote_one_state_refreshed_event_that_happened_at_its_as_of_and_pins_snapshot_and_subject':
             ('late:backdated:state.refreshed', 'late:state_read_by_as_of'),
@@ -464,6 +481,8 @@ CHECKS = {
         'a_person_who_is_not_responsible_up_the_spine_cannot_write_the_snapshot': R('world_refresh_state'),
         'an_agent_without_the_agent_role_in_the_subjects_domain_cannot_write_the_snapshot': R('world_refresh_state'),
         'a_snapshot_is_not_the_subject_of_a_snapshot': R('world_refresh_state'),
+        'a_component_in_a_state_block_that_takes_none_is_refused':
+            R('world_refresh_state') + ('components:unique_and_typed',),
         'a_second_snapshot_of_the_same_subject_at_the_same_moment_is_refused_whatever_the_offset':
             R('world_refresh_state') + ('duplicates:snapshot_unique',),
         'replaying_a_snapshot_with_the_same_key_returns_the_original_receipt': ('duplicates:same_key_same_request',),
@@ -608,6 +627,8 @@ CHECKS = {
         'the_latest_snapshot_comes_back_as_its_shell_view_marked_unconfirmed',
         'lifecycle_formal_content_and_responsibility_follow_the_0_2_read_projection',
         'coverage_answers_the_six_questions_from_what_the_pack_holds',
+        'the_basis_takes_constraint_and_acceptance_components_along_the_spine_by_their_context_role',
+        'the_why_takes_the_contribution_of_the_current_object_by_its_context_role',
         'each_call_writes_exactly_one_context_pack_row_holding_what_was_returned_with_the_0_2_defaults',
         'two_calls_on_the_same_world_state_return_the_same_pack_plan_and_coverage',
         'the_per_object_event_cap_keeps_the_newest_ten_events_and_records_the_rest',

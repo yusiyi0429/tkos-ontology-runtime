@@ -29,7 +29,7 @@ from acceptance.runtime.client import Client
 from acceptance.world_v01.fixture import ROOT, _grant, _seed_actor, register_world, revoke_assignment, seed_world
 from acceptance.world_v01.flow import Flow as V01Flow
 from .agent_face import mcp_end_to_end
-from .context_fill import context_fill, trim_step, trimmed_in_the_0_2_order, why_chain
+from .context_fill import context_fill, sections, trim_step, trimmed_in_the_0_2_order, why_chain
 from .experiment_b import experiment_b
 from .experiment_e import experiment_e
 from .experiment_r import experiment_r
@@ -50,6 +50,8 @@ SCENARIOS = ['migration', 'control_plane', 'company', 'objects', 'rejections', '
              'context_fill', 'state_cells', 'revocation', 'experiment_e', 'experiment_b', 'experiment_r']
 EVENT_KINDS = {item['kind']: item for item in json.loads(REGISTRY.read_text())['event_kinds']}
 OBJECTS = {item['type']: item for item in json.loads(REGISTRY.read_text())['objects']}
+PAYLOADS = {item['id']: item for item in json.loads(REGISTRY.read_text())['state']['payload_types']}
+COMPONENTS = json.loads(REGISTRY.read_text())['components']
 TYPES = ['Company', 'Strategy', 'ResponsibilityUnit', 'LongTermGoal', 'PeriodGoal', 'Mission', 'Task', 'Activity']
 
 
@@ -184,7 +186,9 @@ def control_plane(book, h, source, f):
 def company(book, h, f, flow):
     """CEO 经 HTTP 以 0.2 建出 Company，取对象按三层读回；恰好一条 0.2 的 object.created 与一张回执。"""
     check = book.check
-    identity = {'text': '一家为企业做经营系统的公司。', 'artifacts': ['https://example.test/company-brief']}
+    identity = {'text': '一家为企业做经营系统的公司。', 'artifacts': ['https://example.test/company-brief'],
+                'components': [{'id': 'co-bd', 'type': 'business_definition', 'text': '为企业做经营系统'},
+                               {'id': 'co-vision', 'type': 'vision', 'text': '让每家企业的经营可追溯'}]}
     refs = [{'system': 'tianshu', 'id': 'company-1', 'url': 'https://example.test/c/1'}]
     body = flow.prepare('ceo', flow.command('world_create_object', {
         'domain_id': f['domains']['company'], 'object_type': 'Company',
@@ -198,17 +202,23 @@ def company(book, h, f, flow):
     view = flow.read('ceo', made['object_id'])
     business, blocks = view['business'], {b['id']: b for b in view['business']['blocks']}
     check('the_object_is_read_back_in_three_groups', set(view) == {'object_id', 'business', 'identity', 'records', 'protocol'})
-    check('business_carries_type_category_blocks_with_classes_and_the_empty_block_sentence',
+    # Content Pact（#80）：Company 只有「企业身份与长期意图」一个块、组件是四个属性里的两个，没有约束块；空块标准句改在
+    # objects 场景按登记逐块核对。
+    check('business_carries_type_category_the_identity_block_with_its_components_and_no_projection',
           business['object_type'] == 'Company' and business['type_display_name'] == '公司'
           and business['category'] == {'id': 'business_object', 'display_name': '业务对象'}
           and business['candidate'] is False and business['title'] == 'E&O 合成公司' and business['version'] == 1
           and business['attributes'] == {'external_refs': refs}
-          and list(blocks) == ['identity', 'constraint']
+          and list(blocks) == ['identity'] and blocks['identity']['display_name'] == '企业身份与长期意图'
           and blocks['identity']['text'] == identity['text'] and blocks['identity']['class'] == 'formal'
-          and blocks['identity']['value']['artifacts'] == identity['artifacts'] and blocks['identity']['components'] == []
-          and blocks['constraint']['empty'] and blocks['constraint']['text'] == '当前没有约束'
+          and blocks['identity']['value']['artifacts'] == identity['artifacts']
+          and [(c['id'], c['type'], c['text'], c['ref']) for c in blocks['identity']['components']] == [
+              (c['id'], c['type'], c['text'], f"{made['object_id']}@1#identity/{c['id']}") for c in identity['components']]
           and blocks['identity']['ref'] == made['object_id'] + '@1#identity'
-          and business['component_ledger'] == [] and business['round'] is None
+          and business['component_ledger'] == [
+              {'id': c['id'], 'type': c['type'], 'block': 'identity', 'added_in_version': 1, 'removed_in_version': None}
+              for c in identity['components']]
+          and business['projection'] is None and business['round'] is None
           and business['formal'] == {'lifecycle_status': 'recorded', 'effective_revision_id': made['revision_id']})
     check('identity_names_the_ceo_by_role_and_records_are_empty_for_the_company',
           view['identity']['responsible']['source'] == 'role' and view['identity']['responsible']['role'] == 'CEO'
@@ -286,14 +296,17 @@ def objects(book, h, f, flow, company):
 
     strategy, strategy_view = create('ceo', 'Strategy', 'company', {
         'title': '2026 战略', 'parent_ref': company['ref'],
-        'blocks': {'choices': {'text': '聚焦企业经营系统。'},
-                   'assumptions': {'components': [{'type': 'assumption', 'text': '客户愿意为可追溯付费。'}]},
+        'blocks': {'strategy_core': {'text': '聚焦企业经营系统。', 'components': [
+                       {'id': 'st-thesis', 'type': 'strategic_thesis', 'text': '先做经营系统，再做生态'}]},
+                   'business_logic': {'components': [
+                       {'type': 'assumption', 'text': '客户愿意为可追溯付费。'},
+                       {'id': 'st-sc1', 'type': 'strategy_constraint', 'text': '不做定制开发'}]},
                    'responsibility_structure': {'text': '两个战场。', 'components': [
                        {'id': 'unit-a', 'type': 'unit_entry', 'text': '战场 A'},
                        {'type': 'unit_entry', 'text': '战场 B'}]}}})
     structure = blocks_of(strategy_view)['responsibility_structure']
     generated = structure['components'][1]['id']
-    assumption = blocks_of(strategy_view)['assumptions']['components'][0]['id']
+    assumption = blocks_of(strategy_view)['business_logic']['components'][0]['id']
     check('components_keep_the_writers_id_or_get_one_from_the_service',
           [c['id'] for c in structure['components']] == ['unit-a', generated] and generated != assumption
           and all(len(cid) == 36 for cid in (generated, assumption))
@@ -302,7 +315,11 @@ def objects(book, h, f, flow, company):
               'attributes': {}, 'ref': strategy['object_id'] + '@1#responsibility_structure/unit-a'})
     check('the_component_ledger_is_kept_from_creation',
           strategy_view['business']['component_ledger'] == [
-              {'id': assumption, 'type': 'assumption', 'block': 'assumptions', 'added_in_version': 1,
+              {'id': 'st-thesis', 'type': 'strategic_thesis', 'block': 'strategy_core', 'added_in_version': 1,
+               'removed_in_version': None},
+              {'id': assumption, 'type': 'assumption', 'block': 'business_logic', 'added_in_version': 1,
+               'removed_in_version': None},
+              {'id': 'st-sc1', 'type': 'strategy_constraint', 'block': 'business_logic', 'added_in_version': 1,
                'removed_in_version': None},
               {'id': 'unit-a', 'type': 'unit_entry', 'block': 'responsibility_structure', 'added_in_version': 1,
                'removed_in_version': None},
@@ -314,7 +331,9 @@ def objects(book, h, f, flow, company):
     unit, unit_view = create('ceo', 'ResponsibilityUnit', 'a', {
         'title': '战场 A', 'unit_kind': 'battlefield',
         'architecture_ref': strategy['ref'] + '#responsibility_structure/unit-a',
-        'blocks': {'definition': {'text': '负责 A 客户群。'}}})
+        'blocks': {'definition': {'text': '负责 A 客户群。', 'components': [
+            {'id': 'unit-c1', 'type': 'contribution', 'text': '战略里的第一个战场'},
+            {'id': 'unit-k1', 'type': 'key_constraint', 'text': '只服务 A 客户群'}]}}})
     architecture = unit_view['business']['relations'][0]
     check('a_responsibility_unit_is_defined_by_a_unit_entry_pinned_by_component',
           architecture['field'] == 'architecture_ref' and architecture['value'] == {
@@ -324,38 +343,41 @@ def objects(book, h, f, flow, company):
 
     company_goal, company_goal_view = create('ceo', 'LongTermGoal', 'company', {
         'title': '公司三年目标', 'scope': 'company', 'horizon': '2028', 'parent_ref': company['ref'],
-        'blocks': {'measures': {'components': [{'id': 'sc-1', 'type': 'success_criterion', 'text': '年收入过亿'}]}}})
+        'blocks': {'target': {'components': [{'id': 'sc-1', 'type': 'success_criterion', 'text': '年收入过亿'}]}}})
+    # 单元长期目标只写目标定义，定位与承接留空：周期目标以 0.1 的整块写法引它（空块也能被引用）。
     unit_goal, unit_goal_view = create('a', 'LongTermGoal', 'a', {
         'title': '战场 A 长期目标', 'scope': 'unit', 'horizon': '2027', 'parent_ref': unit['ref'],
         'goal_ref': company_goal['ref'],
-        'blocks': {'outcome': {'components': [{'id': 'ua-o1', 'type': 'outcome', 'text': 'A 客户群收入过半',
-                                               'refs': [company_goal['ref'] + '#measures/sc-1']}]}}})
-    outcome = blocks_of(unit_goal_view)['outcome']['components'][0]
+        'blocks': {'target': {'components': [{'id': 'ua-o1', 'type': 'outcome', 'text': 'A 客户群收入过半',
+                                              'refs': [company_goal['ref'] + '#target/sc-1']}]}}})
+    outcome = blocks_of(unit_goal_view)['target']['components'][0]
     check('a_component_reference_is_read_back_in_both_forms',
           outcome['refs'] == [{'object_id': company_goal['object_id'], 'object_version': 1,
-                               'revision_id': company_goal['revision_id'], 'block': 'measures', 'component': 'sc-1',
-                               'ref': company_goal['ref'] + '#measures/sc-1'}])
+                               'revision_id': company_goal['revision_id'], 'block': 'target', 'component': 'sc-1',
+                               'ref': company_goal['ref'] + '#target/sc-1'}])
 
     # 人带写入声明：场景是责任单元（0.1 只认 Mission、Task）。
     scene_unit = {'scene': unit['ref'], 'trigger': '周期形成', 'human_acceptance': {'required': False}}
     goal, goal_view = create('a', 'PeriodGoal', 'a', {
         'title': '10 月目标', 'period': '2026-10', 'goal_ref': unit_goal['ref'],
-        'blocks': {'outcome': {'components': [{'id': 'pg-o1', 'type': 'outcome', 'text': '签 3 家',
-                                               'refs': [unit_goal['ref'] + '#outcome/ua-o1']}]},
-                   'realization_logic': {'text': '靠两场试点。',
-                                         'refs': [unit_goal['ref'] + '#measures', f'event:{strategy_event}',
-                                                  strategy['ref']]},
-                   'acceptance': {'components': [{'id': 'pg-ac1', 'type': 'acceptance_criterion', 'text': '合同签署'}]}}},
+        'blocks': {'alignment': {'text': '承接战场 A 的长期目标。',
+                                 'refs': [unit_goal['ref'] + '#alignment', f'event:{strategy_event}', strategy['ref']],
+                                 'components': [{'id': 'pg-why', 'type': 'why_this_period', 'text': '十月是签约旺季'}]},
+                   'target': {'components': [
+                       {'id': 'pg-o1', 'type': 'outcome', 'text': '签 3 家', 'refs': [unit_goal['ref'] + '#target/ua-o1']},
+                       {'id': 'pg-ac1', 'type': 'acceptance_criterion', 'text': '合同签署'},
+                       {'id': 'pg-tb1', 'type': 'time_boundary', 'text': '10 月底前'},
+                       {'id': 'pg-rl1', 'type': 'realization_logic', 'text': '靠两场试点。'}]}}},
         scene_unit)
-    logic = blocks_of(goal_view)['realization_logic']['value']['refs']
+    logic = blocks_of(goal_view)['alignment']['value']['refs']
     check('object_block_and_event_references_are_pinned_and_read_back_in_both_forms',
           logic == [{'object_id': unit_goal['object_id'], 'object_version': 1, 'revision_id': unit_goal['revision_id'],
-                     'block': 'measures', 'component': None, 'ref': unit_goal['ref'] + '#measures'},
+                     'block': 'alignment', 'component': None, 'ref': unit_goal['ref'] + '#alignment'},
                     {'event_id': strategy_event, 'ref': f'event:{strategy_event}'},
                     {'object_id': strategy['object_id'], 'object_version': 1, 'revision_id': strategy['revision_id'],
                      'block': None, 'component': None, 'ref': strategy['ref']}])
     check('a_whole_block_reference_in_the_0_1_form_still_works_in_a_0_2_object',
-          logic[0]['ref'] == unit_goal['ref'] + '#measures' and blocks_of(unit_goal_view)['measures']['empty'])
+          logic[0]['ref'] == unit_goal['ref'] + '#alignment' and blocks_of(unit_goal_view)['alignment']['empty'])
     check('a_declared_scene_may_be_a_responsibility_unit',
           goal['declaration']['scene']['ref'] == unit['ref'] and goal['declaration']['scene']['block'] is None)
 
@@ -363,36 +385,83 @@ def objects(book, h, f, flow, company):
                   'human_acceptance': {'required': True, 'acceptor': f['actors']['ceo']['principal_id']}}
     mission, mission_view = create('a', 'Mission', 'a', {
         'title': '试点一', 'goal_ref': goal['ref'],
-        'blocks': {'acceptance': {'components': [{'type': 'acceptance_criterion', 'text': '客户签字',
-                                                  'refs': [goal['ref'] + '#acceptance/pg-ac1'],
+        'blocks': {'definition': {'components': [{'type': 'acceptance_criterion', 'text': '客户签字',
+                                                  'refs': [goal['ref'] + '#target/pg-ac1'],
                                                   'scope': goal['ref']}]},
+                   'mission_plan': {'components': [{'id': 'm-cd1', 'type': 'constraint_dependency',
+                                                    'text': '依赖客户排期'}]},
                    'execution_plan': {'components': [{'id': 'plan-1', 'type': 'plan_item', 'text': '搭环境',
                                                       'attributes': {'responsible': f['actors']['owner_a']['principal_id']}}]}}},
         scene_goal)
     check('a_declared_scene_may_be_a_period_goal', mission['declaration']['scene']['ref'] == goal['ref']
           and mission['declaration']['human_acceptance']['acceptor'] == f['actors']['ceo']['principal_id'])
     mission_blocks = blocks_of(mission_view)
+    # 计划条目的属性都可选，没写的读回为 null；#79 起在责任人之外多了四个。
+    unset = {item['id']: None for item in next(t for t in COMPONENTS['types'] if t['id'] == 'plan_item')['attributes']}
     check('a_plan_item_keeps_its_responsible_as_a_record_and_the_execution_plan_is_an_activity_block',
           mission_blocks['execution_plan']['class'] == 'activity'
+          and mission_blocks['execution_plan']['display_name'] == 'Task 全景'
           and mission_blocks['execution_plan']['components'][0]['attributes']
-          == {'responsible': f['actors']['owner_a']['principal_id']}
+          == {**unset, 'responsible': f['actors']['owner_a']['principal_id']}
           and mission_view['business']['attributes']['responsible'] is None)
     check('a_component_scope_is_pinned_as_an_object_reference',
-          mission_blocks['acceptance']['components'][0]['scope']['ref'] == goal['ref'])
+          mission_blocks['definition']['components'][0]['scope']['ref'] == goal['ref'])
     check('responsibility_by_attribute_is_named_as_such_and_empty_until_assigned',
           mission_view['identity']['responsible'] == {'source': 'attribute', 'roles': {'human': 'OWNER'},
                                                      'principals': []})
 
+    # 计划条目的四个新属性（#79）都可选：Mission 的 plan-1 只带责任人，Task 的这条带齐四个、不带责任人。
+    extras = {'expected_output': '一份录屏脚本', 'quality_standard': '五分钟内讲清', 'executor': 'E&O Agent',
+              'division': '人定提纲，Agent 起草'}
     task, task_view = create('a', 'Task', 'a', {
         'title': '准备演示', 'parent_ref': mission['ref'],
-        'blocks': {'acceptance': {'components': [{'type': 'acceptance_criterion', 'text': '演示通过',
-                                                  'refs': [mission_blocks['acceptance']['components'][0]['ref']]}]},
-                   'plan': {'components': [{'type': 'plan_item', 'text': '写脚本'}]}}})
+        'blocks': {'definition': {'components': [
+                       {'id': 't-c1', 'type': 'contribution', 'text': '让客户看到试点效果'},
+                       {'id': 't-o1', 'type': 'outcome', 'text': '演示环境可用'},
+                       {'type': 'acceptance_criterion', 'text': '演示通过',
+                        'refs': [mission_blocks['definition']['components'][0]['ref']]}]},
+                   'plan': {'components': [{'id': 't-p1', 'type': 'plan_item', 'text': '写脚本', 'attributes': extras}]}}})
+    check('a_plan_item_takes_the_four_optional_attributes_and_reads_them_back',
+          set(unset) == {'responsible', *extras}
+          and blocks_of(task_view)['plan']['components'][0]['attributes'] == {**unset, **extras}
+          and blocks_of(task_view)['plan']['display_name'] == 'Activity 全景'
+          and mission_blocks['execution_plan']['components'][0]['attributes']
+          == {**unset, 'responsible': f['actors']['owner_a']['principal_id']})
     activity, activity_view = create('a', 'Activity', 'a', {
         'title': '录屏', 'parent_ref': task['ref'],
         'blocks': {'instruction': {'text': '按脚本录屏。', 'refs': [task['ref'] + '#plan']}}})
     check('the_activity_is_marked_as_a_candidate_type',
           activity_view['business']['candidate'] is True and task_view['business']['candidate'] is False)
+
+    # 投影项（#79，契约第 15.1 节）：读取时从下级对象投影、不存。Mission 在建 Task 之前读是空的，之后读到 Task 任务定义
+    # 块里的工作结果与成功 / 验收标准（贡献不投影），Mission 的版本不动，存下的修订里没有投影项；责任单元同理列本域的 Mission。
+    mission_now, unit_now = flow.read('a', mission['object_id']), flow.read('a', unit['object_id'])
+    projection = mission_now['business']['projection']
+    task_definition = blocks_of(task_view)['definition']['components']
+    stored = flow.rows('SELECT payload FROM gov_object_revisions WHERE scope_id=%s AND object_id = ANY(%s::uuid[])',
+                       (f['scope_id'], [mission['object_id'], unit['object_id']]))
+    check('a_mission_projects_its_tasks_expected_results_at_read_time_and_stores_none',
+          mission_view['business']['projection'] == {'id': 'task_expectations',
+                                                     'display_name': 'Task 预期结果与质量标准', 'items': []}
+          and (projection['id'], projection['display_name']) == ('task_expectations', 'Task 预期结果与质量标准')
+          and [(item['object_id'], item['object_type'], item['title'], item['ref'], item['pinned']['revision_id'])
+               for item in projection['items']]
+          == [(task['object_id'], 'Task', '准备演示', task['ref'], task['revision_id'])]
+          and [(c['id'], c['type'], c['text'], c['ref'], c['pinned']['ref'], c['pinned']['revision_id'])
+               for c in projection['items'][0]['components']]
+          == [(c['id'], c['type'], c['text'], c['ref'], c['ref'], task['revision_id'])
+              for c in task_definition if c['type'] in ('outcome', 'acceptance_criterion')]
+          and 't-c1' not in [c['id'] for c in projection['items'][0]['components']]
+          and mission_now['business']['version'] == mission['version'] == 1
+          and len(stored) == 2 and all('projection' not in row['payload'] for row in stored))
+    check('a_responsibility_unit_projects_the_missions_of_its_domain_as_navigation_only',
+          unit_view['business']['projection'] == {'id': 'mission_refs', 'display_name': '战役引用', 'items': []}
+          and unit_now['business']['projection'] == {'id': 'mission_refs', 'display_name': '战役引用', 'items': [
+              {'object_id': mission['object_id'], 'object_type': 'Mission', 'type_display_name': 'Mission',
+               'title': '试点一', 'ref': mission['ref'],
+               'pinned': {'object_id': mission['object_id'], 'object_version': 1, 'revision_id': mission['revision_id'],
+                          'block': None, 'component': None, 'ref': mission['ref']}}]}
+          and unit_now['business']['version'] == 1)
 
     views = {'Strategy': strategy_view, 'ResponsibilityUnit': unit_view, 'LongTermGoal': unit_goal_view,
              'PeriodGoal': goal_view, 'Mission': mission_view, 'Task': task_view, 'Activity': activity_view}
@@ -404,7 +473,20 @@ def objects(book, h, f, flow, company):
               and all(r['value'] is None or all('ref' in item and 'revision_id' in item for item in
                                                 (r['value'] if isinstance(r['value'], list) else [r['value']]))
                       for r in view['business']['relations'])
-              for object_type, view in views.items()))
+              for object_type, view in views.items())
+          and all(views[object_type]['business']['projection'] is None
+                  for object_type in ('Strategy', 'LongTermGoal', 'PeriodGoal', 'Task', 'Activity')))
+    # 空块的标准句按登记的块显示名给出（#79 后显示名里可以有空格，如「Task 计划」）：没写的块都是空块，写了的都不是。
+    names = {object_type: {block['id']: block['display_name'] for block in spec['blocks']}
+             for object_type, spec in OBJECTS.items()}
+    check('an_empty_block_reads_back_with_the_standard_sentence_named_by_the_registry',
+          all(block['empty'] == (block['value'] is None) and block['display_name'] == names[object_type][block['id']]
+              and (not block['empty'] or (block['text'] == f"当前没有{names[object_type][block['id']]}"
+                                          and block['components'] == []))
+              for object_type, view in views.items() for block in view['business']['blocks'])
+          and blocks_of(unit_goal_view)['alignment']['text'] == '当前没有定位与承接'
+          and blocks_of(task_view)['task_plan']['text'] == '当前没有Task 计划'
+          and not blocks_of(mission_view)['mission_plan']['empty'])
     events = flow.rows("SELECT kind, contract_version, subject_refs FROM gov_world_events WHERE scope_id=%s", (f['scope_id'],))
     check('every_creation_wrote_one_0_2_object_created_event_pinned_to_its_first_revision',
           len(events) == 9  # Company 与主干上的八个对象（长期目标公司级、单元级各一）
@@ -675,8 +757,8 @@ def gates(book, h, f, flow, trunk):
     pg = flow.create('a', 'PeriodGoal', 'a', {
         'title': '11 月目标（门）', 'period': '2026-11', 'goal_ref': unit_goal['ref'],
         'external_refs': [{'system': 'tianshu', 'id': 'pg-54'}],
-        'blocks': {'outcome': {'components': [{'id': 'g-o1', 'type': 'outcome', 'text': '签 3 家'}]},
-                   'acceptance': {'components': [{'id': 'g-ac1', 'type': 'acceptance_criterion', 'text': '合同签署'}]}}}
+        'blocks': {'target': {'components': [{'id': 'g-o1', 'type': 'outcome', 'text': '签 3 家'},
+                                             {'id': 'g-ac1', 'type': 'acceptance_criterion', 'text': '合同签署'}]}}}
     )['result']
     pid = pg['object_id']
     born = life(pid)
@@ -696,8 +778,9 @@ def gates(book, h, f, flow, trunk):
     deny('ceo', 'world_confirm_period_goal', pid, {'INVALID_REQUEST'})
     deny('a', 'world_commit_period_goal', pid, {'INVALID_REQUEST'},
          {'payload': {'external_refs': [{'system': 'tianshu', 'id': 'pg-x'}]}}, says='only formal blocks')
+    # 候选挪动组件：目标定义里的 g-o1 搬进定位与承接。
     deny('a', 'world_commit_period_goal', pid, {'INVALID_REQUEST'},
-         {'payload': {'blocks': {'acceptance': {'components': [{'id': 'g-o1', 'type': 'acceptance_criterion'}]}}}})
+         {'payload': {'blocks': {'alignment': {'components': [{'id': 'g-o1', 'type': 'responsibility_scope'}]}}}})
     check('period_goal_a_gate_takes_no_declaration_a_confirmation_needs_its_outcome_and_a_candidate_only_formal_content')
 
     # 形成锚定（#60）：挂在草稿长期目标上的承诺被拒；CEO 确认主干的单元长期目标之后放行。
@@ -731,14 +814,13 @@ def gates(book, h, f, flow, trunk):
 
     # 带候选承诺；已承诺时正式内容不能直接改，活动属性照改；CEO 接受时写回候选，活动属性取当前值。
     candidate = {'title': '11 月目标（门，候选）', 'blocks': {
-        'outcome': {'text': '签 5 家'},
-        'acceptance': {'components': [{'type': 'acceptance_criterion', 'text': '回款到账'}]}}}
+        'target': {'text': '签 5 家', 'components': [{'type': 'acceptance_criterion', 'text': '回款到账'}]}}}
     committed = gate('a', 'world_commit_period_goal', pid, {'payload': candidate})
     kept = event(committed['event_id'])['detail']['candidate']
-    new_id = kept['blocks']['acceptance']['components'][0]['id']
+    new_id = kept['blocks']['target']['components'][0]['id']
     check('period_goal_a_commitment_keeps_its_candidate_in_the_event_with_ids_for_new_components',
           life(pid)['status'] == 'committed' and committed['version'] == pg['version']
-          and kept == {**candidate, 'blocks': {**candidate['blocks'], 'acceptance': {'components': [
+          and kept == {**candidate, 'blocks': {'target': {'text': '签 5 家', 'components': [
               {'id': new_id, 'type': 'acceptance_criterion', 'text': '回款到账'}]}}}
           and len(new_id) == 36 and view(pid)['business']['round'] is None)
     deny_revise('a', pid, {'title': '直接改'}, {'INVALID_STATE'}, 'revised directly only while it is a draft')
@@ -749,18 +831,18 @@ def gates(book, h, f, flow, trunk):
           before_confirm['version'] == pg['version'] + 1 and life(pid)['status'] == 'committed')
     confirmed = gate('ceo', 'world_confirm_period_goal', pid, {'outcome': 'accepted'})
     written = view(pid)
-    outcome, acceptance = blocks_of(written)['outcome'], blocks_of(written)['acceptance']
+    target = blocks_of(written)['target']
     check('period_goal_confirm_accepted_writes_back_the_candidate_and_keeps_the_current_activity_attributes',
           life(pid) == {'status': 'confirmed', 'display_name': '已确认', 'event_id': confirmed['event_id']}
           and confirmed['version'] == before_confirm['version'] + 1 == written['business']['version']
-          and written['business']['title'] == candidate['title'] and outcome['text'] == '签 5 家'
-          and [c['id'] for c in outcome['components']] == ['g-o1']
-          and [(c['id'], c['text']) for c in acceptance['components']] == [('g-ac1', '合同签署'), (new_id, '回款到账')]
+          and written['business']['title'] == candidate['title'] and target['text'] == '签 5 家'
+          and [(c['id'], c['text']) for c in target['components']]
+          == [('g-o1', '签 3 家'), ('g-ac1', '合同签署'), (new_id, '回款到账')]
           and written['business']['attributes']['external_refs'] == [{**refs[0], 'url': None}, refs[1]]
           and pinned_to(confirmed))
     check('period_goal_the_first_formal_confirmation_points_formal_content_at_the_written_back_revision',
           formal(pid) == {'lifecycle_status': 'confirmed', 'effective_revision_id': confirmed['revision_id']})
-    formal_content = content_of(pid, 'outcome', 'acceptance', 'realization_logic')
+    formal_content = content_of(pid, 'alignment', 'target')
 
     # 撤回让内容成为正式的那条确认：正式内容收回；再确认时承诺的候选原样写回（组件同一批 id）。
     withdrawn = withdraw('ceo', 'world_confirm_period_goal', pid, confirmed)
@@ -772,17 +854,18 @@ def gates(book, h, f, flow, trunk):
     check('period_goal_confirming_again_writes_the_committed_candidate_back_as_it_was',
           life(pid)['event_id'] == confirmed['event_id']
           and confirmed['version'] == written['business']['version'] + 1
-          and content_of(pid, 'outcome', 'acceptance', 'realization_logic') == formal_content
+          and content_of(pid, 'alignment', 'target') == formal_content
           and formal(pid) == {'lifecycle_status': 'confirmed', 'effective_revision_id': confirmed['revision_id']})
     formal_confirmation = confirmed
 
     # 一轮重走：有正式内容后正式块不能直接改；开轮要带候选、状态不变；一轮未完不能再开；开轮的承诺不能撤回；
     # 退回则候选作废；再开一轮由 CEO 接受写回，状态与推出它的事件不变。
-    deny_revise('a', pid, {'blocks': {'realization_logic': {'text': '直接改'}}}, {'INVALID_STATE'}, 're-run of the gate')
+    deny_revise('a', pid, {'blocks': {'target': {'text': '直接改'}}}, {'INVALID_STATE'}, 're-run of the gate')
     check('period_goal_with_formal_content_formal_blocks_change_only_through_a_re_run')
     deny('a', 'world_commit_period_goal', pid, {'INVALID_STATE'}, says='carries the candidate')
     check('period_goal_a_re_run_commitment_carries_a_candidate')
-    rerun = {'blocks': {'realization_logic': {'text': '先两场试点，再复制到三家。'}}}
+    rerun = {'blocks': {'target': {'components': [
+        {'id': 'g-rl1', 'type': 'realization_logic', 'text': '先两场试点，再复制到三家。'}]}}}
     opened = gate('a', 'world_commit_period_goal', pid, {'payload': rerun})
     business = view(pid)['business']
     check('period_goal_a_re_run_opens_without_changing_the_stage_and_business_shows_the_round',
@@ -802,17 +885,23 @@ def gates(book, h, f, flow, trunk):
     check('period_goal_a_returned_round_is_void_and_nothing_is_written_back',
           view(pid)['business']['round'] is None and back['version'] == formal_confirmation['version']
           and life(pid)['event_id'] == formal_confirmation['event_id']
-          and content_of(pid, 'outcome', 'acceptance', 'realization_logic') == formal_content)
-    rerun = {'blocks': {'realization_logic': {'text': '两场试点后复制到三家。'}, 'constraint': {'text': '预算 20 万'}}}
+          and content_of(pid, 'alignment', 'target') == formal_content)
+    # 这一轮改两个正式块：定位与承接整块写上（原先是空块），目标定义里追加实现逻辑与时间边界，原有组件与块文字不动。
+    rerun = {'blocks': {'alignment': {'text': '承接战场 A 的三年目标。', 'components': [
+                            {'id': 'g-why', 'type': 'why_this_period', 'text': '11 月是续约窗口'}]},
+                        'target': {'components': [
+                            {'id': 'g-rl1', 'type': 'realization_logic', 'text': '两场试点后复制到三家。'},
+                            {'id': 'g-tb1', 'type': 'time_boundary', 'text': '11 月底前'}]}}}
     opened = gate('a', 'world_commit_period_goal', pid, {'payload': rerun})
     rewritten = gate('ceo', 'world_confirm_period_goal', pid, {'outcome': 'accepted'})
     written = view(pid)
+    after = content_of(pid, 'alignment', 'target')
     check('period_goal_the_confirmer_accepting_the_round_writes_it_back_and_the_stage_stays',
           life(pid) == {'status': 'confirmed', 'display_name': '已确认', 'event_id': formal_confirmation['event_id']}
           and rewritten['version'] == formal_confirmation['version'] + 1 and written['business']['round'] is None
-          and blocks_of(written)['realization_logic']['text'] == '两场试点后复制到三家。'
-          and blocks_of(written)['constraint']['text'] == '预算 20 万'
-          and content_of(pid, 'outcome', 'acceptance') == {k: formal_content[k] for k in ('outcome', 'acceptance')}
+          and after['alignment'] == ('承接战场 A 的三年目标。', [('g-why', 'why_this_period', '11 月是续约窗口')])
+          and after['target'] == (formal_content['target'][0], formal_content['target'][1] + [
+              ('g-rl1', 'realization_logic', '两场试点后复制到三家。'), ('g-tb1', 'time_boundary', '11 月底前')])
           and written['business']['formal'] == {'lifecycle_status': 'confirmed',
                                                 'effective_revision_id': rewritten['revision_id']}
           and pinned_to(rewritten) and str(event(opened['event_id'])['subject_refs'][0]['revision_id'])
@@ -827,7 +916,7 @@ def gates(book, h, f, flow, trunk):
     ltg = flow.create('a', 'LongTermGoal', 'a', {
         'title': '战场 A 三年目标（门）', 'scope': 'unit', 'horizon': '2028', 'parent_ref': unit['ref'],
         'goal_ref': company_goal['ref'],
-        'blocks': {'measures': {'components': [{'id': 'l-sc1', 'type': 'success_criterion', 'text': '三年签 20 家'}]}}}
+        'blocks': {'target': {'components': [{'id': 'l-sc1', 'type': 'success_criterion', 'text': '三年签 20 家'}]}}}
     )['result']
     lid = ltg['object_id']
     deny('a', 'world_confirm_long_term_goal', lid, {'FORBIDDEN'}, {'outcome': 'accepted'})
@@ -840,16 +929,16 @@ def gates(book, h, f, flow, trunk):
     check('long_term_goal_draft_confirm_returned_stays_a_draft_and_keeps_its_producer',
           life(lid) == {'status': 'draft', 'display_name': '草稿', 'event_id': ltg['event_id']}
           and event(back['event_id'])['outcome'] == 'returned' and back['version'] == ltg['version'])
-    candidate = {'horizon': '2029', 'blocks': {'measures': {'components': [
+    candidate = {'horizon': '2029', 'blocks': {'target': {'components': [
         {'type': 'success_criterion', 'text': '三年签 30 家'}, {'id': 'l-sc1', 'removed': True}]}}}
     confirmed = gate('ceo', 'world_confirm_long_term_goal', lid, {'outcome': 'accepted', 'payload': candidate})
     written = view(lid)
-    measures = blocks_of(written)['measures']['components']
+    measures = blocks_of(written)['target']['components']
     check('long_term_goal_draft_confirm_accepted_with_a_candidate_writes_it_back_and_makes_it_formal',
           life(lid) == {'status': 'confirmed', 'display_name': '已确认', 'event_id': confirmed['event_id']}
           and confirmed['version'] == ltg['version'] + 1 and written['business']['attributes']['horizon'] == '2029'
           and [c['text'] for c in measures] == ['三年签 30 家']
-          and event(confirmed['event_id'])['detail']['candidate']['blocks']['measures']['components'][0]['id']
+          and event(confirmed['event_id'])['detail']['candidate']['blocks']['target']['components'][0]['id']
           == measures[0]['id']
           and formal(lid) == {'lifecycle_status': 'confirmed', 'effective_revision_id': confirmed['revision_id']}
           and pinned_to(confirmed))
@@ -905,9 +994,10 @@ def gates(book, h, f, flow, trunk):
     goal_now = view(pid)['business']
     mission = flow.create('a', 'Mission', 'a', {
         'title': '试点（门）', 'goal_ref': f"{pid}@{goal_now['version']}",
-        'blocks': {'definition': {'text': '在两家客户做试点。'}, 'play': {'text': 'Play 核心路径：两场试点。'},
-                   'acceptance': {'components': [{'id': 'm-ac1', 'type': 'acceptance_criterion', 'text': '客户签字',
-                                                  'refs': [f"{pid}@{goal_now['version']}#acceptance/g-ac1"]}]},
+        'blocks': {'definition': {'text': '在两家客户做试点。', 'components': [
+                       {'id': 'm-ac1', 'type': 'acceptance_criterion', 'text': '客户签字',
+                        'refs': [f"{pid}@{goal_now['version']}#target/g-ac1"]}]},
+                   'mission_plan': {'text': 'Play 核心路径：两场试点。'},
                    'execution_plan': {'components': [{'id': 'm-p1', 'type': 'plan_item', 'text': '搭环境'}]}}}
     )['result']
     mid = mission['object_id']
@@ -931,9 +1021,9 @@ def gates(book, h, f, flow, trunk):
     check('mission_committed_confirm_returned_to_draft',
           life(mid) == {'status': 'draft', 'display_name': '草稿', 'event_id': returned['event_id']}
           and formal(mid) == {'lifecycle_status': 'draft', 'effective_revision_id': None})
-    candidate = {'blocks': {'play': {'text': 'Play 核心路径：一场试点加一次复盘。'}}}
+    candidate = {'blocks': {'mission_plan': {'text': 'Play 核心路径：一场试点加一次复盘。'}}}
     gate('owner_a', 'world_commit_mission', mid, {'payload': candidate})
-    deny_revise('owner_a', mid, {'blocks': {'play': {'text': '直接改'}}}, {'INVALID_STATE'}, 'while it is a draft')
+    deny_revise('owner_a', mid, {'blocks': {'mission_plan': {'text': '直接改'}}}, {'INVALID_STATE'}, 'while it is a draft')
     planned = flow.revise('owner_a', mid, {'blocks': {'execution_plan': {'components': [
         {'id': 'm-p2', 'type': 'plan_item', 'text': '约客户'}]}}})['result']
     confirmed = gate('a', 'world_confirm_mission', mid, {'outcome': 'accepted'})
@@ -941,7 +1031,7 @@ def gates(book, h, f, flow, trunk):
     check('mission_committed_confirm_accepted_to_established_writing_back_the_play_and_keeping_the_execution_plan',
           life(mid) == {'status': 'established', 'display_name': '已成立', 'event_id': confirmed['event_id']}
           and confirmed['version'] == planned['version'] + 1
-          and blocks_of(written)['play']['text'] == candidate['blocks']['play']['text']
+          and blocks_of(written)['mission_plan']['text'] == candidate['blocks']['mission_plan']['text']
           and [c['id'] for c in blocks_of(written)['execution_plan']['components']] == ['m-p1', 'm-p2']
           and written['business']['attributes']['responsible'] == actor_id['owner_a']
           and formal(mid) == {'lifecycle_status': 'confirmed', 'effective_revision_id': confirmed['revision_id']})
@@ -949,9 +1039,9 @@ def gates(book, h, f, flow, trunk):
 
     # 已成立：正式块不能直接改（Owner、持声明的 Agent）；Co-Agent 直接改执行计划、声明可以不要求人工验收；
     # 下级责任人（Task 的责任人）也可以直接改执行计划，但改不了正式块。
-    deny_revise('owner_a', mid, {'blocks': {'play': {'text': '直接改打法'}}}, {'INVALID_STATE'}, 're-run of the gate')
+    deny_revise('owner_a', mid, {'blocks': {'mission_plan': {'text': '直接改打法'}}}, {'INVALID_STATE'}, 're-run of the gate')
     unattended = {'scene': f'{mid}@1', 'trigger': '周会同步执行计划', 'human_acceptance': {'required': False}}
-    deny_revise('agent_a', mid, {'blocks': {'play': {'text': 'Agent 改打法'}}}, {'FORBIDDEN'}, None,
+    deny_revise('agent_a', mid, {'blocks': {'mission_plan': {'text': 'Agent 改打法'}}}, {'FORBIDDEN'}, None,
                 {**unattended, 'human_acceptance': {'required': True, 'acceptor': actor_id['owner_a']}})
     check('mission_established_formal_blocks_are_not_revised_directly')
     co_agent = flow.revise('agent_a', mid, {'blocks': {'execution_plan': {'components': [
@@ -964,7 +1054,7 @@ def gates(book, h, f, flow, trunk):
     task = flow.create('owner_a', 'Task', 'a', {'title': '准备试点环境', 'parent_ref': f"{mid}@{co_agent['version']}"})
     task = task['result']
     flow.assign('owner_a', task['object_id'], actor_id['ic_a'])
-    deny_revise('ic_a', mid, {'blocks': {'play': {'text': 'Task 责任人改打法'}}}, {'FORBIDDEN'})
+    deny_revise('ic_a', mid, {'blocks': {'mission_plan': {'text': 'Task 责任人改打法'}}}, {'FORBIDDEN'})
     below = flow.revise('ic_a', mid, {'blocks': {'execution_plan': {'components': [
         {'id': 'm-p3', 'type': 'plan_item', 'text': '写部署脚本',
          'attributes': {'responsible': actor_id['ic_a']}}]}}})['result']
@@ -973,8 +1063,8 @@ def gates(book, h, f, flow, trunk):
 
     # 一轮重走：Owner 带候选承诺开轮、状态不变；一轮未完不能再开；重走期间改执行计划不被写回覆盖；DRI 接受写回。
     deny('owner_a', 'world_commit_mission', mid, {'INVALID_STATE'}, says='carries the candidate')
-    rerun = {'blocks': {'play': {'text': 'Play 核心路径变化：先复盘再扩到第二家。'},
-                        'acceptance': {'components': [{'id': 'm-ac1', 'type': 'acceptance_criterion',
+    rerun = {'blocks': {'mission_plan': {'text': 'Play 核心路径变化：先复盘再扩到第二家。'},
+                        'definition': {'components': [{'id': 'm-ac1', 'type': 'acceptance_criterion',
                                                        'text': '客户书面签字'}]}}}
     opened = gate('owner_a', 'world_commit_mission', mid, {'payload': rerun})
     check('mission_the_owner_opens_a_round_with_a_candidate_and_the_stage_stays',
@@ -993,8 +1083,8 @@ def gates(book, h, f, flow, trunk):
     check('mission_the_dri_accepting_the_round_writes_it_back_the_stage_stays_and_the_execution_plan_is_not_overwritten',
           life(mid) == {'status': 'established', 'display_name': '已成立', 'event_id': formal_confirmation['event_id']}
           and rewritten['version'] == during['version'] + 1 and written['business']['round'] is None
-          and blocks_of(written)['play']['text'] == rerun['blocks']['play']['text']
-          and [(c['id'], c['text']) for c in blocks_of(written)['acceptance']['components']] == [('m-ac1', '客户书面签字')]
+          and blocks_of(written)['mission_plan']['text'] == rerun['blocks']['mission_plan']['text']
+          and [(c['id'], c['text']) for c in blocks_of(written)['definition']['components']] == [('m-ac1', '客户书面签字')]
           and [(c['id'], c['text']) for c in blocks_of(written)['execution_plan']['components']] == plan
           and [c for c, _ in plan] == ['m-p1', 'm-p2', 'm-p3', 'm-p4'] and plan[0][1] == '搭环境（已完成）'
           and written['business']['attributes']['responsible'] == actor_id['owner_a']
@@ -1044,15 +1134,15 @@ def references(book, h, f, flow, trunk, foreign):
     check('a_reference_to_an_event_of_another_scope_is_refused_as_missing')
 
     for architecture in (strategy['ref'], strategy['ref'] + '#responsibility_structure',
-                         strategy['ref'] + f"#assumptions/{trunk['assumption']}"):
+                         strategy['ref'] + f"#business_logic/{trunk['assumption']}"):
         flow.deny_create('ceo', 'ResponsibilityUnit', 'b', {'title': 'B', 'unit_kind': 'domain',
                                                              'architecture_ref': architecture}, codes={'INVALID_REQUEST'})
     check('an_architecture_reference_that_is_not_a_unit_entry_is_refused')
 
-    deny_task({'INVALID_REQUEST'}, blocks={'acceptance': {'components': [{'id': 'x', 'type': 'acceptance_criterion'}]},
+    deny_task({'INVALID_REQUEST'}, blocks={'definition': {'components': [{'id': 'x', 'type': 'acceptance_criterion'}]},
                                            'plan': {'components': [{'id': 'x', 'type': 'plan_item'}]}})
     check('a_component_id_repeated_within_the_object_is_refused')
-    deny_task({'INVALID_REQUEST'}, blocks={'acceptance': {'components': [{'type': 'plan_item', 'text': 'x'}]}})
+    deny_task({'INVALID_REQUEST'}, blocks={'definition': {'components': [{'type': 'plan_item', 'text': 'x'}]}})
     check('a_component_type_the_block_does_not_allow_is_refused')
     deny_task({'INVALID_REQUEST'}, blocks={'plan': {'components': [{'type': 'plan_item',
                                                                     'attributes': {'responsible': missing}}]}})
@@ -1062,7 +1152,7 @@ def references(book, h, f, flow, trunk, foreign):
     flow.deny_create('a', 'PeriodGoal', 'a', {'title': 'P', 'period': '2026-11', 'goal_ref': made['LongTermGoal.unit']['ref'],
                                              'review_ref': made['Company']['ref']}, codes={'INVALID_REQUEST'})
     check('a_period_goal_review_reference_points_to_a_state_snapshot')
-    deny_task({'INVALID_REQUEST'}, declaration={'scene': mission['ref'] + '#acceptance', 'trigger': 'x',
+    deny_task({'INVALID_REQUEST'}, declaration={'scene': mission['ref'] + '#definition', 'trigger': 'x',
                                                 'human_acceptance': {'required': False}})
     check('a_declared_scene_is_an_object_reference')
 
@@ -1098,9 +1188,11 @@ def rejections(book, h, f, flow, made):
     flow.deny('ceo', flow.command('world_create_object', params(blocks={'identity': {'text': '   '}})),
               codes={'INVALID_REQUEST'})
     check('an_empty_block_cannot_pose_as_content')
+    # #80：Company 的身份块起有了组件（业务定义、企业使命、愿景、价值观与公司原则），业务对象里已没有不收组件的块；
+    # 这里改拒它不收的组件类型，「不收组件的块」挪到 state_events 的快照块上。
     flow.deny('ceo', flow.command('world_create_object', params(
         blocks={'identity': {'text': 'x', 'components': [{'type': 'outcome', 'text': 'y'}]}})), codes={'INVALID_REQUEST'})
-    check('a_component_in_a_block_that_takes_none_is_refused')
+    check('a_component_type_the_identity_block_does_not_take_is_refused')
     flow.deny('ceo', flow.command('world_create_object', params(external_refs=[{'system': 'tianshu'}])),
               codes={'INVALID_REQUEST'})
     check('an_external_ref_without_an_id_is_refused')
@@ -1182,21 +1274,22 @@ def revise_relate(book, h, f, flow, trunk):
     def deny_relate(actor, oid, field, refs, codes, says=None):
         flow.deny(actor, flow.targeted('world_relate', oid, {'field': field, 'refs': refs}), codes=codes, says=says)
 
-    # 版本 2：改写验收条件与计划条目（id 不换），追加一条带 id 的计划条目。
+    # 版本 2：改写战役定义里的验收标准与计划条目（id 不换），追加一条带 id 的计划条目；Mission 计划不提、原样保留。
     v1 = flow.read('a', mission['object_id'])
-    criterion = blocks_of(v1)['acceptance']['components'][0]['id']
+    criterion = blocks_of(v1)['definition']['components'][0]['id']
     revised = flow.revise('a', mission['object_id'], {'blocks': {
-        'acceptance': {'components': [{'id': criterion, 'type': 'acceptance_criterion', 'text': '客户书面签字'}]},
+        'definition': {'components': [{'id': criterion, 'type': 'acceptance_criterion', 'text': '客户书面签字'}]},
         'execution_plan': {'components': [{'id': 'plan-1', 'type': 'plan_item', 'text': '搭环境（已完成）'},
                                           {'id': 'plan-2', 'type': 'plan_item', 'text': '联调'}]}}})
     check('each_revision_writes_exactly_one_object_revised_event_and_one_receipt',
           revised['result']['version'] == 2 and revised['result']['contract_version'] == V02
           and one_event_one_receipt(revised, 'object.revised', []))
     v2 = flow.read('a', mission['object_id'])
-    acceptance, plan = blocks_of(v2)['acceptance'], blocks_of(v2)['execution_plan']
+    acceptance, plan = blocks_of(v2)['definition'], blocks_of(v2)['execution_plan']
     check('a_rewritten_component_keeps_its_id_and_untouched_fields_and_blocks_stay',
           [c['id'] for c in acceptance['components']] == [criterion] and acceptance['components'][0]['text'] == '客户书面签字'
           and acceptance['components'][0]['scope'] is None
+          and [(c['id'], c['text']) for c in blocks_of(v2)['mission_plan']['components']] == [('m-cd1', '依赖客户排期')]
           and [(c['id'], c['text']) for c in plan['components']] == [('plan-1', '搭环境（已完成）'), ('plan-2', '联调')]
           and v2['business']['title'] == v1['business']['title']
           and v2['business']['relations'][0]['value'] == v1['business']['relations'][0]['value'])
@@ -1207,20 +1300,33 @@ def revise_relate(book, h, f, flow, trunk):
           v2['business']['formal'] == {'lifecycle_status': 'draft', 'effective_revision_id': None})
 
     # 旧版本的组件引用钉在旧修订；新版本里同一 id 可找到。
+    def criteria(view):
+        return [c for c in blocks_of(view)['definition']['components'] if c['type'] == 'acceptance_criterion']
+
     task_view = flow.read('a', task['object_id'])
-    old_ref = blocks_of(task_view)['acceptance']['components'][0]['refs'][0]
+    old_ref = criteria(task_view)[0]['refs'][0]
     check('a_component_reference_to_the_older_version_stays_pinned_to_that_revision',
-          old_ref['ref'] == f"{mission['ref']}#acceptance/{criterion}" and old_ref['revision_id'] == mission['revision_id'])
-    new_ref = f"{mission['object_id']}@2#acceptance/{criterion}"
-    task_revised = flow.revise('a', task['object_id'], {'blocks': {'acceptance': {'components': [
+          old_ref['ref'] == f"{mission['ref']}#definition/{criterion}" and old_ref['revision_id'] == mission['revision_id'])
+    new_ref = f"{mission['object_id']}@2#definition/{criterion}"
+    task_revised = flow.revise('a', task['object_id'], {'blocks': {'definition': {'components': [
         {'type': 'acceptance_criterion', 'text': '演示通过（按新验收）', 'refs': [new_ref]}]}}})
     task_view = flow.read('a', task['object_id'])
-    components = blocks_of(task_view)['acceptance']['components']
+    components = criteria(task_view)
     check('the_same_component_id_is_found_in_the_newer_version',
           [c['refs'][0]['revision_id'] for c in components] == [mission['revision_id'], revised['result']['revision_id']]
           and components[1]['refs'][0]['ref'] == new_ref)
     check('an_ungated_object_moves_its_effective_revision_with_the_revision',
           task_view['business']['formal']['effective_revision_id'] == task_revised['result']['revision_id'])
+    # 投影项读取时算（#79）：Task 出了新修订，Mission 的投影跟到它的最新修订，Mission 自己不出修订。
+    projected = flow.read('a', mission['object_id'])['business']
+    items = projected['projection']['items']
+    check('a_mission_projection_follows_the_latest_task_revision_while_the_mission_stays_at_its_version',
+          [item['ref'] for item in items] == [f"{task['object_id']}@{task_revised['result']['version']}"]
+          and [(c['id'], c['text'], c['pinned']['revision_id']) for c in items[0]['components']]
+          == [(c['id'], c['text'], task_revised['result']['revision_id'])
+              for c in blocks_of(task_view)['definition']['components'] if c['type'] in ('outcome', 'acceptance_criterion')]
+          and len(items[0]['components']) == 3
+          and (projected['version'], projected['revision_id']) == (2, revised['result']['revision_id']))
 
     # 版本 3：删除一条计划条目，台账记删除版本号。
     flow.revise('a', mission['object_id'], {'blocks': {'execution_plan': {'components': [{'id': 'plan-2', 'removed': True}]}}})
@@ -1232,11 +1338,11 @@ def revise_relate(book, h, f, flow, trunk):
     deny_revise('a', mission['object_id'], {'blocks': {'execution_plan': {'components': [
         {'id': 'plan-2', 'type': 'plan_item', 'text': '联调'}]}}}, {'INVALID_REQUEST'}, 'not reused')
     check('reusing_a_removed_component_id_is_refused')
-    deny_revise('a', mission['object_id'], {'blocks': {'acceptance': {'components': [
+    deny_revise('a', mission['object_id'], {'blocks': {'definition': {'components': [
         {'id': 'plan-1', 'type': 'acceptance_criterion', 'text': '搬过来'}]}}}, {'INVALID_REQUEST'}, 'move between blocks')
     deny_revise('a', mission['object_id'], {'blocks': {
         'execution_plan': {'components': [{'id': 'plan-1', 'removed': True}]},
-        'acceptance': {'components': [{'id': 'plan-1', 'type': 'acceptance_criterion', 'text': '搬过来'}]}}},
+        'definition': {'components': [{'id': 'plan-1', 'type': 'acceptance_criterion', 'text': '搬过来'}]}}},
         {'INVALID_REQUEST'}, 'move between blocks')
     check('moving_a_component_to_another_block_is_refused_even_when_removed_in_the_same_revision')
     deny_revise('a', mission['object_id'], {'blocks': {'execution_plan': {'components': [
@@ -1386,8 +1492,13 @@ def state_events(book, h, f, flow, trunk, foreign):
         'progress': {'components': [progress]}, 'blockers': {'text': '等客户排期'},
         'issues': {'components': [issue]}, 'materials': {'artifacts': ['https://example.test/w39']}}, period='2026-09'),
         declare(mission))
+    # 新状态块（#79）都可以缺省：目标状态写上当前状态、关键偏差（组件）与关键风险，公司复盘写上整体经营状态与问题，
+    # 其余快照不写新块，读回给标准句。
     goal_body = flow.prepare('agent_a', flow.command('world_refresh_state', {
-        'payload': shell(goal, 'goal_state', t_late, {'progress': {'text': '签了 1 家'}}),
+        'payload': shell(goal, 'goal_state', t_late, {
+            'current_state': {'text': '按计划推进'}, 'progress': {'text': '签了 1 家'},
+            'variance': {'components': [{'id': 'var-1', 'type': 'variance', 'text': '签约比计划慢一家'}]},
+            'key_risks': {'text': '一家客户预算冻结'}}),
         'declaration': declare(goal, '周期检查')}))
     written['goal_state'] = flow.commit('agent_a', goal_body)
     written['unit_state'] = flow.refresh('agent_a', shell(unit, 'unit_state', t_late, {
@@ -1396,7 +1507,11 @@ def state_events(book, h, f, flow, trunk, foreign):
         'materials': {'text': '战略候选稿', 'artifacts': ['https://example.test/strategy-draft']}}),
         declare(strategy, '战略复盘'))
     written['company_review'] = flow.refresh('ceo', shell(company, 'company_review', t_late, {
-        'results': {'text': '九月收入达成八成'}, 'gaps': {'text': 'B 战场落后'}}))
+        'overall_state': {'text': '整体达成八成'}, 'results': {'text': '九月收入达成八成'}, 'gaps': {'text': 'B 战场落后'},
+        'issues': {'components': [{**issue, 'id': 'co-iss-1'}]}}))
+    given = {'execution_state': {'progress', 'blockers', 'issues', 'materials'},
+             'goal_state': {'current_state', 'progress', 'variance', 'key_risks'}, 'unit_state': {'issues'},
+             'strategy_state': {'materials'}, 'company_review': {'overall_state', 'results', 'gaps', 'issues'}}
     writers = {'execution_state': 'agent_a', 'goal_state': 'agent_a', 'unit_state': 'agent_a',
                'strategy_state': 'agent_company', 'company_review': 'ceo'}
     views = {name: flow.read('ceo', receipt['result']['object_id']) for name, receipt in written.items()}
@@ -1412,12 +1527,40 @@ def state_events(book, h, f, flow, trunk, foreign):
               for name, actor in writers.items()))
     execution = {b['id']: b for b in views['execution_state']['blocks']}
     check('the_execution_payload_keeps_progress_items_issue_components_and_normalised_entries',
-          [b for b in execution] == ['progress', 'blockers', 'issues', 'materials']
+          [b for b in execution] == ['current_state', 'progress', 'blockers', 'issues', 'materials']
+          and execution['blockers']['display_name'] == '关键风险与阻塞'
           and execution['progress']['components'][0]['attributes']['entries']
           == [{'at': '2026-09-26T02:00:00Z', 'source': 'codex', 'text': '完成脚手架', 'url': None}]
           and execution['issues']['components'][0]['ref'] == written['execution_state']['result']['ref'] + '#issues/iss-1'
           and execution['issues']['components'][0]['attributes']['core_question'] == '要不要把试点推迟一周？'
           and views['execution_state']['period'] == '2026-09')
+    new = {name: [block for block in view['blocks'] if block['id'] not in given[name]] for name, view in views.items()}
+    check('state_blocks_left_out_read_back_empty_with_the_standard_sentence_named_by_the_registry',
+          all([block['id'] for block in view['blocks']] == [block['id'] for block in PAYLOADS[name]['blocks']]
+              and all(block['empty'] == (block['id'] not in given[name])
+                      and block['display_name'] == spec['display_name'] for block, spec
+                      in zip(view['blocks'], PAYLOADS[name]['blocks']))
+              and all(block['text'] == f"当前没有{block['display_name']}" and block['value'] is None
+                      and block['components'] == [] for block in new[name])
+              for name, view in views.items())
+          and {name: [block['id'] for block in new[name] if block['id'] in {
+              'current_state', 'key_risks', 'variance', 'validity', 'assumption_status', 'overall_state'}]
+               for name in new} == {'execution_state': ['current_state'], 'goal_state': [],
+                                    'unit_state': ['current_state', 'key_risks'],
+                                    'strategy_state': ['validity', 'assumption_status', 'key_risks'],
+                                    'company_review': ['key_risks']}
+          and {block['id']: block['text'] for block in new['execution_state']}['current_state'] == '当前没有当前状态')
+    goal_blocks = {block['id']: block for block in views['goal_state']['blocks']}
+    review_blocks = {block['id']: block for block in views['company_review']['blocks']}
+    check('the_new_state_blocks_read_back_as_written',
+          goal_blocks['current_state']['text'] == '按计划推进' and goal_blocks['key_risks']['text'] == '一家客户预算冻结'
+          and [(c['id'], c['type'], c['text'], c['ref']) for c in goal_blocks['variance']['components']]
+          == [('var-1', 'variance', '签约比计划慢一家', written['goal_state']['result']['ref'] + '#variance/var-1')]
+          and goal_blocks['variance']['display_name'] == '关键偏差' and goal_blocks['progress']['display_name'] == '进展'
+          and review_blocks['overall_state']['text'] == '整体达成八成'
+          and review_blocks['gaps']['display_name'] == '关键结果差距'
+          and [(c['id'], c['type'], c['attributes']['core_question']) for c in review_blocks['issues']['components']]
+          == [('co-iss-1', 'issue', issue['attributes']['core_question'])])
     check('an_agent_declares_a_unit_or_a_goal_as_the_scene_of_its_snapshot',
           written['unit_state']['result']['declaration']['scene']['ref'] == unit['ref']
           and written['goal_state']['result']['declaration']['scene']['ref'] == goal['ref'])
@@ -1465,6 +1608,11 @@ def state_events(book, h, f, flow, trunk, foreign):
     check('an_agent_without_the_agent_role_in_the_subjects_domain_cannot_write_the_snapshot')
     deny('a', shell({'ref': written['execution_state']['result']['ref']}, 'execution_state', t_early), {'INVALID_REQUEST'})
     check('a_snapshot_is_not_the_subject_of_a_snapshot')
+    # 不收组件的块（原在 rejections 用 Company 的约束块驱动，#80 起业务对象里已没有这种块）：快照的关键风险与阻塞、当前状态。
+    for block in ('blockers', 'current_state'):
+        deny('a', shell(mission, 'execution_state', t_early, {block: {'text': 'x', 'components': [
+            {'type': 'issue', 'text': 'x', 'attributes': {'core_question': 'y'}}]}}), {'INVALID_REQUEST'})
+    check('a_component_in_a_state_block_that_takes_none_is_refused')
     other_form = at(t_late).astimezone(timezone(timedelta(hours=8))).isoformat()
     deny('agent_a', shell(mission, 'execution_state', other_form), {'INVALID_STATE'}, declare(mission), prepare=False)
     check('a_second_snapshot_of_the_same_subject_at_the_same_moment_is_refused_whatever_the_offset')
@@ -1599,20 +1747,24 @@ def context_packs(book, h, f, flow, trunk, foreign):
 
     # 在主干 Mission 下建一条带验收条件的 Task 与它的 Activity：Mission 的 Owner 指派 Task，Task 的责任人把 Activity
     # 指派给 Agent；Agent 开始执行，记一次以 Task 的验收条件与 Activity 为主体的评审，再写两条引用它的快照。
+    # 块按 Content Pact（#80）：Task 的任务定义放两条验收标准、Task 计划放一条执行上下文与约束（约束角色）；Activity 的
+    # 执行目的与要求带贡献（贡献角色）与时间边界（约束角色）两个组件。
     mission = flow.read('outsider', made['Mission']['object_id'])
-    criterion = blocks_of(mission)['acceptance']['components'][0]['ref']
+    criterion = blocks_of(mission)['definition']['components'][0]['ref']
     task = flow.create('a', 'Task', 'a', {
         'title': '上下文 Task', 'parent_ref': f"{mission['object_id']}@{mission['business']['version']}", 'blocks': {
-            'definition': {'text': '把 0.2 的取上下文接给执行 Agent。'},
-            'acceptance': {'text': '两条验收。', 'components': [
+            'definition': {'text': '把 0.2 的取上下文接给执行 Agent。', 'components': [
                 {'id': 'ctx-ac1', 'type': 'acceptance_criterion', 'text': '引用细到组件', 'refs': [criterion]},
                 {'id': 'ctx-ac2', 'type': 'acceptance_criterion', 'text': '事件以事件引用给出'}]},
+            'task_plan': {'components': [{'id': 'ctx-ec1', 'type': 'execution_context', 'text': '只在隔离库上验收'}]},
             'plan': {'components': [{'id': 'ctx-p1', 'type': 'plan_item', 'text': '先写测试',
                                      'attributes': {'responsible': actor_id['ic_a']}}]}}})['result']
     act('owner_a', 'world_assign', task['object_id'], {'principal_id': actor_id['ic_a']})
     activity = flow.create('a', 'Activity', 'a', {'title': '上下文 Activity', 'parent_ref': task['ref'], 'blocks': {
         'instruction': {'text': '按验收条件实现取上下文。',
-                        'refs': [task['ref'] + '#acceptance/ctx-ac1', task['ref'] + '#plan/ctx-p1']}}})['result']
+                        'refs': [task['ref'] + '#definition/ctx-ac1', task['ref'] + '#plan/ctx-p1'],
+                        'components': [{'id': 'ctx-c1', 'type': 'contribution', 'text': '让执行 Agent 拿到组件级依据'},
+                                       {'id': 'ctx-tb1', 'type': 'time_boundary', 'text': '本周内'}]}}})['result']
     act('ic_a', 'world_assign', activity['object_id'], {'principal_id': actor_id['agent_a']})
     started = act('agent_a', 'world_start', activity['object_id'], {'declaration': declared(activity['ref'], '开工')})
     # 评审与快照的时点都落在开始之后、此刻之前，这样都不算迟记。
@@ -1621,7 +1773,7 @@ def context_packs(book, h, f, flow, trunk, foreign):
         time.sleep(0.2)
     t_review, t_first, t_second = (utc(base + timedelta(seconds=n)) for n in (1, 2, 3))
     review = flow.record('agent_a', {'category': 'review', 'occurred_at': t_review,
-                                     'subject_refs': [task['ref'] + '#acceptance/ctx-ac1', activity['ref']],
+                                     'subject_refs': [task['ref'] + '#definition/ctx-ac1', activity['ref']],
                                      'content': {'text': '评审组件级引用的做法'},
                                      'declaration': declared(activity['ref'], '评审')})['result']
     source = f"event:{review['event_id']}"
@@ -1656,14 +1808,14 @@ def context_packs(book, h, f, flow, trunk, foreign):
           and plan['walked'][5]['pinned'] == made['Strategy']['ref'] + '#responsibility_structure/unit-a')
 
     task_layer = layers[1]
-    acceptance = {block['id']: block for block in task_layer['blocks']}['acceptance']
-    read_back = {c['id']: c for c in blocks_of(projected[task['object_id']])['acceptance']['components']}
+    acceptance = {block['id']: block for block in task_layer['blocks']}['definition']
+    read_back = {c['id']: c for c in blocks_of(projected[task['object_id']])['definition']['components']}
     task_business = projected[task['object_id']]['business']
     check('acceptance_criteria_come_back_as_component_references_pinned_to_the_version_read',
           [c['ref'] for c in acceptance['components']]
-          == [f"{task_layer['object']['ref']}#acceptance/{cid}" for cid in ('ctx-ac1', 'ctx-ac2')]
+          == [f"{task_layer['object']['ref']}#definition/{cid}" for cid in ('ctx-ac1', 'ctx-ac2')]
           and all(c['pinned'] == {'object_id': task['object_id'], 'object_version': task_business['version'],
-                                  'revision_id': task_business['revision_id'], 'block': 'acceptance',
+                                  'revision_id': task_business['revision_id'], 'block': 'definition',
                                   'component': c['id'], 'ref': c['ref']}
                   and c['text'] == read_back[c['id']]['text'] and f"`{c['ref']}`" in markdown
                   for c in acceptance['components'])
@@ -1773,9 +1925,51 @@ def context_packs(book, h, f, flow, trunk, foreign):
           list(coverage) == ['why', 'what', 'who', 'now', 'happened', 'basis']
           and all(answer['answered'] and answer['gap'] is None for answer in coverage.values())
           and all(item['ref'] in refs for answer in coverage.values() for item in answer['evidence'])
-          and coverage['what']['evidence'] == [{'ref': f"{layers[0]['object']['ref']}#instruction"}]
+          and coverage['what']['evidence'] == [{'ref': f"{layers[0]['object']['ref']}#instruction{part}"}
+                                               for part in ('', '/ctx-c1', '/ctx-tb1')]
           and coverage['who']['evidence'] == [{'ref': layers[0]['object']['ref']}]
           and coverage['now']['evidence'] == [{'ref': latest_snapshot['ref']}, {'ref': layers[2]['state']['ref']}])
+
+    # 取上下文角色（#79，契约第 4、15.3 节）：约束与验收按组件类型的角色沿主干逐层取（不含多取的一跳），精确到组件引用，
+    # 计入「凭什么」；当前对象带贡献角色的组件计入「为什么」。期望由验收按登记的 context_role 从包里读回的块自己算。
+    role = {item['id']: item.get('context_role') for item in COMPONENTS['types']}
+    role_name = {item['id']: item['display_name'] for item in COMPONENTS['context_roles']}
+    type_name = {item['id']: item['display_name'] for item in COMPONENTS['types']}
+    by_layer = [(layer, [item for block in layer['blocks'] for item in block['components']
+                         if role[item['type']] in ('constraint', 'acceptance')]) for layer in layers]
+    basis_refs = [item['ref'] for _, found in by_layer for item in found]
+
+    def place(layer):
+        return '当前对象' if layer['level'] == 0 else f"上溯第 {layer['level']} 层"
+
+    def of_role(found, name):
+        return '、'.join(f"`{item['ref']}`（{type_name[item['type']]}）" for item in found if role[item['type']] == name)
+
+    expected_basis = ['按组件的取上下文角色逐层列出约束与验收（内容在它们所在的块里）：'] + [
+        f"- {place(layer)} {layer['object']['type_display_name']}《{layer['object']['title']}》："
+        + '；'.join(f"{role_name[name]} {of_role(found, name)}" for name in ('constraint', 'acceptance')
+                   if of_role(found, name))
+        for layer, found in by_layer if found]
+    at_level = [layer['object']['ref'] for layer in layers]
+    contribution = f"{at_level[0]}#instruction/ctx-c1"
+    parts = sections(markdown)
+    guide = parts['六问指引'].splitlines()
+    check('the_basis_takes_constraint_and_acceptance_components_along_the_spine_by_their_context_role',
+          basis_refs == [f"{at_level[0]}#instruction/ctx-tb1", f"{at_level[1]}#definition/ctx-ac1",
+                         f"{at_level[1]}#definition/ctx-ac2", f"{at_level[1]}#task_plan/ctx-ec1", criterion,
+                         f"{at_level[2]}#mission_plan/m-cd1", f"{at_level[3]}#target/pg-ac1",
+                         f"{at_level[3]}#target/pg-tb1", f"{at_level[5]}#definition/unit-k1",
+                         f"{at_level[6]}#business_logic/st-sc1"]
+          and all({'ref': ref} in coverage['basis']['evidence'] for ref in basis_refs)
+          and {'ref': contribution} not in coverage['basis']['evidence']
+          and parts['凭什么'].splitlines() == expected_basis
+          and any(line.startswith('- 凭什么：') and '验收标准与约束 ' + '、'.join(f'`{ref}`' for ref in basis_refs) in line
+                  for line in guide))
+    check('the_why_takes_the_contribution_of_the_current_object_by_its_context_role',
+          coverage['why']['evidence'][0] == {'ref': contribution}
+          and coverage['why']['evidence'].count({'ref': contribution}) == 1
+          and any(line.startswith(f"- 为什么：当前对象的贡献 `{contribution}`；") for line in guide)
+          and f"{at_level[5]}#definition/unit-c1" not in basis_refs and f"{at_level[3]}#alignment/pg-why" not in basis_refs)
 
     rows = packs()
     row = rows[-1]
@@ -1816,11 +2010,15 @@ def context_packs(book, h, f, flow, trunk, foreign):
               and result['context_pack']['layers'][0]['state'] == layers[0]['state'] for result in (tight, tiny))
           and tiny['budget']['over_budget'] is True and tiny['plan']['over_budget'] is True
           and all(layer['blocks'] == [] and layer['events'] == [] for layer in tiny['context_pack']['layers'][1:])
-          and not tiny['coverage']['why']['answered'])
+          # #79 起当前对象的贡献也答「为什么」：上层都裁掉以后，为什么只剩它。
+          and tiny['coverage']['why']['evidence'] == [{'ref': f"{layers[0]['object']['ref']}#instruction/ctx-c1"}])
     # Why 链留到最后：预算只差一个字符时只裁上层不在 Why 链上的块，从最远层起，事件与 Why 链上的项都在（0.1 会先裁
     # 最旧的事件）；10 个字符时 Why 链上的项在其余一切之后才裁。Activity 的执行指令引了 Task 的一条计划条目，Task 的
-    # 计划块（计划类）因此在 Why 链上，留到最后与 Task 的定义类块一起裁；没被引到的 Mission 执行计划在第一步裁。
+    # 计划块（计划类）因此在 Why 链上，留到最后与 Task 的定义类块一起裁；没被引到的 Mission 执行计划（Task 全景）在第一
+    # 步裁。#79 起约束不再单独成块、正式块都是定义类，上层不在 Why 链上的只剩没被引到的计划类块，「最远层」按它们算。
     why = why_chain(first)
+    off_chain = [entry['level'] for entry in plan['taken']
+                 if entry['kind'] == 'block' and entry['level'] > 0 and entry['key'] not in why]
     almost = flow.context('agent_a', activity['object_id'], {**question, 'budget': {'max_chars': len(markdown) - 1}})
     almost_over = [entry for entry in almost['plan']['trimmed'] if entry['reason'] == 'over_budget']
     taken = {entry['key'] for entry in almost['plan']['taken']}
@@ -1829,14 +2027,14 @@ def context_packs(book, h, f, flow, trunk, foreign):
     tiny_events = [index for index, key in enumerate(tiny_keys) if key.startswith('event:')]
     check('a_tight_budget_keeps_the_why_chain_until_everything_else_is_trimmed',
           almost_over and all(trim_step(entry, why) == 1 for entry in almost_over)
-          and almost_over[0]['level'] == layers[-1]['level'] and almost['budget']['over_budget'] is False
+          and off_chain and almost_over[0]['level'] == max(off_chain) and almost['budget']['over_budget'] is False
           and {entry['key'] for entry in plan['taken'] if entry['kind'] == 'event' or entry['key'] in why} <= taken
           and trimmed_in_the_0_2_order(first, tiny)
           and {f"block:{task_ref}#plan", f"block:{strategy_ref}#responsibility_structure"} <= why
           and f"block:{mission_ref}#execution_plan" not in why
           and tiny_events and tiny_keys.index(f"block:{mission_ref}#execution_plan") < tiny_events[0]
           and tiny_keys.index(f"block:{task_ref}#plan") > tiny_events[-1]
-          and tiny_keys[-3:] == [f"block:{task_ref}#{block}" for block in ('plan', 'acceptance', 'definition')])
+          and tiny_keys[-3:] == [f"block:{task_ref}#{block}" for block in ('plan', 'task_plan', 'definition')])
     # 每对象事件上限不计当前对象最近一次指派事件与推出它当前生命周期的事件（这里是指派给 Agent 与开始，都不是最新的）。
     capped = flow.context('agent_a', activity['object_id'], {**question, 'budget': {'max_events_per_object': 1}})
     current_events = layers[0]['events']
@@ -1954,7 +2152,7 @@ def mission_lifecycle(book, h, f, flow, trunk):
         """挂在已确认周期目标下、已指派 Owner 的草稿 Mission。"""
         oid = flow.create('a', 'Mission', 'a', {
             'title': title, 'goal_ref': goal['ref'],
-            'blocks': {'play': {'text': 'Play 核心路径：两场试点。'},
+            'blocks': {'mission_plan': {'text': 'Play 核心路径：两场试点。'},
                        'execution_plan': {'components': [{'id': 'p1', 'type': 'plan_item', 'text': '搭环境'}]}}}
         )['result']['object_id']
         flow.assign('a', oid, actor_id['owner_a'])
@@ -2021,7 +2219,7 @@ def mission_lifecycle(book, h, f, flow, trunk):
     def rerun(state, producer, text):
         """#54 转来的补验：在 state 段由 Owner 带候选开轮、DRI 接受写回；生命周期与推出它的事件不变，执行计划取当前值。"""
         kept = plan(main)
-        opened = act('owner_a', 'world_commit_mission', main, {'payload': {'blocks': {'play': {'text': text}}}})
+        opened = act('owner_a', 'world_commit_mission', main, {'payload': {'blocks': {'mission_plan': {'text': text}}}})
         during = view(main)
         rewritten = act('a', 'world_confirm_mission', main, {'outcome': 'accepted'})
         after = view(main)
@@ -2030,7 +2228,7 @@ def mission_lifecycle(book, h, f, flow, trunk):
               and during['business']['round']['opened_by_event_id'] == opened['event_id']
               and during['business']['round']['stage'] == 'committed'
               and after['records']['lifecycle'] == stage(state, producer) and after['business']['round'] is None
-              and blocks_of(after)['play']['text'] == text and plan(main) == kept
+              and blocks_of(after)['mission_plan']['text'] == text and plan(main) == kept
               and rewritten['version'] == during['business']['version'] + 1
               and after['business']['formal'] == {'lifecycle_status': 'confirmed',
                                                   'effective_revision_id': rewritten['revision_id']})
@@ -2103,7 +2301,7 @@ def mission_lifecycle(book, h, f, flow, trunk):
     step = {'blocks': {'execution_plan': {'components': [{'id': 'p9', 'type': 'plan_item', 'text': '收尾'}]}}}
     deny('owner_a', 'world_deliver', main, {'INVALID_STATE'})
     deny('a', 'world_cancel', main, {'INVALID_STATE'})
-    deny('owner_a', 'world_commit_mission', main, {'INVALID_STATE'}, {'payload': {'blocks': {'play': {'text': 'x'}}}})
+    deny('owner_a', 'world_commit_mission', main, {'INVALID_STATE'}, {'payload': {'blocks': {'mission_plan': {'text': 'x'}}}})
     deny('ceo', 'world_mark_core_battle', main, {'INVALID_STATE'})
     deny('a', 'world_assign', main, {'INVALID_STATE'}, {'principal_id': actor_id['owner_a2']})
     check('mission_a_closed_mission_is_not_delivered_cancelled_re_run_marked_or_reassigned')
@@ -2187,7 +2385,7 @@ def mission_lifecycle(book, h, f, flow, trunk):
     deny('owner_a', 'world_mark_core_battle', watched, {'FORBIDDEN'})
     deny('agent_ceo_a', 'world_mark_core_battle', watched, {'FORBIDDEN'}, says='recorded by a person')
     check('only_the_ceo_in_person_marks_a_core_battle_and_an_agent_holding_the_ceo_role_cannot')
-    opened = act('owner_a', 'world_commit_mission', watched, {'payload': {'blocks': {'play': {'text': '关注期间改打法'}}}})
+    opened = act('owner_a', 'world_commit_mission', watched, {'payload': {'blocks': {'mission_plan': {'text': '关注期间改打法'}}}})
     act('ceo', 'world_mark_core_battle', watched)
     marked = view(watched)
     act('a', 'world_confirm_mission', watched, {'outcome': 'accepted'})
@@ -2196,7 +2394,7 @@ def mission_lifecycle(book, h, f, flow, trunk):
     check('a_mark_leaves_the_decisions_to_the_owner_and_the_dri_and_survives_a_write_back',
           marked['records']['lifecycle'] == formed and marked['business']['round']['opened_by_event_id'] == opened['event_id']
           and after['business']['attributes']['core_battle'] is True
-          and blocks_of(after)['play']['text'] == '关注期间改打法'
+          and blocks_of(after)['mission_plan']['text'] == '关注期间改打法'
           and after['records']['lifecycle'] == stage('in_progress', restarted))
 
     # ================================================================ 一轮进行中验收关闭或取消（#69，补 47）
@@ -2207,7 +2405,7 @@ def mission_lifecycle(book, h, f, flow, trunk):
         return (after['records']['lifecycle'] == expected_stage and after['business']['round'] is None
                 and after['business']['version'] == formed_view['business']['version']
                 and after['business']['formal'] == formed_view['business']['formal']
-                and blocks_of(after)['play'] == blocks_of(formed_view)['play'])
+                and blocks_of(after)['mission_plan'] == blocks_of(formed_view)['mission_plan'])
 
     def restored(oid, opened, candidate, expected_stage):
         now = view(oid)
@@ -2218,7 +2416,7 @@ def mission_lifecycle(book, h, f, flow, trunk):
     closing = mission('一轮中验收关闭')
     walk_to(closing, 'delivered')
     formed_view = view(closing)
-    candidate = {'blocks': {'play': {'text': 'Play 候选：验收前改核心路径'}}}
+    candidate = {'blocks': {'mission_plan': {'text': 'Play 候选：验收前改核心路径'}}}
     opened = act('owner_a', 'world_commit_mission', closing, {'payload': candidate})
     accepted = act('a', 'world_accept', closing)
     deny('a', 'world_confirm_mission', closing, {'INVALID_STATE'}, {'outcome': 'accepted'})
@@ -2230,14 +2428,14 @@ def mission_lifecycle(book, h, f, flow, trunk):
     after = view(closing)
     check('mission_withdrawing_the_acceptance_restores_the_round_which_is_then_written_back',
           was_restored and after['business']['round'] is None
-          and blocks_of(after)['play']['text'] == 'Play 候选：验收前改核心路径'
+          and blocks_of(after)['mission_plan']['text'] == 'Play 候选：验收前改核心路径'
           and written['version'] == formed_view['business']['version'] + 1
           and after['records']['lifecycle'] == stage('delivered', back))
 
     dropped = mission('一轮中取消')
     walk_to(dropped, 'in_progress')
     formed_view = view(dropped)
-    candidate = {'blocks': {'play': {'text': 'Play 候选：取消前改核心路径'}}}
+    candidate = {'blocks': {'mission_plan': {'text': 'Play 候选：取消前改核心路径'}}}
     opened = act('owner_a', 'world_commit_mission', dropped, {'payload': candidate})
     cancelled = act('a', 'world_cancel', dropped)
     check('mission_a_round_open_when_the_mission_is_cancelled_is_void_and_nothing_is_written_back',

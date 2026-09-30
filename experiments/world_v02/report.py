@@ -260,7 +260,6 @@ def _runs(summary: dict) -> list[str]:
     lines += ['', '**跳过**', '']
     lines += [f'- {names[name]}：没有运行。' for name in groups if name not in ran] or ['- 无。']
     lines += ['', '**未验证**', '',
-              '- 真实战略材料：Company 与 Strategy 仍是存根，预算余量与 Why 召回在真实材料下要重测。',
               '- 对照实验 B 与试用期的数据：见第七节。']
     return lines + ['']
 

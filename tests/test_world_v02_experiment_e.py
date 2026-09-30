@@ -1,23 +1,42 @@
-"""实验 E（票 #67）：场景文件与标准答案的自洽校验与占位解析、主干正文的出处、E&O DRI 批准（未批准或批准后内容改过，
-跑器都拒用）、审阅稿与两份文件一致，以及反例判定（纯函数，按 fixture 逐场景核对出现与不出现）。无库。"""
+"""实验 E（票 #67）：场景文件与标准答案的自洽校验与占位解析、主干正文的出处（Company 与 Strategy 逐条是战略材料的原句）、
+E&O DRI 批准（未批准或批准后内容改过，跑器都拒用；仓库里的标准答案批没批准，这些用例都成立）、审阅稿与两份文件一致，
+以及反例判定（纯函数，按 fixture 逐场景核对出现与不出现）。无库。"""
 from copy import deepcopy
 import json
 from pathlib import Path
+import re
 import shutil
 import uuid
 
 import pytest
 
 from experiments.world_v02 import counterexamples, gold, spec
+from memory_service_runtime.governed import world_v02_models as models
 
 ROOT = Path(__file__).resolve().parents[1]
 FOLDER = ROOT / 'experiments/world_v02'
 FIXTURES = ROOT / 'tests/fixtures/world_v02_experiment_e'
 NAMESPACE = uuid.UUID('6f1c0c1e-67e0-4a67-8e67-000000000067')
+# 战略材料里拆进 Company 与 Strategy 组件的原句与页码（#67）；PDF 与抽出的文字不进仓库。
+MATERIAL = json.loads((FOLDER / 'strategy_material.json').read_text())
+SEPTEMBER = {step['key']: step for step in json.loads((ROOT / 'experiments/world_v01/seed.json').read_text())['steps']
+             if step.get('key')}
+QUESTIONS = '本轮管理层需要确认的 6 个问题'  # 材料第 10 页的标题
+UNAPPROVED = {'approved_by': None, 'approved_at': None, 'content_sha256': None}
 
 
 def committed():
     return json.loads((FOLDER / 'scenarios.json').read_text()), json.loads((FOLDER / 'gold.json').read_text())
+
+
+def material_text(item):
+    """一条组件的正文：原句只在标题式短语与说明之间加「：」、几条说明之间加「；」，不改字句；token-principle 不在材料里，
+    是 0.1 审过的公司约束原文。"""
+    if item['page'] is None:
+        assert item['kept'] == 'experiments/world_v01/seed.json#company/constraint'
+        return SEPTEMBER['company']['payload']['blocks']['constraint']['text']
+    head, *rest = item['pieces']
+    return head + ('：' + '；'.join(rest) if rest else '')
 
 
 def fake_manifest(scenarios):
@@ -38,14 +57,23 @@ def concrete(ref, manifest):
 
 
 # ------------------------------------------------------------------ the committed files
-def test_the_committed_scenarios_and_gold_are_consistent_and_not_yet_approved():
+def test_the_committed_scenarios_and_gold_are_consistent_and_the_approval_is_empty_or_current():
+    """仓库里的标准答案要么未批准（批准段三项都空，跑器拒用），要么由 E&O DRI 批准了现在的内容（哈希相同，能取用）；
+    不许有半截的批准段，也不许是已失效的批准。"""
     scenarios, answers = committed()
     spec.validate(scenarios)
     spec.validate_gold(answers, scenarios)
     assert answers['approver'] == 'E&O DRI'
     assert [item['id'] for item in scenarios['scenarios']] == list(spec.SCENARIOS)
-    with pytest.raises(gold.NotApproved):
-        gold.load_approved(FOLDER / 'gold.json')
+    approval = answers['approval']
+    assert set(approval) == set(UNAPPROVED)
+    if approval == UNAPPROVED:
+        with pytest.raises(gold.NotApproved):
+            gold.load_approved(FOLDER / 'gold.json')
+    else:
+        assert None not in approval.values() and approval['approved_by'] == answers['approver']
+        assert approval['content_sha256'] == gold.content_sha256(answers, scenarios)
+        assert gold.load_approved(FOLDER / 'gold.json')['gold'] == answers
 
 
 def test_the_seeded_versions_follow_the_steps():
@@ -58,19 +86,108 @@ def test_the_seeded_versions_follow_the_steps():
     assert versions['agents_mission'] == 2 and versions['activity_b_run'] == 2 and versions['snap_freeze'] == 1
 
 
-def test_every_why_reaches_the_strategy_and_the_company_through_slots_waiting_for_the_real_material():
+def test_every_why_reaches_the_strategy_and_the_company_through_components_the_material_fills():
+    """各场景 Why 追到 Strategy 责任结构的 eo（照旧取自战场图 V1）、总体战略的 main-line（材料第 2 页阶段打法）与公司的
+    long-term-identity（材料第 10 页问题 1）；Why 引到的 Company 与 Strategy 位置都有材料原句，不是留空的位置。"""
     scenarios, answers = committed()
-    slots = {item['slot'] for item in scenarios['pending_material']}
+    empty = {item['slot'] for item in scenarios['pending_material']}
+    filled = {f"@{item['object']}#{item['block']}/{item['id']}": item['page'] for item in MATERIAL['components']}
+    assert filled['@strategy#strategy_core/main-line'] == 2 and filled['@company#identity/long-term-identity'] == 10
     for item in answers['scenario_answers']:
         why = item['questions'][0]['expected']
         assert {'@strategy#responsibility_structure/eo', '@strategy#strategy_core/main-line',
-                '@company#identity/long-term-identity'} <= set(why) & slots
+                '@company#identity/long-term-identity'} <= set(why)
+        upper = set()  # 引到 Company 与 Strategy 的，去掉指定的版本
+        for ref in why:
+            key, _, block, component = spec.parts(ref) if ref.startswith('@') else (None,) * 4
+            if key in ('company', 'strategy'):
+                upper.add(f'@{key}' + (f'#{block}' if block else '') + (f'/{component}' if component else ''))
+        assert not upper & empty
+        assert upper - {'@strategy#responsibility_structure/eo'} <= {ref for ref, page in filled.items() if page}
+
+
+def test_the_strategy_material_lists_each_sentence_once_with_its_page_and_keeps_the_open_questions_open():
+    """原句清单（#67）：每条组件一个 id，页码在 1–10；一句原句只放一处；合成一句时第一段是标题式短语（不以标点结尾）。
+    第 10 页「本轮管理层需要确认的 6 个问题」六问都在，每问带着该页标题、以问句原样放进组件，不写成已定；这个标题不出现
+    在别的组件里。只有 token-principle 不在材料里，保留 0.1 原文。"""
+    items = MATERIAL['components']
+    assert MATERIAL['source'] == '公司知识库《总体战略定位与阶段路径》（2026-07）'
+    assert len({(item['object'], item['id']) for item in items}) == len(items)
+    assert [(item['object'], item['id'], set(item) - {'object', 'block', 'id', 'type', 'page'})
+            for item in items if item['page'] is None] == [('company', 'token-principle', {'kept'})]
+    sentences = []
+    for item in items:
+        if item['page'] is None:
+            continue
+        assert item['page'] in range(1, 11) and set(item) == {'object', 'block', 'id', 'type', 'page', 'pieces'}, item['id']
+        assert item['pieces'] and all(piece and piece == piece.strip() and '\n' not in piece for piece in item['pieces'])
+        if len(item['pieces']) > 1:
+            assert not re.search(r'[，。；：、？！]$', item['pieces'][0]), item['id']
+        sentences += item['pieces'][1:] if item['pieces'][0] == QUESTIONS else item['pieces']
+    assert len(sentences) == len(set(sentences))
+    asked = [item for item in items if item['page'] == 10]
+    assert len(asked) == 6
+    for item in asked:
+        head, question = item['pieces']
+        assert head == QUESTIONS and question.startswith('是否确认') and question.endswith('？'), item['id']
+    assert not any(QUESTIONS in piece for item in items if item['page'] != 10 for piece in item.get('pieces', []))
+
+
+def test_the_company_and_the_strategy_of_the_three_seed_files_are_the_sentences_of_the_material():
+    """实验 E 的主干、十月起点原计划（b_source-2026-10.json）与实例的播种计划（deploy/world-02/seed-eo-2026-10.json）里，
+    Company 与 Strategy（战略责任结构块除外）逐条照 strategy_material.json：块、顺序、id、类型相同，正文逐字等于原句按
+    拼法合成的一句，块里没有别的文字、引用与链接；两步的说明逐条写出组件的页码。标题与上级沿用 0.1，责任结构块的正文
+    照旧，载荷按登记严格校验。"""
+    scenarios, _ = committed()
+    plans = {'scenarios.json 的主干': scenarios['base']['steps'],
+             'b_source-2026-10.json': json.loads((FOLDER / 'b_source-2026-10.json').read_text())['steps'],
+             'seed-eo-2026-10.json': json.loads((ROOT / 'deploy/world-02/seed-eo-2026-10.json').read_text())['steps']}
+    fake = {key: str(uuid.uuid5(NAMESPACE, key)) + '@1' for key in ('company', 'strategy')}
+    for name, steps in plans.items():
+        found = {step['key']: step for step in steps if step.get('key')}
+        for key, kind in (('company', 'Company'), ('strategy', 'Strategy')):
+            payload, note = found[key]['payload'], found[key]['note']
+            expected = {}
+            for item in MATERIAL['components']:
+                if item['object'] != key:
+                    continue
+                expected.setdefault(item['block'], []).append(
+                    {'id': item['id'], 'type': item['type'], 'text': material_text(item)})
+                assert (f"{item['id']} 第 {item['page']} 页" if item['page'] else f"{item['id']} 出自 9/23 会议") in note, \
+                    (name, item['id'])
+            blocks = {block: value for block, value in payload['blocks'].items() if block != 'responsibility_structure'}
+            assert {block: value['components'] for block, value in blocks.items()} == expected, (name, key)
+            assert all(set(value) == {'components'} for value in blocks.values()), (name, key)
+            assert ({k: v for k, v in payload.items() if k != 'blocks'}
+                    == {k: v for k, v in SEPTEMBER[key]['payload'].items() if k != 'blocks'}), (name, key)
+            models.validate_input(kind, {**payload, **({'parent_ref': fake['company']} if key == 'strategy' else {})})
+        structure = found['strategy']['payload']['blocks']['responsibility_structure']
+        assert structure['text'] == SEPTEMBER['strategy']['payload']['blocks']['responsibility_structure']['text'], name
+
+
+def test_the_empty_slots_are_exactly_the_component_types_the_material_does_not_cover():
+    """材料没讲到的组件类型留空，pending_material 按块列出它们并写明「材料里没有」；材料用到的类型都在所在块允许的
+    类型里。战略责任结构块不取自这份材料，不列。"""
+    scenarios, _ = committed()
+    names = {item['id']: item['display_name'] for item in spec.REGISTRY['components']['types']}
+    empty = {}
+    for key, kind in (('company', 'Company'), ('strategy', 'Strategy')):
+        for block in spec.OBJECT_SPECS[kind]['blocks']:
+            if block['id'] == 'responsibility_structure':
+                continue
+            used = {item['type'] for item in MATERIAL['components'] if (item['object'], item['block']) == (key, block['id'])}
+            assert used and used <= set(block['components']), (key, block['id'])
+            missing = [type_id for type_id in block['components'] if type_id not in used]
+            if missing:
+                empty[f"@{key}#{block['id']}"] = '、'.join(names[type_id] for type_id in missing) + '：材料里没有，留空'
+    assert {item['slot']: item['stub'] for item in scenarios['pending_material']} == empty == {
+        '@company#identity': '企业使命：材料里没有，留空', '@strategy#strategy_core': '目标客户、目标市场：材料里没有，留空'}
 
 
 def test_the_trunk_repeats_the_october_starting_point_and_the_reviewed_september_text():
-    """主干的正文照搬换任务卡之前的十月起点（原样存在 b_source-2026-10.json，公司层来自 0.1 审过的材料），只有 Strategy
-    多一条责任单元条目；Agents 单元的正文取自 0.1 审过的 seed.json，按 Content Pact 放进新块的组件（#82），逐条正文
-    与 0.1 相同。"""
+    """主干的正文照搬换任务卡之前的十月起点（原样存在 b_source-2026-10.json；Company 与 Strategy 是战略材料的原句，其余
+    公司层来自 0.1 审过的材料），只有 Strategy 多一条责任单元条目；Agents 单元的正文取自 0.1 审过的 seed.json，按
+    Content Pact 放进新块的组件（#82），逐条正文与 0.1 相同。"""
     scenarios, _ = committed()
     trunk = {step['key']: step for step in scenarios['base']['steps'] if step.get('key')}
     scenario_steps = {step['key']: step for item in scenarios['scenarios'] for step in item['steps'] if step.get('key')}
@@ -187,8 +304,11 @@ def test_inconsistent_gold_is_refused(breaks):
 # ------------------------------------------------------------------ approval by the E&O DRI
 @pytest.fixture
 def copies(tmp_path):
+    """两份文件的临时副本，批准段置空：仓库里的标准答案批没批准，下面的用例都从未批准测起。"""
     for name in ('scenarios.json', 'gold.json'):
         shutil.copy(FOLDER / name, tmp_path / name)
+    answers = json.loads((tmp_path / 'gold.json').read_text())
+    (tmp_path / 'gold.json').write_text(json.dumps({**answers, 'approval': UNAPPROVED}, ensure_ascii=False, indent=2) + '\n')
     return tmp_path
 
 
@@ -243,14 +363,28 @@ def test_the_review_document_is_generated_from_the_two_files():
     assert (ROOT / 'docs/world-v02-scenarios-review.md').read_text() == gold.render()
 
 
-def test_the_review_document_marks_the_slots_waiting_for_the_real_material_and_every_decoy():
+def test_the_review_document_marks_the_empty_slots_the_page_of_every_material_sentence_and_every_decoy():
     text = gold.render()
     scenarios, answers = committed()
-    assert text.count('**待真实战略材料**') >= len(scenarios['pending_material'])
-    assert '未批准：实验跑器会拒绝使用' in text
+    assert '待真实战略材料' not in text
+    assert text.count('**材料里没有**') >= len(scenarios['pending_material'])
+    assert all(f"| {item['stub']} |" in text for item in scenarios['pending_material'])
+    for item in MATERIAL['components']:  # 两步的说明逐条写出页码，审阅稿照录
+        assert (f"{item['id']} 第 {item['page']} 页" if item['page'] else f"{item['id']} 出自 9/23 会议") in text
     for item in answers['scenario_answers']:
         for counter in item['counterexamples']:
             assert f"（`{counter['category']}`）" in text
+    approval = answers['approval']
+    status = ('未批准：实验跑器会拒绝使用' if approval == UNAPPROVED
+              else f"已由 {approval['approved_by']} 于 {approval['approved_at']} 批准")
+    assert f'- 批准状态：{status}\n' in text and '批准已失效' not in text
+
+
+def test_the_review_document_of_unapproved_gold_says_the_runner_refuses_it(copies):
+    text = gold.render(copies / 'gold.json')
+    assert '- 批准状态：未批准：实验跑器会拒绝使用\n' in text
+    gold.approve(copies / 'gold.json', 'E&O DRI')
+    assert '- 批准状态：已由 E&O DRI 于 ' in gold.render(copies / 'gold.json')
 
 
 # ------------------------------------------------------------------ counterexamples

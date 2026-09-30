@@ -41,7 +41,7 @@ def test_granting_and_revoking_a_delegation_are_implemented_as_scope_authorized_
 def test_the_grant_takes_exactly_the_registered_fields_and_the_families_of_the_first_version():
     assert list(models.WorldV02GrantDelegationParams.model_fields) == DELEGATION["grant_fields"]
     assert models.DELEGATION_FAMILIES == tuple(family["id"] for family in DELEGATION["families"])
-    assert "create" not in models.DELEGATION_FAMILIES  # 建对象待决 6（登记 pending_families）
+    assert "create" not in models.DELEGATION_FAMILIES  # 建对象不在本版（待决 6，登记 pending_families）
     assert {family["id"] for family in DELEGATION["pending_families"]} == {"create"}
 
 

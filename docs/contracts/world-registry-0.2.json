@@ -1236,7 +1236,7 @@
     "actions": [
      "world_create_object"
     ],
-    "decision": "待决 6",
+    "decision": "待决 6 定：不在本版（2026-09-30）",
     "display_name": "建对象",
     "id": "create"
    }

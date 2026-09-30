@@ -785,7 +785,7 @@ class WorldV02MarkCoreBattleParams(StrictModel):
     on_behalf_of: Optional[OnBehalfOf] = None
 
 
-# 代记的动作族，第一版是门、指派、生命周期（补 38）与议题（补 49）；建对象待决 6。请求模型在导入时就要，由测试与登记逐条对齐。
+# 代记的动作族，本版是门、指派、生命周期（补 38）与议题（补 49）；建对象不在本版（待决 6）。请求模型在导入时就要，由测试与登记逐条对齐。
 DELEGATION_FAMILIES = ("gate", "assign", "lifecycle", "issue")
 DELEGATION_ACTIONS = ("world_grant_delegation", "world_revoke_delegation")
 

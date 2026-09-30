@@ -177,7 +177,7 @@ def topic_cells(registry=REGISTRY):
         'delegation:refused:person_may_not_record': '拒绝：被代记的人自己无权记',
         'delegation:refused:recorder_not_the_delegate': '拒绝：记录者是人、不是受托人，或代一位没有委托给它的人',
         'delegation:refused:request_shape': '拒绝：代记带写入声明、外部确认时刻在将来、给不可代记的动作或记录事件带代记',
-        **{f"delegation:refused:pending_family:{family['id']}": f"拒绝：登记待决的动作族（{family['display_name']}）"
+        **{f"delegation:refused:pending_family:{family['id']}": f"拒绝：不在本版的动作族（{family['display_name']}）"
            for family in registry['delegation']['pending_families']},
     }
     cells['delegation'] = delegation

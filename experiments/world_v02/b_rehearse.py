@@ -6,10 +6,11 @@
 1. 仿真实 scope：按 deploy/world-02/spec.eo.example.json 的名单（人、天枢服务主体、Co-Agent、执行 Agent；键与显示名都是
    角色名）经 owner SQL 供给一个随机 tenant 的 scope，控制面 CLI 装 0.2（同 b_seed.provision），起真 API；用
    deploy/world-02/seed_eo.py 按人分段播 E&O 十月起点（seed-eo-2026-10.json；委托的到期时刻已过或不到一天时顺延一周）。
-2. 试用记录（Trial）：请求形状照 deploy/world-02/examples.py——天枢写 Mission 的外部引用与执行计划的 todo 计划条目；天枢
-   代记月度计划签发与任务卡确认（第一次退回）；E&O DRI 建三个带外部引用的 Task（一个带计划块）；天枢代 Mission Owner
-   指派，以 Owner 的 Agent 开始 Mission，代执行人开始、交付，代 Owner 打回、验收、重开、取消；Task 下一个 Activity 交给
-   执行 Agent（开始、写进展、交付，Task 责任人验收）；天枢的周快照（三条进展条目、一个问题）与会议事件；议题由天枢提出、
+2. 试用记录（Trial）：请求形状照 deploy/world-02/examples.py，块按 Content Pact——天枢写 Mission 的外部引用与执行计划
+   （Task 全景）的 todo 计划条目；天枢代记月度计划签发与任务卡确认（第一次退回）；E&O DRI 建三个带外部引用的 Task（任务
+   定义块三种写法；一个带 Task 计划块与 Activity 全景块，计划条目带 plan_item 的可选属性）；天枢代 Mission Owner
+   指派，以 Owner 的 Agent 开始 Mission，代执行人开始、交付，代 Owner 打回、验收、重开、取消；Task 下一个 Activity（执行
+   事项、预期产出与验收标准组件）交给执行 Agent（开始、写进展、交付，Task 责任人验收）；天枢的周快照（三条进展条目、一个问题）与会议事件；议题由天枢提出、
    路由，代承接人承接、退回形成、处置；Co-Agent 在 Task 上以自己身份提问题，E&O DRI 本人承接、处置；Task 责任人本人改
    计划条目、写进展快照；Co-Agent 再加一条执行计划；最后天枢代记 Mission 交付与验收。
 3. 转写：对照表按名单生成（人：键即角色键；天枢按写入转写；Co-Agent、执行 Agent 钉成同名角色键），以 ceo 的凭证经
@@ -75,8 +76,9 @@ def seed_real(url: str, out: Path, plan_path: Path) -> dict:
 
 
 class Trial(smoke.Smoke):
-    """仿天枢的写法在 mission_context 上造一段试用记录（请求形状同 deploy/world-02/examples.py）。文字里不出现名单的
-    显示名（它们在这个 scope 里就是角色名），否则转写的显示名拦截会拦下。"""
+    """仿天枢的写法在 mission_context 上造一段试用记录（请求形状同 deploy/world-02/examples.py，块按 Content Pact）。
+    文字里不出现名单的显示名（它们在这个 scope 里就是角色名），否则转写的显示名拦截会拦下；唯一的例外是一条计划条目的
+    执行主体整个就是显示名，转写把它换成角色键。"""
 
     def __init__(self, url: str, out: Path, state: dict):
         super().__init__(url, out, probe_only=True)
@@ -95,8 +97,9 @@ class Trial(smoke.Smoke):
                      "external_confirmed_at": at(minutes=-3)}
         return self.act("tianshu", action, {**params, "on_behalf_of": on_behalf}, oid)
 
-    def item(self, key, text, who, **extra):
-        return {"id": key, "type": "plan_item", "text": text, "attributes": {"responsible": self.pid[who]}, **extra}
+    def item(self, key, text, who, **attributes):
+        """计划条目：责任人之外可带 plan_item 的四个可选属性（预期产出、质量标准、执行主体、分工）。"""
+        return {"id": key, "type": "plan_item", "text": text, "attributes": {"responsible": self.pid[who], **attributes}}
 
     def snapshot(self, who, subject, trigger, text, as_of, blocks):
         """先记来源外部事件，再写引用它的执行状态快照；Agent 带写入声明。返回快照的回执。"""
@@ -138,21 +141,29 @@ class Trial(smoke.Smoke):
             self.item(todo["data"], "Context 包的真实数据验收", "eo-dri"),
             self.item(todo["probe"], "临时排查：代记失败的请求", "eo-owner")]}}},
             "declaration": self.declare(m, "天枢同步执行事项到执行计划")}, m)
-        # E&O DRI 建 Task：外部引用写同一个执行事项 id；第一个带验收条件与计划块
+        # E&O DRI 建 Task：外部引用写同一个执行事项 id。第一个照 examples.py 的写法，任务定义块带文字与指回 Mission
+        # 战役定义块验收标准的组件，另带 Task 计划块与 Activity 全景块（计划条目带 plan_item 的可选属性：一条的执行主体
+        # 写的是名单上的显示名，一条写的是名单外的 Agent 名）；第二个的任务定义块只有组件；第三个只有文字。
         mission_ref = self.ref(m)
         link, _ = self.create("eo-dri", "Task", "eo", {
             "title": "接入 0.2 的读写链路", "parent_ref": mission_ref,
             "external_refs": [{"system": "tianshu", "id": todo["link"]}],
-            "blocks": {"definition": {"text": "天枢按接口变化清单接入 0.2，读写两条链路都跑通。"},
-                       "acceptance": {"components": [{"id": "t-ac1", "type": "acceptance_criterion",
-                                                      "text": "读写链路按接口清单逐项跑通",
-                                                      "refs": [f"{mission_ref}#acceptance/ac-3"]}]},
-                       "plan": {"components": [self.item("tp-1", "对齐接口变化清单", "eo-owner"),
-                                               self.item("tp-2", "写入声明与代记联调", "exec-agent")]}}})
+            "blocks": {"definition": {"text": "天枢按接口变化清单接入 0.2，读写两条链路都跑通。", "components": [
+                           {"id": "t-ac1", "type": "acceptance_criterion", "text": "读写链路按接口清单逐项跑通",
+                            "refs": [f"{mission_ref}#definition/ac-3"]}]},
+                       "task_plan": {"components": [{"id": "t-seq", "type": "execution_sequence",
+                                                     "text": "先对齐接口变化清单，再联调写入声明与代记"}]},
+                       "plan": {"components": [
+                           self.item("tp-1", "对齐接口变化清单", "eo-owner", executor="E&O Mission Owner"),
+                           self.item("tp-2", "写入声明与代记联调", "exec-agent", expected_output="代记联调记录",
+                                     quality_standard="代记被拒的请求都有原因", executor="Codex",
+                                     division="人定联调用例，Agent 跑用例并记结果")]}}})
         data, _ = self.create("eo-dri", "Task", "eo", {
             "title": "Context 包的真实数据验收", "parent_ref": mission_ref,
             "external_refs": [{"system": "tianshu", "id": todo["data"]}],
-            "blocks": {"definition": {"text": "8–9 月真实数据进入 Context，逐项核对来源与权限。"}}})
+            "blocks": {"definition": {"components": [
+                {"id": "t-outcome", "type": "outcome", "text": "8–9 月真实数据进入 Context"},
+                {"id": "t-ac1", "type": "acceptance_criterion", "text": "逐项核对来源与权限"}]}}})
         probe, _ = self.create("eo-dri", "Task", "eo", {
             "title": "临时排查：代记失败的请求", "parent_ref": mission_ref,
             "external_refs": [{"system": "tianshu", "id": todo["probe"]}],
@@ -169,7 +180,10 @@ class Trial(smoke.Smoke):
         # Task 下的 Activity：Task 责任人建一段交给执行 Agent，Agent 开始、写进展
         activity, _ = self.create("eo-dri", "Activity", "eo", {
             "title": "整理真实数据清单", "parent_ref": self.ref(data),
-            "blocks": {"instruction": {"text": "列出 8–9 月进入 Context 的数据与来源。"}}})
+            "blocks": {"instruction": {"components": [
+                {"id": "a-work", "type": "work_definition", "text": "列出 8–9 月进入 Context 的数据与来源。"},
+                {"id": "a-output", "type": "expected_output", "text": "数据清单"},
+                {"id": "a-ac1", "type": "acceptance_criterion", "text": "每个来源有责任人与时间"}]}}})
         activity = self.made["activity"] = activity["object_id"]
         self.act("eo-dri", "world_assign", {"principal_id": self.pid["exec-agent"]}, activity)
         self.act("exec-agent", "world_start", {"declaration": self.declare(activity, "按指派开始整理")}, activity)
@@ -212,9 +226,10 @@ class Trial(smoke.Smoke):
         self.issue("tianshu", "world_dispose_issue", ref, {
             "disposition": "current_layer_action", "content": {"text": "本层处理：执行计划里加一条同步指派的计划条目"}},
             person="eo-owner")
-        # Task 责任人本人改计划：一段改责任人，加一段
+        # Task 责任人本人改计划：一段改责任人（整条替换，照旧带执行主体），加一段
         self.act("eo-owner", "world_revise_object", {"payload": {"blocks": {"plan": {"components": [
-            self.item("tp-1", "对齐接口变化清单", "eo-dri"), self.item("tp-3", "补写周快照的来源事件", "exec-agent")]}}}},
+            self.item("tp-1", "对齐接口变化清单", "eo-dri", executor="E&O Mission Owner"),
+            self.item("tp-3", "补写周快照的来源事件", "exec-agent", expected_output="带来源事件的周快照")]}}}},
             link)
         # Co-Agent 以自己身份在 Task 上提问题（只带问题的快照），路由给 E&O DRI；DRI 本人承接、处置
         question = f"issue:demo-{self.run}-2"

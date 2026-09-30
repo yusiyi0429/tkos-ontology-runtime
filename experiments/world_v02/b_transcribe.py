@@ -22,16 +22,18 @@ b-script.json（执行脚本 0.2）、b-review.md（审阅稿）。对照表里�
 - 行动者：代记的写入按被代记的人；人以自己身份的写入按对照表；Agent 以自己身份的写入按写入转写——提出、路由与退回
   形成问题是 eo-coagent（Co-Agent），其余是 exec-agent（执行）。
 - 共同播种（b-lines.json）：周期目标与这条 Mission 的形成门（到第一次确认接受为止，按记录顺序，退回也照记）；每个
-  Task 的建立（正文不带计划块与外部引用，块内引用只留指回主干的）；Task 的首次指派定它的责任人；Task 建立时（或首次
-  指派之前）计划块里的计划条目是它的初始段。从没指派过的 Task 与 Activity 不进回放。
+  Task 的建立（正文取第 1 版的任务定义、Task 计划等块，不带 Activity 全景块与外部引用，块内引用只留指回主干的）；Task
+  的首次指派定它的责任人；Task 建立时（或首次指派之前）计划块里的计划条目是它的初始段，连同计划条目写了的预期产出、
+  质量标准、执行主体（是某个主体的显示名时换成角色键）与分工。从没指派过的 Task 与 Activity 不进回放。
 - 执行脚本（b-script.json，按记录顺序）：Mission、Task 与段（Activity）的生命周期；Task 的再指派；Task 指派之后新加的
-  计划条目（plan）与改了责任人的计划条目（assign），这两种由 Task 当时的责任人记；Activity 的首次指派即划段（plan），
+  计划条目（plan，带它的四个可选属性）与改了责任人的计划条目（assign），这两种由 Task 当时的责任人记；Activity 的
+  首次指派即划段（plan：instruction 块的文字与执行事项是段的正文，预期产出、成功 / 验收标准是段的预期产出、质量标准），
   之后的指派是 assign；快照里的进展条目按组件 id 对上段（计划条目 id、Activity 的外部引用）或 Task（外部引用）的写成
   那一处的 progress，对不上的与块里的文字合成快照主体上的一步（有对不上的进展条目为 progress，否则 refresh），时点取
   快照的真实 as_of，同一张快照拆出的第 i 步加 i 微秒（同一主体同一时点只能有一条快照）；只带问题、问题都提出了的快照
   并入提出；问题的提出（时点取提出事件的发生时刻）、路由、承接、处置与退回形成，问题键取原问题组件的 id。
 - 不转写、只在审阅稿里列出：外部事件（会议等；作快照来源的并入快照）、Mission 与 Activity 的修订、Task 除计划条目以外
-  的修订、Mission 的再指派、形成之后的门（一轮重走）与再确认、关注标记、建立跨链关系、更正；撤回的事件连同撤回本身
+  的修订、计划条目改文字或改四个可选属性、Mission 的再指派、形成之后的门（一轮重走）与再确认、关注标记、建立跨链关系、更正；撤回的事件连同撤回本身
   一起略去。
 """
 from __future__ import annotations
@@ -67,6 +69,12 @@ REASONS = {
     "core_battle.marked": "关注标记不转写",
     "relate": "建立跨链关系不转写",
 }
+ATTRIBUTE_NAMES = {"expected_output": "预期产出", "quality_standard": "质量标准", "executor": "执行主体",
+                   "division": "分工"}
+# Activity 的 instruction 块里对得上段（计划条目）的组件：执行事项是段的正文，预期产出、成功 / 验收标准是段的预期产出、质量
+# 标准；其余组件（贡献、时间边界、执行边界、执行约束）计划条目没有对应属性，回放不带，审阅稿提醒。
+INSTRUCTION_FIELDS = {"work_definition": "text", "expected_output": "expected_output",
+                      "acceptance_criterion": "quality_standard"}
 GATE_NAMES = {"world_commit_period_goal": "承诺周期目标", "world_confirm_period_goal": "确认周期目标",
               "world_commit_mission": "承诺 Mission", "world_confirm_mission": "确认 Mission"}
 OUTCOMES = {"accepted": "接受", "returned": "退回", None: "—"}
@@ -257,6 +265,7 @@ class Transcription:
         self.formed: set[str] = set()
         self.mission_assigned = False
         self.objects = {self.mission: "mission"}
+        self.names = display_names(self)        # 显示名 → 角色键（计划条目的执行主体按它换）
 
     # ---------------------------------------------------------- principals
     def entry(self, principal_id: str | None, where: str) -> dict | None:
@@ -327,12 +336,41 @@ class Transcription:
         return [item for item in value_of(self.version(object_id, number), "plan")["components"]
                 if item["type"] == "plan_item"]
 
-    def new_segment(self, task_id: str, title: str, text: str, responsible: str, origin: str, initial: bool) -> str:
+    def new_segment(self, task_id: str, title: str, text: str, responsible: str, origin: str, initial: bool,
+                    attributes: dict | None = None) -> str:
         task = self.task_key[task_id]
         key = f"{task}.s{sum(1 for item in self.segments.values() if item['task'] == task) + 1}"
         self.segments[key] = {"task": task, "title": one_line(title or text)[:60], "text": text.strip() or title,
-                              "responsible": responsible, "origin": origin, "initial": initial}
+                              "responsible": responsible, "origin": origin, "initial": initial,
+                              "attributes": attributes or {}}
         return key
+
+    def plan_attributes(self, attributes: dict | None) -> dict:
+        """计划条目写了的四个可选属性（b_drive.PLAN_ATTRIBUTES）：预期产出、质量标准与分工照抄；执行主体正是某个主体的
+        显示名时换成它的角色键（按写入转写的 Agent 当 exec-agent），不是就照抄（输出里的显示名仍由拦截兜底）。"""
+        out = {}
+        for field in b_drive.PLAN_ATTRIBUTES:
+            value = (attributes or {}).get(field)
+            if not isinstance(value, str) or not value.strip():
+                continue
+            if field == "executor" and value.strip() in self.names:
+                value = "exec-agent" if self.names[value.strip()] == "agent" else self.names[value.strip()]
+            out[field] = value
+        return out
+
+    def instruction(self, view: dict, where: str) -> tuple[str, dict]:
+        """Activity 的 instruction 块 → 段的正文与属性：块的文字加执行事项组件是正文，预期产出、成功 / 验收标准组件是
+        预期产出、质量标准（同类几条按行合并）；别的组件回放不带，记一条提醒。"""
+        value = value_of(view, "instruction")
+        found: dict[str, list[str]] = {}
+        for item in value["components"]:
+            if item["type"] in INSTRUCTION_FIELDS:
+                found.setdefault(INSTRUCTION_FIELDS[item["type"]], []).extend([item["text"]] if item["text"] else [])
+        others = sorted({item["type"] for item in value["components"] if item["type"] not in INSTRUCTION_FIELDS})
+        if others:
+            self.warnings.append(f"{where} 的 instruction 里 {'、'.join(others)} 回放不带（计划条目没有对应属性）")
+        text = "\n".join([*([value["text"]] if value["text"] else []), *found.pop("text", [])])
+        return text, {field: "\n".join(texts) for field, texts in found.items() if texts}
 
     def trunk_ref(self, pinned: dict, where: str) -> str | None:
         """块内引用：指回这条 Mission 或它的周期目标的换成主干的占位（组件要在主干的正文里）；别的不带，记一条提醒。"""
@@ -347,7 +385,8 @@ class Transcription:
         return f"@{key}" + (f"#{block}" if block else "") + (f"/{component}" if component else "")
 
     def task_payload(self, task_id: str) -> dict:
-        """建 Task 的正文：第 1 版的标题与块，不带计划块（段另记）与外部引用，组件只留 id、类型、文字与指回主干的引用。"""
+        """建 Task 的正文：第 1 版的标题与块（任务定义、Task 计划），不带 Activity 全景块 plan（段另记）与外部引用，
+        组件只留 id、类型、文字与指回主干的引用。"""
         first = self.version(task_id, 1)
         payload = {"title": first["title"], "parent_ref": f"@{self.mission_key}", "blocks": {}}
         for block in first["blocks"]:
@@ -430,7 +469,8 @@ class Transcription:
         responsible = (item.get("attributes") or {}).get("responsible")
         key = self.new_segment(task_id, "", item["text"] or item["id"],
                                self.assignee(responsible, f"{self.task_key[task_id]} 的计划条目 {item['id']}")
-                               if responsible else "?", f"{how}计划条目 `{item['id']}`", True)
+                               if responsible else "?", f"{how}计划条目 `{item['id']}`", True,
+                               self.plan_attributes(item.get("attributes")))
         self.item_segment[(task_id, item["id"])] = key
 
     def assigned(self, event: dict, object_id: str) -> None:
@@ -457,19 +497,20 @@ class Transcription:
             self.holder[object_id] = to
         elif object_id not in self.segment_of:  # Activity 的首次指派即划段
             view = self.version(object_id, event["subject_refs"][0]["object_version"])
-            key = self.new_segment(self.parent[object_id], view["title"],
-                                   value_of(view, "instruction")["text"] or view["title"], to,
-                                   f"Activity `{object_id}`", False)
+            text, attributes = self.instruction(view, f"Activity `{object_id}`")
+            key = self.new_segment(self.parent[object_id], view["title"], text or view["title"], to,
+                                   f"Activity `{object_id}`", False, attributes)
             self.segment_of[object_id] = key
             self.objects[object_id] = f"segment:{key}"
             self.step(event, "plan", by, {"segment": key}, task=self.task_key[self.parent[object_id]],
-                      title=self.segments[key]["title"], text=self.segments[key]["text"], to=to)
+                      title=self.segments[key]["title"], text=self.segments[key]["text"], to=to, **attributes)
         else:
             self.step(event, "assign", by, {"segment": self.segment_of[object_id]}, to=to)
 
     def task_revised(self, event: dict, task_id: str) -> None:
-        """Task 的修订：计划块里新加的计划条目是新的一段，改了责任人的是再指派，都由 Task 当时的责任人记（首次指派之前
-        的修订改的是初始划分）。其余改动（文字、删掉的条目、别的块与属性）不转写。"""
+        """Task 的修订：计划块里新加的计划条目是新的一段（带它写了的四个可选属性），改了责任人的是再指派，都由 Task
+        当时的责任人记（首次指派之前的修订改的是初始划分）。其余改动（文字、四个可选属性、删掉的条目、别的块与属性）
+        不转写。"""
         number = event["subject_refs"][0]["object_version"]
         before = {item["id"]: item for item in self.plan_items(task_id, number - 1)}
         after, rest, holder = self.plan_items(task_id, number), [], self.holder.get(task_id)
@@ -480,11 +521,13 @@ class Transcription:
             if old is None and holder is None:
                 self.initial_item(task_id, item, "首次指派之前计划块里加的")
             elif old is None:
+                attributes = self.plan_attributes(item.get("attributes"))
                 key = self.new_segment(task_id, "", item["text"] or item["id"], responsible,
-                                       f"计划块新加的计划条目 `{item['id']}`", False)
+                                       f"计划块新加的计划条目 `{item['id']}`", False, attributes)
                 self.item_segment[(task_id, item["id"])] = key
                 self.step(event, "plan", holder, {"segment": key}, "计划块新加的计划条目", task=self.task_key[task_id],
-                          title=self.segments[key]["title"], text=self.segments[key]["text"], to=responsible)
+                          title=self.segments[key]["title"], text=self.segments[key]["text"], to=responsible,
+                          **attributes)
             elif (old.get("attributes") or {}).get("responsible") != named:
                 key = self.item_segment[(task_id, item["id"])]
                 if holder is None:
@@ -493,6 +536,10 @@ class Transcription:
                     self.step(event, "assign", holder, {"segment": key}, "计划条目改了责任人", to=responsible)
             elif old["text"] != item["text"]:
                 rest.append(f"计划条目 {item['id']} 改了文字")
+            changed = [ATTRIBUTE_NAMES[field] for field in b_drive.PLAN_ATTRIBUTES if old is not None
+                       and (old.get("attributes") or {}).get(field) != (item.get("attributes") or {}).get(field)]
+            if changed:
+                rest.append(f"计划条目 {item['id']} 改了{'、'.join(changed)}")
         kept = {item["id"] for item in after}
         rest += [f"删掉了计划条目 {item_id}" for item_id in before if item_id not in kept]
         previous, current = self.version(task_id, number - 1), self.version(task_id, number)
@@ -589,7 +636,8 @@ class Transcription:
     # ---------------------------------------------------------- outputs
     def lines(self) -> dict:
         tasks = [{"task": task["task"], "responsible": task["responsible"], "segments": [
-            {"key": key, "title": item["title"], "text": item["text"], "responsible": item["responsible"]}
+            {"key": key, "title": item["title"], "text": item["text"], "responsible": item["responsible"],
+             **item["attributes"]}
             for key, item in self.segments.items() if item["task"] == task["task"] and item["initial"]]}
             for task in self.tasks.values()]
         steps = [dict(step) for step in self.extra]
@@ -651,10 +699,12 @@ def review(t: Transcription, lines: dict, script: dict) -> str:
         out.append(f"| {task['task']} | {cell(title)} | {task['responsible']}（event:{task['assign_event']}） "
                    f"| {sum(1 for item in t.segments.values() if item['task'] == task['task'] and item['initial'])} "
                    f"| `{object_id}` |")
-    out += ["", "| 段 | Task | 标题 | 责任人 | 划分 | 来源 |", "|-|-|-|-|-|-|"]
+    out += ["", "| 段 | Task | 标题 | 责任人 | 带的属性 | 划分 | 来源 |", "|-|-|-|-|-|-|-|"]
     planned = {step["segment"]: n for n, step in enumerate(script["steps"], 1) if step["do"] == "plan"}
     for key, item in t.segments.items():
-        out.append(f"| {key} | {item['task']} | {cell(item['title'])} | {item['responsible']} "
+        carried = "、".join(f"{ATTRIBUTE_NAMES[field]}「{cell(item['attributes'][field])[:30]}」"
+                           for field in b_drive.PLAN_ATTRIBUTES if field in item["attributes"])
+        out.append(f"| {key} | {item['task']} | {cell(item['title'])} | {item['responsible']} | {carried or '—'} "
                    f"| {'初始划分' if item['initial'] else f'脚本第 {planned[key]} 步'} | {item['origin']} |")
     if t.left_out:
         out += ["", "从没指派过、不进回放的：" + "、".join(f"`{object_id}`" for object_id in sorted(t.left_out)) + "。"]
@@ -681,6 +731,9 @@ def review(t: Transcription, lines: dict, script: dict) -> str:
     out += [f"- {item}" for item in t.warnings] or ["- 转写没有提出要审的个案。"]
     out += ["- 段的划分：初始段取 Task 建立时（或首次指派之前）计划块里的计划条目；之后新加的计划条目与 Activity 在脚本里划出。"
             "划段与段的再指派由 Task 当时的责任人记，与 Task+Activity 线上「Activity 由 Task 责任人建并指派」一致。",
+            "- 段带的属性：计划条目写了的预期产出、质量标准、执行主体与分工随段带进两条线（执行主体是某个主体的显示名时已换成"
+            "角色键）；Activity 的执行事项、预期产出与成功 / 验收标准组件对应段的正文、预期产出与质量标准。Task-only 线写成"
+            "计划条目的属性；Task+Activity 线的 Activity 写预期产出与质量标准，执行主体由指派承担，分工没有对应组件。",
             "- 快照里的进展条目按组件 id 对上段或 Task 的拆成那一处的进展；对不上的留在快照主体上。同一张快照拆出的第 i 步"
             "时点加 i 微秒。",
             "- 门、Task 的建立与首次指派并入共同播种，提前到执行脚本之前；它们在两条线上相同，不进五项观测。"]

@@ -42,17 +42,17 @@ def mcp_end_to_end(book, h, f, flow, trunk, url, source):
     act('a', 'world_commit_period_goal', goal['object_id'])
     act('ceo', 'world_confirm_period_goal', goal['object_id'], {'outcome': 'accepted'})
     mission = flow.create('a', 'Mission', 'a', {'title': 'MCP Mission（#57）', 'goal_ref': goal['ref'], 'blocks': {
-        'play': {'text': 'Play：Agent 经 MCP 推进。'}}})['result']
+        'mission_plan': {'text': 'Play：Agent 经 MCP 推进。'}}})['result']
     flow.assign('a', mission['object_id'], actor_id['owner_a'])
     act('owner_a', 'world_commit_mission', mission['object_id'])
     act('a', 'world_confirm_mission', mission['object_id'], {'outcome': 'accepted'})
     task = flow.create('a', 'Task', 'a', {'title': 'MCP Task（#57）', 'parent_ref': mission['ref'], 'blocks': {
-        'definition': {'text': '经 MCP 走一遍 0.2 的 Agent 面。'},
-        'acceptance': {'components': [{'id': 'mcp-t1', 'type': 'acceptance_criterion', 'text': '五写都经 prepare 再 commit'},
-                                      {'id': 'mcp-t2', 'type': 'acceptance_criterion', 'text': '日志里有组件与事件引用'}]}}}
+        'definition': {'text': '经 MCP 走一遍 0.2 的 Agent 面。', 'components': [
+            {'id': 'mcp-t1', 'type': 'acceptance_criterion', 'text': '五写都经 prepare 再 commit'},
+            {'id': 'mcp-t2', 'type': 'acceptance_criterion', 'text': '日志里有组件与事件引用'}]}}}
     )['result']
     act('owner_a', 'world_assign', task['object_id'], {'principal_id': actor_id['ic_a']})
-    criterion = task['ref'] + '#acceptance/mcp-t1'
+    criterion = task['ref'] + '#definition/mcp-t1'
     activity = flow.create('a', 'Activity', 'a', {'title': 'MCP Activity（#57）', 'parent_ref': task['ref'], 'blocks': {
         'instruction': {'text': '按验收条件经 MCP 执行。', 'refs': [criterion]}}})['result']
     act('ic_a', 'world_assign', activity['object_id'], {'principal_id': actor_id['agent_a']})
@@ -198,7 +198,7 @@ def mcp_end_to_end(book, h, f, flow, trunk, url, source):
           and source_event in state_line['refs']
           and f"{done['refresh'][1]['result']['ref']}#issues/mcp-iss-1" in state_line['read_refs']
           and context_line['context_pack_id'] == context['context_pack_id']
-          and {f'{task_version}#acceptance/mcp-t1', f'{task_version}#acceptance/mcp-t2'} <= set(context_line['read_refs'])
+          and {f'{task_version}#definition/mcp-t1', f'{task_version}#definition/mcp-t2'} <= set(context_line['read_refs'])
           and any(ref.startswith('event:') for ref in context_line['refs'])
           and all(line.get('idempotency_key') for line in lines if line['tool'] in {
               'world_start', 'world_record_event', 'world_refresh_state', 'world_revise_object', 'world_deliver'}

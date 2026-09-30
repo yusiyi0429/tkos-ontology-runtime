@@ -951,6 +951,8 @@ CHECKS = {
         'a_confirmed_company_review_only_gives_effect_changes_no_lifecycle_and_leaves_the_snapshot_as_it_was': (),
         'records_give_the_confirmed_review_with_the_confirmation_event_and_the_snapshot':
             ('read:records:confirmed_review',),
+        'a_confirmed_company_review_reads_back_its_new_blocks_and_gives_the_standard_sentence_for_those_left_out':
+            ('read:records:confirmed_review',),
         'a_company_review_is_confirmed_once_and_its_confirmation_is_not_withdrawn':
             R('world_confirm_review') + ('withdrawal:never:review_confirmed_on_company', 'duplicates:state_mismatch'),
         'only_the_ceo_confirms_a_company_review': R('world_confirm_review'),

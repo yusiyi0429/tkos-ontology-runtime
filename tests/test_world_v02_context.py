@@ -32,12 +32,13 @@ V02 = "tkos.world/0.2"
 
 # ------------------------------------------------------------ pure: coverage
 def layer(level, *, blocks=(), state=None, events=(), responsible=(), formal=None):
-    """覆盖判定看的那几项：对象引用、是否正式、责任人，块（类别、块类别、组件）、快照与事件的引用。"""
+    """覆盖判定看的那几项：对象引用、是否正式、责任人，块（类别、块类别、组件及其类型）、快照与事件的引用。组件写成
+    (id, 类型)，类型决定它的取上下文角色。"""
     base = f"o{level}@1"
 
     def block(id, kind="definition", klass="formal", text="", components=(), empty=False):
         ref = f"{base}#{id}"
-        items = [{"id": cid, "ref": f"{ref}/{cid}"} for cid in components]
+        items = [{"id": cid, "type": ctype, "ref": f"{ref}/{cid}"} for cid, ctype in components]
         return {"id": id, "kind": kind, "class": klass, "ref": ref, "empty": empty, "components": items,
                 "value": None if empty else {"text": text, "components": items, "refs": [], "artifacts": []}}
     return {"level": level, "object": {"ref": base, "formal": formal,
@@ -47,27 +48,30 @@ def layer(level, *, blocks=(), state=None, events=(), responsible=(), formal=Non
 
 
 def test_evidence_cites_components_where_content_is_a_component_and_events_by_event_reference():
-    layers = [layer(0, blocks=[{"id": "instruction", "text": "改材料"},
-                               {"id": "constraint", "kind": "constraint", "empty": True}],
+    layers = [layer(0, blocks=[{"id": "instruction", "text": "改材料",
+                                "components": [("c-1", "contribution"), ("tb-1", "time_boundary")]}],
                     state="s0@1", events=["e1"], responsible=["p1"]),
-              layer(1, blocks=[{"id": "definition", "text": "方案"},
-                               {"id": "acceptance", "components": ["ac-1", "ac-2"]},
-                               {"id": "plan", "kind": "plan", "klass": "activity", "components": ["p-1"]}]),
-              layer(2, blocks=[{"id": "acceptance", "text": "总验收", "components": ["m-ac1"]},
-                               {"id": "execution_plan", "kind": "plan", "klass": "activity", "components": ["plan-1"]}],
+              layer(1, blocks=[{"id": "definition", "text": "方案",
+                                "components": [("ac-1", "acceptance_criterion"), ("ac-2", "acceptance_criterion")]},
+                               {"id": "task_plan", "components": [("ec-1", "execution_context")]},
+                               {"id": "plan", "kind": "plan", "klass": "activity", "components": [("p-1", "plan_item")]}]),
+              layer(2, blocks=[{"id": "definition", "text": "总验收", "components": [("m-ac1", "acceptance_criterion")]},
+                               {"id": "execution_plan", "kind": "plan", "klass": "activity",
+                                "components": [("plan-1", "plan_item")]}],
                     formal=True)]
     coverage = context.cover(layers)
     assert {name: answer["evidence"] for name, answer in coverage.items()} == {
-        # 块自己的文字给块引用，组件逐条给组件引用；计划类的块不是 Why。
-        "why": [{"ref": "o1@1#definition"}, {"ref": "o1@1#acceptance/ac-1"}, {"ref": "o1@1#acceptance/ac-2"},
-                {"ref": "o2@1#acceptance"}, {"ref": "o2@1#acceptance/m-ac1"}],
-        "what": [{"ref": "o0@1#instruction"}],
+        # 当前对象带贡献角色的组件在前；上层的定义类块：块自己的文字给块引用，组件逐条给组件引用；计划类的块不是 Why。
+        "why": [{"ref": "o0@1#instruction/c-1"}, {"ref": "o1@1#definition"}, {"ref": "o1@1#definition/ac-1"},
+                {"ref": "o1@1#definition/ac-2"}, {"ref": "o1@1#task_plan/ec-1"}, {"ref": "o2@1#definition"},
+                {"ref": "o2@1#definition/m-ac1"}],
+        "what": [{"ref": "o0@1#instruction"}, {"ref": "o0@1#instruction/c-1"}, {"ref": "o0@1#instruction/tb-1"}],
         "who": [{"ref": "o0@1"}],
         "now": [{"ref": "s0@1"}],
         "happened": [{"ref": "event:e1"}],
-        # 上层已正式的对象只算正式块（活动块不经门），再加各层的验收标准与约束，去重。
-        "basis": [{"ref": "o2@1#acceptance"}, {"ref": "o2@1#acceptance/m-ac1"}, {"ref": "o1@1#acceptance/ac-1"},
-                  {"ref": "o1@1#acceptance/ac-2"}]}
+        # 上层已正式的对象只算正式块（活动块不经门），再按组件角色加各层（含当前对象）的约束与验收，去重。
+        "basis": [{"ref": "o2@1#definition"}, {"ref": "o2@1#definition/m-ac1"}, {"ref": "o0@1#instruction/tb-1"},
+                  {"ref": "o1@1#definition/ac-1"}, {"ref": "o1@1#definition/ac-2"}, {"ref": "o1@1#task_plan/ec-1"}]}
     assert all(answer["answered"] and answer["gap"] is None for answer in coverage.values())
     assert [answer["question"] for answer in coverage.values()] == ["为什么", "做什么", "谁负责", "现在怎样", "发生了什么",
                                                                      "凭什么"]
@@ -76,7 +80,7 @@ def test_evidence_cites_components_where_content_is_a_component_and_events_by_ev
 def test_a_question_the_pack_cannot_answer_is_a_gap_with_its_reason():
     coverage = context.cover([layer(0, blocks=[{"id": "instruction", "empty": True}]),
                               layer(1, blocks=[{"id": "execution_plan", "kind": "plan", "klass": "activity",
-                                                "components": ["plan-1"]}], formal=True)])
+                                                "components": [("plan-1", "plan_item")]}], formal=True)])
     assert all(not answer["answered"] and answer["evidence"] == [] and answer["gap"] for answer in coverage.values())
 
 
@@ -127,7 +131,7 @@ OBJECTS = {
     COMPANY: ("Company", "company", 1, "recorded", {"title": "词元云集", "external_refs": []},
               {"identity": value("企业经营系统", artifacts=["https://docs.example/company"])}),
     STRATEGY: ("Strategy", "company", 1, "draft", {"title": "总体战略", "external_refs": [], "parent_ref": pin(COMPANY)},
-               {"choices": value("聚焦经营系统"),
+               {"strategy_core": value("聚焦经营系统"),
                 "responsibility_structure": value("两个域", [part("unit-eo", "unit_entry", "E&O 域")])}),
     UNIT: ("ResponsibilityUnit", "eo", 1, "recorded",
            {"title": "E&O", "unit_kind": "domain", "external_refs": [],
@@ -136,49 +140,47 @@ OBJECTS = {
     COMPANY_GOAL: ("LongTermGoal", "company", 1, "confirmed",
                    {"title": "公司三年目标", "scope": "company", "horizon": "2028", "external_refs": [],
                     "parent_ref": pin(COMPANY), "goal_ref": None},
-                   {"outcome": value(components=[part("cg-o1", "outcome", "成为企业经营系统的首选")]),
-                    "constraint": value("公司级目标自己的约束")}),
+                   {"target": value(components=[part("cg-o1", "outcome", "成为企业经营系统的首选")])}),
     GOAL: ("LongTermGoal", "eo", 1, "confirmed",
            {"title": "E&O 六个月目标", "scope": "unit", "horizon": "六个月", "external_refs": [], "parent_ref": pin(UNIT),
             "goal_ref": pin(COMPANY_GOAL)},
-           {"outcome": value(components=[part("lt-o1", "outcome", "建立 Enterprise Context",
-                                              refs=[pin(COMPANY_GOAL, 1, "outcome", "cg-o1")])])}),
+           {"target": value(components=[part("lt-o1", "outcome", "建立 Enterprise Context",
+                                             refs=[pin(COMPANY_GOAL, 1, "target", "cg-o1")])])}),
     # 本单元另外三条长期目标：已确认、已终止、草稿（形成周期目标时只带入已确认的）。
     GOAL_2: ("LongTermGoal", "eo", 1, "confirmed",
              {"title": "E&O 客户目标", "scope": "unit", "horizon": "一年", "external_refs": [], "parent_ref": pin(UNIT),
               "goal_ref": None},
-             {"outcome": value(components=[part("g2-o1", "outcome", "两家标杆客户")])}),
+             {"target": value(components=[part("g2-o1", "outcome", "两家标杆客户")])}),
     GOAL_ENDED: ("LongTermGoal", "eo", 1, "confirmed",
                  {"title": "已终止的目标", "scope": "unit", "horizon": "一年", "external_refs": [],
-                  "parent_ref": pin(UNIT), "goal_ref": None}, {"outcome": value("不再追")}),
+                  "parent_ref": pin(UNIT), "goal_ref": None}, {"target": value("不再追")}),
     GOAL_DRAFT: ("LongTermGoal", "eo", 1, "draft",
                  {"title": "草稿目标", "scope": "unit", "horizon": "一年", "external_refs": [],
-                  "parent_ref": pin(UNIT), "goal_ref": None}, {"outcome": value("还没确认")}),
+                  "parent_ref": pin(UNIT), "goal_ref": None}, {"target": value("还没确认")}),
     PERIOD: ("PeriodGoal", "eo", 1, "confirmed",
              {"title": "E&O 10 月", "period": "2026-10", "external_refs": [], "goal_ref": pin(GOAL), "review_ref": None,
               "depends_on": []},
-             {"outcome": value(components=[part("pg-o1", "outcome", "核心本体稳定",
-                                                refs=[pin(GOAL, 1, "outcome", "lt-o1")])]),
-              "acceptance": value(components=[part("pg-ac1", "acceptance_criterion", "两个 Agent 用上")])}),
+             {"target": value(components=[part("pg-o1", "outcome", "核心本体稳定", refs=[pin(GOAL, 1, "target", "lt-o1")]),
+                                          part("pg-ac1", "acceptance_criterion", "两个 Agent 用上")])}),
     MISSION: ("Mission", "eo", 2, "confirmed",
               {"title": "Agent 真实可用", "external_refs": [], "goal_ref": pin(PERIOD), "responsible": OWNER,
                "core_battle": False, "depends_on": [], "contributes_to": [pin(OTHER_GOAL)]},
-              {"definition": value("为 Agent 提供底座"),
-               "acceptance": value("整体验收", [part("m-ac1", "acceptance_criterion", "Agent 能取到上下文",
-                                                    refs=[pin(PERIOD, 1, "acceptance", "pg-ac1")])]),
+              {"definition": value("为 Agent 提供底座", [part("m-ac1", "acceptance_criterion", "Agent 能取到上下文",
+                                                             refs=[pin(PERIOD, 1, "target", "pg-ac1")])]),
+               "mission_plan": value(components=[part("m-cd1", "constraint_dependency", "写入先限得死一点")]),
                "execution_plan": value(components=[part("plan-1", "plan_item", "搭环境",
-                                                        attributes={"responsible": OWNER})]),
-               "constraint": value("写入先限得死一点")}),
+                                                        attributes={"responsible": OWNER})])}),
     TASK: ("Task", "eo", 2, "recorded",
            {"title": "方案设计", "external_refs": [], "parent_ref": pin(MISSION, 2), "responsible": IC, "depends_on": []},
-           {"definition": value("节前完成整体方案"),
-            "acceptance": value(components=[part("ac-1", "acceptance_criterion", "方案评审通过",
-                                                 refs=[pin(MISSION, 2, "acceptance", "m-ac1")]),
-                                            part("ac-2", "acceptance_criterion", "演示通过")]),
+           {"definition": value("节前完成整体方案", [
+               part("ac-1", "acceptance_criterion", "方案评审通过", refs=[pin(MISSION, 2, "definition", "m-ac1")]),
+               part("ac-2", "acceptance_criterion", "演示通过")]),
             "plan": value(components=[part("p-1", "plan_item", "写脚本")])}),
     ACTIVITY: ("Activity", "eo", 2, "recorded",
                {"title": "改建模材料", "external_refs": [], "parent_ref": pin(TASK, 2), "responsible": AGENT},
-               {"instruction": value("按评审意见改材料", refs=[pin(TASK, 2, "acceptance", "ac-1")])}),
+               {"instruction": value("按评审意见改材料", [part("act-c1", "contribution", "方案要过评审"),
+                                                         part("act-tb1", "time_boundary", "周五前")],
+                                     refs=[pin(TASK, 2, "definition", "ac-1")])}),
 }
 # 以跨链关系指向 Mission 的另一个对象（最新修订），读侧只列、不展开。
 RELATING = [{"object_id": OTHER_MISSION, "object_version": 1, "revision_id": rev(OTHER_MISSION, 1),
@@ -239,7 +241,7 @@ def event(event_id, kind, principal, occurred_at, subjects, *, text=None, late=F
             "withdrawn_by": [], **fields}
 
 
-# 一条事件以多层对象为主体时只放在最近的一层：会议以 Task 的验收条件与 Activity 为主体，落在 Activity 层。
+# 一条事件以多层对象为主体时只放在最近的一层：会议以 Task 的成功 / 验收标准与 Activity 为主体，落在 Activity 层。
 # Mission 层有一条迟记的会议与更正它的外部事件。
 EVENTS = [
     event(CREATED, "object.created", DRI, "2026-09-22T00:00:00Z", [pin(ACTIVITY, 1)]),
@@ -248,7 +250,7 @@ EVENTS = [
           on_behalf_of={"principal_id": DRI, "display_name": "E&O DRI"},
           external_confirmation={"external_record_id": "tianshu:confirm:1",
                                  "external_confirmed_at": "2026-09-22T01:55:00Z"}),
-    event(MET, "event.recorded", IC, "2026-09-23T02:23:00Z", [pin(TASK, 2, "acceptance", "ac-1"), pin(ACTIVITY, 2)],
+    event(MET, "event.recorded", IC, "2026-09-23T02:23:00Z", [pin(TASK, 2, "definition", "ac-1"), pin(ACTIVITY, 2)],
           category="meeting", text="评审方案"),
     event(STARTED, "start", AGENT, "2026-09-23T03:00:00Z", [pin(ACTIVITY, 2)]),
     event(LATE, "event.recorded", OWNER, "2026-09-21T00:00:00Z", [pin(MISSION, 2)], category="meeting",
@@ -379,6 +381,10 @@ class Conn:
         if sql.startswith("SELECT DISTINCT p.principal_id"):
             return [{"principal_id": person, "principal_type": PEOPLE[person][1], "display_name": PEOPLE[person][0]}
                     for person in ROLES.get((params[1], params[2]), [])]
+        if sql.startswith("SELECT o.object_id, r.object_version, r.revision_id, r.payload FROM gov_objects o"):
+            child, key = params[1], params[2]  # 投影项：Task 按 parent_ref，Mission 按域
+            return [revision(oid) for oid, spec in OBJECTS.items() if spec[0] == child
+                    and (spec[1] == key if child == "Mission" else spec[4].get("parent_ref", {})["object_id"] == key)]
         if sql.startswith("SELECT o.object_id, r.object_version, r.revision_id, r.payload"):
             target = params[2].obj[0]["object_id"]
             return [row for row in RELATING
@@ -457,27 +463,30 @@ def test_the_context_walks_the_0_2_spine_and_pins_each_step(world):
 def test_each_component_is_cited_in_component_form_pinned_to_the_revision_read(world):
     result = build(world)
     task = result["context_pack"]["layers"][1]
-    acceptance = next(block for block in task["blocks"] if block["id"] == "acceptance")
-    assert acceptance["pinned"] == cited(TASK, 2, "acceptance")
+    acceptance = next(block for block in task["blocks"] if block["id"] == "definition")
+    assert acceptance["pinned"] == cited(TASK, 2, "definition")
     assert [(item["ref"], item["pinned"]) for item in acceptance["components"]] == [
-        (f"{TASK}@2#acceptance/ac-1", cited(TASK, 2, "acceptance", "ac-1")),
-        (f"{TASK}@2#acceptance/ac-2", cited(TASK, 2, "acceptance", "ac-2"))]
+        (f"{TASK}@2#definition/ac-1", cited(TASK, 2, "definition", "ac-1")),
+        (f"{TASK}@2#definition/ac-2", cited(TASK, 2, "definition", "ac-2"))]
     # 组件里的引用读回两种形式；块值里的组件与块上的组件是同一份。
-    assert acceptance["components"][0]["refs"] == [cited(MISSION, 2, "acceptance", "m-ac1")]
+    assert acceptance["components"][0]["refs"] == [cited(MISSION, 2, "definition", "m-ac1")]
     assert acceptance["value"]["components"] == acceptance["components"]
     markdown = result["context_pack"]["markdown"]
-    assert section(markdown, f"{TASK}@2#acceptance") == [
-        f"### Task·验收标准 `{TASK}@2#acceptance`",
-        f"- 验收条件 `{TASK}@2#acceptance/ac-1`：方案评审通过",
-        f"  引用：`{MISSION}@2#acceptance/m-ac1`",
-        f"- 验收条件 `{TASK}@2#acceptance/ac-2`：演示通过"]
+    assert section(markdown, f"{TASK}@2#definition") == [
+        f"### Task·任务定义 `{TASK}@2#definition`", "节前完成整体方案",
+        f"- 成功 / 验收标准 `{TASK}@2#definition/ac-1`：方案评审通过",
+        f"  引用：`{MISSION}@2#definition/m-ac1`",
+        f"- 成功 / 验收标准 `{TASK}@2#definition/ac-2`：演示通过"]
     # 块自己的文字、引用与组件都在；组件的类型属性按登记的显示名写出。
     assert section(markdown, f"{ACTIVITY}@2#instruction") == [
-        f"### Activity·执行指令 `{ACTIVITY}@2#instruction`", "按评审意见改材料", f"引用：`{TASK}@2#acceptance/ac-1`"]
+        f"### Activity·执行目的与要求 `{ACTIVITY}@2#instruction`", "按评审意见改材料",
+        f"引用：`{TASK}@2#definition/ac-1`",
+        f"- 贡献 / 存在必要性 `{ACTIVITY}@2#instruction/act-c1`：方案要过评审",
+        f"- 时间边界 `{ACTIVITY}@2#instruction/act-tb1`：周五前"]
     assert section(markdown, f"{MISSION}@2#execution_plan") == [
-        f"### Mission·执行计划 `{MISSION}@2#execution_plan`", f"- 计划条目 `{MISSION}@2#execution_plan/plan-1`：搭环境",
+        f"### Mission·Task 全景 `{MISSION}@2#execution_plan`", f"- 计划条目 `{MISSION}@2#execution_plan/plan-1`：搭环境",
         f"  责任人（只作记录）：`{OWNER}`"]
-    assert section(markdown, f"{TASK}@2#constraint") == [f"### Task·约束 `{TASK}@2#constraint`", "当前没有约束"]
+    assert section(markdown, f"{TASK}@2#task_plan") == [f"### Task·Task 计划 `{TASK}@2#task_plan`", "当前没有Task 计划"]
 
 
 def test_events_are_cited_by_event_reference_newest_first_and_once_at_the_nearest_level(world):
@@ -510,11 +519,13 @@ def test_the_latest_snapshot_is_its_shell_view_marked_unconfirmed(world):
     assert section(result["context_pack"]["markdown"], f"{SNAP_ACTIVITY}@1") == [
         f"### Activity 的最新状态快照（未经确认，截至 2026-09-24T10:00:00Z） `{SNAP_ACTIVITY}@1`",
         f"payload：执行状态；周期：2026-10；生成者：E&O Agent；来源事件：`event:{MET}`",
+        # 快照里没写的新块（当前状态）读作空块，给标准句。
+        f"#### 当前状态 `{SNAP_ACTIVITY}@1#current_state`", "当前没有当前状态",
         f"#### 进展 `{SNAP_ACTIVITY}@1#progress`",
         f"- 进展条目 `{SNAP_ACTIVITY}@1#progress/todo:17`：改了一半",
         f"  本体主体 id：`{AGENT}`", "  姓名（写入时）：E&O Agent", "  外部状态：进行中",
         "  本期条目：2026-09-24T09:00:00Z Codex：改完第一节",
-        f"#### 阻塞与偏差 `{SNAP_ACTIVITY}@1#blockers`", "当前没有阻塞与偏差",
+        f"#### 关键风险与阻塞 `{SNAP_ACTIVITY}@1#blockers`", "当前没有关键风险与阻塞",
         f"#### 问题 `{SNAP_ACTIVITY}@1#issues`",
         f"- 问题 `{SNAP_ACTIVITY}@1#issues/iss-1`：评审意见有冲突", "  核心判断问题：按哪条意见改？",
         f"  最低充分责任主体：`{IC}`",
@@ -584,17 +595,24 @@ def test_cross_chain_relations_are_listed_and_not_followed(world):
 
 def test_coverage_cites_components_blocks_and_events_that_the_pack_holds(world):
     coverage = build(world)["coverage"]
-    assert coverage["what"]["evidence"] == [{"ref": f"{ACTIVITY}@2#instruction"}]
+    assert coverage["what"]["evidence"] == [{"ref": f"{ACTIVITY}@2#instruction"},
+                                            {"ref": f"{ACTIVITY}@2#instruction/act-c1"},
+                                            {"ref": f"{ACTIVITY}@2#instruction/act-tb1"}]
     assert coverage["who"]["evidence"] == [{"ref": f"{ACTIVITY}@2"}]
     assert coverage["now"]["evidence"] == [{"ref": f"{SNAP_ACTIVITY}@1"}, {"ref": f"{SNAP_MISSION}@1"}]
     assert coverage["happened"]["evidence"] == [{"ref": f"event:{event_id}"} for event_id in (
         STARTED, MET, ASSIGNED, CREATED, CORRECTED, REFRESHED, CONFIRMED, LATE)]
     basis = coverage["basis"]["evidence"]
-    assert {"ref": f"{TASK}@2#acceptance/ac-1"} in basis and {"ref": f"{MISSION}@2#acceptance/m-ac1"} in basis
-    assert {"ref": f"{MISSION}@2#definition"} in basis and {"ref": f"{GOAL}@1#outcome/lt-o1"} in basis
+    assert {"ref": f"{TASK}@2#definition/ac-1"} in basis and {"ref": f"{MISSION}@2#definition/m-ac1"} in basis
+    assert {"ref": f"{MISSION}@2#definition"} in basis and {"ref": f"{GOAL}@1#target/lt-o1"} in basis
+    # 按组件角色：当前对象的时间边界（约束）与上层的关键约束与依赖在「凭什么」，当前对象的贡献在「为什么」。
+    assert {"ref": f"{ACTIVITY}@2#instruction/act-tb1"} in basis and {"ref": f"{MISSION}@2#mission_plan/m-cd1"} in basis
+    assert {"ref": f"{ACTIVITY}@2#instruction/act-c1"} not in basis
+    assert coverage["why"]["evidence"][0] == {"ref": f"{ACTIVITY}@2#instruction/act-c1"}
     # 活动块不是经确认的正式内容；草稿 Strategy 的块只是 Why。
     assert {"ref": f"{MISSION}@2#execution_plan/plan-1"} not in basis
-    assert {"ref": f"{STRATEGY}@1#choices"} not in basis and {"ref": f"{STRATEGY}@1#choices"} in coverage["why"]["evidence"]
+    assert {"ref": f"{STRATEGY}@1#strategy_core"} not in basis
+    assert {"ref": f"{STRATEGY}@1#strategy_core"} in coverage["why"]["evidence"]
     assert {"ref": f"{STRATEGY}@1#responsibility_structure/unit-eo"} in coverage["why"]["evidence"]
     assert all(answer["answered"] for answer in coverage.values())
 
@@ -668,13 +686,14 @@ def test_a_tight_budget_trims_blocks_off_the_why_chain_then_old_events_then_the_
         assert result["budget"]["used_chars"] == len(result["context_pack"]["markdown"])
         # 当前对象的块与它的最新快照不裁。
         current = result["context_pack"]["layers"][0]
-        assert [block["ref"] for block in current["blocks"]] == [f"{ACTIVITY}@2#instruction", f"{ACTIVITY}@2#constraint"]
+        assert [block["ref"] for block in current["blocks"]] == [f"{ACTIVITY}@2#instruction"]
         assert current["state"] == whole["context_pack"]["layers"][0]["state"]
     assert tight["budget"]["over_budget"] is False
     assert tight["budget"]["used_chars"] <= whole["budget"]["used_chars"] // 2
     assert tiny["budget"]["over_budget"] is True and all(layer["blocks"] == [] for layer in tiny["context_pack"]["layers"][1:])
-    # 覆盖只看留下的内容。
-    assert not tiny["coverage"]["why"]["answered"] and not tiny["coverage"]["happened"]["answered"]
+    # 覆盖只看留下的内容：上层的块都裁掉了，「为什么」只剩当前对象（不裁）带贡献角色的组件。
+    assert tiny["coverage"]["why"]["evidence"] == [{"ref": f"{ACTIVITY}@2#instruction/act-c1"}]
+    assert not tiny["coverage"]["happened"]["answered"]
     # 同样的世界与预算裁出同样的结果。
     again = build(world, budget={"max_chars": whole["budget"]["used_chars"] // 2})
     assert {key: tight[key] for key in ("context_pack", "plan", "coverage", "budget")} == {
@@ -751,11 +770,11 @@ def test_a_unit_goal_takes_one_hop_along_goal_ref_to_the_company_goals_definitio
     assert (hop["field"], hop["label"], hop["object"]["ref"], hop["object"]["pinned"], hop["object"]["formal"],
             hop["object"]["lifecycle"]["status"]) == (
         "goal_ref", "公司级长期目标", f"{COMPANY_GOAL}@1", cited(COMPANY_GOAL), True, "confirmed")
-    # 只取定义类块：公司级目标自己的约束不随这一跳进来；空块照样读标准句；组件钉到所读修订。
+    # 只取定义类块（长期目标的两块都是）；空块照样读标准句；组件钉到所读修订。
     assert [(block["ref"], block["text"]) for block in hop["blocks"]] == [
-        (f"{COMPANY_GOAL}@1#outcome", ""), (f"{COMPANY_GOAL}@1#measures", "当前没有衡量")]
-    assert [(item["ref"], item["pinned"]) for item in hop["blocks"][0]["components"]] == [
-        (f"{COMPANY_GOAL}@1#outcome/cg-o1", cited(COMPANY_GOAL, 1, "outcome", "cg-o1"))]
+        (f"{COMPANY_GOAL}@1#alignment", "当前没有定位与承接"), (f"{COMPANY_GOAL}@1#target", "")]
+    assert [(item["ref"], item["pinned"]) for item in hop["blocks"][1]["components"]] == [
+        (f"{COMPANY_GOAL}@1#target/cg-o1", cited(COMPANY_GOAL, 1, "target", "cg-o1"))]
     assert [layer["hop"] for layer in layers if layer["level"] != 4] == [None] * 7
     assert result["plan"]["hops"] == [{"from": f"{GOAL}@1", "field": "goal_ref", "pinned": f"{COMPANY_GOAL}@1",
                                        "read": f"{COMPANY_GOAL}@1"}]
@@ -764,12 +783,12 @@ def test_a_unit_goal_takes_one_hop_along_goal_ref_to_the_company_goals_definitio
     assert section(markdown, f"{COMPANY_GOAL}@1") == [
         f"### 沿 goal_ref 多取一跳：公司级长期目标《公司三年目标》 `{COMPANY_GOAL}@1`",
         f"生命周期：已确认（事件 `event:{uid(62)}`）", "责任人（来自角色 CEO）：CEO", "正式内容：已确认",
-        f"#### 结果 `{COMPANY_GOAL}@1#outcome`", f"- 结果 `{COMPANY_GOAL}@1#outcome/cg-o1`：成为企业经营系统的首选",
-        f"#### 衡量 `{COMPANY_GOAL}@1#measures`", "当前没有衡量"]
-    assert "公司级目标自己的约束" not in markdown
+        f"#### 定位与承接 `{COMPANY_GOAL}@1#alignment`", "当前没有定位与承接",
+        f"#### 目标定义 `{COMPANY_GOAL}@1#target`",
+        f"- 目标结果 / 战役结果 / 工作结果 `{COMPANY_GOAL}@1#target/cg-o1`：成为企业经营系统的首选"]
     # 这一跳的组件是 Why 的依据；公司级目标已确认，它的正式块也算凭什么。
-    assert {"ref": f"{COMPANY_GOAL}@1#outcome/cg-o1"} in result["coverage"]["why"]["evidence"]
-    assert {"ref": f"{COMPANY_GOAL}@1#outcome/cg-o1"} in result["coverage"]["basis"]["evidence"]
+    assert {"ref": f"{COMPANY_GOAL}@1#target/cg-o1"} in result["coverage"]["why"]["evidence"]
+    assert {"ref": f"{COMPANY_GOAL}@1#target/cg-o1"} in result["coverage"]["basis"]["evidence"]
 
 
 def test_why_from_a_unit_period_goal_reaches_the_company_goal_the_strategy_and_the_company(world):
@@ -778,22 +797,22 @@ def test_why_from_a_unit_period_goal_reaches_the_company_goal_the_strategy_and_t
         registry.registry()["spine"][3:]
     # 覆盖：由近及远，单元长期目标、多取一跳的公司级长期目标、责任单元、Strategy、Company 的块或组件。
     assert result["coverage"]["why"]["evidence"] == [
-        {"ref": f"{GOAL}@1#outcome/lt-o1"}, {"ref": f"{COMPANY_GOAL}@1#outcome/cg-o1"}, {"ref": f"{UNIT}@1#definition"},
-        {"ref": f"{STRATEGY}@1#choices"}, {"ref": f"{STRATEGY}@1#responsibility_structure"},
+        {"ref": f"{GOAL}@1#target/lt-o1"}, {"ref": f"{COMPANY_GOAL}@1#target/cg-o1"}, {"ref": f"{UNIT}@1#definition"},
+        {"ref": f"{STRATEGY}@1#strategy_core"}, {"ref": f"{STRATEGY}@1#responsibility_structure"},
         {"ref": f"{STRATEGY}@1#responsibility_structure/unit-eo"}, {"ref": f"{COMPANY}@1#identity"},
-        {"ref": f"{GOAL_2}@1#outcome"}]  # 形成时带入的本单元有效长期目标，排在最后
+        {"ref": f"{GOAL_2}@1#target"}]  # 形成时带入的本单元有效长期目标，排在最后
     parts = sections(result["context_pack"]["markdown"])
     assert parts["六问指引"].splitlines()[1] == (
-        f"- 为什么：长期目标 `{GOAL}@1#outcome` → 公司级长期目标 `{COMPANY_GOAL}@1#outcome` → "
-        f"责任单元 `{UNIT}@1#definition` → 战略 `{STRATEGY}@1#choices`、`{STRATEGY}@1#responsibility_structure` → "
+        f"- 为什么：长期目标 `{GOAL}@1#target` → 公司级长期目标 `{COMPANY_GOAL}@1#target` → "
+        f"责任单元 `{UNIT}@1#definition` → 战略 `{STRATEGY}@1#strategy_core`、`{STRATEGY}@1#responsibility_structure` → "
         f"公司 `{COMPANY}@1#identity`；形成时带入的有效长期目标 `{GOAL_2}@1`")
     assert heads(parts["为什么"]) == [
-        f"### 长期目标·结果 `{GOAL}@1#outcome`", f"### 长期目标·衡量 `{GOAL}@1#measures`",
+        f"### 长期目标·定位与承接 `{GOAL}@1#alignment`", f"### 长期目标·目标定义 `{GOAL}@1#target`",
         f"### 沿 goal_ref 多取一跳：公司级长期目标《公司三年目标》 `{COMPANY_GOAL}@1`",
-        f"### 责任单元·定义 `{UNIT}@1#definition`", f"### 责任单元·边界 `{UNIT}@1#boundary`",
-        f"### 战略·战略选择 `{STRATEGY}@1#choices`", f"### 战略·路径 `{STRATEGY}@1#path`",
-        f"### 战略·关键假设 `{STRATEGY}@1#assumptions`", f"### 战略·能力 `{STRATEGY}@1#capabilities`",
-        f"### 战略·责任结构 `{STRATEGY}@1#responsibility_structure`", f"### 公司·身份 `{COMPANY}@1#identity`"]
+        f"### 责任单元·责任定义 `{UNIT}@1#definition`",
+        f"### 战略·战略 `{STRATEGY}@1#strategy_core`", f"### 战略·商业模式与成立逻辑 `{STRATEGY}@1#business_logic`",
+        f"### 战略·战略责任结构 `{STRATEGY}@1#responsibility_structure`",
+        f"### 公司·企业身份与长期意图 `{COMPANY}@1#identity`"]
 
 
 def test_the_markdown_opens_with_the_guide_and_takes_the_six_questions_as_its_sections(world):
@@ -803,21 +822,20 @@ def test_the_markdown_opens_with_the_guide_and_takes_the_six_questions_as_its_se
     parts = sections(markdown)
     # 为什么：当前对象之上各层（由近及远）的跨链关系与定义类块，单元长期目标之后是多取的一跳，一直到 Company。
     assert heads(parts["为什么"]) == [
-        f"### Task·定义 `{TASK}@2#definition`", f"### Task·验收标准 `{TASK}@2#acceptance`",
+        f"### Task·任务定义 `{TASK}@2#definition`", f"### Task·Task 计划 `{TASK}@2#task_plan`",
         "Mission 的跨链关系（只列引用，不展开）：",
-        f"### Mission·定义 `{MISSION}@2#definition`", f"### Mission·验收标准 `{MISSION}@2#acceptance`",
-        f"### Mission·打法 `{MISSION}@2#play`",
-        f"### 周期目标·结果 `{PERIOD}@1#outcome`", f"### 周期目标·实现逻辑 `{PERIOD}@1#realization_logic`",
-        f"### 周期目标·验收标准 `{PERIOD}@1#acceptance`",
-        f"### 长期目标·结果 `{GOAL}@1#outcome`", f"### 长期目标·衡量 `{GOAL}@1#measures`",
+        f"### Mission·战役定义 `{MISSION}@2#definition`", f"### Mission·Mission 计划 `{MISSION}@2#mission_plan`",
+        f"### 周期目标·定位与承接 `{PERIOD}@1#alignment`", f"### 周期目标·目标定义 `{PERIOD}@1#target`",
+        f"### 长期目标·定位与承接 `{GOAL}@1#alignment`", f"### 长期目标·目标定义 `{GOAL}@1#target`",
         f"### 沿 goal_ref 多取一跳：公司级长期目标《公司三年目标》 `{COMPANY_GOAL}@1`",
-        f"### 责任单元·定义 `{UNIT}@1#definition`", f"### 责任单元·边界 `{UNIT}@1#boundary`",
-        f"### 战略·战略选择 `{STRATEGY}@1#choices`", f"### 战略·路径 `{STRATEGY}@1#path`",
-        f"### 战略·关键假设 `{STRATEGY}@1#assumptions`", f"### 战略·能力 `{STRATEGY}@1#capabilities`",
-        f"### 战略·责任结构 `{STRATEGY}@1#responsibility_structure`", f"### 公司·身份 `{COMPANY}@1#identity`"]
+        f"### 责任单元·责任定义 `{UNIT}@1#definition`",
+        f"### 战略·战略 `{STRATEGY}@1#strategy_core`", f"### 战略·商业模式与成立逻辑 `{STRATEGY}@1#business_logic`",
+        f"### 战略·战略责任结构 `{STRATEGY}@1#responsibility_structure`",
+        f"### 公司·企业身份与长期意图 `{COMPANY}@1#identity`"]
     # 做什么：当前对象的定义类块，与各层的计划类块。
-    assert heads(parts["做什么"]) == [f"### Activity·执行指令 `{ACTIVITY}@2#instruction`", f"### Task·计划 `{TASK}@2#plan`",
-                                      f"### Mission·执行计划 `{MISSION}@2#execution_plan`"]
+    assert heads(parts["做什么"]) == [f"### Activity·执行目的与要求 `{ACTIVITY}@2#instruction`",
+                                      f"### Task·Activity 全景 `{TASK}@2#plan`",
+                                      f"### Mission·Task 全景 `{MISSION}@2#execution_plan`"]
     # 现在怎样：各层的生命周期，然后是各层的最新状态快照。
     assert heads(parts["现在怎样"])[1:] == [
         f"### Activity 的最新状态快照（未经确认，截至 2026-09-24T10:00:00Z） `{SNAP_ACTIVITY}@1`",
@@ -825,18 +843,23 @@ def test_the_markdown_opens_with_the_guide_and_takes_the_six_questions_as_its_se
     # 发生了什么：各层的事件，由近及远，每层新的在前。
     assert [line.split("（事件 `")[1].split("`")[0] for line in parts["发生了什么"].split("\n\n")] == [
         f"event:{event_id}" for event_id in (STARTED, MET, ASSIGNED, CREATED, CORRECTED, REFRESHED, CONFIRMED, LATE)]
-    # 凭什么：各层的约束类块。
-    assert heads(parts["凭什么"]) == [f"### {name}·约束 `{oid}@{version}#constraint`" for name, oid, version in (
-        ("Activity", ACTIVITY, 2), ("Task", TASK, 2), ("Mission", MISSION, 2), ("周期目标", PERIOD, 1),
-        ("长期目标", GOAL, 1), ("责任单元", UNIT, 1), ("战略", STRATEGY, 1), ("公司", COMPANY, 1))]
+    # 凭什么：约束不再单独成块，逐层列出带约束与验收角色的组件引用（约束沿关系读），内容在它们所在的块里。
+    assert parts["凭什么"].splitlines() == [
+        "按组件的取上下文角色逐层列出约束与验收（内容在它们所在的块里）：",
+        f"- 当前对象 Activity《改建模材料》：约束 `{ACTIVITY}@2#instruction/act-tb1`（时间边界）",
+        f"- 上溯第 1 层 Task《方案设计》：验收 `{TASK}@2#definition/ac-1`（成功 / 验收标准）、"
+        f"`{TASK}@2#definition/ac-2`（成功 / 验收标准）",
+        f"- 上溯第 2 层 Mission《Agent 真实可用》：约束 `{MISSION}@2#mission_plan/m-cd1`（关键约束与依赖）；"
+        f"验收 `{MISSION}@2#definition/m-ac1`（成功 / 验收标准）",
+        f"- 上溯第 3 层 周期目标《E&O 10 月》：验收 `{PERIOD}@1#target/pg-ac1`（成功 / 验收标准）"]
 
 
 def test_the_guide_answers_each_question_by_pointing_at_what_the_pack_holds(world):
     assert sections(build(world)["context_pack"]["markdown"])["六问指引"].splitlines() == [
         "按问题给出处，内容在下文各节。",
-        f"- 为什么：Task `{TASK}@2#definition`、`{TASK}@2#acceptance` → Mission `{MISSION}@2#definition`、"
-        f"`{MISSION}@2#acceptance` → 周期目标 `{PERIOD}@1#outcome`、`{PERIOD}@1#acceptance` → 长期目标 `{GOAL}@1#outcome` → "
-        f"公司级长期目标 `{COMPANY_GOAL}@1#outcome` → 责任单元 `{UNIT}@1#definition` → 战略 `{STRATEGY}@1#choices`、"
+        f"- 为什么：当前对象的贡献 `{ACTIVITY}@2#instruction/act-c1`；Task `{TASK}@2#definition` → Mission "
+        f"`{MISSION}@2#definition`、`{MISSION}@2#mission_plan` → 周期目标 `{PERIOD}@1#target` → 长期目标 `{GOAL}@1#target` → "
+        f"公司级长期目标 `{COMPANY_GOAL}@1#target` → 责任单元 `{UNIT}@1#definition` → 战略 `{STRATEGY}@1#strategy_core`、"
         f"`{STRATEGY}@1#responsibility_structure` → 公司 `{COMPANY}@1#identity`",
         f"- 做什么：当前对象 `{ACTIVITY}@2#instruction`；Task `{TASK}@2#plan`；Mission `{MISSION}@2#execution_plan`",
         f"- 谁负责：当前对象 `{ACTIVITY}@2`：E&O Agent，指派事件 `event:{ASSIGNED}`（2026-09-22T01:00:00Z，方案 IC 指派给 "
@@ -845,8 +868,9 @@ def test_the_guide_answers_each_question_by_pointing_at_what_the_pack_holds(worl
         f"`{SNAP_MISSION}@1`（快照都未经确认）",
         f"- 发生了什么：外部事件 `event:{MET}`（会议）、`event:{CORRECTED}`（更正）、`event:{LATE}`（会议）；另有 5 条门、"
         "生命周期与其余记录事件",
-        f"- 凭什么：验收标准与约束 `{TASK}@2#acceptance`、`{MISSION}@2#acceptance`、`{MISSION}@2#constraint`、"
-        f"`{PERIOD}@1#acceptance`；上层已确认 Mission `{MISSION}@2`、周期目标 `{PERIOD}@1`、长期目标 `{GOAL}@1`、"
+        f"- 凭什么：验收标准与约束 `{ACTIVITY}@2#instruction/act-tb1`、`{TASK}@2#definition/ac-1`、"
+        f"`{TASK}@2#definition/ac-2`、`{MISSION}@2#definition/m-ac1`、`{MISSION}@2#mission_plan/m-cd1`、"
+        f"`{PERIOD}@1#target/pg-ac1`；上层已确认 Mission `{MISSION}@2`、周期目标 `{PERIOD}@1`、长期目标 `{GOAL}@1`、"
         f"公司级长期目标 `{COMPANY_GOAL}@1`"]
 
 
@@ -871,68 +895,66 @@ def blocks(oid, version, *ids):
 
 
 def test_trimming_protects_the_why_chain_and_takes_the_hop_before_its_levels_blocks(world):
-    """契约补 48 的完整顺序：上层不在 Why 链上的块（约束、计划）由远及近、同层从后往前；再裁最旧的事件；再由远及近
+    """契约补 48 的完整顺序：上层不在 Why 链上的块（计划类）由远及近、同层从后往前；再裁最旧的事件；再由远及近
     裁跨链关系与快照；Why 链上的项（上层的定义类块与多取的一跳）最后由远及近裁，同一层先裁一跳、再从后往前裁块。
     当前对象的块与最新快照不裁。"""
     result = build(world, budget={"max_chars": 10})
     assert [entry["key"] for entry in result["plan"]["trimmed"]] == [
-        *blocks(COMPANY, 1, "constraint"), *blocks(STRATEGY, 1, "constraint"), *blocks(UNIT, 1, "constraint"),
-        *blocks(GOAL, 1, "constraint"), *blocks(PERIOD, 1, "constraint"),
-        *blocks(MISSION, 2, "constraint", "execution_plan"), *blocks(TASK, 2, "constraint", "plan"),
+        *blocks(MISSION, 2, "execution_plan"), *blocks(TASK, 2, "plan"),
         *[f"event:{event_id}" for event_id in (LATE, CREATED, ASSIGNED, CONFIRMED, MET, STARTED, REFRESHED, CORRECTED)],
         "relations:2", f"snapshot:{SNAP_MISSION}@1",
         *blocks(COMPANY, 1, "identity"),
-        *blocks(STRATEGY, 1, "responsibility_structure", "capabilities", "assumptions", "path", "choices"),
-        *blocks(UNIT, 1, "boundary", "definition"),
-        f"hop:{COMPANY_GOAL}@1", *blocks(GOAL, 1, "measures", "outcome"),
-        *blocks(PERIOD, 1, "acceptance", "realization_logic", "outcome"),
-        *blocks(MISSION, 2, "play", "acceptance", "definition"),
-        *blocks(TASK, 2, "acceptance", "definition")]
+        *blocks(STRATEGY, 1, "responsibility_structure", "business_logic", "strategy_core"),
+        *blocks(UNIT, 1, "definition"),
+        f"hop:{COMPANY_GOAL}@1", *blocks(GOAL, 1, "target", "alignment"),
+        *blocks(PERIOD, 1, "target", "alignment"),
+        *blocks(MISSION, 2, "mission_plan", "definition"),
+        *blocks(TASK, 2, "task_plan", "definition")]
     assert {entry["reason"] for entry in result["plan"]["trimmed"]} == {"over_budget"}
     assert result["context_pack"]["layers"][4]["hop"] is None and result["plan"]["hops"] != []
 
 
 def test_a_long_why_block_outlasts_a_long_block_off_the_why_chain_and_every_event(world, monkeypatch):
-    """Strategy 的战略选择（Why 链上）与约束（不在 Why 链上）都很长。预算只差约束那么多时，只裁上层的约束，事件与
-    Why 链上的项都在（0.1 的顺序会先裁掉全部事件，再裁 Company 的身份）；预算再紧、要动到战略选择时，不在 Why 链上的
-    块、全部事件、跨链关系与快照都已先裁掉，近处的 Why 链（Task、Mission 的定义类块）仍在。"""
+    """Strategy 的战略块（Why 链上）与 Mission 的 Task 全景（计划类，不在 Why 链上）都很长。预算只差 Task 全景那么多
+    时，只裁它，事件与 Why 链上的项都在（0.1 的顺序会先裁掉全部事件，再裁 Company 的身份）；预算再紧、要动到战略块时，
+    不在 Why 链上的块、全部事件、跨链关系与快照都已先裁掉，近处的 Why 链（Task、Mission 的定义类块）仍在。"""
     object_type, domain, version, status, attributes, content = OBJECTS[STRATEGY]
-    choices, constraint = "主线：企业经营系统。" * 600, "不追求 Token 用量最大化。" * 300
+    core, plan = "主线：企业经营系统。" * 600, "先搭环境再联调。" * 300
     monkeypatch.setitem(OBJECTS, STRATEGY, (object_type, domain, version, status, attributes, {
-        **content, "choices": value(choices), "constraint": value(constraint)}))
+        **content, "strategy_core": value(core)}))
+    object_type, domain, version, status, attributes, content = OBJECTS[MISSION]
+    monkeypatch.setitem(OBJECTS, MISSION, (object_type, domain, version, status, attributes, {
+        **content, "execution_plan": value(plan)}))
     whole = build(world)
     events = [item["ref"] for layer in whole["context_pack"]["layers"] for item in layer["events"]]
-    loose = build(world, budget={"max_chars": whole["budget"]["used_chars"] - len(constraint)})
-    assert [entry["key"] for entry in loose["plan"]["trimmed"]] == [
-        *blocks(COMPANY, 1, "constraint"), *blocks(STRATEGY, 1, "constraint")]
+    loose = build(world, budget={"max_chars": whole["budget"]["used_chars"] - len(plan)})
+    assert [entry["key"] for entry in loose["plan"]["trimmed"]] == blocks(MISSION, 2, "execution_plan")
     kept = [item["ref"] for layer in loose["context_pack"]["layers"] for item in layer["events"]]
-    assert kept == events and choices in loose["context_pack"]["markdown"] and loose["budget"]["over_budget"] is False
+    assert kept == events and core in loose["context_pack"]["markdown"] and loose["budget"]["over_budget"] is False
 
-    # 少掉约束与大半条战略选择才够：别的内容全裁掉也凑不够，战略选择必须裁，裁了它就够。
-    tight = build(world, budget={"max_chars": whole["budget"]["used_chars"] - len(constraint) - len(choices) + 100})
+    # 少掉 Task 全景与大半条战略块才够：别的内容全裁掉也凑不够，战略块必须裁，裁了它就够。
+    tight = build(world, budget={"max_chars": whole["budget"]["used_chars"] - len(plan) - len(core) + 100})
     keys = [entry["key"] for entry in tight["plan"]["trimmed"]]
     first_why = keys.index(blocks(COMPANY, 1, "identity")[0])
     assert set(keys[:first_why]) == {
-        *blocks(COMPANY, 1, "constraint"), *blocks(STRATEGY, 1, "constraint"), *blocks(UNIT, 1, "constraint"),
-        *blocks(GOAL, 1, "constraint"), *blocks(PERIOD, 1, "constraint"),
-        *blocks(MISSION, 2, "constraint", "execution_plan"), *blocks(TASK, 2, "constraint", "plan"),
+        *blocks(MISSION, 2, "execution_plan"), *blocks(TASK, 2, "plan"),
         *events, "relations:2", f"snapshot:{SNAP_MISSION}@1"}
-    assert keys[-1] == blocks(STRATEGY, 1, "choices")[0] and choices not in tight["context_pack"]["markdown"]
+    assert keys[-1] == blocks(STRATEGY, 1, "strategy_core")[0] and core not in tight["context_pack"]["markdown"]
     assert tight["budget"]["over_budget"] is False and in_the_0_2_order(whole, tight)
     assert [block["ref"] for block in tight["context_pack"]["layers"][1]["blocks"]] == [
-        f"{TASK}@2#definition", f"{TASK}@2#acceptance"]
+        f"{TASK}@2#definition", f"{TASK}@2#task_plan"]
 
 
 def test_a_block_pinned_from_a_nearer_level_is_on_the_why_chain_even_when_it_is_not_a_definition(world, monkeypatch):
-    """Activity 的执行指令另引 Task 计划里的一条：Task 的计划块（计划类）因此在 Why 链上，事件、跨链关系与快照都裁掉
-    之后才裁；没被引到的 Mission 执行计划仍在第一步裁。"""
+    """Activity 的执行目的与要求另引 Task 的 Activity 全景里的一条：这一块（计划类）因此在 Why 链上，事件、跨链关系与
+    快照都裁掉之后才裁；没被引到的 Mission 的 Task 全景仍在第一步裁。"""
     object_type, domain, version, status, attributes, content = OBJECTS[ACTIVITY]
     monkeypatch.setitem(OBJECTS, ACTIVITY, (object_type, domain, version, status, attributes, {
-        "instruction": value("按评审意见改材料", refs=[pin(TASK, 2, "acceptance", "ac-1"), pin(TASK, 2, "plan", "p-1")])}))
+        "instruction": value("按评审意见改材料", refs=[pin(TASK, 2, "definition", "ac-1"), pin(TASK, 2, "plan", "p-1")])}))
     result = build(world, budget={"max_chars": 10})
     keys = [entry["key"] for entry in result["plan"]["trimmed"]]
     assert keys.index(blocks(MISSION, 2, "execution_plan")[0]) < keys.index(f"event:{LATE}")
-    assert keys[-3:] == blocks(TASK, 2, "plan", "acceptance", "definition")
+    assert keys[-3:] == blocks(TASK, 2, "plan", "task_plan", "definition")
     assert blocks(TASK, 2, "plan")[0] in why_chain(build(world)["context_pack"])
 
 
@@ -1000,8 +1022,8 @@ def carried_markdown(result) -> list[str]:
 
 
 def test_a_period_goal_carries_the_latest_confirmed_company_review_its_units_effective_goals_and_pending_issues(world):
-    """从周期目标出发（补 43）：本 scope 最近的已确认公司复盘（钉到快照修订，结果、缺口、原因、关键变化、经营含义五块，
-    材料不带）、本单元已确认的长期目标（goal_ref 指的那条已在「为什么」里，不重复；已终止与草稿不带），以及主受影响
+    """从周期目标出发（补 43）：本 scope 最近的已确认公司复盘（钉到快照修订，材料之外的各块，复盘里没写的新块读作空块）、
+    本单元已确认的长期目标（goal_ref 指的那条已在「为什么」里，不重复；已终止与草稿不带），以及主受影响
     对象是本单元的待带入问题。自成一节，放在六问指引之后。"""
     result = build(world, start=PERIOD, question="形成这个周期目标要看什么？")
     carried = result["context_pack"]["carried"]
@@ -1013,16 +1035,17 @@ def test_a_period_goal_carries_the_latest_confirmed_company_review_its_units_eff
     assert (snapshot["ref"], snapshot["pinned"], snapshot["as_of"], snapshot["payload_type"]["id"]) == (
         f"{REVIEW_SNAPSHOT}@1", cited(REVIEW_SNAPSHOT), "2026-09-30T15:59:59Z", "company_review")
     assert [(block["id"], block["pinned"]) for block in snapshot["blocks"]] == [
-        (block, cited(REVIEW_SNAPSHOT, 1, block)) for block in ("results", "gaps", "causes", "key_changes", "implications")]
+        (block, cited(REVIEW_SNAPSHOT, 1, block)) for block in ("overall_state", "results", "gaps", "causes", "key_changes",
+                                                                "implications", "key_risks", "issues")]
     goals = carried["long_term_goals"]
     assert [goal["ref"] for goal in goals] == [f"{GOAL_2}@1"]
     assert (goals[0]["title"], goals[0]["lifecycle"]["status"], goals[0]["pinned"]) == (
         "E&O 客户目标", "confirmed", cited(GOAL_2))
     assert goals[0]["definition_refs"] == [
-        {"id": "outcome", "display_name": "结果", "ref": f"{GOAL_2}@1#outcome", "pinned": cited(GOAL_2, 1, "outcome"),
-         "empty": False},
-        {"id": "measures", "display_name": "衡量", "ref": f"{GOAL_2}@1#measures", "pinned": cited(GOAL_2, 1, "measures"),
-         "empty": True}]
+        {"id": "alignment", "display_name": "定位与承接", "ref": f"{GOAL_2}@1#alignment",
+         "pinned": cited(GOAL_2, 1, "alignment"), "empty": True},
+        {"id": "target", "display_name": "目标定义", "ref": f"{GOAL_2}@1#target", "pinned": cited(GOAL_2, 1, "target"),
+         "empty": False}]
     assert [item["issue_ref"]["ref"] for item in carried["issues"]] == [
         f"{SNAP_GOAL}@3#issues/g-early", f"{SNAP_GOAL}@3#issues/g-iss"]
     markdown = result["context_pack"]["markdown"]
@@ -1035,12 +1058,15 @@ def test_a_period_goal_carries_the_latest_confirmed_company_review_its_units_eff
     assert parts[1].splitlines() == [
         f"### 已确认的公司复盘《九月公司复盘》 `{REVIEW_SNAPSHOT}@1`（截至 2026-09-30T15:59:59Z）",
         f"确认事件 `event:{REVIEW_EVENT}`（CEO 记，2026-10-01T02:00:00Z）",
-        f"#### 结果 `{REVIEW_SNAPSHOT}@1#results`", "营收达成八成", f"#### 缺口 `{REVIEW_SNAPSHOT}@1#gaps`", "交付慢两周",
-        f"#### 原因 `{REVIEW_SNAPSHOT}@1#causes`", "当前没有原因",
+        f"#### 整体经营状态 `{REVIEW_SNAPSHOT}@1#overall_state`", "当前没有整体经营状态",
+        f"#### 结果 `{REVIEW_SNAPSHOT}@1#results`", "营收达成八成", f"#### 关键结果差距 `{REVIEW_SNAPSHOT}@1#gaps`",
+        "交付慢两周", f"#### 原因 `{REVIEW_SNAPSHOT}@1#causes`", "当前没有原因",
         f"#### 关键变化 `{REVIEW_SNAPSHOT}@1#key_changes`", "换了交付负责人",
-        f"#### 经营含义 `{REVIEW_SNAPSHOT}@1#implications`", "十月先补交付"]
+        f"#### 经营含义 `{REVIEW_SNAPSHOT}@1#implications`", "十月先补交付",
+        f"#### 关键风险 `{REVIEW_SNAPSHOT}@1#key_risks`", "当前没有关键风险",
+        f"#### 问题 `{REVIEW_SNAPSHOT}@1#issues`", "当前没有问题"]
     assert parts[2].splitlines() == [f"### 有效的长期目标《E&O 客户目标》 `{GOAL_2}@1`",
-                                     f"生命周期：已确认（事件 `event:{uid(64)}`）", f"定义类块：`{GOAL_2}@1#outcome`"]
+                                     f"生命周期：已确认（事件 `event:{uid(64)}`）", f"定义类块：`{GOAL_2}@1#target`"]
     assert parts[3].splitlines() == [
         f"### 待带入的问题 `{SNAP_GOAL}@3#issues/g-early`：衡量口径不一",
         f"主受影响对象：长期目标《E&O 六个月目标》 `{GOAL}@1`", "核心判断问题：收入按签约还是按回款算？",
@@ -1050,7 +1076,7 @@ def test_a_period_goal_carries_the_latest_confirmed_company_review_its_units_eff
     basis = [item["ref"] for item in result["coverage"]["basis"]["evidence"]]
     assert {f"{REVIEW_SNAPSHOT}@1", f"{REVIEW_SNAPSHOT}@1#results", f"{SNAP_GOAL}@3#issues/g-iss", f"event:{G_ISS}"} \
         <= set(basis) and f"{REVIEW_SNAPSHOT}@1#materials" not in basis
-    assert {"ref": f"{GOAL_2}@1#outcome"} in result["coverage"]["why"]["evidence"]
+    assert {"ref": f"{GOAL_2}@1#target"} in result["coverage"]["why"]["evidence"]
     guide = sections(markdown)["六问指引"].splitlines()
     assert guide[1].endswith(f"；形成时带入的有效长期目标 `{GOAL_2}@1`")
     assert guide[-1].startswith(f"- 凭什么：形成时带入的公司复盘 `{REVIEW_SNAPSHOT}@1`；形成时带入的问题 "
@@ -1126,6 +1152,40 @@ def test_the_carry_in_is_never_trimmed_and_the_same_world_gives_the_same_carry_i
     assert not [entry for entry in tiny["plan"]["trimmed"] if entry["kind"] == "carried"]
     assert {key: whole[key] for key in ("context_pack", "plan", "coverage", "budget")} == {
         key: again[key] for key in ("context_pack", "plan", "coverage", "budget")}
+
+
+# ------------------------------------------------------------ #79：投影项
+def test_a_mission_projects_its_tasks_expected_results_and_a_unit_its_missions_without_storing_them(world):
+    """映射表对齐点 5：Mission 计划的「Task 预期结果与质量标准」从下级 Task 的任务定义块取工作结果与成功 / 验收标准，
+    责任单元的「战役引用」列本单元域里的 Mission；只给出发对象，放在「做什么」，不裁，不进存储（只读假连接）。"""
+    result = build(world, start=MISSION, question="Mission 要做成什么样？")
+    projection = result["context_pack"]["layers"][0]["projection"]
+    assert (projection["id"], projection["display_name"]) == ("task_expectations", "Task 预期结果与质量标准")
+    [task] = projection["items"]
+    assert (task["object_type"], task["title"], task["ref"], task["pinned"]) == ("Task", "方案设计", f"{TASK}@2",
+                                                                                 cited(TASK, 2))
+    assert [(item["type"], item["ref"], item["pinned"]) for item in task["components"]] == [
+        ("acceptance_criterion", f"{TASK}@2#definition/ac-1", cited(TASK, 2, "definition", "ac-1")),
+        ("acceptance_criterion", f"{TASK}@2#definition/ac-2", cited(TASK, 2, "definition", "ac-2"))]
+    assert all(layer["projection"] is None for layer in result["context_pack"]["layers"][1:])
+    markdown = result["context_pack"]["markdown"]
+    doing = sections(markdown)["做什么"].split("\n\n")
+    assert doing[-1].splitlines() == [
+        "### Mission·Task 预期结果与质量标准（读取时从下级对象投影，不存）",
+        f"- Task《方案设计》 `{TASK}@2`",
+        f"  - 成功 / 验收标准 `{TASK}@2#definition/ac-1`：方案评审通过",
+        f"    引用：`{MISSION}@2#definition/m-ac1`",
+        f"  - 成功 / 验收标准 `{TASK}@2#definition/ac-2`：演示通过"]
+    assert "当前对象的投影项「Task 预期结果与质量标准」（1 项，读取时从下级对象投影）" in sections(markdown)["六问指引"]
+    tiny = build(world, start=MISSION, budget={"max_chars": 10})
+    assert tiny["context_pack"]["layers"][0]["projection"] == projection
+    assert not [entry for entry in tiny["plan"]["trimmed"] if entry["kind"] == "projection"]
+    unit = build(world, start=UNIT)["context_pack"]["layers"][0]["projection"]
+    assert (unit["id"], unit["display_name"]) == ("mission_refs", "战役引用")
+    assert [(item["ref"], item["title"], "components" in item) for item in unit["items"]] == [
+        (f"{MISSION}@2", "Agent 真实可用", False)]
+    for start in (ACTIVITY, TASK, PERIOD, COMPANY):
+        assert build(world, start=start)["context_pack"]["layers"][0]["projection"] is None
 
 
 # ------------------------------------------------------------ HTTP：按对象绑定的契约版本分派

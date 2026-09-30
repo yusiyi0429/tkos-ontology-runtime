@@ -152,7 +152,8 @@ def _event_ids(value: Any) -> set[str]:
 def _content(value: Any, face: Face) -> tuple[set[str], set[str]]:
     """返回里带着内容回来的引用与事件：对象视图（带块的对象、取对象顺带的最新快照、上下文包里一层的对象与状态）、
     块视图、块里的组件视图（0.2）、事件视图。块内引用、关系、referenced_by、supersedes、生命周期里钉的事件只以引用
-    形式出现，不算读到。"""
+    形式出现，不算读到；0.2 的投影项里只给标题与引用的下级对象（给了正文的组件照算读到）与形成时带入的长期目标
+    （只给对象表头、不带块的内容）也一样（#84）。"""
     refs: set[str] = set()
     events: set[str] = set()
 
@@ -175,8 +176,15 @@ def _content(value: Any, face: Face) -> tuple[set[str], set[str]]:
             refs.add(item["ref"])  # 组件视图：随所在的块带着内容回来
         if isinstance(item.get("event_id"), str) and "occurred_at" in item:  # 事件视图
             events.add(item["event_id"])
-        for entry in item.values():
-            walk(entry)
+        for key, entry in item.items():
+            if key == "projection" and isinstance(entry, dict):
+                # 投影项（0.2）：下级对象只给标题与引用，只以引用形式出现；给了正文的组件照组件视图算读到。
+                walk([component for child in entry.get("items") or [] for component in child.get("components") or []])
+            elif key == "long_term_goals" and isinstance(entry, list):
+                # 形成时带入的长期目标（0.2）：只给对象表头与定义类块的引用、不带块的内容，表头只以引用形式出现。
+                walk([part for goal in entry if isinstance(goal, dict) for part in goal.values()])
+            else:
+                walk(entry)
 
     walk(value)
     return refs, events

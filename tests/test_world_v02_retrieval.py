@@ -21,6 +21,8 @@ import pytest
 from experiments.world_v01.experiment import contamination
 from experiments.world_v02 import b_observe, counterexamples, experiment, gold, metrics, report, retrieval, spec, triggers
 from memory_service_runtime.governed import world_v02_context as world_context
+from tkos_world_mcp.server import _content as mcp_content
+from tkos_world_mcp.tools_v02 import FACE as V02
 
 ROOT = Path(__file__).resolve().parents[1]
 FOLDER = ROOT / 'experiments/world_v02'
@@ -446,8 +448,8 @@ def test_objects_a_projection_only_lists_count_as_seen_not_taken(world):
 def test_task_components_a_projection_gives_with_their_text_count_as_taken(world):
     """投影项（#84）：Mission 的投影项逐个 Task 给任务定义块里的工作结果与成功 / 验收标准，带正文，这些组件算取到。固定
     路径组的取到用 MCP 的 _content 判（同运行日志的 read_refs）：出发对象是 Mission 时包里一层带投影项，Markdown 逐条
-    写组件引用与正文。投影只取这两类组件，Task 计划里的组件不在里面，不算取到。投影项里 Task 本身只算看过，要改 MCP 的
-    _content（待定），这里不钉。"""
+    写组件引用与正文。投影只取这两类组件，Task 计划里的组件不在里面，不算取到。投影项里 Task 本身只给标题与引用，
+    只算看过。"""
     manifest, gold = world['manifest'], world['golds']['constraint_conflict']
     mission = business_view('mission_experiments', manifest)['business']
     projection = mission['projection']
@@ -473,6 +475,60 @@ def test_task_components_a_projection_gives_with_their_text_count_as_taken(world
     run['answer'] = {'claims': [{'claim': '执行上下文', 'kind': 'fact', 'refs': [graph]}]}
     scored = metrics.score(run, [graph], gold, 'what')
     assert graph not in shown and scored['recall'] == [0, 1] and scored['traceability'] == [0, 1]
+    # 反例：投影项里的 Task 本身只看过，不取到
+    task = concrete('@task_retrieval_report', manifest)
+    run['answer'] = {'claims': [{'claim': 'Task', 'kind': 'fact', 'refs': [task]}]}
+    scored = metrics.score(run, [task], gold, 'who')
+    assert task in shown and task not in taken and scored['recall'] == [0, 1] and scored['traceability'] == [1, 1]
+
+
+def test_the_mcp_takes_a_projections_components_and_only_shows_the_objects_it_lists(world):
+    """投影项（#84）：MCP 的 _content（固定路径组 context.json 的 refs、模型遍历组运行日志的 read_refs）——投影里带正文
+    的组件算读到，只列标题与引用的下级对象不算，只进运行日志的 refs（看过）。对象本身照算。"""
+    manifest = world['manifest']
+    for key in ('mission_experiments', 'unit_eo'):
+        view = business_view(key, manifest)
+        items = view['business']['projection']['items']
+        refs, _ = mcp_content(view, V02)
+        assert f"{view['business']['object_id']}@{view['business']['version']}" in refs
+        assert not {item['ref'] for item in items} & refs
+        assert {component['ref'] for item in items for component in item.get('components', [])} <= refs
+        assert {item['ref'] for item in items} <= set(V02.ref.findall(json.dumps(view, ensure_ascii=False)))
+
+
+def test_a_carried_long_term_goal_gives_only_its_header_so_it_counts_as_seen_not_taken(world):
+    """形成时带入的长期目标（#84，同投影项的口径）：只给对象表头与定义类块的引用、不带块的内容，只算看过——进可追溯、
+    不进召回。同一个包里一层的对象带着块，照算取到。"""
+    gold = world['golds']['constraint_conflict']
+    period, goal_id = '33333333-3333-4333-8333-333333333333', '44444444-4444-4444-8444-444444444444'
+    pinned = {'object_id': goal_id, 'object_version': 2, 'revision_id': '55555555-5555-4555-8555-555555555555',
+              'block': None, 'component': None, 'ref': f'{goal_id}@2'}
+    goal = {'object_id': goal_id, 'object_type': 'LongTermGoal', 'type_display_name': '长期目标', 'title': '长期目标',
+            'version': 2, 'ref': f'{goal_id}@2', 'pinned': pinned, 'formal': True, 'responsible': {'principals': []},
+            'lifecycle': {'status': 'confirmed', 'display_name': '已确认', 'event_id': '66666666-6666-4666-8666-666666666666'},
+            'definition_refs': [{'id': 'target', 'display_name': '目标定义', 'ref': f'{goal_id}@2#target',
+                                 'pinned': {**pinned, 'block': 'target', 'ref': f'{goal_id}@2#target'}, 'empty': False}]}
+    block = {'id': 'target', 'empty': False, 'text': '目标定义', 'kind': 'definition', 'components': [],
+             'ref': f'{period}@1#target'}
+    markdown = world_context._goal_text(goal) + '\n' + f'### 周期目标·目标定义 `{block["ref"]}`'
+    body = {'context_pack_id': 'p', 'budget': {'used_chars': len(markdown), 'max_chars': 12000, 'over_budget': False},
+            'coverage': {'why': {'answered': True}}, 'plan': {'trimmed': []},
+            'context_pack': {'markdown': markdown, 'carried': {'company_review': None, 'long_term_goals': [goal], 'issues': []},
+                             'layers': [{'level': 0, 'blocks': [block], 'events': [], 'projection': None,
+                                         'object': {'title': '周期目标', 'ref': f'{period}@1'}}]}}
+    fixed = experiment.fixed_context(body)
+    taken, shown = set(fixed['refs']) | {f'event:{event}' for event in fixed['event_ids']}, set(experiment.shown(fixed['text']))
+    assert taken == {f'{period}@1', block['ref']}  # 一层的对象与它的块照算取到
+    for ref in (goal['ref'], f'{goal_id}@2#target'):
+        assert ref in shown and ref not in taken
+        run = {'taken': taken, 'shown': taken | shown, 'chars': fixed['chars'],
+               'answer': {'claims': [{'claim': '带入的长期目标', 'kind': 'fact', 'refs': [ref]}]}}
+        scored = metrics.score(run, [ref], gold, 'why')
+        assert scored['recall'] == [0, 1] and scored['traceability'] == [1, 1]
+    run['answer'] = {'claims': [{'claim': '周期目标', 'kind': 'fact', 'refs': [block['ref']]}]}
+    scored = metrics.score(run, [block['ref']], gold, 'why')
+    assert scored['recall'] == [1, 1] and scored['traceability'] == [1, 1]
+    assert mcp_content(goal, V02)[0] == {goal['ref']}  # 单拿出来的表头照旧按对象形状算；只在带入的位置上不算
 
 
 def test_the_scan_leaves_out_what_a_projection_pins(world):

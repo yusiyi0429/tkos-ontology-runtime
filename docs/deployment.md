@@ -11,7 +11,7 @@ Dockerfile 已提供两个构建目标。构建有两个前提：
 - 一个 wheelhouse 目录，里面有本版本的 `tkos-memory-service` wheel 与 `requirements.lock` 的全部依赖；
 - 显式传入与那个 wheel 相同的 `VERSION`。
 
-官方离线包的做法见 `deploy/offline-release/`：先用 `prepare_wheelhouse.py` 准备 wheelhouse，再用 `prepare_images.py` 构建。`prepare_images.py` 只接受与 `deploy/offline-release/images.json` 一致的三段式发布号（现为 v0.5.0），它是切正式发布用的。
+官方离线包的做法见 `deploy/offline-release/`：先用 `prepare_wheelhouse.py` 准备 wheelhouse，再用 `prepare_images.py` 构建。`prepare_images.py` 只接受与 `deploy/offline-release/images.json` 一致的三段式发布号（现为 v0.6.0），它是切正式发布用的。
 
 开发版本（如 `0.6.0.dev0`）不走 `prepare_images.py`：用 `prepare_wheelhouse.py --release v<版本>` 准备 wheelhouse，再按下面的命令手工构建，`acceptance/delivery_candidate/` 就是这样做的。正式发布时先把版本改成三段式、更新 `images.json` 的发布号，再走官方流程。
 

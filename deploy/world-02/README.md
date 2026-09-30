@@ -182,7 +182,7 @@ sudo rm -rf $LAB/out $LAB/out-smoke
 
 ## 9.5 换版本即重建
 
-锁版前 0039 会重写，已应用旧 0039 的库再迁移会报「已应用的迁移文件被改动过」，所以换提交一律重建，不原地升级。新提交记作 `C2`：
+0039 在锁版（2026-09-30）前反复重写，实例上已应用的是锁版前的某一版，再迁移会报「已应用的迁移文件被改动过」，所以换提交一律重建，不原地升级；10 月 8 日切到锁版后的提交同样按本节重建。新提交记作 `C2`：
 
 ```bash
 # 本机：按第 1 节构建 C2 并传包；主机：按第 2 节校验、加载、解到 releases/world-02-$C2（记作 SRC2）
@@ -332,6 +332,6 @@ rm -rf /tmp/tkos-secrets
 
 主机上踩到的坑：经 `ssh … 'bash -s' <<EOS` 远程跑脚本时，`docker compose exec -T` 同样会吃掉 stdin，把后面的脚本当输入读走，要接 `</dev/null`（`run -T` 已在脚本里这样做）；但别给管道的下游加：`gunzip -c … | docker load </dev/null` 会让 `docker load` 读到空输入、什么都不加载，之后 compose 转去 Docker Hub 拉镜像超时。远程脚本里先解到文件再 `docker load -i`。本机对域名跑冒烟时遇到过一次连接超时，重跑即过。
 
-2026-09-30 分支 `world/0.2-pact`（#81，按 Content Pact 替换块与组件）在本机隔离验收栈上预演，实例没有重建：`acceptance/method_v05/database.py` 新建一个库并升级到本分支源码（含 #79 重钉的 0039），经 owner SQL 与控制面 CLI 供给实验 scope（`spec.eo.example.json`）与冒烟 scope（`spec.example.json`，tenant 以 `-smoke` 结尾），起真 API。十月起点按第 11 节五段播完（CEO 两段与 Owner 一段代录、operator eo-dri）：17 步全部提交，代录 8 步，代录说明 3 条，再跑一段不做事；读回 9 个对象的块与组件与计划一致，两个长期目标已确认，周期目标与三个 Mission 是草稿，Owner 照计划，单元带 `capability:05`。实验 scope 的 `--probe-only` 10 项全过；冒烟 scope 完整冒烟 94 项、第二遍带 `--mcp-cli` 92 项全过；`examples.py` 准备到第 11 步与收尾 129 项全过，重生成 `docs/world-v02-tianshu-examples.md`。
+2026-09-30 分支 `world/0.2-pact`（#81，按 Content Pact 替换块与组件，已并入 `world/0.2`，10 月 8 日切换）在本机隔离验收栈上预演，实例没有重建：`acceptance/method_v05/database.py` 新建一个库并升级到本分支源码（含 #79 重钉的 0039），经 owner SQL 与控制面 CLI 供给实验 scope（`spec.eo.example.json`）与冒烟 scope（`spec.example.json`，tenant 以 `-smoke` 结尾），起真 API。十月起点按第 11 节五段播完（CEO 两段与 Owner 一段代录、operator eo-dri）：17 步全部提交，代录 8 步，代录说明 3 条，再跑一段不做事；读回 9 个对象的块与组件与计划一致，两个长期目标已确认，周期目标与三个 Mission 是草稿，Owner 照计划，单元带 `capability:05`。实验 scope 的 `--probe-only` 10 项全过；冒烟 scope 完整冒烟 94 项、第二遍带 `--mcp-cli` 92 项全过；`examples.py` 准备到第 11 步与收尾 129 项全过，重生成 `docs/world-v02-tianshu-examples.md`。
 
-未验证：并发写下的外部引用唯一性；大数据量下列对象的性能；天枢凭这三条委托实际代记；Content Pact 新块在主机实例上的播种与冒烟（要等 10 月 8 日定下切换、按第 9.5 节重建）。
+未验证：并发写下的外部引用唯一性；大数据量下列对象的性能；天枢凭这三条委托实际代记；Content Pact 新块在主机实例上的播种与冒烟（10 月 8 日切换时按第 9.5 节重建后做）。

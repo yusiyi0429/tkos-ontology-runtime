@@ -2,11 +2,11 @@
 
 对象：天枢服务端接入本体的工程师。用途：10 月 12 日至 16 日的试用走 0.2，天枢在此之前把接入从 0.1 改到 0.2。本清单只写相对 0.1 的变化；0.1 的调用约定见《Agent 接入对接说明》（rev 31），没提到的沿用。
 
-依据：0.2 契约草案 `docs/contracts/tkos-world-0.2.md` 与登记 `docs/contracts/world-registry-0.2.json`（分支 `world/0.2`）。下文「第 N 节」指该契约的章节。
+依据：0.2 契约 `docs/contracts/tkos-world-0.2.md` 与登记 `docs/contracts/world-registry-0.2.json`（分支 `world/0.2`，2026-09-30 锁版）。下文「第 N 节」指该契约的章节。
 
-**状态说明**：0.2 还是草案，正在实现。实验实例 9 月 29 日上线，同日按实现完成的版本重建；最近一次重建在 9 月 29 日晚，版本为 `24e6202`，含议题代记族，并按天枢个人任务重播了十月起点。本清单写到的动作与读取都已可调，实测示例见 `docs/world-v02-tianshu-examples.md`。本清单里的动作名、字段名与规则按契约写，是天枢可以开始改的依据；请求与返回的完整 JSON 以交付时附的实测示例为准。标「可能变」的在锁版前可能再改，改了会单独通知。示例里的 id 都是占位。
+**状态说明**：0.2 契约已于 9 月 30 日锁版。实验实例 9 月 29 日上线，同日按实现完成的版本重建；最近一次重建在 9 月 29 日晚，版本为 `24e6202`，含议题代记族，并按天枢个人任务重播了十月起点。本清单写到的动作与读取都已可调，实测示例见 `docs/world-v02-tianshu-examples.md`。本清单里的动作名、字段名与规则按契约写，是天枢可以开始改的依据；请求与返回的完整 JSON 以交付时附的实测示例为准。标「可能变」的若再改，走契约的新修订，改了会单独通知。示例里的 id 都是占位。
 
-**Content Pact 替换（2026-09-30）**：分支 `world/0.2-pact` 按方法侧 Content Pact 替换了对象的块与组件类型，天枢要改的只有代记承诺时带的候选内容块与文档里的叫法，其余形状不变，见第十四项。本分支的实测示例已按新块在本机隔离栈上重新生成；实验实例仍是 `24e6202`（替换前的块），是否在 10 月 9 日联调前切换、随之重建实例，10 月 8 日上午定。
+**Content Pact 替换（2026-09-30）**：0.2 按方法侧 Content Pact 替换了对象的块与组件类型，天枢要改的只有代记承诺时带的候选内容块与文档里的叫法，其余形状不变，见第十四项。实测示例已按新块在本机隔离栈上重新生成；实验实例仍是 `24e6202`（替换前的块），10 月 8 日切换（天枢已确认 10 月 12 日前改完），随之按新块重建实例；契约已锁版。
 
 ## 一、环境与版本
 
@@ -18,7 +18,7 @@
 | 请求信封 | `contract_version: "tkos.world/0.1"` | `contract_version: "tkos.world/0.2"` |
 | 写入流程 | prepare 再 commit、幂等键、回执 | 不变 |
 
-- 实验实例可以清空重建：锁版前契约改动时会重建库，对象 id 会变。天枢的同步表请能按实例整批作废重来。
+- 实验实例可以清空重建：10 月 8 日切到 Content Pact 时会重建库，对象 id 会变。天枢的同步表请能按实例整批作废重来。
 - 0.1 的数据不迁到 0.2，两边不建桥。
 
 ## 二、块值：多一个组件列表
@@ -287,7 +287,7 @@
 6. 读取改从 `business`、`identity`、`records` 三组取字段；引用解析支持组件与事件两种新形式。
 7. 议题按 Issue 的事件流转（提出、路由由天枢服务主体记；承接、处置由承接人本人记，或经议题族委托代记，见第八项）。
 8. 调用日志的约定不变（对接说明 4.4），引用集合包括组件引用与事件引用。
-9. 切到 Content Pact 之后：代记月度计划提交与任务卡提交时带的候选内容块换成新块与组件（第十四项）；文档里 Mission Owner 叫 Mission DRI，Task 的责任人叫 Task DRI。
+9. 10 月 8 日切到 Content Pact 之后：代记月度计划提交与任务卡提交时带的候选内容块换成新块与组件（第十四项）；文档里 Mission Owner 叫 Mission DRI，Task 的责任人叫 Task DRI。
 
 ## 十三、时间表
 
@@ -295,7 +295,7 @@
 |-|-|
 | 9 月 29 日 | 0.2 实验实例上线（地址见第一项），本清单写到的接口都可调；本清单交天枢 |
 | 9 月 29 日晚 | 按天枢反馈重建（`24e6202`）：加议题代记族；十月起点按天枢的三个个人任务重播，周期目标与三个 Mission 都是草稿，门留给天枢代记；三个人的委托已登记，四族（门、指派、生命周期、议题），域 eo（CEO 另加 company），到 10 月 31 日；E&O 责任单元已带 `capability:05`；实测示例按这个版本生成 |
-| 10 月 8 日上午 | 定是否在联调前切到 Content Pact（第十四项）；切换就按新块重建实例，天枢要确认 10 月 12 日前能改完承诺时带的候选内容块 |
+| 10 月 8 日 | 切到 Content Pact（第十四项；天枢已确认 10 月 12 日前改完承诺时带的候选内容块），按新块重建实例；契约已锁版 |
 | 10 月 9 日前 | 交付新凭证、id 清单与实测示例（此前的凭证与 id 已随重建作废） |
 | 10 月 9 日至 11 日 | 天枢按实例联调 |
 | 10 月 12 日至 16 日 | 试用；16 日联调验收 |
@@ -304,7 +304,7 @@
 
 ## 十四、Content Pact 替换（#78）
 
-2026-09-30 方法侧给出 Content Pact 首版（对象逐块列出属性、描述与质量标准）。0.2 按它替换了块与组件类型，在分支 `world/0.2-pact` 上做（映射表 `docs/world-v02-content-pact-mapping.md`）；是否在 10 月 9 日联调前切换，10 月 8 日上午定，不切换就按上文各项联调与试用，锁版时再换。规则只有一条：**天枢已经在写的形状一律不变，只改显示名、只加可缺省的新块**。天枢要改的只有下面第 1 小节的候选内容块和叫法。
+2026-09-30 方法侧给出 Content Pact 首版（对象逐块列出属性、描述与质量标准）。0.2 按它替换了块与组件类型（映射表 `docs/world-v02-content-pact-mapping.md`）。10 月 8 日切换（天枢已确认 10 月 12 日前改完）；契约已锁版。规则只有一条：**天枢已经在写的形状一律不变，只改显示名、只加可缺省的新块**。天枢要改的只有下面第 1 小节的候选内容块和叫法。
 
 ### 1. 要改的：代记承诺时带的候选内容块
 
@@ -326,6 +326,7 @@
 - 周期目标的周期仍是属性 `period`，上级长期目标仍是关系 `goal_ref`，复盘依据仍是 `review_ref`；Mission 的上级周期目标仍是 `goal_ref`。这些不进块。
 - 天枢若在别处用组件形式引用这些组件（例如事件的 `subject_refs`），块 id 跟着改：`<mission id>@<版本>#definition/<组件 id>`、`<周期目标 id>@<版本>#target/<组件 id>`。
 - 请求与返回的完整样子见实测示例第 5 节：月度计划提交带 `alignment`、`target`，任务卡提交带 `definition`、`mission_plan`，确认接受后读回候选已写回。
+- 天枢已确认（2026-09-30）：月度计划提交的候选先不带 `alignment`，只带 `target`。候选按合并补丁写回，不带的块保持原样，十月起点里周期目标的 `alignment` 是空块，确认接受后仍是空块。
 - 十月起点（`deploy/world-02/seed-eo-2026-10.json`）已按新块重写，切换时随实例重播：周期目标的结果与验收标准在 `target`；每个 Mission 的目标是 `definition` 里 id 为 `outcome` 的组件，验收条件是同一块里的 `ac-1`、`ac-2`……；Mission 计划块留空，由任务卡提交时的候选写入。
 
 叫法（只改显示名，角色码与判权不变，第八项的对照表照旧）：
@@ -343,7 +344,7 @@
 - **快照**：payload 类型 `execution_state`、`goal_state`、`unit_state`、`strategy_state`、`company_review` 不变；已有的块 id 不变：`execution_state` 的 `progress`、`blockers`、`issues`、`materials`，`goal_state`、`unit_state` 的 `progress`、`issues`、`materials`，`strategy_state` 的 `issues`、`materials`，`company_review` 的 `results`、`gaps`、`causes`、`key_changes`、`implications`、`materials`。只改了四处显示名：`execution_state` 的 `blockers` 由「阻塞与偏差」改叫「关键风险与阻塞」，`goal_state`、`unit_state` 的 `progress` 由「进展与偏差」改叫「进展」（`goal_state` 的偏差另有 `variance` 块），`company_review` 的 `gaps` 由「缺口」改叫「关键结果差距」。
 - **快照只加块，都可以缺省**：`execution_state` 加 `current_state` 当前状态；`goal_state` 加 `current_state`、`key_risks` 关键风险、`variance` 关键偏差（`variance` 组件）；`unit_state` 加 `current_state`、`key_risks`；`strategy_state` 加 `validity` 战略有效性、`assumption_status` 关键假设状态、`key_risks` 关键战略风险；`company_review` 加 `overall_state` 整体经营状态、`key_risks`、`issues`（`issue` 组件）。天枢现在的快照不带这些块照样通过，读取时缺省的块给「〈块名〉：暂无」一句（例如「当前状态：暂无」；锁版前是「当前没有〈块名〉」，所有空块都换成新句式，#85）。
 - **组件**：`progress_item` 进展条目（`principal_id`、`principal_name`、`external_status`、`entries`）、`issue` 问题（`core_question`、`responsible_hint`）、`plan_item` 计划条目（`responsible`）的类型 id 与已有属性不变；组件 id 的写法、按 id 合并、删除留痕照旧（第二项）。
-- **计划条目新增四个可选属性**，都是文字，不写也通过：`expected_output` 预期产出、`quality_standard` 质量标准、`executor` 执行主体（人名或 Agent 名，只作记录，与 `responsible` 一样不判权）、`division` 人 + Agent 分工。天枢可以不写；要写，放在计划条目的 `attributes` 里，与 `responsible` 并列。
+- **计划条目新增四个可选属性**，都是文字，不写也通过：`expected_output` 预期产出、`quality_standard` 质量标准、`executor` 执行主体（人名或 Agent 名，只作记录，与 `responsible` 一样不判权）、`division` 人 + Agent 分工。天枢已确认先不写（2026-09-30）；以后要写，放在计划条目的 `attributes` 里，与 `responsible` 并列。
 - **计划块**：Mission 的 `execution_plan`（显示名改「Task 全景」）与 Task 的 `plan`（显示名改「Activity 全景」）块 id 不变，仍是活动块：天枢以 Agent 身份带写入声明直接修订，Mission 已成立后也不走门，不进候选。
 - **外部引用**：属性 `external_refs`、写法（`mission:<编号>`、`todo:<uuid>`、`capability:05`）、同一 scope 内唯一与按外部引用查找都不变（第九、十项）。
 - **委托与代记**：委托族 `gate` 门、`assign` 指派、`lifecycle` 生命周期、`issue` 议题，登记与撤销（`world_grant_delegation`、`world_revoke_delegation`），`on_behalf_of` 的三个字段，第八项对照表里可代记的动作，都不变。

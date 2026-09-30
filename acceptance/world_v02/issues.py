@@ -49,17 +49,17 @@ def issues(book, h, f, flow, trunk):
     act('a', 'world_commit_period_goal', goal['object_id'])
     act('ceo', 'world_confirm_period_goal', goal['object_id'], {'outcome': 'accepted'})
     mission = flow.create('a', 'Mission', 'a', {'title': 'Issue Mission（#61）', 'goal_ref': goal['ref'], 'blocks': {
-        'play': {'text': 'Play：问题经提出、路由、承接与处置流转。'}}})['result']
+        'mission_plan': {'text': 'Play：问题经提出、路由、承接与处置流转。'}}})['result']
     mid = mission['object_id']
     flow.assign('a', mid, actor_id['owner_a'])
     act('owner_a', 'world_commit_mission', mid)
     act('a', 'world_confirm_mission', mid, {'outcome': 'accepted'})
     started = act('owner_a', 'world_start', mid)
     task = flow.create('a', 'Task', 'a', {'title': 'Issue Task（#61）', 'parent_ref': mission['ref'], 'blocks': {
-        'acceptance': {'components': [{'id': 'iss-t1', 'type': 'acceptance_criterion', 'text': '试点如期开始'}]}}}
+        'definition': {'components': [{'id': 'iss-t1', 'type': 'acceptance_criterion', 'text': '试点如期开始'}]}}}
     )['result']
     act('owner_a', 'world_assign', task['object_id'], {'principal_id': actor_id['ic_a']})
-    criterion = f"{task['ref']}#acceptance/iss-t1"
+    criterion = f"{task['ref']}#definition/iss-t1"
 
     declared = {'scene': mission['ref'], 'trigger': 'Co-Agent 周检（#61）', 'human_acceptance': {'required': False}}
     t0, t1, t2 = utc_now(seconds=-30), utc_now(seconds=-20), utc_now(seconds=-10)

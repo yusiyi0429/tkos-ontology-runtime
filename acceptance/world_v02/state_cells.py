@@ -193,7 +193,7 @@ def state_cells(book, h, f, flow, trunk):
 
     def mission(title):
         oid = flow.create('a', 'Mission', 'a', {'title': title, 'goal_ref': ref(anchor), 'blocks': {
-            'play': {'text': 'Play：状态表逐格。'}}})['result']['object_id']
+            'mission_plan': {'text': 'Play：状态表逐格。'}}})['result']['object_id']
         flow.assign('a', oid, who['owner_a'])
         return oid
 
@@ -257,7 +257,7 @@ def state_cells(book, h, f, flow, trunk):
 
     object_rows('Strategy', lambda row: flow.create('ceo', 'Strategy', 'company', {
         'title': f"逐格 Strategy（{row['from']}）", 'parent_ref': ref(company['object_id']),
-        'blocks': {'choices': {'text': '逐格验收用的战略选择。'}}})['result']['object_id'],
+        'blocks': {'strategy_core': {'text': '逐格验收用的战略选择。'}}})['result']['object_id'],
         strategy_path, strategy_params)
 
     # ================================================================ Issue（每行一个新的问题组件）
@@ -312,11 +312,11 @@ def state_cells(book, h, f, flow, trunk):
     for step in (commit, confirm):
         act(step[0], step[1], rerun, step[2])
     before = view(rerun)
-    opened = act('owner_a', 'world_commit_mission', rerun, {'payload': {'blocks': {'play': {'text': '候选：换打法'}}}})
+    opened = act('owner_a', 'world_commit_mission', rerun, {'payload': {'blocks': {'mission_plan': {'text': '候选：换打法'}}}})
     during = view(rerun)
     act('a', 'world_confirm_mission', rerun, {'outcome': 'returned', 'content': {'text': '打法变化不成立'}})
     after = view(rerun)
-    play = lambda read: next(b['text'] for b in read['business']['blocks'] if b['id'] == 'play')  # noqa: E731
+    play = lambda read: next(b['text'] for b in read['business']['blocks'] if b['id'] == 'mission_plan')  # noqa: E731
     check('mission_a_returned_round_is_void_and_nothing_is_written_back',
           during['business']['round']['opened_by_event_id'] == opened['event_id'] and after['business']['round'] is None
           and after['business']['version'] == before['business']['version'] == during['business']['version']

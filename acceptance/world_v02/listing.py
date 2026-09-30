@@ -19,8 +19,13 @@ HEADER = {'object_id', 'object_type', 'type_display_name', 'category', 'title', 
 V01_OBJECT = {'object_id', 'object_type', 'type_display_name', 'version', 'revision_id', 'title', 'attributes',
               'blocks', 'relations', 'referenced_by', 'supersedes', 'object_version', 'formal', 'protocol',
               'lifecycle', 'state'}
+# 0.2 取对象 business 组的键（#79 起多了投影项 projection，没有投影项的类型为 null）；对象头核对时对着真读回的核一遍。
 BUSINESS = {'object_id', 'object_type', 'type_display_name', 'category', 'candidate', 'version', 'revision_id',
-            'object_version', 'title', 'attributes', 'relations', 'blocks', 'component_ledger', 'formal', 'round'}
+            'object_version', 'title', 'attributes', 'relations', 'blocks', 'component_ledger', 'projection', 'formal',
+            'round'}
+# 0.1 对象的 0.2 视图（world_v02_legacy.object_view）至今没有 projection 这个键，与 0.2 的键差这一个：#80 发现，
+# 记在 matrix.DEVIATIONS，由人裁决是补上 null 还是契约写明 0.1 视图不给投影项。这里按实际形状核对，差异不放过别的键。
+LEGACY_BUSINESS = BUSINESS - {'projection'}
 SYSTEM = 'tianshu-63'  # 本场景专用的外部系统名：按系统筛时期望集合就是这里播种的对象
 
 
@@ -138,7 +143,7 @@ def list_objects(book, h, f, flow, trunk, foreign):
                                item['lifecycle'], item['external_refs'], item['type_display_name']) == (
                 view['category'], view['title'], view['version'], view['revision_id'], None, [], '状态快照')
         business = view['business']
-        return common and all(item[key] == business[key] for key in (
+        return common and set(business) == BUSINESS and all(item[key] == business[key] for key in (
             'object_type', 'type_display_name', 'category', 'title', 'version', 'revision_id', 'object_version')) \
             and item['lifecycle'] == view['records']['lifecycle'] \
             and item['external_refs'] == business['attributes']['external_refs']
@@ -236,7 +241,8 @@ def list_objects(book, h, f, flow, trunk, foreign):
     created = h.sql(foreign_scope, "SELECT event_id, kind, contract_version FROM gov_world_events WHERE scope_id=%s "
                                    "AND action_id=%s", (f['foreign_scope_id'], ltg_receipt['receipt_id']))
     check('with_the_view_parameter_a_0_1_object_is_read_in_the_three_groups_under_the_0_1_contract',
-          set(grouped) == {'object_id', 'business', 'identity', 'records', 'protocol'} and set(business) == BUSINESS
+          set(grouped) == {'object_id', 'business', 'identity', 'records', 'protocol'}
+          and set(business) == LEGACY_BUSINESS and 'projection' not in business
           and grouped['protocol'] == plain['protocol']
           and (business['object_type'], business['type_display_name'], business['category'], business['candidate'],
                business['version'], business['revision_id'], business['object_version'], business['title'])

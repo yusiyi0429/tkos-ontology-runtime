@@ -107,7 +107,7 @@ def strategy_gates(book, h, f, flow, trunk):
     deny_designate({'FORBIDDEN'}, [a], actor='a')                                  # 公司域没有角色
     deny_designate({'FORBIDDEN'}, [a], actor='agent_company', says='by a person')  # 公司域持 AGENT 的 Agent
     check('strategy_only_the_strategys_ceo_in_person_designates_a_round')
-    deny_designate({'INVALID_STATE'}, [a], payload={'blocks': {'choices': {'text': '草稿里的候选'}}}, says='candidate')
+    deny_designate({'INVALID_STATE'}, [a], payload={'blocks': {'strategy_core': {'text': '草稿里的候选'}}}, says='candidate')
     check('strategy_a_draft_round_carries_no_candidate')
 
     # ================================================================ 草稿：指定两人、Agreement、补齐
@@ -158,7 +158,7 @@ def strategy_gates(book, h, f, flow, trunk):
     check('strategy_the_same_person_agrees_to_the_same_content_once')
 
     # 补齐之前草稿又被修订：钉住旧修订的 Agreement 不计。
-    revised = flow.revise('ceo', sid, {'blocks': {'choices': {'text': '聚焦企业经营系统，先做两个战场。'}}})['result']
+    revised = flow.revise('ceo', sid, {'blocks': {'strategy_core': {'text': '聚焦企业经营系统，先做两个战场。'}}})['result']
     second = agree('b')
     read = view()
     check('strategy_an_agreement_on_an_earlier_revision_does_not_count_once_the_draft_is_revised',
@@ -235,7 +235,7 @@ def strategy_gates(book, h, f, flow, trunk):
     formal_confirmation = confirmed
 
     # ================================================================ 已生效：修订规则与再确认
-    deny('ceo', 'world_revise_object', sid, {'INVALID_STATE'}, {'payload': {'blocks': {'path': {'text': '直接改'}}}},
+    deny('ceo', 'world_revise_object', sid, {'INVALID_STATE'}, {'payload': {'blocks': {'business_logic': {'text': '直接改'}}}},
          says='re-run of the gate')
     refs = flow.revise('ceo', sid, {'external_refs': [{'system': 'tianshu-59', 'id': 'strategy-2027'}]})['result']
     read = view()
@@ -264,7 +264,7 @@ def strategy_gates(book, h, f, flow, trunk):
     # ================================================================ 已生效：带候选开轮、写回、下游不动
     deny_designate({'INVALID_REQUEST'}, [a], payload={'external_refs': []}, says='only formal')
     check('strategy_a_rounds_candidate_carries_only_formal_content')
-    first_candidate = {'blocks': {'choices': {'text': '候选一：只做一个战场。'}}}
+    first_candidate = {'blocks': {'strategy_core': {'text': '候选一：只做一个战场。'}}}
     r4 = designate('a', 'b', payload=first_candidate)
     read = view()
     check('strategy_designating_with_a_candidate_opens_a_round_on_the_effective_strategy_and_keeps_its_state',
@@ -281,7 +281,7 @@ def strategy_gates(book, h, f, flow, trunk):
                                   'revision_id': refs['revision_id'], 'candidate_event_id': r4['event_id'],
                                   'round_complete': False})
     candidate = {'title': '2027 战略', 'blocks': {
-        'choices': {'text': '聚焦企业经营系统，三个战场。'},
+        'strategy_core': {'text': '聚焦企业经营系统，三个战场。'},
         'responsibility_structure': {'components': [{'id': 'unit-c', 'type': 'unit_entry', 'text': '战场 C'}]}}}
     r5 = designate('a', 'b', payload=candidate)
     check('strategy_designating_again_before_the_round_is_agreed_opens_a_new_round_with_its_own_candidate',
@@ -319,7 +319,7 @@ def strategy_gates(book, h, f, flow, trunk):
     ledger = {item['id']: item for item in read['business']['component_ledger']}
     check('strategy_confirming_the_agreed_round_writes_the_candidate_back_as_a_new_effective_revision',
           written['version'] == refs['version'] + 1 == read['business']['version']
-          and read['business']['title'] == '2027 战略' and block_text(read, 'choices') == '聚焦企业经营系统，三个战场。'
+          and read['business']['title'] == '2027 战略' and block_text(read, 'strategy_core') == '聚焦企业经营系统，三个战场。'
           and [item['id'] for item in structure['components']][-1] == 'unit-c'
           and ledger['unit-c']['added_in_version'] == written['version']
           and read['business']['attributes']['external_refs'] == [
@@ -351,13 +351,13 @@ def strategy_gates(book, h, f, flow, trunk):
           r6['version'] == ended['version'] == written['version'] == read['business']['version']
           and read['business']['round'] is None and read['records']['lifecycle'] == after['records']['lifecycle']
           and read['business']['formal']['effective_revision_id'] == written['revision_id'])
-    designate('a', payload={'blocks': {'path': {'text': '先 A 后 B。'}}})
+    designate('a', payload={'blocks': {'business_logic': {'text': '先 A 后 B。'}}})
     agree('a')
     voided = act('ceo', 'world_confirm_strategy', sid, {'outcome': 'returned'})
     read = view()
     check('strategy_returning_an_effective_round_voids_it_and_writes_nothing_back',
           voided['version'] == written['version'] == read['business']['version']
-          and block_text(read, 'path') == block_text(flow.read('outsider', sid, version=written['version']), 'path')
+          and block_text(read, 'business_logic') == block_text(flow.read('outsider', sid, version=written['version']), 'business_logic')
           and read['business']['round'] is None and read['records']['lifecycle'] == after['records']['lifecycle'])
 
     # ================================================================ 代记一条 Agreement（契约第 14 节）

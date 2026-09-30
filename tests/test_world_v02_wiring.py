@@ -148,15 +148,14 @@ def test_a_world_0_2_bound_target_takes_its_targets_from_the_0_2_table(declared,
 def test_a_company_payload_takes_the_0_2_block_value_and_stores_empty_blocks_as_null():
     from memory_service_runtime.governed import world_v02_models as models
     assert models.validate_input("Company", {"title": "E&O 公司"}) == {
-        "title": "E&O 公司", "external_refs": [], "blocks": {"identity": None, "constraint": None}}
+        "title": "E&O 公司", "external_refs": [], "blocks": {"identity": None}}
     identity = {"text": "一家做企业经营系统的公司。", "artifacts": ["https://example.test/brief"]}
     refs = [{"system": "tianshu", "id": "company-1", "url": "https://example.test/c/1"}, {"system": "crm", "id": "7"}]
     assert models.validate_input("Company", {"title": "E&O 公司", "external_refs": refs,
                                              "blocks": {"identity": identity}}) == {
         "title": "E&O 公司", "external_refs": [refs[0], {**refs[1], "url": None}],
         "blocks": {"identity": {"text": "一家做企业经营系统的公司。", "components": [], "refs": [],
-                                "artifacts": ["https://example.test/brief"]},
-                   "constraint": None}}
+                                "artifacts": ["https://example.test/brief"]}}}
 
 
 @pytest.mark.parametrize("payload", [
@@ -167,7 +166,8 @@ def test_a_company_payload_takes_the_0_2_block_value_and_stores_empty_blocks_as_
     {"title": "E&O", "blocks": {"identity": {"text": "x", "note": "y"}}},  # 块值只有四个字段
     {"title": "E&O", "blocks": {"identity": {"text": "   "}}},              # 空内容不能冒充非空块
     {"title": "E&O", "blocks": {"identity": {"text": "x", "artifacts": ["ftp://example.test/a"]}}},
-    {"title": "E&O", "blocks": {"identity": {"text": "x", "components": [{"type": "outcome", "text": "y"}]}}},  # 身份块不带组件
+    {"title": "E&O", "blocks": {"identity": {"text": "x", "components": [{"type": "outcome", "text": "y"}]}}},  # 身份块不收结果组件
+    {"title": "E&O", "blocks": {"constraint": {"text": "x"}}},             # 约束不再单独成块（Content Pact）
     {"title": "E&O", "blocks": {"identity": {"text": "x", "refs": ["0b5a7e2c-7d4f-4c1e-9a55-3a4f1c2d9e01@1#Bad"]}}},
     {"title": "E&O", "external_refs": [{"system": "tianshu"}]},             # 外部引用缺 id
     {"title": "E&O", "external_refs": [{"system": " ", "id": "1"}]},        # system 不能只有空白
@@ -238,8 +238,7 @@ def test_the_company_view_is_grouped_into_business_identity_and_records():
             "latest_revision_id": rid, "effective_revision_id": rid, "domain_id": "d"}
     revision = {"revision_id": rid, "object_version": 1, "payload": {
         "title": "E&O 公司", "external_refs": [{"system": "tianshu", "id": "c-1", "url": None}],
-        "blocks": {"identity": {"text": "做企业经营系统。", "components": [], "refs": [], "artifacts": []},
-                   "constraint": None}}}
+        "blocks": {"identity": {"text": "做企业经营系统。", "components": [], "refs": [], "artifacts": []}}}}
     ceo = [{"principal_id": "p", "principal_type": "human", "display_name": "CEO"}]
     view = readers.object_view(head, revision, {"interpretation_status": "world_v0_2"}, responsible=ceo)
     assert set(view) == {"object_id", "business", "identity", "records", "protocol"}
@@ -250,8 +249,9 @@ def test_the_company_view_is_grouped_into_business_identity_and_records():
     assert business["attributes"] == {"external_refs": [{"system": "tianshu", "id": "c-1", "url": None}]}
     assert [(b["id"], b["class"], b["empty"], b["text"], b["components"], b["ref"]) for b in business["blocks"]] == [
         ("identity", "formal", False, "做企业经营系统。", [], f"{oid}@1#identity"),
-        ("constraint", "formal", True, "当前没有约束", [], f"{oid}@1#constraint"),
     ]
+    empty = readers.block_view(oid, 1, business["blocks"][0] | {"kind": "definition"}, None)
+    assert (empty["empty"], empty["text"], empty["ref"]) == (True, "当前没有企业身份与长期意图", f"{oid}@1#identity")
     assert business["relations"] == [] and business["component_ledger"] == [] and business["round"] is None
     assert business["formal"] == {"lifecycle_status": "recorded", "effective_revision_id": rid}
     assert view["identity"] == {"responsible": {"source": "role", "role": "CEO", "principals": ceo}, "delegations": []}

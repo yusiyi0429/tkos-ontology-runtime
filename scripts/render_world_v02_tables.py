@@ -27,13 +27,14 @@ RECORDER_LABELS = {
     "Strategy": {"self": "Strategy 的责任人（CEO）", "designated": "本轮被指定的责任人各记一条", "gate_role": "CEO"},
     "LongTermGoal": {"self": "CEO", "gate_role": "CEO"},
     "PeriodGoal": {"parent": "CEO"},
-    "Mission": {"self": "Owner", "self_or_agent": "Owner 或其 Agent", "parent": "DRI"},
-    "Task": {"self": "Task 责任人", "parent": "Mission Owner"},
-    "Activity": {"self": "Activity 责任人（人或 Agent）", "parent": "Task 责任人"},
+    "Mission": {"self": "Mission DRI", "self_or_agent": "Mission DRI 或其 Agent", "parent": "RU DRI"},
+    "Task": {"self": "Task DRI", "parent": "Mission DRI"},
+    "Activity": {"self": "Activity 责任人（人或 Agent）", "parent": "Task DRI"},
     "Issue": {"raiser": "MF（Co-Agent）或主受影响对象主干上的责任人", "router": "路由者（同提出）",
               "route_target": "承接人本人", "owner": "承接人本人", "router_or_owner": "路由者或承接人"},
 }
-ROLE_LABELS = {"DOMAIN_DRI": "DRI", "OWNER": "Owner"}
+# 叫法（映射表对齐点 8）：只改显示名，角色码与判权不变。
+ROLE_LABELS = {"DOMAIN_DRI": "RU DRI", "OWNER": "Mission DRI"}
 GUARD_LABELS = {
     "parent_goal_confirmed": "父周期目标已确认",
     "formation_anchors": "锚定有效长期目标与已确认复盘",
@@ -172,13 +173,15 @@ def _components(registry: dict[str, Any]) -> str:
         for block in blocks:
             for component in block["components"]:
                 where[component].append(f"{owner}.{block['id']}")
+    roles = {item["id"]: item["display_name"] for item in registry["components"]["context_roles"]}
     rows = []
     for item in component_types:
         attributes = "、".join(f"`{attr['id']}` {attr['display_name']}" + ("（必填）" if attr["required"] else "")
                                for attr in item["attributes"]) or "—"
+        role = f"`{item['context_role']}` {roles[item['context_role']]}" if item.get("context_role") else "—"
         rows.append(f"| `{item['id']}` | {item['display_name']} | {'、'.join(dict.fromkeys(where[item['id']]))} | "
-                    f"{attributes} | {item['source']} |")
-    return _table("| 组件类型 | 中文名 | 允许的块 | 类型属性 | 来源 |", rows)
+                    f"{attributes} | {role} | {item['source']} |")
+    return _table("| 组件类型 | 中文名 | 允许的块 | 类型属性 | 取上下文角色 | 来源 |", rows)
 
 
 def _payloads(registry: dict[str, Any]) -> str:

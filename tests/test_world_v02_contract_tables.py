@@ -48,8 +48,8 @@ def test_every_generated_table_is_in_the_contract(registry, contract):
 
 def test_a_known_row_is_rendered_from_the_registry(registry):
     rows = tables.render(registry)["lifecycle-Mission"].splitlines()
-    assert "| 退回 `world_reject` | 已交付 | 调整中 | DRI |  |" in rows
-    assert ("| 取消 `world_cancel` | 草稿、已承诺、已成立、进行中、已交付、调整中 | 已取消 | DRI |  |") in rows
+    assert "| 退回 `world_reject` | 已交付 | 调整中 | RU DRI |  |" in rows
+    assert ("| 取消 `world_cancel` | 草稿、已承诺、已成立、进行中、已交付、调整中 | 已取消 | RU DRI |  |") in rows
 
 
 def test_changing_the_registry_without_regenerating_is_caught(registry, contract):
@@ -63,8 +63,8 @@ def test_changing_the_registry_without_regenerating_is_caught(registry, contract
 
 
 def test_a_hand_edit_to_a_generated_table_is_caught_and_regeneration_restores_it(registry, contract):
-    edited = contract.replace("| 退回 `world_reject` | 已交付 | 调整中 | Mission Owner |  |",
-                              "| 退回 `world_reject` | 已交付 | 调整中 | Task 责任人 |  |", 1)
+    edited = contract.replace("| 退回 `world_reject` | 已交付 | 调整中 | Mission DRI |  |",
+                              "| 退回 `world_reject` | 已交付 | 调整中 | Task DRI |  |", 1)
     assert edited != contract
     assert tables.sync(edited, registry) == contract
 

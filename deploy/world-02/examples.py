@@ -62,13 +62,16 @@ STEPS = [
      "接口清单第十一项：外部事件可以补记过去的时刻（这里补记两小时前的会），读取按发生时刻升序并标迟记。"),
     ("5", "代记门：周期目标与 Mission 的承诺、确认",
      "接口清单第八项：人本人先登记委托（门、指派、生命周期、议题，按人各取所需），天枢再带 `on_behalf_of` 代记，代记"
-     "写入不带写入声明。事件同时记下记录者（天枢服务主体）与被代记的人，外部确认时刻另存。"),
+     "写入不带写入声明。事件同时记下记录者（天枢服务主体）与被代记的人，外部确认时刻另存。承诺可以带候选内容 "
+     "`params.payload`（合并补丁，只含正式块，块与组件按接口清单第十四项的 Content Pact 新块写）：月度计划签发时周期"
+     "目标带定位与承接块 `alignment`、目标定义块 `target`，任务卡提交时 Mission 带战役定义块 `definition`、Mission 计划"
+     "块 `mission_plan`；确认接受时候选写回为新修订。"),
     ("6", "执行计划：天枢写计划条目",
      "接口清单第二项：天枢以 Agent 身份修订 Mission 的执行计划块（活动块，已成立后也不走门），带写入声明、不要求人工"
      "验收。计划条目的组件 id 用天枢执行事项 id，`responsible` 填执行人，只作记录，不是指派。"),
     ("7", "Task：建、指派与生命周期",
-     "接口清单第六、八项：E&O DRI 建 Task，`external_refs` 写同一个执行事项 id；之后天枢代 Mission Owner 指派、打回、"
-     "验收、重开，代执行人开始、交付。重开要求 Task 已关闭，所以打回之后先再交付、验收一次；重复的交付与验收没有列出。"),
+     "接口清单第六、八项：E&O DRI 建 Task，`external_refs` 写同一个执行事项 id，验收条件是任务定义块 `definition` 里的"
+     "成功 / 验收标准组件；之后天枢代 Mission DRI 指派、打回、验收、重开，代执行人开始、交付。重开要求 Task 已关闭，所以打回之后先再交付、验收一次；重复的交付与验收没有列出。"),
     ("8", "执行计划：Co-Agent 再加一条",
      "接口清单第二项：E&O 的 Co-Agent 直接修订同一个执行计划块。组件按 id 合并：补丁里只有新条目，天枢写的那条保留。"),
     ("9", "议题：提出、路由、承接、处置、退回形成",
@@ -191,26 +194,29 @@ class Examples(smoke.Smoke):
         made("eo-dri", f"给 E&O 责任单元写能力域的外部引用 `{UNIT_REF['system']}`/`{UNIT_REF['id']}`（骨架，重跑原样再写）", unit)
         goal = made("ceo", "建公司级长期目标并确认", self.create("ceo", "LongTermGoal", "company", {
             "title": f"{self.title} 公司长期目标", "scope": "company", "horizon": "2028", "parent_ref": self.ref(company),
-            "blocks": {"measures": {"components": [{"id": "sc-1", "type": "success_criterion", "text": "示例：衡量一"}]}}}
+            "blocks": {"target": {"components": [{"id": "sc-1", "type": "success_criterion", "text": "示例：衡量一"}]}}}
         )[0]["object_id"])
         self.act("ceo", "world_confirm_long_term_goal", {"outcome": "accepted"}, goal)
         unit_goal = made("eo-dri", "建 E&O 长期目标，CEO 确认", self.create("eo-dri", "LongTermGoal", "eo", {
             "title": f"{self.title} E&O 长期目标", "scope": "unit", "horizon": "2027", "parent_ref": self.ref(unit),
-            "goal_ref": self.ref(goal), "blocks": {"outcome": {"components": [
-                {"id": "uo-1", "type": "outcome", "text": "示例：结果一", "refs": [f"{self.ref(goal)}#measures/sc-1"]}]}}}
+            "goal_ref": self.ref(goal), "blocks": {"target": {"components": [
+                {"id": "uo-1", "type": "outcome", "text": "示例：结果一", "refs": [f"{self.ref(goal)}#target/sc-1"]}]}}}
         )[0]["object_id"])
         self.act("ceo", "world_confirm_long_term_goal", {"outcome": "accepted"}, unit_goal)
         self.goal = made("eo-dri", "建本期周期目标（草稿，第 5 节代记承诺与确认）", self.create("eo-dri", "PeriodGoal", "eo", {
             "title": f"{self.title} 周期目标", "period": self.period, "goal_ref": self.ref(unit_goal),
-            "blocks": {"outcome": {"components": [{"id": "pg-o1", "type": "outcome", "text": "示例：本期结果",
-                                                   "refs": [f"{self.ref(unit_goal)}#outcome/uo-1"]}]},
-                       "acceptance": {"components": [{"id": "pg-ac1", "type": "acceptance_criterion",
-                                                      "text": "示例：本期验收"}]}}})[0]["object_id"])
-        self.mission = made("eo-dri", "建 Mission（草稿）并指派 E&O Mission Owner", self.create("eo-dri", "Mission", "eo", {
-            "title": f"{self.title} Mission", "goal_ref": self.ref(self.goal),
-            "blocks": {"definition": {"text": "示例：Mission 定义"}, "play": {"text": "示例：核心路径"},
-                       "acceptance": {"components": [{"id": "m-ac1", "type": "acceptance_criterion", "text": "示例：交付可用",
-                                                      "refs": [f"{self.ref(self.goal)}#acceptance/pg-ac1"]}]}}})[0]["object_id"])
+            "blocks": {"target": {"components": [{"id": "pg-o1", "type": "outcome", "text": "示例：本期结果",
+                                                  "refs": [f"{self.ref(unit_goal)}#target/uo-1"]},
+                                                 {"id": "pg-ac1", "type": "acceptance_criterion",
+                                                  "text": "示例：本期验收"}]}}})[0]["object_id"])
+        self.mission = made("eo-dri", "建 Mission（草稿）并指派 E&O Mission Owner（Mission DRI）", self.create(
+            "eo-dri", "Mission", "eo", {
+                "title": f"{self.title} Mission", "goal_ref": self.ref(self.goal),
+                "blocks": {"definition": {"text": "示例：Mission 定义", "components": [
+                               {"id": "m-ac1", "type": "acceptance_criterion", "text": "示例：交付可用",
+                                "refs": [f"{self.ref(self.goal)}#target/pg-ac1"]}]},
+                           "mission_plan": {"components": [
+                               {"id": "mp-path", "type": "core_path", "text": "示例：核心路径"}]}}})[0]["object_id"])
         self.act("eo-dri", "world_assign", {"principal_id": self.pid["eo-owner"]}, self.mission)
         self.expect("mission born a draft with its owner", self.mission, "draft")
         self.passed("prep")
@@ -320,19 +326,40 @@ class Examples(smoke.Smoke):
         check("the period goal lists the four delegations in force",
               {e for events in self.delegations.values() for e in events} <= in_force)
         since = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ")  # 到微秒：同一秒里此前的事件不算
-        self.act("tianshu", "world_commit_period_goal", {"on_behalf_of": self.behalf("eo-dri", "plan-submit")}, self.goal,
-                 caption="代 E&O DRI 承诺周期目标（月度计划提交）")
+        self.act("tianshu", "world_commit_period_goal", {
+            "payload": {"blocks": {
+                "alignment": {"components": [
+                    {"id": "pg-why", "type": "why_this_period", "text": "示例：本期必要性（月度计划里写的）"}]},
+                "target": {"components": [
+                    {"id": "pg-time", "type": "time_boundary", "text": "示例：本月底前"}]}}},
+            "on_behalf_of": self.behalf("eo-dri", "plan-submit")}, self.goal,
+            caption="代 E&O DRI 承诺周期目标（月度计划提交），带候选内容：定位与承接块、目标定义块")
         self.expect("period goal committed on behalf of the DRI", self.goal, "committed")
         self.act("tianshu", "world_confirm_period_goal", {"outcome": "accepted",
                                                           "on_behalf_of": self.behalf("ceo", "plan-sign")}, self.goal,
-                 caption="代 CEO 确认周期目标（月度计划签发）")
+                 caption="代 CEO 确认周期目标（月度计划签发），候选写回为新修订")
         self.expect("period goal confirmed on behalf of the CEO", self.goal, "confirmed")
-        self.act("tianshu", "world_commit_mission", {"on_behalf_of": self.behalf("eo-owner", "card-submit")}, self.mission,
-                 caption="代 Mission Owner 承诺 Mission（任务卡提交）")
+        goal_blocks = smoke.blocks(self.read(self.goal))
+        check("the period goal's candidate is written back into the new blocks",
+              [c["id"] for c in goal_blocks["alignment"]["components"]] == ["pg-why"]
+              and [c["id"] for c in goal_blocks["target"]["components"]] == ["pg-o1", "pg-ac1", "pg-time"])
+        self.act("tianshu", "world_commit_mission", {
+            "payload": {"blocks": {
+                "definition": {"components": [
+                    {"id": "m-outcome", "type": "outcome", "text": "示例：战役结果（任务卡里写的）"},
+                    {"id": "m-time", "type": "time_boundary", "text": "示例：10 月 16 日前"}]},
+                "mission_plan": {"components": [
+                    {"id": "mp-ms1", "type": "milestone", "text": "示例：10 月 12 日开始试用"}]}}},
+            "on_behalf_of": self.behalf("eo-owner", "card-submit")}, self.mission,
+            caption="代 Mission DRI 承诺 Mission（任务卡提交），带候选内容：战役定义块、Mission 计划块")
         self.act("tianshu", "world_confirm_mission", {"outcome": "accepted",
                                                       "on_behalf_of": self.behalf("eo-dri", "card-confirm")}, self.mission,
-                 caption="代 E&O DRI 确认 Mission（任务卡确认）")
+                 caption="代 E&O DRI 确认 Mission（任务卡确认），候选写回为新修订")
         self.expect("mission established on behalf of the DRI", self.mission, "established")
+        mission_blocks = smoke.blocks(self.read(self.mission))
+        check("the mission's candidate is written back into the new blocks",
+              [c["id"] for c in mission_blocks["definition"]["components"]] == ["m-ac1", "m-outcome", "m-time"]
+              and [c["id"] for c in mission_blocks["mission_plan"]["components"]] == ["mp-path", "mp-ms1"])
         events = self.get(f"/v1/world/objects/{self.mission}/events?since={since}",
                           "取 Mission 的事件（`since` 之后）：记录者是天枢，另有被代记的人与外部确认记录")
         gates = [e for e in events["events"] if e["kind"] in ("commit", "confirm")]
@@ -363,9 +390,9 @@ class Examples(smoke.Smoke):
         todo = {"system": "tianshu", "id": f"todo:{self.todo}"}
         made = self.act("eo-dri", "world_create_object", {"domain_id": eo, "object_type": "Task", "payload": {
             "title": f"{self.title} Task", "parent_ref": self.ref(self.mission), "external_refs": [todo],
-            "blocks": {"definition": {"text": "示例：Task 定义"},
-                       "acceptance": {"components": [{"id": "t-ac1", "type": "acceptance_criterion", "text": "示例：验收一",
-                                                      "refs": [f"{self.ref(self.mission)}#acceptance/m-ac1"]}]},
+            "blocks": {"definition": {"text": "示例：Task 定义", "components": [
+                           {"id": "t-ac1", "type": "acceptance_criterion", "text": "示例：验收一",
+                            "refs": [f"{self.ref(self.mission)}#definition/m-ac1"]}]},
                        "plan": {"components": [{"id": "tp-1", "type": "plan_item", "text": "示例：先做一段"}]}}}},
             caption="E&O DRI 建 Task，`external_refs` 写同一个执行事项 id")
         found = self.listed({"external_system": "tianshu", "external_id": todo["id"]})
@@ -373,15 +400,15 @@ class Examples(smoke.Smoke):
               == [made["object_id"]])
         task = self.task = made["object_id"]
         self.expect("task born unassigned", task, "unassigned")
-        steps = [("world_assign", "eo-owner", {"principal_id": self.pid["eo-ic"]}, "assigned", "代 Mission Owner 指派执行人"),
+        steps = [("world_assign", "eo-owner", {"principal_id": self.pid["eo-ic"]}, "assigned", "代 Mission DRI 指派执行人"),
                  ("world_start", "eo-ic", {}, "in_progress", "代执行人开始"),
                  ("world_deliver", "eo-ic", {"content": {"text": "执行事项完成"}}, "delivered", "代执行人交付（执行事项完成）"),
                  ("world_reject", "eo-owner", {"content": {"text": "打回：缺验收材料"}}, "adjusting",
-                  "代 Mission Owner 打回，Task 进入调整中"),
+                  "代 Mission DRI 打回，Task 进入调整中"),
                  ("world_deliver", "eo-ic", {"content": {"text": "补齐验收材料后再交付"}}, "delivered", None),
-                 ("world_accept", "eo-owner", {}, "closed", "代 Mission Owner 验收通过，Task 进入已关闭"),
+                 ("world_accept", "eo-owner", {}, "closed", "代 Mission DRI 验收通过，Task 进入已关闭"),
                  ("world_reopen", "eo-owner", {"content": {"text": "重开：验收后发现遗漏"}}, "in_progress",
-                  "代 Mission Owner 重开，Task 回到进行中"),
+                  "代 Mission DRI 重开，Task 回到进行中"),
                  ("world_deliver", "eo-ic", {}, "delivered", None),
                  ("world_accept", "eo-owner", {}, "closed", None)]
         for action, person, params, status, caption in steps:
@@ -476,7 +503,7 @@ class Examples(smoke.Smoke):
         self.act("tianshu", "world_assign", {"principal_id": self.pid["eo-owner"],
                                              "on_behalf_of": self.behalf("eo-dri", "assign-owner")}, mission,
                  expect=(403, "FORBIDDEN"),
-                 prepare_caption="委托不含该族：E&O DRI 只登记了门，天枢代他指派 Mission Owner 是 403")
+                 prepare_caption="委托不含该族：E&O DRI 只登记了门，天枢代他指派 Mission DRI 是 403")
         self.act("tianshu", "world_revise_object", {"payload": {"external_refs": [self.mission_ext]},
                                                     "declaration": self.declare(self.goal, "天枢 Mission 关联本体")},
                  self.goal, expect=(409, "INVALID_STATE"),
@@ -682,10 +709,11 @@ def render(raw, commit=None) -> str:
         "（冒号后是冒烟名单的主体键）；骨架对象 `<company>`、`<strategy>`、`<unit:eo>`；本次新建的对象按类型编号，如 "
         "`<mission-1>`、`<task-1>`、`<snapshot-1>`；事件 `<event-3>`、修订 `<revision-5>`、回执 `<receipt-2>`（事件的 "
         "`action_id` 就是产生它的回执 id）、上下文包 `<context-pack-1>`、角色指派 `<assignment:tianshu:AGENT@eo>`。"
-        "引用里的 id 同样替换，例如 `<mission-1>@3#acceptance/m-ac1`、`event:<event-3>`。真实接口里这些位置都是 uuid。"
+        "引用里的 id 同样替换，例如 `<mission-1>@3#definition/m-ac1`、`event:<event-3>`。真实接口里这些位置都是 uuid。"
         "天枢执行事项的 id 在请求里是真 uuid（`todo:` 加 uuid），本文写作 `todo:<todo-uuid>`。",
         "- 时刻是实跑时刻，格式原样：请求里按天枢的习惯写 `+08:00`，返回里服务统一给 UTC。",
-        "- 显示名一律是冒烟名单的角色名；分页游标写作 `<cursor>`，真实值是不透明字符串，原样带回即可。",
+        "- 显示名一律是冒烟名单的角色名；分页游标写作 `<cursor>`，真实值是不透明字符串，原样带回即可。冒烟名单里的 "
+        "`eo-owner`（显示名 E&O Mission Owner）持 OWNER 角色，按 Content Pact 这个角色叫 Mission DRI（角色码与判权不变）。",
         "- 「身份」是这个请求带哪个主体的凭证（放在请求头里，本文不列出凭证）。天枢的请求都用天枢服务主体的凭证；"
         "人本人的请求（登记委托、建 Task 等）只是为了示例完整。",
         "- 过长的返回截短了：超过 {0} 项的数组留前 {1} 项，超过 {2} 字的文本留开头（取上下文一节更紧：超过 {3} 项留 {4} "

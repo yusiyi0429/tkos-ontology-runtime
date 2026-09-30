@@ -1,5 +1,6 @@
-"""world 0.2 独立验收矩阵（票 #65，不冻结）：格由登记推出，每条检查归到场景与格上；有格未覆盖、有检查没列进矩阵、
-列了没跑、放错场景、失败，报告都不是 passed；不适用的格写明理由、不算未覆盖；world_v02_accepted 恒为 false。"""
+"""world 0.2 独立验收矩阵（票 #65，#86 锁版）：格由登记推出，每条检查归到场景与格上；有格未覆盖、有检查没列进矩阵、
+列了没跑、放错场景、失败，报告都不是 passed；不适用的格写明理由、不算未覆盖；world_v02_accepted 只在 passed 且钉定
+提交时为 true。"""
 import ast
 import json
 from pathlib import Path
@@ -195,10 +196,22 @@ def run_through(book, skip=None):
     return book
 
 
-def test_the_report_passes_only_with_the_matrix_and_is_never_accepted(tmp_path):
+def test_the_report_passes_only_with_the_matrix_and_is_accepted_only_when_pinned(tmp_path):
     report = run_through(Book(tmp_path)).save(source_unchanged=True)
     assert report['passed'] is True and report['matrix_passed'] is True
     assert report['world_v02_accepted'] is False and report['released'] is False and report['deployed'] is False
+    assert 'world_v02_accepted = `false`' in render_markdown(report)
+    pinned = run_through(Book(tmp_path / 'pinned')).save(source_unchanged=True, source_commit='c' * 40)
+    assert pinned['passed'] is True and pinned['world_v02_accepted'] is True
+    assert 'world_v02_accepted = `true`' in render_markdown(pinned) and 'c' * 40 in render_markdown(pinned)
+    failed = run_through(Book(tmp_path / 'failed'), skip='mission_a_returned_round_is_void_and_nothing_is_written_back')
+    assert failed.save(source_unchanged=True, source_commit='c' * 40)['world_v02_accepted'] is False
+    assert run_through(Book(tmp_path / 'moved')).save(source_unchanged=False, source_commit='c' * 40)[
+        'world_v02_accepted'] is False
+    profile = json.loads((ROOT / 'docs/contracts/world-profile-0.2.json').read_text())
+    assert all(value in report['scope'] for value in (profile['canonical_hash'], profile['revision'],
+                                                     profile['action_contract_ref']['content_sha256'],
+                                                     profile['world_registry_ref']['content_sha256']))
     assert report['check_scenarios']['the_ceo_creates_the_company_over_http_under_world_0_2'] == 'company'
     saved = json.loads((tmp_path / 'report.json').read_text())
     assert saved['matrix']['cells'] == len(CELLS) and saved['required_checks'] == {s: list(n) for s, n in CHECKS.items()}

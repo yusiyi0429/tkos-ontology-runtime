@@ -1,4 +1,4 @@
-"""tkos.world/0.2 独立验收矩阵（票 #65，不冻结）：由登记推出矩阵的格，把每条检查归到格上，判覆盖。
+"""tkos.world/0.2 独立验收矩阵（票 #65，#86 锁版）：由登记推出矩阵的格，把每条检查归到格上，判覆盖。
 
 格分票面十项：
 - 每个已实现动作（支持登记）× {通过, 拒绝}；
@@ -1220,7 +1220,8 @@ TITLES = {
 # 没有驱动、没有验证的路径与部署边界（摘自 README「没有驱动的路径」），报告里单列。
 UNVERIFIED = [
     '部署：本验收只在隔离验收栈的新建库上跑；联调实例 world-02、world-lab 与生产都没有跑，合并或本地通过不等于已部署。',
-    '冻结：锁版前不冻结（ADR-0009），不钉提交、不生成冻结检查点，world_v02_accepted 恒为 false。',
+    '冻结：契约与登记已于 2026-09-30 锁版（ADR-0009）；world_v02_accepted 只在 passed 且用 --commit 钉定提交时为 '
+    'true，不钉提交的开发运行不写通过。',
     '并发写、API 进程重启恢复、事务中途故障注入：没有驱动。',
     '最终复核：判权与提交之间指派、委托、被指定的人自然失效的路径没有在 HTTP 上驱动（纯函数与无库测试覆盖一部分）。',
     '一轮进行中撤回重开回到已关闭（其间开的一轮作废）、重开不恢复作废的一轮：只在纯函数测试里核对（#69）。',
@@ -1299,11 +1300,13 @@ def render_markdown(report):
     """中文报告：已执行、跳过、未验证分开写。"""
     matrix, groups = report['matrix'], report['groups']
     lines = [
-        '# tkos.world/0.2 独立验收矩阵报告（不冻结）', '',
-        f"- 开始 {report.get('started_at')}，结束 {report.get('updated_at')}（UTC）；源码 `{report.get('source_root')}`。",
+        '# tkos.world/0.2 独立验收矩阵报告', '',
+        f"- 开始 {report.get('started_at')}，结束 {report.get('updated_at')}（UTC）；源码 `{report.get('source_root')}`，"
+        f"钉定提交 `{report.get('source_commit') or '无（开发运行）'}`；范围：{report['scope']}。",
         f"- 结论：passed = `{str(report['passed']).lower()}`（矩阵 `{str(report['matrix_passed']).lower()}`，"
         f"场景全部跑完 `{str(report['all_scenarios_completed']).lower()}`，源码运行中不变 "
-        f"`{str(report.get('source_unchanged')).lower()}`）；world_v02_accepted = `false`：锁版前不冻结（ADR-0009）。",
+        f"`{str(report.get('source_unchanged')).lower()}`）；world_v02_accepted = "
+        f"`{str(report['world_v02_accepted']).lower()}`（要求 passed 且钉定提交）。",
         f"- 组（场景）{report['mandatory_groups']} 个，必需检查 {report['mandatory_checks']} 项，通过 "
         f"{report['checks_passed']} 项、失败 {report['checks_failed']} 项。",
         f"- 矩阵共 {matrix['cells']} 格：覆盖 {matrix['covered']}，不适用 {matrix['not_applicable']}，"

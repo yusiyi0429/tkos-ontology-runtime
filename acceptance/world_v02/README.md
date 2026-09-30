@@ -1,8 +1,8 @@
-# tkos.world/0.2 独立 API 验收矩阵（不冻结）
+# tkos.world/0.2 独立 API 验收矩阵
 
 合成身份的真实 HTTP／PostgreSQL 验收：真 API 进程、隔离库、控制面 CLI 安装、prepare 与 commit 驱动每个动作。业务成功只来自 `/v1/actions/prepare` 与 `/v1/actions`，SQL 只用于播种身份与独立核对；每个拒绝用例都在它能到达的入口上核对 scope 的库快照不变。不运行真实模型。
 
-票 #49 立起骨架，之后每张 0.2 票往 `run.py` 或按场景命名的模块里追加自己的检查，票 #65 汇总成矩阵。锁版前不冻结（ADR-0009）：不钉提交、不生成冻结检查点，`world_v02_accepted` 恒为 false。
+票 #49 立起骨架，之后每张 0.2 票往 `run.py` 或按场景命名的模块里追加自己的检查，票 #65 汇总成矩阵。契约与登记已于 2026-09-30 锁版（#86，ADR-0009 的锁版记录）：`--commit` 钉定提交的运行才能写 `world_v02_accepted: true`，钉定哈希与验证门的数字见 `docs/world-v02-freeze-checkpoint.md`。
 
 ## 判定规则
 
@@ -11,7 +11,7 @@
   - 拒绝：同一起始状态、同一动作，记录者不符（FORBIDDEN）或守卫不成立（INVALID_STATE），库快照不变。
   - 幂等：同键重放返回原回执、不写第二条事件；换键再记不再推进状态（进入状态有同一动作的自环就照记、状态与推出事件不变，否则 INVALID_STATE）。
 - `CHECKS` 是「场景 → 检查名 → 它证明的格」的对照。场景就是报告里的组（`mandatory_groups`），每条检查只属于一个场景，可以不证明任何格（迁移、上下文包、MCP 日志这类），但必须列在里面。不适用的格在 `NOT_APPLICABLE` 写明理由（长期目标不单独开轮，没有「进行中的一轮」的五格：三格来自 #65，终止时作废与撤回终止时恢复两格来自 #69），不算未覆盖。
-- `report.json` 的 `passed` 只有在全部检查通过、全部场景跑完、矩阵没有未覆盖的格、没有矩阵外或放错场景的检查、列了的检查都跑了、源码运行中不变时才为 true，此时退出码为 0，否则非 0。报告另有 `matrix`（总格数、已覆盖、不适用、未覆盖，按十项分列）、`required_checks`、`groups`、`action_coverage`、`lifecycle_coverage`、`topic_coverage`、`not_applicable`、`unlisted_checks`、`missing_checks`、`unverified`、`deviations`；同目录的 `report.md` 是中文报告，已执行、跳过、未验证分开写。
+- `report.json` 的 `passed` 只有在全部检查通过、全部场景跑完、矩阵没有未覆盖的格、没有矩阵外或放错场景的检查、列了的检查都跑了、源码运行中不变时才为 true，此时退出码为 0，否则非 0。`world_v02_accepted` 只有在 `passed` 为 true、且用 `--commit` 钉定了提交时才为 true：开跑前整个工作区（改过的与未跟踪的文件，忽略的产物目录不算）必须与该提交一致，跑完再核对一次，不一致就记为源码变过；报告记下 `source_commit` 与锁版钉定的七个文件的 SHA256（`frozen_files`），`scope` 写锁版的 profile 修订与 `canonical_hash`、契约与登记的 SHA256。不给 `--commit` 是开发运行，矩阵可以跑通，但不写验收通过。报告另有 `matrix`（总格数、已覆盖、不适用、未覆盖，按十项分列）、`required_checks`、`groups`、`action_coverage`、`lifecycle_coverage`、`topic_coverage`、`not_applicable`、`unlisted_checks`、`missing_checks`、`unverified`、`deviations`；同目录的 `report.md` 是中文报告，已执行、跳过、未验证分开写。
 - 新加检查时同一处列进 `CHECKS`：`tests/test_world_v02_acceptance_matrix.py` 解析各场景函数里的 `check(...)`，没列进矩阵或列在别的场景下就失败；它也守着格数由登记推出、每个格被某条检查证明或写明不适用、判定逻辑（无库）。
 
 ## 实际驱动的路径
@@ -172,11 +172,12 @@
 - 隔离验收栈正在运行：`python3 acceptance/runtime/infra.py status`（项目 `tkos-ontology-runtime-acceptance`）。不连 54350/54351 的 Clark 联动栈。
 - 基础 env 为仅本人可读的 `.runtime-acceptance/env.json`。不要打印 env、DSN 或令牌，也不要提交 `.runtime-acceptance/`。
 - 分支 `world/0.2-pact` 上（#80）：实验 E、四种取法对照所用的场景与标准答案（#82）、对照实验 B 的两条线（#83）都已按新块改写；#83 的分支在隔离栈新库上整跑 871 项全过（2026-09-30）。矩阵要求库里事先只有 0.1 的事件行：跑过 `b_seed smoke`、`b_rehearse` 的库已有 0.2 事件，迁移组的检查会失败，矩阵另用新库。
-- 0039 在锁版前可以重写（ADR-0009）。改写后，已应用旧 0039 的库再迁移会报「已应用的迁移文件被改动过」，每次都用新建的库。`infra.py up` 会把隔离栈的共享库 `tkos_runtime_acceptance` 迁移到当前检出的源码，它同样受这条限制。
+- 0039 已随锁版冻结，不再改写（ADR-0009）。锁版前应用过旧 0039 的库再迁移会报「已应用的迁移文件被改动过」，要换新建的库；`infra.py up` 会把隔离栈的共享库 `tkos_runtime_acceptance` 迁移到当前检出的源码，它同样受这条限制。
 
 ## 建库并运行
 
 ```sh
+COMMIT=$(git rev-parse HEAD)   # 要验收的提交；工作区必须与它一致
 STAMP=$(date +%Y%m%d-%H%M%S)
 .venv/bin/python -m acceptance.method_v05.database create \
   --env-file .runtime-acceptance/env.json \
@@ -189,6 +190,7 @@ RUN=$(date +%Y%m%d-%H%M%S)
 .venv/bin/python -m acceptance.world_v02.run \
   --env-file .runtime-acceptance/world-v02-db-$STAMP/env.json \
   --upgrade-evidence artifacts/runtime-acceptance/world-v02-db-$STAMP-upgrade/upgrade.json \
+  --commit $COMMIT \
   --private .runtime-acceptance/world-v02-$RUN \
   --output artifacts/runtime-acceptance/world-v02-$RUN
 ```
@@ -214,10 +216,11 @@ DB=world-regress-db-$STAMP
   --upgrade-evidence artifacts/runtime-acceptance/$DB-upgrade/upgrade.json \
   --private .runtime-acceptance/world-regress-v01-$STAMP \
   --output artifacts/runtime-acceptance/world-regress-v01-$STAMP
-# 0.2：同一个库的 env 与 upgrade.json；passed 为 true、退出码为 0。
+# 0.2：同一个库的 env 与 upgrade.json；passed 为 true、退出码为 0，钉了提交时 world_v02_accepted 为 true。
 .venv/bin/python -m acceptance.world_v02.run \
   --env-file .runtime-acceptance/$DB/env.json \
   --upgrade-evidence artifacts/runtime-acceptance/$DB-upgrade/upgrade.json \
+  --commit $(git rev-parse HEAD) \
   --private .runtime-acceptance/world-regress-v02-$STAMP \
   --output artifacts/runtime-acceptance/world-regress-v02-$STAMP
 ```

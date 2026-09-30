@@ -154,16 +154,16 @@ def test_the_script_replays_the_trial_in_record_order_with_role_keys_only():
     assert people <= set(SPEC["principals"])
     steps = SCRIPT["steps"]
     assert (steps[3]["to"], steps[3]["task"], steps[3]["title"]) == ("exec-agent", "task_2", "整理真实数据清单")
+    # Activity 的执行事项、预期产出、成功 / 验收标准组件是段的正文、预期产出与质量标准
     assert steps[3]["text"] == "列出 8–9 月进入 Context 的数据与来源。"
+    assert (steps[3]["expected_output"], steps[3]["quality_standard"]) == ("数据清单", "每个来源有责任人与时间")
     assert (steps[17]["to"], steps[18]["to"], steps[18]["title"]) == ("eo-dri", "exec-agent", "补写周快照的来源事件")
+    # 计划块新加的计划条目带它写了的属性；改责任人的那条仍只是 assign
+    assert steps[18]["expected_output"] == "带来源事件的周快照"
+    assert not set(steps[17]) & set(b_drive.PLAN_ATTRIBUTES)
     assert steps[27]["text"] == "打回：缺验收材料" and steps[35]["text"] == "并入接入任务"
 
 
-# #81 按 Content Pact 重写了十月起点（deploy/world-02/seed-eo-2026-10.json）：mission_context 的验收条件搬进战役定义块
-# （definition/ac-3），而录好的读投影（tests/fixtures/world_v02_transcribe/bundle.json）是替换前录的，Task 仍以
-# #acceptance/ac-3 指回 Mission，转写找不到这个主干组件就不带这条引用。读投影由 #83 按新块重录；重录之前严格 xfail，
-# 改好后会 XPASS 而失败，届时去掉标记。
-@pytest.mark.xfail(strict=True, reason="待 #83：转写用的读投影是 Content Pact 替换前录的，Task 仍指回 Mission 的 acceptance 块")
 def test_the_seed_carries_the_gates_and_the_tasks_with_their_first_assignment():
     assert LINES["format"] == b_seed.LINES_FORMAT_02 and LINES["source"] == json.loads(
         b_seed.LINES_FILE.read_text(encoding="utf-8"))["source"]
@@ -177,17 +177,29 @@ def test_the_seed_carries_the_gates_and_the_tasks_with_their_first_assignment():
                      ("eo-dri", "world_confirm_mission", "mission_context", "accepted")]
     created = {step["key"]: step for step in LINES["steps"] if step["do"] == "create"}
     assert list(created) == ["task_1", "task_2", "task_3"] and {step["by"] for step in created.values()} == {"eo-dri"}
-    # 建 Task 的正文：不带计划块与外部引用，指回 Mission 验收条件的引用换成主干的占位
+    # 建 Task 的正文（Content Pact 的块）：任务定义块与 Task 计划块照第 1 版，不带 Activity 全景块与外部引用，指回
+    # Mission 战役定义块验收标准的引用换成主干的占位
     assert created["task_1"]["payload"] == {
         "title": "接入 0.2 的读写链路", "parent_ref": "@mission_context",
-        "blocks": {"definition": {"text": "天枢按接口变化清单接入 0.2，读写两条链路都跑通。"},
-                   "acceptance": {"components": [{"id": "t-ac1", "type": "acceptance_criterion",
-                                                  "text": "读写链路按接口清单逐项跑通",
-                                                  "refs": ["@mission_context#acceptance/ac-3"]}]}}}
+        "blocks": {"definition": {"text": "天枢按接口变化清单接入 0.2，读写两条链路都跑通。", "components": [
+                       {"id": "t-ac1", "type": "acceptance_criterion", "text": "读写链路按接口清单逐项跑通",
+                        "refs": ["@mission_context#definition/ac-3"]}]},
+                   "task_plan": {"components": [{"id": "t-seq", "type": "execution_sequence",
+                                                 "text": "先对齐接口变化清单，再联调写入声明与代记"}]}}}
+    assert created["task_2"]["payload"]["blocks"] == {"definition": {"components": [
+        {"id": "t-outcome", "type": "outcome", "text": "8–9 月真实数据进入 Context"},
+        {"id": "t-ac1", "type": "acceptance_criterion", "text": "逐项核对来源与权限"}]}}
+    assert created["task_3"]["payload"]["blocks"] == {"definition": {"text": "排查联调里代记被拒的请求。"}}
+    # 初始段带计划条目写了的可选属性：执行主体是名单上的显示名的换成角色键，名单外的 Agent 名照抄
     assert [(item["task"], item["responsible"], [(s["key"], s["title"], s["responsible"]) for s in item["segments"]])
             for item in LINES["tasks"]] == [
         ("task_1", "eo-owner", [("task_1.s1", "对齐接口变化清单", "eo-owner"), ("task_1.s2", "写入声明与代记联调", "exec-agent")]),
         ("task_2", "eo-dri", []), ("task_3", "eo-owner", [])]
+    first = LINES["tasks"][0]["segments"]
+    assert {key: value for key, value in first[0].items() if key in b_drive.PLAN_ATTRIBUTES} == {"executor": "eo-owner"}
+    assert {key: value for key, value in first[1].items() if key in b_drive.PLAN_ATTRIBUTES} == {
+        "expected_output": "代记联调记录", "quality_standard": "代记被拒的请求都有原因", "executor": "Codex",
+        "division": "人定联调用例，Agent 跑用例并记结果"}
     assert RESULT["objects"] == {BUNDLE["mission_id"]: "mission", LINK: "task_1", DATA: "task_2", PROBE: "task_3",
                                  objects("Activity")[0]: "segment:task_2.s1"}
     assert RESULT["warnings"] == []
@@ -279,6 +291,44 @@ def test_what_is_not_transcribed_is_listed_in_the_review():
     for heading in ("## 1. 共同播种", "## 2. 执行脚本", "## 3. 未转写", "## 4. 请审的判断"):
         assert heading in review
     assert all(f"| {n} |" in review for n in range(1, len(SCRIPT["steps"]) + 1))
+
+
+def versions_of(bundle, object_id):
+    return [view["business"] for view in bundle["objects"][object_id]["versions"].values()]
+
+
+def test_the_executor_of_a_plan_item_becomes_a_role_key_only_when_it_is_exactly_a_display_name():
+    bundle = deepcopy(BUNDLE)
+    for view in versions_of(bundle, LINK):
+        for item in next(block for block in view["blocks"] if block["id"] == "plan")["value"]["components"]:
+            if item["id"] == "tp-2":
+                item["attributes"]["executor"] = "执行 Agent"       # 名单上的 Agent 显示名：当执行 Agent
+            if item["id"] == "tp-1":
+                item["attributes"]["executor"] = "Codex 与 E&O DRI"  # 夹着显示名：照抄，由拦截兜底
+    with pytest.raises(b_transcribe.TranscribeError, match=r"b-lines\.json 的 tasks\[0\]\.segments\[0\]\.executor"):
+        transcribed(bundle)
+    for view in versions_of(bundle, LINK):
+        for item in next(block for block in view["blocks"] if block["id"] == "plan")["value"]["components"]:
+            if item["id"] == "tp-1":
+                item["attributes"]["executor"] = None
+    segments = transcribed(bundle)["lines"]["tasks"][0]["segments"]
+    assert "executor" not in segments[0] and segments[1]["executor"] == "exec-agent"
+
+
+def test_a_changed_plan_item_attribute_and_unmatched_activity_components_are_listed_for_review():
+    bundle = deepcopy(BUNDLE)
+    last = str(len(bundle["objects"][LINK]["versions"]))
+    plan = next(block for block in bundle["objects"][LINK]["versions"][last]["business"]["blocks"] if block["id"] == "plan")
+    next(item for item in plan["value"]["components"] if item["id"] == "tp-1")["attributes"]["quality_standard"] = "逐项对齐"
+    activity = objects("Activity")[0]
+    for view in versions_of(bundle, activity):
+        instruction = next(block for block in view["blocks"] if block["id"] == "instruction")
+        instruction["value"]["components"].append({"id": "a-time", "type": "time_boundary", "text": "本周内", "refs": []})
+    result = transcribed(bundle)
+    revised = [item for item in result["skipped"] if item["kind"] == "object.revised" and item["object"] == "task_1"]
+    assert len(revised) == 1 and "计划条目 tp-1 改了质量标准" in revised[0]["reason"]
+    assert result["script"]["steps"] == SCRIPT["steps"]  # 回放不变：属性的改动不转写
+    assert any("time_boundary 回放不带" in item for item in result["warnings"])
 
 
 def test_withdrawn_events_are_left_out_with_their_withdrawal():

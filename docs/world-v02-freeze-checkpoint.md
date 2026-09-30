@@ -6,7 +6,7 @@
 - profile：`urn:tkos:world` 修订 0.2.0，结构版本 `tkos.world-profile/0.2`，显示名 `World 0.2 business world model 2026-09-30`，`canonical_hash` `a0ab401d435353bc21748ba955cc5c1629e119b3533cb3494eaaa6dc0f9a57b6`
 - 登记：`tkos.world-registry` 0.2.0，`status: frozen`
 - 迁移：`0039_world_v02.sql` 冻结，之后不可重写
-- 验收：**待验证门**（见最后一节）
+- 验收：验证门 2026-09-30 跑完，各项全部通过（见最后一节）；0.2 独立矩阵钉在 `7cda4d5`（分支 `world/0.2-gate`，只比 `a790d19` 多了验收跑器的钉提交开关，钉定文件逐字节未变）写出 `world_v02_accepted: true`
 
 ## 钉定哈希
 
@@ -61,15 +61,38 @@
 
 ## 验证数字
 
-**待验证门**，由后续验证填。#86 要求的各项：
+2026-09-30 在本机跑完，分支 `world/0.2-gate`。验收用的源码是提交 `7cda4d548075f80b47892db6784a9973fcc31612`（`7cda4d5`）：它在 `a790d19` 之上只改了 0.2 验收跑器（`acceptance/world_v02/` 与它的无库测试，加 `--commit`），上面七个钉定文件的 SHA256 与本页一致，0.2 的报告也逐个记下了这七个哈希（`frozen_files`）。所有库都在隔离验收栈（`tkos-ontology-runtime-acceptance`，PostgreSQL 127.0.0.1:55212、MinIO 55213）上新建，没有连 54350/54351 的 Clark 联动栈。原始报告在本机 `artifacts/runtime-acceptance/` 与 `.runtime-acceptance/` 下，不入库。
 
-| 项 | 结果 |
-|-|-|
-| 无库全量（`-m "not db"`） | 待验证门 |
-| `-m db` 全量 | 待验证门 |
-| 0.2 独立验收矩阵（新库） | 待验证门 |
-| 从 0.1 升级的回归（同库 0.1 验收） | 待验证门 |
-| 离线包升级测试 | 待验证门 |
-| method_v05 与 A1、A2、A3 独立矩阵 | 待验证门 |
+| 项 | 库 | 总数 | 通过 | 失败 | 跳过 | 说明 |
+|-|-|-|-|-|-|-|
+| a. 无库全量（`uv run pytest tests -q -m "not db"`） | 无 | 4533 | 4533 | 0 | 0 | 另有 142 条 db 用例按标记不选（见 b）；`dashboard_dist` 资产校验在其中 |
+| b. `-m db` 全量，应用角色（`-m "db and not owner"`） | `tkos_a1_method_139fa69eee8347d6` | 100 | 100 | 0 | 0 | 经 `infra.py run`；默认库没有重建，见下 |
+| b. `-m db` 全量，迁移所有者（`-m owner`） | 同上 | 42 | 42 | 0 | 0 | 经 `infra.py run --migration`；100＋42 正好是 a 里不选的 142 条 |
+| c. 0.2 独立矩阵（新库，`--commit 7cda4d5`） | `tkos_a1_method_5539c8883db549b9` | 871 | 871 | 0 | 0 | 25 个场景全跑完；矩阵 445 格：覆盖 440、不适用 5、未覆盖 0；`world_v02_accepted: true` |
+| d1. 同库回归（README 原样）：0.1 | `tkos_a1_world_9734236e593847c8` | 248 | 248 | 0 | 0 | 基线 0029 后一次升级到本分支（0030–0039），再跑 0.1：12 组全过、四个环境门槛全过；开发运行没钉提交，`world_api_accepted` 按设计为 false |
+| d1. 同库回归：0.2（`--commit 7cda4d5`） | 同上 | 871 | 871 | 0 | 0 | 迁移组核对库里 125 条 0.1 事件都没有 0.2 字段；`world_v02_accepted: true` |
+| d2. 从 0.1 升级：0.1 | `tkos_a1_world_f0e1477fc8ce408c` | 248 | 248 | 0 | 0 | 基线 0029 → 升级到 main `deb0d12`（0030–0038）→ 用 main 的源码与验收代码跑 0.1：12 组、四个门槛全过（开发运行，不写通过） |
+| d2. 从 0.1 升级：只应用 0039，再跑 0.2（`--commit 7cda4d5`） | 同上 | 871 | 871 | 0 | 0 | 升级只应用 `0039_world_v02.sql`，重复为空；0.1 验收留下的 125 条事件在升级后读作 0.1、没有 0.2 字段；`world_v02_accepted: true` |
+| e. 离线包升级（v0.5.0 → 本分支，arm64） | 一次性 compose 栈 | 14 | 14 | 0 | 0 | 见下 |
+| f. method_v05 独立矩阵 | `tkos_a1_method_487fe1ef72cb44fc` | 27 | 27 | 0 | 0 | `runtime_method_v05_api_accepted: true` |
+| f. A1 独立矩阵（无库部分） | 无 | 35＋34＋12 | 全过 | 0 | 完整 runner 未跑 | 旧源序列化 golden 35/35、验收器自检 34/34、CLI 适配自检 12/12；完整 runner 未跑，原因见下 |
+| f. A2、A3 独立矩阵 | — | — | — | — | 未跑 | 原因见下 |
+| g. 看板（`npm test`、`npm run typecheck`） | 无 | 214（26 个文件） | 214 | 0 | 0 | 类型检查退出码 0 |
 
-验证门要注意：0.2 验收跑器还是锁版前的写法，`acceptance/world_v02/run.py` 把 `world_v02_accepted` 写死为 false、范围写「not frozen」，报告模板（`matrix.py`）也写「锁版前不冻结」。0.1 由 `acceptance/world_v01/summarize.py` 从通过的报告生成摘要与检查点，0.2 还没有对应的工具。
+**默认库没有重建。** 隔离栈的共享库 `tkos_runtime_acceptance` 仍记着锁版前的 0039（SHA256 前缀 `b2b4d5e3`，锁版的是 `5484d4be`），`infra.py migrate` 与 `up` 在它上面会报「已应用的迁移文件被改动过」。`infra.py` 只有 up/start/stop/status/migrate/attach/run，没有删库重建的办法（`attach` 只给 CI 的一次性 PostgreSQL 用），按要求没有手工删库。b 改在同一隔离栈上用 `acceptance/method_v05/database.py` 新建的库跑：授权取自发布规则，与 `infra.py` 的授权同源；在 `infra.py run` 的子进程里把 `DATABASE_URL` 换成新库（`--migration` 那一轮换成新库的所有者），`test_narrative_legacy` 用 `TKOS_LEGACY_ACCEPTANCE_DATABASE` 指到这个库。默认库要不要重建、怎么重建，留给人定。
+
+**e 的做法与 14 项。** 构建：本分支 `7cda4d5` 的 wheel 加上 9/25 已下载、逐个对过锁文件哈希的第三方 wheel，`docker buildx` 构建 Runtime API 与 Worker 的 arm64 镜像（标签 `gate-7cda4d5-arm64`，OCI 版本 0.5.0、修订 `7cda4d5`）。没有用 `prepare_images.py`，因为它会把镜像打成 `v0.5.0-arm64`、覆盖本机的发布镜像；也没有打离线包、没有上传或发版。本分支的 `deploy/offline-release/` 与 v0.5.0 逐字节相同，三个基础镜像的 digest 也相同。步骤与 v0.5.0 的「从 v0.4.0 升级」一致：
+1. v0.5.0 的部署文件与镜像，空卷跑 `start-offline.sh`，健康；迁移 32 个、到 0038。
+2. 在 v0.5.0 上用发布镜像的 `bootstrap.seed_scope` 播种 scope、上传一份证据（返回 `version_id`）；另用 v0.5.0 自带的 world-lab 脚本装 world 0.1、签凭证，冒烟 10 项全过（CEO 建 Company），库里有 world 事件。
+3. 换本分支的镜像与部署文件，沿用同一 env、同一密钥与数据卷重跑 `start-offline.sh`：健康，只应用了 `0039_world_v02.sql`，迁移 32 → 33。
+4. 升级后 `db-admin verify`：80 表、51 张 gov 表 FORCE RLS、应用角色无特权。
+5. API、Worker 在新镜像上 running 且 healthy，PostgreSQL、MinIO 仍是 v0.5.0 的基础镜像。
+6. 升级前的对象、证据原始字节（逐字节相同）与回执（`committed`）用升级前签发的凭证仍可读。
+另外三项：world 0.1 的 Company 与事件用升级前的凭证可读，事件行都读作 `tkos.world/0.1`；用升级前的凭证再跑一遍冒烟，9 项全过（Company 已存在，建对象那一步按脚本改为取已有的）；新镜像里 `/opt/tkos/docs` 的 0.2 契约、登记、profile 与支持登记的 SHA256 与本页钉定的一致。第 6 项第一次核对失败，是测试脚本把回执响应（`{receipt, effects}`）当成了回执本身，改正后重跑通过，不是产品问题。临时栈、数据卷与目录已清理。只在 arm64 上做了，amd64 没做。
+
+**A1、A2、A3 没有完整重跑的原因（读代码判断，未实跑）。**
+- A1：完整 runner 要 2026-09-10 那一轮的输入：导出的旧源码（`/tmp/tkos-a1-legacy-3cd9109d` 已不在）、迁移到 0017 的旧历史库与 preupgrade 证据、worker-r2 切换报告、带 P1 的最终 wheel、仓外的契约包文件；README 说明它由 root 按轮次执行、是那一轮的执行记录。只跑了不访问数据库的三项。
+- A2、A3：建库工具 `composition_a2_independent/database.py`、`execution_a3_independent/database.py` 把端口写死为 54350，现在那是 Clark 联动栈，按规定不连；两个跑器只接受 `tkos_a1_a2_*`、`tkos_a1_a2_a3_*` 库，method_v05 建的库用不了。即使建得出库，`composition_a2_independent/storage.py` 的 `catalog` 要求应用角色恰好只在 2026-09-10 那份表清单上有 UPDATE，而现在的发布授权还给 Method 等后来的表 UPDATE，会失败。这两套矩阵实际固定在各自 9/10、9/11 的运行上，要在 HEAD 上重跑，得先把建库改成 `method_v05` 那样按隔离栈端口核对、并更新表清单，这是另一张票的事。
+- `method_independent`：README 写明固定在 2026-09-11 那次运行、HEAD 上不能原样复跑，照它跳过。
+
+**没有验证的边界。** 以上都只在本机隔离验收栈与一次性 compose 栈上跑，没有在 world-02、world-lab 或生产上跑；合入 main、发版 v0.6.0 与 10/8 world-02 重建都还没做。0.1 两次都是开发运行（没钉提交），通过的是它的 248 项矩阵与四个门槛，不是一次新的 0.1 冻结验收。并发写、进程重启、故障注入、真实模型与看板页面见 0.2 报告的「未验证」，本次没有另外驱动。

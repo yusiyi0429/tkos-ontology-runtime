@@ -48,6 +48,29 @@ def test_the_shared_seed_is_the_trial_mission_chain_of_the_eo_october_plan():
                                                                    for task in DERIVED["tasks"]]
 
 
+def test_the_smoke_segments_carry_only_the_plan_item_attributes_their_text_states():
+    """段的四个可选属性（#83）只取段正文里原样写着的那一截，正文不改；没有原文的留空。"""
+    lines = json.loads(b_seed.SMOKE_LINES_FILE.read_text(encoding="utf-8"))
+    segments = [segment for item in lines["tasks"] for segment in item["segments"]]
+    carried = {segment["key"]: {field: segment[field] for field in b_drive.PLAN_ATTRIBUTES if field in segment}
+               for segment in segments}
+    assert carried == {"integration": {"quality_standard": "按接口清单逐项跑通"},
+                       "delegation_setup": {"executor": "CEO、E&O DRI 与 Mission Owner"},
+                       "weekly_snapshot": {"expected_output": "试用周每张任务卡的每周快照"},
+                       "issue_flow": {}, "acceptance_run": {}}
+    assert all(value in segment["text"] for segment in segments for value in carried[segment["key"]].values())
+    assert {key: {field: value for field, value in item.items() if field in b_drive.PLAN_ATTRIBUTES}
+            for key, item in DERIVED["segments"].items()} == carried
+
+
+@pytest.mark.parametrize("field", b_drive.PLAN_ATTRIBUTES)
+def test_a_segment_attribute_is_optional_but_never_empty(field):
+    lines = json.loads(b_seed.SMOKE_LINES_FILE.read_text(encoding="utf-8"))
+    lines["tasks"][2]["segments"][0][field] = " "
+    with pytest.raises(ValueError, match="非空文本"):
+        b_seed.derive(lines, SOURCE)
+
+
 def test_the_lines_do_not_derive_from_a_broken_plan():
     lines = json.loads(b_seed.SMOKE_LINES_FILE.read_text(encoding="utf-8"))
     broken = deepcopy(lines)
@@ -215,6 +238,25 @@ NEW_VERBS = [{"do": "cancel", "by": "eo-owner", "task": "task_trial_week", "text
              {"do": "return_issue", "by": "eo-owner", "issue": "scope", "text": "核心问题要先补齐"}]
 
 
+PLANNED = {"do": "plan", "by": "eo-owner", "segment": "extra", "task": "task_trial_integration", "title": "补一段",
+           "text": "补齐代记撤回的用例。", "to": "exec-agent", "expected_output": "撤回用例", "quality_standard": "撤回后读回一致",
+           "executor": "Codex", "division": "人写用例，Agent 跑"}
+
+
+def test_a_plan_step_may_carry_the_four_plan_item_attributes_and_nothing_else_does():
+    b_drive.check_script({**SMOKE, "steps": [PLANNED]}, DERIVED["segments"], DERIVED["tasks"], set(SPEC["principals"]))
+    table = b_drive.segment_table(DERIVED["segments"], {"steps": [PLANNED]})
+    assert table["extra"] == {"task": "task_trial_integration", "title": "补一段", "text": "补齐代记撤回的用例。",
+                              "responsible": "exec-agent", "expected_output": "撤回用例", "quality_standard": "撤回后读回一致",
+                              "executor": "Codex", "division": "人写用例，Agent 跑"}
+    with pytest.raises(ValueError, match="非空文本"):
+        b_drive.check_script({**SMOKE, "steps": [{**PLANNED, "division": ""}]}, DERIVED["segments"], DERIVED["tasks"])
+    with pytest.raises(ValueError, match="另外只能有"):
+        b_drive.check_script({**SMOKE, "steps": [{"do": "assign", "by": "eo-owner", "segment": "integration",
+                                                  "to": "exec-agent", "executor": "Codex"}]},
+                             DERIVED["segments"], DERIVED["tasks"])
+
+
 def test_script_0_2_adds_cancel_and_return_issue_and_0_1_does_not_have_them():
     b_drive.check_script({**SMOKE, "format": SCRIPT_02, "steps": NEW_VERBS}, DERIVED["segments"], DERIVED["tasks"],
                          set(SPEC["principals"]))
@@ -306,12 +348,43 @@ def test_task_only_writes_a_segment_of_a_split_task_as_its_plan_item_and_keeps_t
     who, body = fake[0][-1]
     component = body["params"]["payload"]["blocks"]["plan"]["components"][0]
     assert who == "eo-ic" and component["id"] == "integration" and "交付" in component["text"]
-    assert component["attributes"] == {"responsible": "p-eo-ic"}
+    # 计划条目整条替换：改状态也照旧带着段的质量标准
+    assert component["attributes"] == {"responsible": "p-eo-ic", "quality_standard": "按接口清单逐项跑通"}
     # 行动者不在这个 Task 的主干上：被拒，记下错误码，不换人
     fake[1]["refuse"] = lambda body, who: "FORBIDDEN" if who == "eo-ic" else None
     record = run(drv, log, {"do": "deliver", "by": "eo-ic", "segment": "integration"}, "2")
     assert record["expression"] == "rejected" and record["error_codes"] == ["FORBIDDEN"]
     assert {who for who, _ in fake[0]} == {"eo-ic"}
+
+
+def test_a_segment_is_a_plan_item_with_its_attributes_on_task_only_and_an_activity_instruction_on_task_activity(fake):
+    """同一段在两条线上的写法（#83）：Task-only 线是带四个可选属性的计划条目，每次改都整条带上；Task+Activity 线的
+    Activity 把执行事项、预期产出与质量标准写成 instruction 块的组件，执行主体由指派承担、分工没有对应组件。"""
+    drv, log = driver("task_only")
+    drv.segments = b_drive.segment_table(DERIVED["segments"], {"steps": [PLANNED]})
+    run(drv, log, PLANNED, "1")
+    run(drv, log, {"do": "assign", "by": "eo-owner", "segment": "extra", "to": "eo-ic"}, "2")
+    run(drv, log, {"do": "start", "by": "eo-owner", "segment": "delegation_setup"}, "3")
+    written = [body["params"]["payload"]["blocks"]["plan"]["components"][0] for _, body in fake[0]]
+    extras = {"expected_output": "撤回用例", "quality_standard": "撤回后读回一致", "executor": "Codex",
+              "division": "人写用例，Agent 跑"}
+    assert [(item["id"], item["attributes"]) for item in written] == [
+        ("extra", {"responsible": "p-exec-agent", **extras}), ("extra", {"responsible": "p-eo-ic", **extras}),
+        ("delegation_setup", {"responsible": "p-eo-owner", "executor": "CEO、E&O DRI 与 Mission Owner"})]
+    assert written[0]["text"] == "补齐代记撤回的用例。" and "状态：开始" in written[2]["text"]
+    fake[0].clear()
+    drv, log = driver("task_activity")
+    drv.segments = b_drive.segment_table(DERIVED["segments"], {"steps": [PLANNED]})
+    record = run(drv, log, PLANNED, "1")
+    assert actions(record)[0][:2] == ("primary", "world_create_object") and record["expression"] == "native"
+    payload = fake[0][0][1]["params"]["payload"]
+    assert payload["title"] == "补一段" and payload["blocks"] == {"instruction": {"components": [
+        {"id": "work", "type": "work_definition", "text": "补齐代记撤回的用例。"},
+        {"id": "output", "type": "expected_output", "text": "撤回用例"},
+        {"id": "quality", "type": "acceptance_criterion", "text": "撤回后读回一致"}]}}
+    assert fake[0][1][1]["params"] == {"principal_id": "p-exec-agent"}
+    assert b_drive.instruction_components(DERIVED["segments"]["issue_flow"]) == [
+        {"id": "work", "type": "work_definition", "text": "试用中提出的问题经提出、路由、承接与处置流转。"}]
 
 
 def test_task_only_writes_a_single_segment_on_the_task_and_pairs_it_with_the_task_step(fake):

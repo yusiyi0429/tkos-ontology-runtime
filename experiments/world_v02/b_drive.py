@@ -17,12 +17,14 @@
 - 按 do 另带：to（plan、assign、route_issue）、task 与 title（plan）、text（正文：进展、状态、问题、理由；reject、
   progress、refresh、dispose_issue 必带）、question（raise_issue 的核心判断问题）、disposition（dispose_issue）；
 - 可选：as_of（progress、refresh、raise_issue 的时点，回放真实记录时给）、declaration（Agent 写入声明的 trigger 与
-  acceptor 主体键；Agent 的写入都带声明，不给就用默认的触发说明、不要求人工验收）、note（说明，不写入）。
+  acceptor 主体键；Agent 的写入都带声明，不给就用默认的触发说明、不要求人工验收）、note（说明，不写入）；plan 另可带
+  段的 expected_output（预期产出）、quality_standard（质量标准）、executor（执行主体）、division（人 + Agent 分工）。
 
 两条线的写法（docs/world-v02-experiment-b.md 第 3 节的表）：
-- Task+Activity 线：段就是 Task 下的 Activity。plan 是 Task 责任人建 Activity 并指派；段上的动作都以 Activity 为目标
-  或主体。
-- Task-only 线：段是 Task 计划块里带责任人的计划条目。plan 与 assign 改计划条目（粗粒度）。段上的生命周期动作：Task
+- Task+Activity 线：段就是 Task 下的 Activity。plan 是 Task 责任人建 Activity（instruction 块：执行事项是段的正文，
+  另有段带了的预期产出与质量标准，后者写成成功 / 验收标准）并指派；段上的动作都以 Activity 为目标或主体。
+- Task-only 线：段是 Task 计划块（Activity 全景）里的计划条目：带责任人，以及段带了的预期产出、质量标准、执行主体与
+  分工（plan_item 的四个可选属性）。plan 与 assign 改计划条目（粗粒度）。段上的生命周期动作：Task
   只有这一段时写同名的 Task 生命周期动作（原生），与 Task 一级的同名步骤按次序配对，先到的记、后到的并入、不再发动作；
   被拒则由同一人改计划条目的状态（粗粒度）。Task 有多段时只改计划条目的状态（粗粒度）。段上的进展、状态刷新与问题以
   Task 为主体、引用计划条目（Task 只有这一段时原生，多段时粗粒度）。
@@ -69,7 +71,11 @@ REQUIRED = {"plan": {"task", "title", "text", "to"}, "assign": {"to"}, "reject":
             "refresh": {"text"}, "raise_issue": {"issue", "question"}, "route_issue": {"to"},
             "dispose_issue": {"disposition", "text"}}
 OPTIONAL = {"text", "note", "declaration", "as_of"}
-DISPOSITIONS = ("no_action_close", "current_layer_action", "roll_forward", "immediate_reopen", "route_escalate",
+# 段（一段工作）的四个可选内容，与 plan_item 新增的四个可选属性同名（Content Pact，#83）：播种的段表与脚本的 plan 步可以带。
+# Task-only 线写成计划条目的属性；Task+Activity 线的 Activity 把预期产出与质量标准写成 instruction 块的 expected_output
+# 与 acceptance_criterion 组件，执行主体由 Activity 的责任人（指派）承担，人 + Agent 分工在一个 Activity 里没有对应组件。
+PLAN_ATTRIBUTES = ("expected_output", "quality_standard", "executor", "division")
+DISPOSITIONS =("no_action_close", "current_layer_action", "roll_forward", "immediate_reopen", "route_escalate",
                 "pushback")
 COMPONENT_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$")
 
@@ -116,8 +122,9 @@ def check_script(script: dict, segments: dict, tasks: list[str], principals: set
             problems.append(f"{where}：{do} 的目标是 {'、'.join(sorted(TARGETS[do]))}")
             continue
         required = {"by", kind} | REQUIRED.get(do, set())
-        if not required <= set(step) or set(step) - required - OPTIONAL - {"do"}:
-            problems.append(f"{where}：{do} 必带 {sorted(required)}，另外只能有 {sorted(OPTIONAL)}")
+        optional = OPTIONAL | (set(PLAN_ATTRIBUTES) if do == "plan" else set())
+        if not required <= set(step) or set(step) - required - optional - {"do"}:
+            problems.append(f"{where}：{do} 必带 {sorted(required)}，另外只能有 {sorted(optional)}")
             continue
         declaration = step.get("declaration")
         if declaration is not None and (not isinstance(declaration, dict) or not declaration
@@ -130,7 +137,7 @@ def check_script(script: dict, segments: dict, tasks: list[str], principals: set
             problems.append(f"{where}：by、to 与 acceptor 是主体键")
         elif principals is not None and set(people) - principals:
             problems.append(f"{where}：ids.json 里没有主体 {sorted(set(people) - principals)}")
-        for field in ("text", "title", "question", "note"):
+        for field in ("text", "title", "question", "note", *PLAN_ATTRIBUTES):
             if field in step and (not isinstance(step[field], str) or not step[field].strip()):
                 problems.append(f"{where}：{field} 是非空文本")
         if declaration and "trigger" in declaration and (not isinstance(declaration["trigger"], str)
@@ -171,13 +178,22 @@ def check_script(script: dict, segments: dict, tasks: list[str], principals: set
 
 
 def segment_table(segments: dict, script: dict | None) -> dict:
-    """段的全表：播种划的段加上脚本里 plan 划的段（键 → {task, title, text, responsible}）。"""
+    """段的全表：播种划的段加上脚本里 plan 划的段（键 → {task, title, text, responsible, 以及带了的 PLAN_ATTRIBUTES}）。"""
     table = {key: dict(value) for key, value in segments.items()}
     for step in (script or {}).get("steps", []):
         if step["do"] == "plan":
             table[step["segment"]] = {"task": step["task"], "title": step["title"], "text": step["text"],
-                                      "responsible": step["to"]}
+                                      "responsible": step["to"],
+                                      **{field: step[field] for field in PLAN_ATTRIBUTES if field in step}}
     return table
+
+
+def instruction_components(segment: dict) -> list[dict]:
+    """Task+Activity 线：一段在 Activity 的 instruction 块里的组件——执行事项是段的正文，预期产出、质量标准（成功 / 验收
+    标准）是段带了的那两项。"""
+    parts = [("work", "work_definition", segment["text"]), ("output", "expected_output", segment.get("expected_output")),
+             ("quality", "acceptance_criterion", segment.get("quality_standard"))]
+    return [{"id": key, "type": kind, "text": text} for key, kind, text in parts if text]
 
 
 def segment_counts(table: dict) -> dict[str, int]:
@@ -455,7 +471,7 @@ class Driver:
 
             def create():
                 payload = {"title": step["title"], "parent_ref": self.line.ref(task_id, who),
-                           "blocks": {"instruction": {"text": step["text"]}}}
+                           "blocks": {"instruction": {"components": instruction_components(self.segments[segment])}}}
                 return self.body("world_create_object", {
                     "domain_id": self.line.domain(self.log["objects"][task_key]["domain"]), "object_type": "Activity",
                     "payload": payload}, None, who)
@@ -478,16 +494,19 @@ class Driver:
             self.snapshot(record, step, subject_key, activity_id, None, [])
 
     def revise_plan(self, record, step, role, subject_key, task_id, segment, text, responsible):
-        """Task-only：由这一步的行动者改 Task 计划块里的一条计划条目（组件按 id 合并，整条替换）。"""
+        """Task-only：由这一步的行动者改 Task 计划块里的一条计划条目（组件按 id 合并，整条替换，所以每次都带上段的
+        预期产出、质量标准、执行主体与分工）。"""
         who = step["by"]
         component = {"id": segment, "type": "plan_item", "text": text,
-                     "attributes": {"responsible": self.line.principal(responsible)}}
+                     "attributes": {"responsible": self.line.principal(responsible),
+                                    **{field: self.segments[segment][field] for field in PLAN_ATTRIBUTES
+                                       if field in self.segments[segment]}}}
         return self.attempt(record, role, "world_revise_object", subject_key, task_id, who, lambda: self.body(
             "world_revise_object", {"payload": {"blocks": {"plan": {"components": [component]}}},
                                     **self.declaration(step, who, task_id)}, task_id, who))
 
     def on_plan_item(self, record, step):
-        """Task-only 线的段：Task 计划块里带责任人的计划条目。"""
+        """Task-only 线的段：Task 计划块里的计划条目（带责任人与段的四个可选属性）。"""
         do, segment = step["do"], step["segment"]
         task_key = self.segments[segment]["task"]
         task_id = self.object_id(task_key)
@@ -630,7 +649,8 @@ def collect(line: Line, out: Path) -> dict:
                               "lifecycle": lifecycle and {"status": lifecycle["status"], "event_id": lifecycle["event_id"]},
                               "responsible": [principal["principal_id"]
                                               for principal in view["identity"]["responsible"]["principals"]],
-                              "plan_items": {component["id"]: component["attributes"].get("responsible")
+                              "plan_items": {component["id"]: {key: value for key, value in component["attributes"].items()
+                                                               if value is not None}
                                              for block in view["business"]["blocks"]
                                              if block["id"] in ("plan", "execution_plan")
                                              for component in block["components"]}}

@@ -152,7 +152,7 @@
   - 从每个场景的起点做回放检查：六问应引用的各项读得到、从起点可达，经取上下文可恢复；诱饵都在、各有该有的样子。
   - 检查不证明矩阵的格；标准答案未经 E&O DRI 批准也照跑，批准只管实验跑器取用（见 `experiments/world_v02/README.md`）。
 - #66 对照实验 B（`experiment_b.py`，排在实验 E 之后、四种取法对照之前，不证明矩阵的格）：Task-only 线与 Task+Activity 线各新开一个随机 tenant 的 scope（`experiments/world_v02/b_spec.json` 的角色名单，owner SQL 播种身份与凭证，控制面 CLI 装 0.2），用实验本身的代码（`b_seed`、`b_drive`、`b_observe`）打本次起的 API，与实例上跑的是同一段代码。
-  - 播种：两条线读回都照冒烟的 `b_smoke_lines.json`（#75 起 `b_lines.json` 是试用回放的主干；Mission 已成立、Owner 与三个 Task 的责任人照计划、执行计划每个 Task 一条带责任人的计划条目；Task-only 线每段是计划条目、scope 里没有 Activity；Task+Activity 线每段是已指派的 Activity），Task 与它之上的对象除 Task 的计划块外在两条线上同形。
+  - 播种：两条线读回都照冒烟的 `b_smoke_lines.json`（#75 起 `b_lines.json` 是试用回放的主干；Mission 已成立、Owner 与三个 Task 的责任人照计划、执行计划每个 Task 一条带责任人的计划条目；Task-only 线每段是 Task 计划块里的计划条目，责任人与 `plan_item` 的四个可选属性照段表（没写的读回为空，#83）、scope 里没有 Activity；Task+Activity 线每段是已指派的 Activity，`instruction` 块的执行事项、预期产出与成功 / 验收标准组件照段表），Task 与它之上的对象除 Task 的计划块外在两条线上同形。
   - 按冒烟脚本 `b_smoke.json` 驱动：两条线的 Mission 都已关闭（读投影），Task 都已关闭，Activity 都已关闭。
   - 日志与事件对得上：运行日志里每个提交了的动作在该 scope 的事件表里恰好一条事件，种类是登记里这个动作的事件种类、记录者是日志写的行动者、action_id 是日志记下的回执；scope 里的事件与回执数正好等于日志提交的动作数（被拒的动作什么也没留下）；取证经取事件读到的事件覆盖日志里的全部事件。
   - 表达结果：Task+Activity 线每一步都原生；Task-only 线原生、粗粒度、被拒都有，被拒的步骤带错误码，并有并入配对的步骤。播种与驱动再跑一遍一步不做、库里不多一条。

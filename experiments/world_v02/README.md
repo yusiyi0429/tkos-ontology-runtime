@@ -148,10 +148,12 @@ RUN=$(date +%Y%m%d-%H%M%S)
 
 票 #66、#75。同一场真实 Mission 分 Task-only 与 Task+Activity 两条线执行到关闭，对照 Activity 是否需要独立的指派、执行、重试、验收与管理。试用回放的对象是 E&O 十月起点（`deploy/world-02/seed-eo-2026-10.json`）里的 `mission_context`（Owner 是 E&O DRI 本人）：10/16 联调验收之后把真实 scope 里它的记录转写成执行脚本，E&O DRI 审过再回放。冒烟仍用换任务卡之前的合成源数据（`b_source-2026-10.json` 的 `mission_trial`）。设计、执行脚本格式、五项观测的记录来源与判断口径、结论规则、转写规则与命令见 `docs/world-v02-experiment-b.md`（转写在第 8 节）。
 
+2026-09-30 按方法侧 Content Pact 改写（#83）：Task、Mission、Activity 用新块；Task-only 线的段是 Task 的 Activity 全景块里的计划条目，除责任人外带 `plan_item` 的四个可选属性（预期产出、质量标准、执行主体、人 + Agent 分工），Task+Activity 线的 Activity 在 `instruction` 块里写执行事项、预期产出与成功 / 验收标准组件；转写把这些属性与组件带进段。五项观测的口径不变（该文档第 5 节末）。冒烟的运行日志与转写的读取原样都在隔离栈新库上按新块重录。
+
 | 文件 | 内容 |
 |-|-|
 | `b_source-2026-10.json` | 源数据：E&O 十月起点换任务卡之前的原计划，另存（#73；正文与顺序原样，块形状 9/30 按 Content Pact 改过，#82）；实例用的 `deploy/world-02/seed-eo-2026-10.json` 已改为按天枢个人任务重播 |
-| `b_smoke_lines.json` | 冒烟的播种（lines 0.1，`b_seed` 的默认）：原计划里要的步骤（mission_trial 到 Company 的主干）、三个 Task 的责任人、每个 Task 下「谁做哪一段」的初始划分 |
+| `b_smoke_lines.json` | 冒烟的播种（lines 0.1，`b_seed` 的默认）：原计划里要的步骤（mission_trial 到 Company 的主干）、三个 Task 的责任人、每个 Task 下「谁做哪一段」的初始划分（段只带正文里原样写着的可选属性，#83） |
 | `b_lines.json` | 试用回放的主干（lines 0.2）：十月起点里 `mission_context` 到 Company 的 10 步；门、Task 与段由转写填进转写产物 `b-lines.json` |
 | `b_spec.json` | 两条线各自 scope 的名单（角色名，`deploy/world-02/provision.py` 的格式；eo-dri 另持 OWNER） |
 | `b_smoke.json` | 预置的冒烟执行脚本（0.1）：两条线都推到 Mission 关闭 |

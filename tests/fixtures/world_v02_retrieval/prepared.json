@@ -1,14 +1,15 @@
 {
  "format": "tkos-world-02-retrieval-prepared/0.1",
- "content_sha256": "7c4623da8f925d0797479334afed0c0a8fe5222e938ec007270bf9c52481cece",
+ "note": "#82：由 9/29 在 Content Pact 之前的旧块上的一次真实准备（id 换成假播种清单的）按新块改写，没有在新库上重跑。应引项、标签与召回的分母按新标准答案；各问的字符数、预算、裁剪与 RAG 装入块数沿用那次运行；固定路径与全量的召回照那次记为全部取到，RAG 缺的项由旧应引项映射到新组件（旧标准答案里没有对应项的新应引项记为取到）；分块计数按新场景文件推演，全量字符数沿用那次运行；扫描里的引用换成新块。只作无库测试的 fixture，不是实验结果。",
+ "content_sha256": "e3bf5ab1bec7ebb54785bd8a4a6158ee3be1d1dbb91300b336824fde76a225a5",
  "corpus": {
   "objects": 22,
   "snapshots": 7,
   "events": 68,
   "chunks": {
    "object": 29,
-   "block": 113,
-   "component": 20,
+   "block": 88,
+   "component": 58,
    "event": 68
   }
  },
@@ -23,38 +24,38 @@
    "start": "36d5c595-e739-5707-b52e-b7c050f52b5a@2",
    "expected": [
     {
-     "ref": "89a0f064-5ccf-5126-aed6-946e455d2cab@2#definition",
-     "label": "Mission《天枢 × 本体 0.2 试用》·定义",
+     "ref": "89a0f064-5ccf-5126-aed6-946e455d2cab@2#definition/trial",
+     "label": "Mission《天枢 × 本体 0.2 试用》·战役定义/trial",
      "object_type": "Mission"
     },
     {
-     "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@2#outcome/tianshu",
-     "label": "周期目标《E&O 10 月：tkos.world 0.2 在真实经营中跑通》·结果/tianshu",
+     "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@2#target/tianshu",
+     "label": "周期目标《E&O 10 月：tkos.world 0.2 在真实经营中跑通》·目标定义/tianshu",
      "object_type": "PeriodGoal"
     },
     {
-     "ref": "9fcc28fd-254d-56e2-9738-bb0cc67f88f6@1#outcome",
-     "label": "长期目标《E&O 六个月目标》·结果",
+     "ref": "9fcc28fd-254d-56e2-9738-bb0cc67f88f6@1#target/outcome",
+     "label": "长期目标《E&O 六个月目标》·目标定义/outcome",
      "object_type": "LongTermGoal"
     },
     {
-     "ref": "acf78a61-8704-5760-bd10-7a5b48b8f825@1#outcome",
-     "label": "长期目标《春节前核心业务第一次被真实证明》·结果",
+     "ref": "acf78a61-8704-5760-bd10-7a5b48b8f825@1#target/outcome",
+     "label": "长期目标《春节前核心业务第一次被真实证明》·目标定义/outcome",
      "object_type": "LongTermGoal"
     },
     {
      "ref": "0fdc1d7e-0a3b-5ef7-acd5-8957bb76af7d@1#responsibility_structure/eo",
-     "label": "战略《词元云集总体战略（存根）》·责任结构/eo",
+     "label": "战略《词元云集总体战略（存根）》·战略责任结构/eo",
      "object_type": "Strategy"
     },
     {
-     "ref": "0fdc1d7e-0a3b-5ef7-acd5-8957bb76af7d@1#choices",
-     "label": "战略《词元云集总体战略（存根）》·战略选择",
+     "ref": "0fdc1d7e-0a3b-5ef7-acd5-8957bb76af7d@1#strategy_core/main-line",
+     "label": "战略《词元云集总体战略（存根）》·战略/main-line",
      "object_type": "Strategy"
     },
     {
-     "ref": "33da53b0-4eaf-5ac3-b09c-100ca6e63caf@1#identity",
-     "label": "公司《词元云集（TokenKing）》·身份",
+     "ref": "33da53b0-4eaf-5ac3-b09c-100ca6e63caf@1#identity/long-term-identity",
+     "label": "公司《词元云集（TokenKing）》·企业身份与长期意图/long-term-identity",
      "object_type": "Company"
     }
    ],
@@ -86,11 +87,11 @@
       7
      ],
      "missing": [
-      "9fcc28fd-254d-56e2-9738-bb0cc67f88f6@1#outcome",
-      "acf78a61-8704-5760-bd10-7a5b48b8f825@1#outcome",
+      "9fcc28fd-254d-56e2-9738-bb0cc67f88f6@1#target/outcome",
+      "acf78a61-8704-5760-bd10-7a5b48b8f825@1#target/outcome",
       "0fdc1d7e-0a3b-5ef7-acd5-8957bb76af7d@1#responsibility_structure/eo",
-      "0fdc1d7e-0a3b-5ef7-acd5-8957bb76af7d@1#choices",
-      "33da53b0-4eaf-5ac3-b09c-100ca6e63caf@1#identity"
+      "0fdc1d7e-0a3b-5ef7-acd5-8957bb76af7d@1#strategy_core/main-line",
+      "33da53b0-4eaf-5ac3-b09c-100ca6e63caf@1#identity/long-term-identity"
      ],
      "max_chars": 12380,
      "kept": 87,
@@ -113,8 +114,13 @@
    "start": "36d5c595-e739-5707-b52e-b7c050f52b5a@2",
    "expected": [
     {
-     "ref": "36d5c595-e739-5707-b52e-b7c050f52b5a@2#definition",
-     "label": "Task《试用周每周快照与问题流转（10/12–16）》·定义",
+     "ref": "36d5c595-e739-5707-b52e-b7c050f52b5a@2#definition/outcome",
+     "label": "Task《试用周每周快照与问题流转（10/12–16）》·任务定义/outcome",
+     "object_type": "Task"
+    },
+    {
+     "ref": "36d5c595-e739-5707-b52e-b7c050f52b5a@2#definition/window",
+     "label": "Task《试用周每周快照与问题流转（10/12–16）》·任务定义/window",
      "object_type": "Task"
     }
    ],
@@ -122,8 +128,8 @@
     "fixed": {
      "chars": 12367,
      "recall": [
-      1,
-      1
+      2,
+      2
      ],
      "missing": [],
      "used_chars": 8772,
@@ -142,8 +148,8 @@
     "rag": {
      "chars": 12340,
      "recall": [
-      1,
-      1
+      2,
+      2
      ],
      "missing": [],
      "max_chars": 12367,
@@ -153,8 +159,8 @@
     "full": {
      "chars": 32141,
      "recall": [
-      1,
-      1
+      2,
+      2
      ],
      "missing": []
     }
@@ -349,18 +355,28 @@
    "start": "36d5c595-e739-5707-b52e-b7c050f52b5a@2",
    "expected": [
     {
-     "ref": "89a0f064-5ccf-5126-aed6-946e455d2cab@2#acceptance/ac-tianshu",
-     "label": "Mission《天枢 × 本体 0.2 试用》·验收标准/ac-tianshu",
+     "ref": "89a0f064-5ccf-5126-aed6-946e455d2cab@2#definition/ac-tianshu",
+     "label": "Mission《天枢 × 本体 0.2 试用》·战役定义/ac-tianshu",
      "object_type": "Mission"
     },
     {
-     "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@2#acceptance/ac-tianshu",
-     "label": "周期目标《E&O 10 月：tkos.world 0.2 在真实经营中跑通》·验收标准/ac-tianshu",
+     "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@2#target/ac-tianshu",
+     "label": "周期目标《E&O 10 月：tkos.world 0.2 在真实经营中跑通》·目标定义/ac-tianshu",
      "object_type": "PeriodGoal"
     },
     {
-     "ref": "81fcaee2-0dd9-50f7-bb07-e908c6e9d202@1#constraint",
-     "label": "责任单元《E&O》·约束",
+     "ref": "36d5c595-e739-5707-b52e-b7c050f52b5a@2#definition/window",
+     "label": "Task《试用周每周快照与问题流转（10/12–16）》·任务定义/window",
+     "object_type": "Task"
+    },
+    {
+     "ref": "81fcaee2-0dd9-50f7-bb07-e908c6e9d202@1#definition/method-frozen",
+     "label": "责任单元《E&O》·责任定义/method-frozen",
+     "object_type": "ResponsibilityUnit"
+    },
+    {
+     "ref": "81fcaee2-0dd9-50f7-bb07-e908c6e9d202@1#definition/no-graph-db",
+     "label": "责任单元《E&O》·责任定义/no-graph-db",
      "object_type": "ResponsibilityUnit"
     }
    ],
@@ -368,8 +384,8 @@
     "fixed": {
      "chars": 12366,
      "recall": [
-      3,
-      3
+      5,
+      5
      ],
      "missing": [],
      "used_chars": 8771,
@@ -388,8 +404,8 @@
     "rag": {
      "chars": 12125,
      "recall": [
-      3,
-      3
+      5,
+      5
      ],
      "missing": [],
      "max_chars": 12366,
@@ -399,8 +415,8 @@
     "full": {
      "chars": 32141,
      "recall": [
-      3,
-      3
+      5,
+      5
      ],
      "missing": []
     }
@@ -413,38 +429,38 @@
    "start": "293565b4-840b-52f2-8ee0-73c6f3f9519e@3",
    "expected": [
     {
-     "ref": "90bfd291-b335-5fb4-8385-0679368a9e50@2#definition",
-     "label": "Mission《0.2 实验与报告》·定义",
+     "ref": "90bfd291-b335-5fb4-8385-0679368a9e50@2#definition/report",
+     "label": "Mission《0.2 实验与报告》·战役定义/report",
      "object_type": "Mission"
     },
     {
-     "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@2#outcome/lock",
-     "label": "周期目标《E&O 10 月：tkos.world 0.2 在真实经营中跑通》·结果/lock",
+     "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@2#target/lock",
+     "label": "周期目标《E&O 10 月：tkos.world 0.2 在真实经营中跑通》·目标定义/lock",
      "object_type": "PeriodGoal"
     },
     {
-     "ref": "9fcc28fd-254d-56e2-9738-bb0cc67f88f6@1#outcome",
-     "label": "长期目标《E&O 六个月目标》·结果",
+     "ref": "9fcc28fd-254d-56e2-9738-bb0cc67f88f6@1#target/outcome",
+     "label": "长期目标《E&O 六个月目标》·目标定义/outcome",
      "object_type": "LongTermGoal"
     },
     {
-     "ref": "acf78a61-8704-5760-bd10-7a5b48b8f825@1#outcome",
-     "label": "长期目标《春节前核心业务第一次被真实证明》·结果",
+     "ref": "acf78a61-8704-5760-bd10-7a5b48b8f825@1#target/outcome",
+     "label": "长期目标《春节前核心业务第一次被真实证明》·目标定义/outcome",
      "object_type": "LongTermGoal"
     },
     {
      "ref": "0fdc1d7e-0a3b-5ef7-acd5-8957bb76af7d@1#responsibility_structure/eo",
-     "label": "战略《词元云集总体战略（存根）》·责任结构/eo",
+     "label": "战略《词元云集总体战略（存根）》·战略责任结构/eo",
      "object_type": "Strategy"
     },
     {
-     "ref": "0fdc1d7e-0a3b-5ef7-acd5-8957bb76af7d@1#choices",
-     "label": "战略《词元云集总体战略（存根）》·战略选择",
+     "ref": "0fdc1d7e-0a3b-5ef7-acd5-8957bb76af7d@1#strategy_core/main-line",
+     "label": "战略《词元云集总体战略（存根）》·战略/main-line",
      "object_type": "Strategy"
     },
     {
-     "ref": "33da53b0-4eaf-5ac3-b09c-100ca6e63caf@1#identity",
-     "label": "公司《词元云集（TokenKing）》·身份",
+     "ref": "33da53b0-4eaf-5ac3-b09c-100ca6e63caf@1#identity/long-term-identity",
+     "label": "公司《词元云集（TokenKing）》·企业身份与长期意图/long-term-identity",
      "object_type": "Company"
     }
    ],
@@ -476,11 +492,11 @@
       7
      ],
      "missing": [
-      "04e1479e-c221-58b6-a541-e3c34930dee4@2#outcome/lock",
-      "acf78a61-8704-5760-bd10-7a5b48b8f825@1#outcome",
+      "04e1479e-c221-58b6-a541-e3c34930dee4@2#target/lock",
+      "acf78a61-8704-5760-bd10-7a5b48b8f825@1#target/outcome",
       "0fdc1d7e-0a3b-5ef7-acd5-8957bb76af7d@1#responsibility_structure/eo",
-      "0fdc1d7e-0a3b-5ef7-acd5-8957bb76af7d@1#choices",
-      "33da53b0-4eaf-5ac3-b09c-100ca6e63caf@1#identity"
+      "0fdc1d7e-0a3b-5ef7-acd5-8957bb76af7d@1#strategy_core/main-line",
+      "33da53b0-4eaf-5ac3-b09c-100ca6e63caf@1#identity/long-term-identity"
      ],
      "max_chars": 12296,
      "kept": 83,
@@ -503,28 +519,33 @@
    "start": "293565b4-840b-52f2-8ee0-73c6f3f9519e@3",
    "expected": [
     {
-     "ref": "293565b4-840b-52f2-8ee0-73c6f3f9519e@3#definition",
-     "label": "Task《四种取法对照（含 RAG）与实验报告》·定义",
+     "ref": "293565b4-840b-52f2-8ee0-73c6f3f9519e@3#definition/outcome",
+     "label": "Task《四种取法对照（含 RAG）与实验报告》·任务定义/outcome",
+     "object_type": "Task"
+    },
+    {
+     "ref": "293565b4-840b-52f2-8ee0-73c6f3f9519e@3#task_plan/graph-db",
+     "label": "Task《四种取法对照（含 RAG）与实验报告》·Task 计划/graph-db",
      "object_type": "Task"
     },
     {
      "ref": "293565b4-840b-52f2-8ee0-73c6f3f9519e@3#plan/rag-graph",
-     "label": "Task《四种取法对照（含 RAG）与实验报告》·计划/rag-graph",
+     "label": "Task《四种取法对照（含 RAG）与实验报告》·Activity 全景/rag-graph",
      "object_type": "Task"
     },
     {
      "ref": "293565b4-840b-52f2-8ee0-73c6f3f9519e@3#plan/cost",
-     "label": "Task《四种取法对照（含 RAG）与实验报告》·计划/cost",
+     "label": "Task《四种取法对照（含 RAG）与实验报告》·Activity 全景/cost",
      "object_type": "Task"
     },
     {
      "ref": "293565b4-840b-52f2-8ee0-73c6f3f9519e@3#plan/report",
-     "label": "Task《四种取法对照（含 RAG）与实验报告》·计划/report",
+     "label": "Task《四种取法对照（含 RAG）与实验报告》·Activity 全景/report",
      "object_type": "Task"
     },
     {
-     "ref": "81fcaee2-0dd9-50f7-bb07-e908c6e9d202@1#constraint",
-     "label": "责任单元《E&O》·约束",
+     "ref": "81fcaee2-0dd9-50f7-bb07-e908c6e9d202@1#definition/no-graph-db",
+     "label": "责任单元《E&O》·责任定义/no-graph-db",
      "object_type": "ResponsibilityUnit"
     }
    ],
@@ -532,8 +553,8 @@
     "fixed": {
      "chars": 12283,
      "recall": [
-      5,
-      5
+      6,
+      6
      ],
      "missing": [],
      "used_chars": 8829,
@@ -552,11 +573,11 @@
     "rag": {
      "chars": 12218,
      "recall": [
-      4,
-      5
+      5,
+      6
      ],
      "missing": [
-      "81fcaee2-0dd9-50f7-bb07-e908c6e9d202@1#constraint"
+      "81fcaee2-0dd9-50f7-bb07-e908c6e9d202@1#definition/no-graph-db"
      ],
      "max_chars": 12283,
      "kept": 84,
@@ -565,8 +586,8 @@
     "full": {
      "chars": 32141,
      "recall": [
-      5,
-      5
+      6,
+      6
      ],
      "missing": []
     }
@@ -761,13 +782,23 @@
    "start": "293565b4-840b-52f2-8ee0-73c6f3f9519e@3",
    "expected": [
     {
-     "ref": "81fcaee2-0dd9-50f7-bb07-e908c6e9d202@1#constraint",
-     "label": "责任单元《E&O》·约束",
+     "ref": "81fcaee2-0dd9-50f7-bb07-e908c6e9d202@1#definition/method-frozen",
+     "label": "责任单元《E&O》·责任定义/method-frozen",
      "object_type": "ResponsibilityUnit"
     },
     {
+     "ref": "81fcaee2-0dd9-50f7-bb07-e908c6e9d202@1#definition/no-graph-db",
+     "label": "责任单元《E&O》·责任定义/no-graph-db",
+     "object_type": "ResponsibilityUnit"
+    },
+    {
+     "ref": "293565b4-840b-52f2-8ee0-73c6f3f9519e@3#task_plan/graph-db",
+     "label": "Task《四种取法对照（含 RAG）与实验报告》·Task 计划/graph-db",
+     "object_type": "Task"
+    },
+    {
      "ref": "293565b4-840b-52f2-8ee0-73c6f3f9519e@3#plan/rag-graph",
-     "label": "Task《四种取法对照（含 RAG）与实验报告》·计划/rag-graph",
+     "label": "Task《四种取法对照（含 RAG）与实验报告》·Activity 全景/rag-graph",
      "object_type": "Task"
     }
    ],
@@ -775,8 +806,8 @@
     "fixed": {
      "chars": 12276,
      "recall": [
-      2,
-      2
+      4,
+      4
      ],
      "missing": [],
      "used_chars": 8822,
@@ -795,8 +826,8 @@
     "rag": {
      "chars": 12170,
      "recall": [
-      2,
-      2
+      4,
+      4
      ],
      "missing": [],
      "max_chars": 12276,
@@ -806,8 +837,8 @@
     "full": {
      "chars": 32141,
      "recall": [
-      2,
-      2
+      4,
+      4
      ],
      "missing": []
     }
@@ -820,48 +851,48 @@
    "start": "2497ba8a-bfa4-5037-8fb5-660a84bff557@2",
    "expected": [
     {
-     "ref": "8f5159a4-1855-5996-84c1-b524a94113fc@2#definition",
-     "label": "Mission《0.2 锁版》·定义",
+     "ref": "8f5159a4-1855-5996-84c1-b524a94113fc@2#definition/lock",
+     "label": "Mission《0.2 锁版》·战役定义/lock",
      "object_type": "Mission"
     },
     {
-     "ref": "8f5159a4-1855-5996-84c1-b524a94113fc@2#acceptance/ac-lock",
-     "label": "Mission《0.2 锁版》·验收标准/ac-lock",
+     "ref": "8f5159a4-1855-5996-84c1-b524a94113fc@2#definition/ac-lock",
+     "label": "Mission《0.2 锁版》·战役定义/ac-lock",
      "object_type": "Mission"
     },
     {
-     "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@2#acceptance/ac-lock",
-     "label": "周期目标《E&O 10 月：tkos.world 0.2 在真实经营中跑通》·验收标准/ac-lock",
+     "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@2#target/ac-lock",
+     "label": "周期目标《E&O 10 月：tkos.world 0.2 在真实经营中跑通》·目标定义/ac-lock",
      "object_type": "PeriodGoal"
     },
     {
-     "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@2#outcome/lock",
-     "label": "周期目标《E&O 10 月：tkos.world 0.2 在真实经营中跑通》·结果/lock",
+     "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@2#target/lock",
+     "label": "周期目标《E&O 10 月：tkos.world 0.2 在真实经营中跑通》·目标定义/lock",
      "object_type": "PeriodGoal"
     },
     {
-     "ref": "9fcc28fd-254d-56e2-9738-bb0cc67f88f6@1#outcome",
-     "label": "长期目标《E&O 六个月目标》·结果",
+     "ref": "9fcc28fd-254d-56e2-9738-bb0cc67f88f6@1#target/outcome",
+     "label": "长期目标《E&O 六个月目标》·目标定义/outcome",
      "object_type": "LongTermGoal"
     },
     {
-     "ref": "acf78a61-8704-5760-bd10-7a5b48b8f825@1#outcome",
-     "label": "长期目标《春节前核心业务第一次被真实证明》·结果",
+     "ref": "acf78a61-8704-5760-bd10-7a5b48b8f825@1#target/outcome",
+     "label": "长期目标《春节前核心业务第一次被真实证明》·目标定义/outcome",
      "object_type": "LongTermGoal"
     },
     {
      "ref": "0fdc1d7e-0a3b-5ef7-acd5-8957bb76af7d@1#responsibility_structure/eo",
-     "label": "战略《词元云集总体战略（存根）》·责任结构/eo",
+     "label": "战略《词元云集总体战略（存根）》·战略责任结构/eo",
      "object_type": "Strategy"
     },
     {
-     "ref": "0fdc1d7e-0a3b-5ef7-acd5-8957bb76af7d@1#choices",
-     "label": "战略《词元云集总体战略（存根）》·战略选择",
+     "ref": "0fdc1d7e-0a3b-5ef7-acd5-8957bb76af7d@1#strategy_core/main-line",
+     "label": "战略《词元云集总体战略（存根）》·战略/main-line",
      "object_type": "Strategy"
     },
     {
-     "ref": "33da53b0-4eaf-5ac3-b09c-100ca6e63caf@1#identity",
-     "label": "公司《词元云集（TokenKing）》·身份",
+     "ref": "33da53b0-4eaf-5ac3-b09c-100ca6e63caf@1#identity/long-term-identity",
+     "label": "公司《词元云集（TokenKing）》·企业身份与长期意图/long-term-identity",
      "object_type": "Company"
     }
    ],
@@ -893,12 +924,12 @@
       9
      ],
      "missing": [
-      "04e1479e-c221-58b6-a541-e3c34930dee4@2#outcome/lock",
-      "9fcc28fd-254d-56e2-9738-bb0cc67f88f6@1#outcome",
-      "acf78a61-8704-5760-bd10-7a5b48b8f825@1#outcome",
+      "04e1479e-c221-58b6-a541-e3c34930dee4@2#target/lock",
+      "9fcc28fd-254d-56e2-9738-bb0cc67f88f6@1#target/outcome",
+      "acf78a61-8704-5760-bd10-7a5b48b8f825@1#target/outcome",
       "0fdc1d7e-0a3b-5ef7-acd5-8957bb76af7d@1#responsibility_structure/eo",
-      "0fdc1d7e-0a3b-5ef7-acd5-8957bb76af7d@1#choices",
-      "33da53b0-4eaf-5ac3-b09c-100ca6e63caf@1#identity"
+      "0fdc1d7e-0a3b-5ef7-acd5-8957bb76af7d@1#strategy_core/main-line",
+      "33da53b0-4eaf-5ac3-b09c-100ca6e63caf@1#identity/long-term-identity"
      ],
      "max_chars": 12031,
      "kept": 91,
@@ -921,8 +952,8 @@
    "start": "2497ba8a-bfa4-5037-8fb5-660a84bff557@2",
    "expected": [
     {
-     "ref": "2497ba8a-bfa4-5037-8fb5-660a84bff557@2#definition",
-     "label": "Task《验收冻结与钉定提交》·定义",
+     "ref": "2497ba8a-bfa4-5037-8fb5-660a84bff557@2#definition/outcome",
+     "label": "Task《验收冻结与钉定提交》·任务定义/outcome",
      "object_type": "Task"
     }
    ],
@@ -1163,18 +1194,23 @@
    "start": "2497ba8a-bfa4-5037-8fb5-660a84bff557@2",
    "expected": [
     {
-     "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@2#acceptance/ac-lock",
-     "label": "周期目标《E&O 10 月：tkos.world 0.2 在真实经营中跑通》·验收标准/ac-lock",
+     "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@2#target/ac-lock",
+     "label": "周期目标《E&O 10 月：tkos.world 0.2 在真实经营中跑通》·目标定义/ac-lock",
      "object_type": "PeriodGoal"
     },
     {
-     "ref": "8f5159a4-1855-5996-84c1-b524a94113fc@2#acceptance/ac-lock",
-     "label": "Mission《0.2 锁版》·验收标准/ac-lock",
+     "ref": "8f5159a4-1855-5996-84c1-b524a94113fc@2#definition/ac-lock",
+     "label": "Mission《0.2 锁版》·战役定义/ac-lock",
      "object_type": "Mission"
     },
     {
-     "ref": "81fcaee2-0dd9-50f7-bb07-e908c6e9d202@1#constraint",
-     "label": "责任单元《E&O》·约束",
+     "ref": "81fcaee2-0dd9-50f7-bb07-e908c6e9d202@1#definition/method-frozen",
+     "label": "责任单元《E&O》·责任定义/method-frozen",
+     "object_type": "ResponsibilityUnit"
+    },
+    {
+     "ref": "81fcaee2-0dd9-50f7-bb07-e908c6e9d202@1#definition/no-graph-db",
+     "label": "责任单元《E&O》·责任定义/no-graph-db",
      "object_type": "ResponsibilityUnit"
     }
    ],
@@ -1182,8 +1218,8 @@
     "fixed": {
      "chars": 12020,
      "recall": [
-      3,
-      3
+      4,
+      4
      ],
      "missing": [],
      "used_chars": 8489,
@@ -1202,8 +1238,8 @@
     "rag": {
      "chars": 8197,
      "recall": [
-      3,
-      3
+      4,
+      4
      ],
      "missing": [],
      "max_chars": 12020,
@@ -1213,8 +1249,8 @@
     "full": {
      "chars": 32141,
      "recall": [
-      3,
-      3
+      4,
+      4
      ],
      "missing": []
     }
@@ -1227,43 +1263,43 @@
    "start": "8e012a95-cfd8-594f-a3fd-1b5e79959a15@2",
    "expected": [
     {
-     "ref": "89a0f064-5ccf-5126-aed6-946e455d2cab@2#definition",
-     "label": "Mission《天枢 × 本体 0.2 试用》·定义",
+     "ref": "89a0f064-5ccf-5126-aed6-946e455d2cab@2#definition/trial",
+     "label": "Mission《天枢 × 本体 0.2 试用》·战役定义/trial",
      "object_type": "Mission"
     },
     {
-     "ref": "89a0f064-5ccf-5126-aed6-946e455d2cab@2#acceptance/ac-tianshu",
-     "label": "Mission《天枢 × 本体 0.2 试用》·验收标准/ac-tianshu",
+     "ref": "89a0f064-5ccf-5126-aed6-946e455d2cab@2#definition/ac-tianshu",
+     "label": "Mission《天枢 × 本体 0.2 试用》·战役定义/ac-tianshu",
      "object_type": "Mission"
     },
     {
-     "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@2#outcome/tianshu",
-     "label": "周期目标《E&O 10 月：tkos.world 0.2 在真实经营中跑通》·结果/tianshu",
+     "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@2#target/tianshu",
+     "label": "周期目标《E&O 10 月：tkos.world 0.2 在真实经营中跑通》·目标定义/tianshu",
      "object_type": "PeriodGoal"
     },
     {
-     "ref": "9fcc28fd-254d-56e2-9738-bb0cc67f88f6@1#outcome",
-     "label": "长期目标《E&O 六个月目标》·结果",
+     "ref": "9fcc28fd-254d-56e2-9738-bb0cc67f88f6@1#target/outcome",
+     "label": "长期目标《E&O 六个月目标》·目标定义/outcome",
      "object_type": "LongTermGoal"
     },
     {
-     "ref": "acf78a61-8704-5760-bd10-7a5b48b8f825@1#outcome",
-     "label": "长期目标《春节前核心业务第一次被真实证明》·结果",
+     "ref": "acf78a61-8704-5760-bd10-7a5b48b8f825@1#target/outcome",
+     "label": "长期目标《春节前核心业务第一次被真实证明》·目标定义/outcome",
      "object_type": "LongTermGoal"
     },
     {
      "ref": "0fdc1d7e-0a3b-5ef7-acd5-8957bb76af7d@1#responsibility_structure/eo",
-     "label": "战略《词元云集总体战略（存根）》·责任结构/eo",
+     "label": "战略《词元云集总体战略（存根）》·战略责任结构/eo",
      "object_type": "Strategy"
     },
     {
-     "ref": "0fdc1d7e-0a3b-5ef7-acd5-8957bb76af7d@1#choices",
-     "label": "战略《词元云集总体战略（存根）》·战略选择",
+     "ref": "0fdc1d7e-0a3b-5ef7-acd5-8957bb76af7d@1#strategy_core/main-line",
+     "label": "战略《词元云集总体战略（存根）》·战略/main-line",
      "object_type": "Strategy"
     },
     {
-     "ref": "33da53b0-4eaf-5ac3-b09c-100ca6e63caf@1#identity",
-     "label": "公司《词元云集（TokenKing）》·身份",
+     "ref": "33da53b0-4eaf-5ac3-b09c-100ca6e63caf@1#identity/long-term-identity",
+     "label": "公司《词元云集（TokenKing）》·企业身份与长期意图/long-term-identity",
      "object_type": "Company"
     }
    ],
@@ -1304,11 +1340,11 @@
       8
      ],
      "missing": [
-      "9fcc28fd-254d-56e2-9738-bb0cc67f88f6@1#outcome",
-      "acf78a61-8704-5760-bd10-7a5b48b8f825@1#outcome",
+      "9fcc28fd-254d-56e2-9738-bb0cc67f88f6@1#target/outcome",
+      "acf78a61-8704-5760-bd10-7a5b48b8f825@1#target/outcome",
       "0fdc1d7e-0a3b-5ef7-acd5-8957bb76af7d@1#responsibility_structure/eo",
-      "0fdc1d7e-0a3b-5ef7-acd5-8957bb76af7d@1#choices",
-      "33da53b0-4eaf-5ac3-b09c-100ca6e63caf@1#identity"
+      "0fdc1d7e-0a3b-5ef7-acd5-8957bb76af7d@1#strategy_core/main-line",
+      "33da53b0-4eaf-5ac3-b09c-100ca6e63caf@1#identity/long-term-identity"
      ],
      "max_chars": 13276,
      "kept": 98,
@@ -1331,8 +1367,13 @@
    "start": "8e012a95-cfd8-594f-a3fd-1b5e79959a15@2",
    "expected": [
     {
-     "ref": "8e012a95-cfd8-594f-a3fd-1b5e79959a15@2#definition",
-     "label": "Task《联调与委托登记（10/9–11）》·定义",
+     "ref": "8e012a95-cfd8-594f-a3fd-1b5e79959a15@2#definition/outcome",
+     "label": "Task《联调与委托登记（10/9–11）》·任务定义/outcome",
+     "object_type": "Task"
+    },
+    {
+     "ref": "8e012a95-cfd8-594f-a3fd-1b5e79959a15@2#definition/window",
+     "label": "Task《联调与委托登记（10/9–11）》·任务定义/window",
      "object_type": "Task"
     }
    ],
@@ -1340,8 +1381,8 @@
     "fixed": {
      "chars": 13259,
      "recall": [
-      1,
-      1
+      2,
+      2
      ],
      "missing": [],
      "used_chars": 9361,
@@ -1369,8 +1410,8 @@
     "rag": {
      "chars": 13259,
      "recall": [
-      1,
-      1
+      2,
+      2
      ],
      "missing": [],
      "max_chars": 13259,
@@ -1380,8 +1421,8 @@
     "full": {
      "chars": 32141,
      "recall": [
-      1,
-      1
+      2,
+      2
      ],
      "missing": []
     }
@@ -1625,13 +1666,23 @@
    "start": "8e012a95-cfd8-594f-a3fd-1b5e79959a15@2",
    "expected": [
     {
-     "ref": "89a0f064-5ccf-5126-aed6-946e455d2cab@2#acceptance/ac-tianshu",
-     "label": "Mission《天枢 × 本体 0.2 试用》·验收标准/ac-tianshu",
+     "ref": "89a0f064-5ccf-5126-aed6-946e455d2cab@2#definition/ac-tianshu",
+     "label": "Mission《天枢 × 本体 0.2 试用》·战役定义/ac-tianshu",
      "object_type": "Mission"
     },
     {
-     "ref": "81fcaee2-0dd9-50f7-bb07-e908c6e9d202@1#constraint",
-     "label": "责任单元《E&O》·约束",
+     "ref": "8e012a95-cfd8-594f-a3fd-1b5e79959a15@2#definition/window",
+     "label": "Task《联调与委托登记（10/9–11）》·任务定义/window",
+     "object_type": "Task"
+    },
+    {
+     "ref": "81fcaee2-0dd9-50f7-bb07-e908c6e9d202@1#definition/method-frozen",
+     "label": "责任单元《E&O》·责任定义/method-frozen",
+     "object_type": "ResponsibilityUnit"
+    },
+    {
+     "ref": "81fcaee2-0dd9-50f7-bb07-e908c6e9d202@1#definition/no-graph-db",
+     "label": "责任单元《E&O》·责任定义/no-graph-db",
      "object_type": "ResponsibilityUnit"
     },
     {
@@ -1649,8 +1700,8 @@
     "fixed": {
      "chars": 13258,
      "recall": [
-      4,
-      4
+      6,
+      6
      ],
      "missing": [],
      "used_chars": 9360,
@@ -1678,8 +1729,8 @@
     "rag": {
      "chars": 11119,
      "recall": [
-      4,
-      4
+      6,
+      6
      ],
      "missing": [],
      "max_chars": 13258,
@@ -1689,8 +1740,8 @@
     "full": {
      "chars": 32141,
      "recall": [
-      4,
-      4
+      6,
+      6
      ],
      "missing": []
     }
@@ -1703,38 +1754,38 @@
    "start": "b36b3a82-e9bc-5228-8154-1d90b9921b16@3",
    "expected": [
     {
-     "ref": "90bfd291-b335-5fb4-8385-0679368a9e50@2#definition",
-     "label": "Mission《0.2 实验与报告》·定义",
+     "ref": "90bfd291-b335-5fb4-8385-0679368a9e50@2#definition/report",
+     "label": "Mission《0.2 实验与报告》·战役定义/report",
      "object_type": "Mission"
     },
     {
-     "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@2#outcome/lock",
-     "label": "周期目标《E&O 10 月：tkos.world 0.2 在真实经营中跑通》·结果/lock",
+     "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@2#target/lock",
+     "label": "周期目标《E&O 10 月：tkos.world 0.2 在真实经营中跑通》·目标定义/lock",
      "object_type": "PeriodGoal"
     },
     {
-     "ref": "9fcc28fd-254d-56e2-9738-bb0cc67f88f6@1#outcome",
-     "label": "长期目标《E&O 六个月目标》·结果",
+     "ref": "9fcc28fd-254d-56e2-9738-bb0cc67f88f6@1#target/outcome",
+     "label": "长期目标《E&O 六个月目标》·目标定义/outcome",
      "object_type": "LongTermGoal"
     },
     {
-     "ref": "acf78a61-8704-5760-bd10-7a5b48b8f825@1#outcome",
-     "label": "长期目标《春节前核心业务第一次被真实证明》·结果",
+     "ref": "acf78a61-8704-5760-bd10-7a5b48b8f825@1#target/outcome",
+     "label": "长期目标《春节前核心业务第一次被真实证明》·目标定义/outcome",
      "object_type": "LongTermGoal"
     },
     {
      "ref": "0fdc1d7e-0a3b-5ef7-acd5-8957bb76af7d@1#responsibility_structure/eo",
-     "label": "战略《词元云集总体战略（存根）》·责任结构/eo",
+     "label": "战略《词元云集总体战略（存根）》·战略责任结构/eo",
      "object_type": "Strategy"
     },
     {
-     "ref": "0fdc1d7e-0a3b-5ef7-acd5-8957bb76af7d@1#choices",
-     "label": "战略《词元云集总体战略（存根）》·战略选择",
+     "ref": "0fdc1d7e-0a3b-5ef7-acd5-8957bb76af7d@1#strategy_core/main-line",
+     "label": "战略《词元云集总体战略（存根）》·战略/main-line",
      "object_type": "Strategy"
     },
     {
-     "ref": "33da53b0-4eaf-5ac3-b09c-100ca6e63caf@1#identity",
-     "label": "公司《词元云集（TokenKing）》·身份",
+     "ref": "33da53b0-4eaf-5ac3-b09c-100ca6e63caf@1#identity/long-term-identity",
+     "label": "公司《词元云集（TokenKing）》·企业身份与长期意图/long-term-identity",
      "object_type": "Company"
     }
    ],
@@ -1766,9 +1817,9 @@
       7
      ],
      "missing": [
-      "9fcc28fd-254d-56e2-9738-bb0cc67f88f6@1#outcome",
-      "acf78a61-8704-5760-bd10-7a5b48b8f825@1#outcome",
-      "33da53b0-4eaf-5ac3-b09c-100ca6e63caf@1#identity"
+      "9fcc28fd-254d-56e2-9738-bb0cc67f88f6@1#target/outcome",
+      "acf78a61-8704-5760-bd10-7a5b48b8f825@1#target/outcome",
+      "33da53b0-4eaf-5ac3-b09c-100ca6e63caf@1#identity/long-term-identity"
      ],
      "max_chars": 12875,
      "kept": 94,
@@ -1791,33 +1842,33 @@
    "start": "b36b3a82-e9bc-5228-8154-1d90b9921b16@3",
    "expected": [
     {
-     "ref": "b36b3a82-e9bc-5228-8154-1d90b9921b16@3#definition",
-     "label": "Task《实验 E：五个场景、真实战略材料与标准答案》·定义",
+     "ref": "b36b3a82-e9bc-5228-8154-1d90b9921b16@3#definition/outcome",
+     "label": "Task《实验 E：五个场景、真实战略材料与标准答案》·任务定义/outcome",
      "object_type": "Task"
     },
     {
-     "ref": "b36b3a82-e9bc-5228-8154-1d90b9921b16@3#acceptance/ac-gold",
-     "label": "Task《实验 E：五个场景、真实战略材料与标准答案》·验收标准/ac-gold",
+     "ref": "b36b3a82-e9bc-5228-8154-1d90b9921b16@3#definition/ac-gold",
+     "label": "Task《实验 E：五个场景、真实战略材料与标准答案》·任务定义/ac-gold",
      "object_type": "Task"
     },
     {
      "ref": "b36b3a82-e9bc-5228-8154-1d90b9921b16@3#plan/scenarios",
-     "label": "Task《实验 E：五个场景、真实战略材料与标准答案》·计划/scenarios",
+     "label": "Task《实验 E：五个场景、真实战略材料与标准答案》·Activity 全景/scenarios",
      "object_type": "Task"
     },
     {
      "ref": "b36b3a82-e9bc-5228-8154-1d90b9921b16@3#plan/judge",
-     "label": "Task《实验 E：五个场景、真实战略材料与标准答案》·计划/judge",
+     "label": "Task《实验 E：五个场景、真实战略材料与标准答案》·Activity 全景/judge",
      "object_type": "Task"
     },
     {
      "ref": "b36b3a82-e9bc-5228-8154-1d90b9921b16@3#plan/review",
-     "label": "Task《实验 E：五个场景、真实战略材料与标准答案》·计划/review",
+     "label": "Task《实验 E：五个场景、真实战略材料与标准答案》·Activity 全景/review",
      "object_type": "Task"
     },
     {
      "ref": "b36b3a82-e9bc-5228-8154-1d90b9921b16@3#plan/material",
-     "label": "Task《实验 E：五个场景、真实战略材料与标准答案》·计划/material",
+     "label": "Task《实验 E：五个场景、真实战略材料与标准答案》·Activity 全景/material",
      "object_type": "Task"
     }
    ],
@@ -1881,22 +1932,22 @@
     },
     {
      "ref": "b36b3a82-e9bc-5228-8154-1d90b9921b16@3#plan/scenarios",
-     "label": "Task《实验 E：五个场景、真实战略材料与标准答案》·计划/scenarios",
+     "label": "Task《实验 E：五个场景、真实战略材料与标准答案》·Activity 全景/scenarios",
      "object_type": "Task"
     },
     {
      "ref": "b36b3a82-e9bc-5228-8154-1d90b9921b16@3#plan/judge",
-     "label": "Task《实验 E：五个场景、真实战略材料与标准答案》·计划/judge",
+     "label": "Task《实验 E：五个场景、真实战略材料与标准答案》·Activity 全景/judge",
      "object_type": "Task"
     },
     {
      "ref": "b36b3a82-e9bc-5228-8154-1d90b9921b16@3#plan/review",
-     "label": "Task《实验 E：五个场景、真实战略材料与标准答案》·计划/review",
+     "label": "Task《实验 E：五个场景、真实战略材料与标准答案》·Activity 全景/review",
      "object_type": "Task"
     },
     {
      "ref": "b36b3a82-e9bc-5228-8154-1d90b9921b16@3#plan/material",
-     "label": "Task《实验 E：五个场景、真实战略材料与标准答案》·计划/material",
+     "label": "Task《实验 E：五个场景、真实战略材料与标准答案》·Activity 全景/material",
      "object_type": "Task"
     }
    ],
@@ -2072,8 +2123,8 @@
    "start": "b36b3a82-e9bc-5228-8154-1d90b9921b16@3",
    "expected": [
     {
-     "ref": "b36b3a82-e9bc-5228-8154-1d90b9921b16@3#acceptance/ac-gold",
-     "label": "Task《实验 E：五个场景、真实战略材料与标准答案》·验收标准/ac-gold",
+     "ref": "b36b3a82-e9bc-5228-8154-1d90b9921b16@3#definition/ac-gold",
+     "label": "Task《实验 E：五个场景、真实战略材料与标准答案》·任务定义/ac-gold",
      "object_type": "Task"
     },
     {
@@ -2082,8 +2133,13 @@
      "object_type": null
     },
     {
-     "ref": "81fcaee2-0dd9-50f7-bb07-e908c6e9d202@1#constraint",
-     "label": "责任单元《E&O》·约束",
+     "ref": "81fcaee2-0dd9-50f7-bb07-e908c6e9d202@1#definition/method-frozen",
+     "label": "责任单元《E&O》·责任定义/method-frozen",
+     "object_type": "ResponsibilityUnit"
+    },
+    {
+     "ref": "81fcaee2-0dd9-50f7-bb07-e908c6e9d202@1#definition/no-graph-db",
+     "label": "责任单元《E&O》·责任定义/no-graph-db",
      "object_type": "ResponsibilityUnit"
     }
    ],
@@ -2091,8 +2147,8 @@
     "fixed": {
      "chars": 12852,
      "recall": [
-      3,
-      3
+      4,
+      4
      ],
      "missing": [],
      "used_chars": 9259,
@@ -2111,8 +2167,8 @@
     "rag": {
      "chars": 12827,
      "recall": [
-      3,
-      3
+      4,
+      4
      ],
      "missing": [],
      "max_chars": 12852,
@@ -2122,8 +2178,8 @@
     "full": {
      "chars": 32141,
      "recall": [
-      3,
-      3
+      4,
+      4
      ],
      "missing": []
     }
@@ -2145,25 +2201,25 @@
     "present": true
    },
    {
-    "ref": "293565b4-840b-52f2-8ee0-73c6f3f9519e@3#plan/rag-graph",
+    "ref": "293565b4-840b-52f2-8ee0-73c6f3f9519e@3#task_plan/graph-db",
     "latest_version": 3,
     "cross_revision": false,
     "present": true
    },
    {
-    "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@1#acceptance/ac-lock",
+    "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@1#target/ac-lock",
     "latest_version": 2,
     "cross_revision": true,
     "present": true
    },
    {
-    "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@1#acceptance/ac-tianshu",
+    "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@1#target/ac-tianshu",
     "latest_version": 2,
     "cross_revision": true,
     "present": true
    },
    {
-    "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@2#acceptance/ac-lock",
+    "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@2#target/ac-lock",
     "latest_version": 2,
     "cross_revision": false,
     "present": true

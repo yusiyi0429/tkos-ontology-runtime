@@ -7,7 +7,8 @@ RAG 组按字符二元组 BM25 取前若干块到字符预算为止。纯 Python
 切分（chunks）：每个分块只带一条自己的引用，也就是它「取到」的那一项：
 
 - 对象表头：业务对象与状态快照各一块，引用是对象形式 ``对象@版本``。写类型、标题、生命周期、责任人、正式内容、属性与
-  关系；快照写主体、时点、生成者与来源事件。标准答案的「谁负责」「现在怎样」应引对象本身，没有这一块按构造就答不了；
+  关系；快照写主体、时点、生成者与来源事件。标准答案的「谁负责」「现在怎样」应引对象本身，没有这一块按构造就答不了。
+  Mission 与责任单元的投影项（#79，读取时从下级对象投影、不存）只列下级对象的引用，内容在下级对象自己的分块里；
 - 块：一个块一块（空块写标准句），引用是块形式 ``对象@版本#块``，不含块里的组件；
 - 组件：一个组件一块，引用是组件形式 ``对象@版本#块/组件``；
 - 事件：每条一块，引用是 ``event:<事件 id>``。否则「发生了什么」这一问按构造就答不了。
@@ -182,7 +183,11 @@ def _object_header(view: dict[str, Any], names: dict[str, str]) -> tuple[str, st
                      f"（确认事件 `{records['confirmed_review']['ref']}`）")
     if records['open_issues']:
         lines.append('还没处置的问题：' + _codes([item['issue_ref'] for item in records['open_issues']]))
-    return label, '\n'.join(lines), {**business, 'blocks': []}
+    projection = business.get('projection')
+    if projection:
+        lines.append(f"投影项「{projection['display_name']}」（读取时从下级对象投影，内容在下级对象里）："
+                     + (_codes(projection['items']) or '无'))
+    return label, '\n'.join(lines), {**business, 'blocks': [], 'projection': None}
 
 
 def _snapshot_header(view: dict[str, Any], names: dict[str, str]) -> tuple[str, str, dict[str, Any]]:

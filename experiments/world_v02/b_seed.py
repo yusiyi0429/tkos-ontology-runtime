@@ -16,8 +16,10 @@ b_spec.json 供给；隔离库上由 smoke 用 owner SQL 供给）。凭证只�
 1. 共同播种：取原计划里这条 Mission 到 Company 的主干（lines 的 source.steps，正文与顺序照原计划），接着是 lines 自己的
    steps（同一计划格式，lines 0.2 才有：转写出的门与建 Task），再由 Mission Owner 把各 Task 指派给
    tasks[].responsible、把 Mission 的执行计划写成每个 Task 一条带责任人的计划条目；
-2. 划段（运行日志里 phase 为 plan）：每个 Task 的 segments 按线的写法落下——Task-only 线是 Task 计划块里带责任人的
-   计划条目，Task+Activity 线是 Task 下的 Activity 并指派。这一段走驱动器（b_drive），与执行脚本的记录同一格式。
+2. 划段（运行日志里 phase 为 plan）：每个 Task 的 segments 按线的写法落下——Task-only 线是 Task 计划块（Activity
+   全景）里的计划条目，带责任人与段的四个可选属性（预期产出、质量标准、执行主体、人 + Agent 分工，写了才带）；
+   Task+Activity 线是 Task 下的 Activity 并指派，instruction 块写段的执行事项、预期产出与质量标准。这一段走驱动器
+   （b_drive），与执行脚本的记录同一格式。
 
 smoke 在隔离库上新开两个随机 tenant 的 scope（按 b_spec.json 的角色名单）、经控制面 CLI 装 0.2、起真 API，两条线
 播种、读回核对、按脚本驱动到 Mission 关闭、取证，再算五项观测（b_observe），输出在 --output。
@@ -81,8 +83,10 @@ def derive(lines: dict, source: dict) -> dict:
 
     共同播种：原计划里 source.steps 列的步骤（按原计划的顺序与正文，after 只留列出的步骤），接着是 lines 的 steps（lines
     0.2：转写出的门与建 Task，同一计划格式，前置只能是主干与它前面的步骤），由 seed_eo.check_plan 核对前置与占位；
-    再加上每个 Task 的指派（Mission Owner 记）与 Mission 执行计划的修订（每个 Task 一条带责任人的计划条目）。
-    Task 可以不划段（转写时 Task 下没有计划条目也没有 Activity）。
+    再加上每个 Task 的指派（Mission Owner 记）与 Mission 执行计划（Task 全景）的修订（每个 Task 一条带责任人的计划
+    条目；Task 的工作结果与验收标准不另写进条目，读取时由 Mission 的投影项从 Task 的任务定义块给出，不存第二份）。
+    Task 可以不划段（转写时 Task 下没有计划条目也没有 Activity）。段的四个可选属性（b_drive.PLAN_ATTRIBUTES）写了就
+    得是非空文本。
     """
     if lines.get("format") not in (LINES_FORMAT, LINES_FORMAT_02):
         raise ValueError(f"lines 的 format 是 {LINES_FORMAT} 或 {LINES_FORMAT_02}")
@@ -125,8 +129,11 @@ def derive(lines: dict, source: dict) -> dict:
             if not all(isinstance(segment.get(field), str) and segment[field].strip()
                        for field in ("title", "text", "responsible")):
                 raise ValueError(f"段 {key} 要有 title、text 与 responsible")
+            given = [field for field in b_drive.PLAN_ATTRIBUTES if field in segment]
+            if not all(isinstance(segment[field], str) and segment[field].strip() for field in given):
+                raise ValueError(f"段 {key} 的 {'、'.join(b_drive.PLAN_ATTRIBUTES)} 可以不写，写了就是非空文本")
             segments[key] = {"task": task, "title": segment["title"], "text": segment["text"],
-                             "responsible": segment["responsible"]}
+                             "responsible": segment["responsible"], **{field: segment[field] for field in given}}
     shared = kept + extra
     for item in lines["tasks"]:
         shared.append({"key": f"assign_{item['task']}", "by": owner, "do": "assign", "after": [item["task"]],
@@ -257,8 +264,9 @@ def seed(line: Line, out: Path, line_name: str, lines_path: Path = SMOKE_LINES_F
 
 def check(line: Line, log: dict) -> list[str]:
     """播种之后（驱动之前）读回核对，返回问题清单：Mission 的生命周期是播种里它的门推出的那个（冒烟是已成立）、Owner
-    与 Task 的责任人照计划、Mission 执行计划每个 Task 一条带责任人的计划条目；Task-only 线每段是 Task 计划块里带责任人的计划条目、scope 里没有 Activity；
-    Task+Activity 线每段是 Task 下已指派的 Activity、Task 的计划块为空。"""
+    与 Task 的责任人照计划、Mission 执行计划每个 Task 一条带责任人的计划条目；Task-only 线每段是 Task 计划块里的计划
+    条目，责任人与四个可选属性（没写的读回为空）照段表、scope 里没有 Activity；Task+Activity 线每段是 Task 下已指派的
+    Activity，instruction 块的组件照段表（b_drive.instruction_components），Task 的计划块为空。"""
     who, problems = "ceo", []
     principal = {key: item["principal_id"] for key, item in line.ids["principals"].items()}
 
@@ -288,8 +296,11 @@ def check(line: Line, log: dict) -> list[str]:
         segments = {key: value for key, value in log["segments"].items() if value["task"] == task}
         if log["line"] == "task_only":
             for key, value in segments.items():
-                if key not in planned or planned[key]["attributes"].get("responsible") != principal[value["responsible"]]:
-                    problems.append(f"Task-only：{task} 的计划块里没有 {key} 带责任人 {value['responsible']} 的计划条目")
+                expected = {"responsible": principal[value["responsible"]],
+                            **{field: value.get(field) for field in b_drive.PLAN_ATTRIBUTES}}
+                if key not in planned or planned[key]["attributes"] != expected:
+                    problems.append(f"Task-only：{task} 的计划块里没有 {key} 带责任人 {value['responsible']} 与段表里"
+                                    "这几项属性的计划条目")
         else:
             if planned:
                 problems.append(f"Task+Activity：{task} 的计划块应为空")
@@ -304,6 +315,10 @@ def check(line: Line, log: dict) -> list[str]:
                         or responsible(view) != [principal[value["responsible"]]]
                         or view["records"]["lifecycle"]["status"] != "assigned"):
                     problems.append(f"Task+Activity：段 {key} 的 Activity 不在 {task} 下、责任人或状态不对")
+                written = [{"id": item["id"], "type": item["type"], "text": item["text"]}
+                           for item in blocks(view)["instruction"]["components"]]
+                if written != b_drive.instruction_components(value):
+                    problems.append(f"Task+Activity：段 {key} 的 Activity 的 instruction 组件与段表对不上")
     listed = line.get("/v1/world/objects?type=Activity", who)["items"]
     if log["line"] == "task_only" and listed:
         problems.append("Task-only 线里不该有 Activity")

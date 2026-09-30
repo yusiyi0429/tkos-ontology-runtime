@@ -570,6 +570,29 @@ def test_the_fixture_holds_no_credentials_or_names():
         assert log["pending"] == {} and log["seed_done"] and log["script_done"]
 
 
+def test_the_recorded_smoke_holds_the_segments_as_plan_items_with_their_attributes_on_task_only():
+    """取证读回的计划条目（#83 起记全部属性）：Task-only 线每段一条，带最后的责任人与段的可选属性；Task+Activity 线
+    Task 的计划块是空的，Mission 的执行计划两条线都只带责任人。"""
+    task_only, task_activity = recorded()
+    role = {principal_id: item["key"] for principal_id, item in task_only["principals"].items()}
+
+    def items(log, object_type):
+        found = {}
+        for item in log["evidence"]["objects"].values():
+            if item["type"] == object_type:
+                found.update({key: {field: role.get(value, value) for field, value in attributes.items()}
+                              for key, attributes in item["plan_items"].items()})
+        return found
+    assert items(task_only, "Task") == {
+        "integration": {"responsible": "eo-ic", "quality_standard": "按接口清单逐项跑通"},
+        "delegation_setup": {"responsible": "eo-owner", "executor": "CEO、E&O DRI 与 Mission Owner"},
+        "weekly_snapshot": {"responsible": "exec-agent", "expected_output": "试用周每张任务卡的每周快照"},
+        "issue_flow": {"responsible": "eo-ic"}, "acceptance_run": {"responsible": "eo-owner"}}
+    assert items(task_activity, "Task") == {}
+    assert {key: set(value) for key, value in items(task_only, "Mission").items()} == {
+        task: {"responsible"} for task in DERIVED["tasks"]}
+
+
 def test_the_recorded_smoke_gives_the_documented_observations():
     task_only, task_activity = recorded()
     result = b_observe.observe(task_only, task_activity)

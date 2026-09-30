@@ -334,4 +334,12 @@ rm -rf /tmp/tkos-secrets
 
 2026-09-30 分支 `world/0.2-pact`（#81，按 Content Pact 替换块与组件，已并入 `world/0.2`，10 月 8 日切换）在本机隔离验收栈上预演，实例没有重建：`acceptance/method_v05/database.py` 新建一个库并升级到本分支源码（含 #79 重钉的 0039），经 owner SQL 与控制面 CLI 供给实验 scope（`spec.eo.example.json`）与冒烟 scope（`spec.example.json`，tenant 以 `-smoke` 结尾），起真 API。十月起点按第 11 节五段播完（CEO 两段与 Owner 一段代录、operator eo-dri）：17 步全部提交，代录 8 步，代录说明 3 条，再跑一段不做事；读回 9 个对象的块与组件与计划一致，两个长期目标已确认，周期目标与三个 Mission 是草稿，Owner 照计划，单元带 `capability:05`。实验 scope 的 `--probe-only` 10 项全过；冒烟 scope 完整冒烟 94 项、第二遍带 `--mcp-cli` 92 项全过；`examples.py` 准备到第 11 步与收尾 129 项全过，重生成 `docs/world-v02-tianshu-examples.md`。
 
-未验证：并发写下的外部引用唯一性；大数据量下列对象的性能；天枢凭这三条委托实际代记；Content Pact 新块在主机实例上的播种与冒烟（10 月 8 日切换时按第 9.5 节重建后做）。
+2026-09-30 晚，按 v0.6.0（tkos.world/0.2 锁版）重建，提前于原定的 10 月 8 日。这次不走第 1 节的 `build_images.py`，用 GitHub Release 的 amd64 离线包（`tkos-ontology-runtime-v0.6.0-linux-amd64.tar.gz`，包内源码提交 a38beae，`verify_bundle.py --load` 通过），做法同 `deploy/world-lab/README.md` 第 1 节与 8.5 节：包解在 `$LAB`，源码解到 `releases/v0.6.0`，五个镜像标签都是 `v0.6.0-amd64`（含三个基础镜像，`.env` 里五行一起改，改前备份 `.env.bak-<日期>`）。其余照第 9.5 节：旧目录 `down -v`、删 `out`、`out-smoke`，`private/` 带属主复制过去，`start-offline.sh`，供给沿用主机上的 `spec.json`（真名）与 `spec-smoke.json`。踩到一个坑：`sudo mkdir` 建出的 `private/` 属 root、权限 700，部署用户进不去，`start-offline.sh` 报「missing private secret file」，要 `sudo chown <部署用户> private/`，文件本身仍是 `10001:0`、440。重建后：
+
+- 实验 scope 的 `--probe-only` 本机口与域名都过（10 项）；冒烟 scope 的完整冒烟本机口通过、域名 83 项；本机检出对域名 `--mcp-cli` 92 项全过。
+- 十月起点按五段播完（第四次代录，用户同意）：17 步全部提交，代录 8 步，代录说明 3 条；再跑一遍不做事。用天枢凭证读回 9 个对象（Company、Strategy、责任单元、两个长期目标、十月周期目标、三个 Mission）：长期目标已确认，Strategy、周期目标与 Mission 是草稿，责任单元带 `capability:05`，按外部引用能查回。Content Pact 新块与组件因此在主机实例上完成了播种与冒烟。
+- `examples.py` 在冒烟 scope 上经域名跑完，准备到第 11 步与收尾全部通过（129 项），重新生成 `docs/world-v02-tianshu-examples.md`。
+- 归档：tkos-secrets c8df814。**播种状态文件 `seed-eo-state.json` 没有存档**（推送前误删了本机克隆）：库里的数据完整，但不要用 `seed_eo.py` 重跑这个 scope（会多记代录说明）；下次重建后播种，每段跑完就把状态文件提交进 tkos-secrets。
+- world-lab 全程 200；主机上旧的 `world-02-24e6202-amd64` 镜像与 `releases/world-02-24e6202` 尚未删除。
+
+未验证：并发写下的外部引用唯一性；大数据量下列对象的性能；天枢凭这三条委托实际代记；v0.6.0 之后再换版本是否能不重建（0039 已冻结，原地升级路径没有演练过）。

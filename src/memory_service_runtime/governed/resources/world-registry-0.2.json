@@ -4436,7 +4436,7 @@
    "as_of"
   ]
  },
- "status": "draft",
+ "status": "frozen",
  "supersedes_required_when": {
   "category": [
    "correction"

@@ -1,6 +1,6 @@
 # TKOS Runtime 领域术语
 
-本词汇表定义 Runtime 及其看板使用的业务概念。分三组：所有协议共用的通用术语；tkos.method（0.4、0.5，已冻结）专有术语；tkos.world 专有术语。同一个词在两组里含义不同时，以各自组内的定义为准。tkos.world 组的词按 0.1 定义；0.2 的草案（`docs/contracts/tkos-world-0.2.md`）改动或新增的含义在词条里标「0.2」，锁版前可能再改。
+本词汇表定义 Runtime 及其看板使用的业务概念。分三组：所有协议共用的通用术语；tkos.method（0.4、0.5，已冻结）专有术语；tkos.world 专有术语。同一个词在两组里含义不同时，以各自组内的定义为准。tkos.world 组的词按 0.1 定义；0.2（`docs/contracts/tkos-world-0.2.md`，2026-09-30 锁版）改动或新增的含义在词条里标「0.2」。
 
 ## Language
 

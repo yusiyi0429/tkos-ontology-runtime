@@ -1,10 +1,17 @@
 -- 0039: tkos.world/0.2 beside the frozen tkos.world/0.1 (ticket #49).
 --
--- Rewritable until the 0.2 lock (ADR-0009): it runs only on databases that are
--- rebuilt from scratch (the isolated acceptance stack and new experiment
--- instances), never on world-lab, production or the Clark-linked stack.  Each
--- change to the 0.2 contract or registry re-pins this file together with
--- world_v02_profile and docs/contracts/world-profile-0.2.json.
+-- FROZEN at the tkos.world/0.2 lock on 2026-09-30 (ticket #86, ADR-0009); it
+-- must not be rewritten from now on.  Any later change to the 0.2 contract or
+-- registry goes into a new migration that re-pins the binding gate, with
+-- world_v02_profile and docs/contracts/world-profile-0.2.json under new
+-- revisions.
+--
+-- Before the lock it was rewritable (ADR-0009) and ran only on databases rebuilt
+-- from scratch (the isolated acceptance stack and new experiment instances);
+-- each change to the 0.2 contract or registry re-pinned this file together with
+-- world_v02_profile and docs/contracts/world-profile-0.2.json.  It never ran on
+-- world-lab, production or the Clark-linked stack; upgrading world-lab to 0.2
+-- is a separate step to be approved (contract decision 17).
 --
 -- The event log grows once to every 0.2 kind and field: contract_version tells
 -- 0.1 rows from 0.2 rows (0.1 code does not name the column and keeps writing
@@ -195,10 +202,10 @@ BEGIN
         IF (prow.schema_version = 'tkos.world-profile/0.2'
             AND prow.content->'action_contract_ref'->>'contract_id' = 'tkos.world'
             AND prow.content->'action_contract_ref'->>'revision' = '0.2'
-            AND prow.content->'action_contract_ref'->>'content_sha256' = '99e54c1ac133f91507ba3035118ad9ed426cf589c5bc4b44d0066a392fb3c079'
+            AND prow.content->'action_contract_ref'->>'content_sha256' = 'aac8b40d6f3310d55667dfc41f3225fb95f6649495c6c919f3a8ef694e7dc6ef'
             AND prow.content->'world_registry_ref'->>'registry_id' = 'tkos.world-registry'
             AND prow.content->'world_registry_ref'->>'revision' = '0.2.0'
-            AND prow.content->'world_registry_ref'->>'content_sha256' = 'dd3f81b8691308fceafe3dd2170b0a8937e73ff2fbadbd27f9eb79657d825873') IS NOT TRUE THEN
+            AND prow.content->'world_registry_ref'->>'content_sha256' = '1d5731ce51596d932be1e4fdff8a6c62c9f5bd64b48f11aa7fc36081ac729d1d') IS NOT TRUE THEN
             RAISE EXCEPTION 'world 0.2 requires its exact business-world contract and registry' USING ERRCODE='23514';
         END IF;
     ELSE

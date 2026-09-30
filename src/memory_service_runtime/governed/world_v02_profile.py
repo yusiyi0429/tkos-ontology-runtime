@@ -1,9 +1,9 @@
 """tkos.world/0.2 的 profile 身份，与 world 0.1 和所有 Method profile 无关。
 
 world 0.2 profile 钉定契约正文（docs/contracts/tkos-world-0.2.md）与 world 0.2 登记
-（docs/contracts/world-registry-0.2.json）的原始字节。锁版前两者可以改（ADR-0009）：
-修订号保持 0.2.0，每改一次就重钉这里、迁移 0039 与 docs/contracts/world-profile-0.2.json，
-实验库从头重建。
+（docs/contracts/world-registry-0.2.json）的原始字节。2026-09-30 锁版（ADR-0009）：修订 0.2.0
+与迁移 0039 一起冻结。之后契约或登记的任何改动都新增迁移、重钉这里与
+docs/contracts/world-profile-0.2.json，profile 与登记各出新修订号，不再改写 0039。
 """
 from typing import Literal
 from pydantic import BaseModel, ConfigDict, StrictStr
@@ -15,11 +15,11 @@ CONTRACT_VERSION = "tkos.world/0.2"
 SCHEMA_VERSION = "tkos.world-profile/0.2"
 PROFILE_ID = "urn:tkos:world"
 PROFILE_REVISION = "0.2.0"
-DISPLAY_NAME = "World 0.2 business world model draft 2026-09-28"
-CONTRACT_SHA256 = "99e54c1ac133f91507ba3035118ad9ed426cf589c5bc4b44d0066a392fb3c079"
+DISPLAY_NAME = "World 0.2 business world model 2026-09-30"
+CONTRACT_SHA256 = "aac8b40d6f3310d55667dfc41f3225fb95f6649495c6c919f3a8ef694e7dc6ef"
 REGISTRY_ID = "tkos.world-registry"
 REGISTRY_REVISION = "0.2.0"
-REGISTRY_SHA256 = "dd3f81b8691308fceafe3dd2170b0a8937e73ff2fbadbd27f9eb79657d825873"
+REGISTRY_SHA256 = "1d5731ce51596d932be1e4fdff8a6c62c9f5bd64b48f11aa7fc36081ac729d1d"
 
 
 class ContractRef(BaseModel):

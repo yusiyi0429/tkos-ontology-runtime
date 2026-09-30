@@ -78,6 +78,7 @@
 | f. A1 独立矩阵（无库部分） | 无 | 35＋34＋12 | 全过 | 0 | 完整 runner 未跑 | 旧源序列化 golden 35/35、验收器自检 34/34、CLI 适配自检 12/12；完整 runner 未跑，原因见下 |
 | f. A2、A3 独立矩阵 | — | — | — | — | 未跑 | 原因见下 |
 | g. 看板（`npm test`、`npm run typecheck`） | 无 | 214（26 个文件） | 214 | 0 | 0 | 类型检查退出码 0 |
+| h. 最终提交的 0.2 独立矩阵（新库，`--commit 46fb876`，合入 #84 之后） | `tkos_a1_method_e6e1d33b9b2c4075` | 871 | 871 | 0 | 0 | 2026-09-30 分支 `world/0.2-final`；25 个场景全跑完；矩阵 445 格：覆盖 440、不适用 5、未覆盖 0；源码运行中不变，`frozen_files` 与上面七个钉定哈希逐个相同；`world_v02_accepted: true`。只重跑了这一项，a、b、d–g 未在 46fb876 上重跑 |
 
 **默认库没有重建。** 隔离栈的共享库 `tkos_runtime_acceptance` 仍记着锁版前的 0039（SHA256 前缀 `b2b4d5e3`，锁版的是 `5484d4be`），`infra.py migrate` 与 `up` 在它上面会报「已应用的迁移文件被改动过」。`infra.py` 只有 up/start/stop/status/migrate/attach/run，没有删库重建的办法（`attach` 只给 CI 的一次性 PostgreSQL 用），按要求没有手工删库。b 改在同一隔离栈上用 `acceptance/method_v05/database.py` 新建的库跑：授权取自发布规则，与 `infra.py` 的授权同源；在 `infra.py run` 的子进程里把 `DATABASE_URL` 换成新库（`--migration` 那一轮换成新库的所有者），`test_narrative_legacy` 用 `TKOS_LEGACY_ACCEPTANCE_DATABASE` 指到这个库。默认库要不要重建、怎么重建，留给人定。
 

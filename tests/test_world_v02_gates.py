@@ -164,11 +164,12 @@ def _store(object_type, written, *, version=1, ledger=None, server=None):
 
 
 def _mission():
-    """版本 1 的 Mission：打法、验收两条验收条件、执行计划两条计划条目、一条外部引用，已指派 Owner。"""
+    """版本 1 的 Mission：Mission 计划、战役定义两条成功 / 验收标准、Task 全景两条计划条目、一条外部引用，已指派
+    Mission DRI。"""
     written = models.validate_input("Mission", {
         "title": "试点", "goal_ref": f"{OID}@1", "external_refs": [{"system": "tianshu", "id": "m-1"}],
-        "blocks": {"play": {"text": "两场试点。"},
-                   "acceptance": {"components": [{"id": "ac-1", "type": "acceptance_criterion", "text": "客户签字"},
+        "blocks": {"mission_plan": {"text": "两场试点。"},
+                   "definition": {"components": [{"id": "ac-1", "type": "acceptance_criterion", "text": "客户签字"},
                                                  {"id": "ac-2", "type": "acceptance_criterion", "text": "上线"}]},
                    "execution_plan": {"components": [{"id": "p-1", "type": "plan_item", "text": "搭环境"},
                                                       {"id": "p-2", "type": "plan_item", "text": "培训"}]}}})
@@ -183,9 +184,9 @@ def _revised(stored, patch, version):
 
 
 @pytest.mark.parametrize("object_type, patch", [
-    ("Mission", {"title": "x", "goal_ref": f"{OID}@2", "blocks": {"play": {"text": "x"}, "acceptance": None}}),
-    ("PeriodGoal", {"period": "2026-11", "blocks": {"realization_logic": {"text": "x"}}}),
-    ("LongTermGoal", {"horizon": "2029", "blocks": {"measures": None}}),
+    ("Mission", {"title": "x", "goal_ref": f"{OID}@2", "blocks": {"mission_plan": {"text": "x"}, "definition": None}}),
+    ("PeriodGoal", {"period": "2026-11", "blocks": {"target": {"text": "x"}}}),
+    ("LongTermGoal", {"horizon": "2029", "blocks": {"target": None}}),
     ("Mission", {}),
     ("PeriodGoal", {"review_ref": f"{OID}@1"}),                       # 依据复盘随票 #60 开放，是建对象时写的关系
 ])
@@ -228,9 +229,9 @@ def test_new_components_of_a_candidate_get_their_ids_before_it_is_kept():
         assert models.with_component_ids(shapeless) == shapeless  # 形状留给合并去拒绝
 
 
-CANDIDATE_MISSION = {"title": "试点（改打法）", "blocks": {
-    "play": {"text": "一场试点加一次复盘。"},
-    "acceptance": {"components": [{"id": "ac-3", "type": "acceptance_criterion", "text": "复盘通过"},
+CANDIDATE_MISSION = {"title": "试点（改计划）", "blocks": {
+    "mission_plan": {"text": "一场试点加一次复盘。"},
+    "definition": {"components": [{"id": "ac-3", "type": "acceptance_criterion", "text": "复盘通过"},
                                   {"id": "ac-2", "removed": True}]}}}
 
 
@@ -240,9 +241,9 @@ def test_writing_back_takes_formal_content_from_the_candidate_and_activity_conte
     later = _revised(base, {"external_refs": [{"system": "tianshu", "id": "m-2"}], "blocks": {"execution_plan": {
         "components": [{"id": "p-3", "type": "plan_item", "text": "联调"}, {"id": "p-1", "removed": True}]}}}, 2)
     written = models.written_back("Mission", base, CANDIDATE_MISSION, later)
-    assert written["title"] == "试点（改打法）" and written["goal_ref"] == f"{OID}@1"
-    assert written["blocks"]["play"]["text"] == "一场试点加一次复盘。"
-    assert [c["id"] for c in written["blocks"]["acceptance"]["components"]] == ["ac-1", "ac-3"]
+    assert written["title"] == "试点（改计划）" and written["goal_ref"] == f"{OID}@1"
+    assert written["blocks"]["mission_plan"]["text"] == "一场试点加一次复盘。"
+    assert [c["id"] for c in written["blocks"]["definition"]["components"]] == ["ac-1", "ac-3"]
     assert [c["id"] for c in written["blocks"]["execution_plan"]["components"]] == ["p-2", "p-3"]
     assert written["external_refs"] == [{"system": "tianshu", "id": "m-2", "url": None}]
     assert "responsible" not in written and "component_ledger" not in written
@@ -262,7 +263,7 @@ def test_writing_back_on_the_revision_the_candidate_was_made_on_is_the_merged_re
 def test_writing_the_same_candidate_back_again_gives_the_same_formal_content():
     """撤回让内容成为正式的确认后再确认，候选原样写回：组件是同一批 id，删掉的仍是删掉。"""
     base = _mission()
-    candidate = models.with_component_ids({"blocks": {"acceptance": {"components": [
+    candidate = models.with_component_ids({"blocks": {"definition": {"components": [
         {"type": "acceptance_criterion", "text": "复盘通过"}, {"id": "ac-2", "removed": True}]}}})
     first = _store("Mission", models.written_back("Mission", base, candidate, base), version=2,
                    ledger=base["component_ledger"], server=models.server_fields("Mission", base))
@@ -274,12 +275,12 @@ def test_writing_the_same_candidate_back_again_gives_the_same_formal_content():
     # 候选新加的组件 id 在它提交之后被执行计划用上了：组件 id 在对象内唯一、不跨块
     ({"blocks": {"execution_plan": {"components": [{"id": "ac-3", "type": "plan_item", "text": "x"}]}}}, "move"),
     # 候选改写的组件在它提交之后被删掉了（退回、直接修订、再撤回那条退回的路上）：删掉的 id 不再复用
-    ({"blocks": {"acceptance": {"components": [{"id": "ac-1", "removed": True}]}}}, "reused"),
+    ({"blocks": {"definition": {"components": [{"id": "ac-1", "removed": True}]}}}, "reused"),
 ])
 def test_writing_back_a_candidate_that_no_longer_fits_the_ledger_is_refused(since, says):
     base = _mission()
     later = _revised(base, since, 2)
-    candidate = {"blocks": {"acceptance": {"components": [
+    candidate = {"blocks": {"definition": {"components": [
         {"id": "ac-1", "type": "acceptance_criterion", "text": "客户书面签字"},
         {"id": "ac-3", "type": "acceptance_criterion", "text": "复盘通过"}]}}}
     with pytest.raises(ValueError) as error:

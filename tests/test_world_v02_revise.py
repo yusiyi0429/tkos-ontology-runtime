@@ -32,16 +32,16 @@ def _store(object_type, written, *, version=1, ledger=None, server=None):
 
 
 def _mission(**blocks):
-    """版本 1 的 Mission：验收块两条验收条件，执行计划两条计划条目，打法块只有文字。"""
+    """版本 1 的 Mission：战役定义块两条成功 / 验收标准，Task 全景两条计划条目，Mission 计划块只有文字。"""
     written = models.validate_input("Mission", {
         "title": "试点", "goal_ref": f"{OID}@1", "external_refs": [{"system": "tianshu", "id": "m-1"}],
-        "blocks": {"acceptance": {"text": "验收", "refs": [f"event:{EID}"], "components": [
-                       {"id": "ac-1", "type": "acceptance_criterion", "text": "客户签字", "refs": [f"{OID}@1#acceptance/pg-1"]},
+        "blocks": {"definition": {"text": "验收", "refs": [f"event:{EID}"], "components": [
+                       {"id": "ac-1", "type": "acceptance_criterion", "text": "客户签字", "refs": [f"{OID}@1#target/pg-1"]},
                        {"id": "ac-2", "type": "acceptance_criterion", "text": "上线"}]},
                    "execution_plan": {"components": [{"id": "p-1", "type": "plan_item", "text": "搭环境"},
                                                       {"id": "p-2", "type": "plan_item", "text": "培训",
                                                        "scope": f"{OID}@1"}]},
-                   "play": {"text": "两场试点。"}, **blocks}})
+                   "mission_plan": {"text": "两场试点。"}, **blocks}})
     return _store("Mission", written, server={"responsible": PID, "core_battle": False,
                                               "depends_on": [_pin(f"{MID}@1")], "contributes_to": []})
 
@@ -60,9 +60,9 @@ def test_the_written_form_turns_pins_back_into_text_and_drops_what_the_service_w
     written = models.written_form("Mission", stored)
     assert set(written) == {"title", "external_refs", "goal_ref", "blocks"}
     assert written["goal_ref"] == f"{OID}@1"
-    acceptance = written["blocks"]["acceptance"]
+    acceptance = written["blocks"]["definition"]
     assert acceptance["refs"] == [f"event:{EID}"]
-    assert acceptance["components"][0]["refs"] == [f"{OID}@1#acceptance/pg-1"]
+    assert acceptance["components"][0]["refs"] == [f"{OID}@1#target/pg-1"]
     assert written["blocks"]["execution_plan"]["components"][1]["scope"] == f"{OID}@1"
     assert models.validate_input("Mission", written) == written
 
@@ -80,12 +80,12 @@ def test_only_the_given_fields_and_blocks_change():
 
 
 def test_text_refs_and_artifacts_of_a_block_are_replaced_whole_and_components_are_kept():
-    merged = _merge(_mission(), {"blocks": {"acceptance": {"text": "新验收", "artifacts": ["https://example.test/a"]}}})
-    acceptance = merged["blocks"]["acceptance"]
+    merged = _merge(_mission(), {"blocks": {"definition": {"text": "新验收", "artifacts": ["https://example.test/a"]}}})
+    acceptance = merged["blocks"]["definition"]
     assert acceptance["text"] == "新验收" and acceptance["artifacts"] == ["https://example.test/a"]
-    assert acceptance["refs"] == [f"event:{EID}"] and _ids(merged, "acceptance") == ["ac-1", "ac-2"]
-    merged = _merge(_mission(), {"blocks": {"acceptance": {"refs": []}}})
-    assert merged["blocks"]["acceptance"]["refs"] == [] and merged["blocks"]["acceptance"]["text"] == "验收"
+    assert acceptance["refs"] == [f"event:{EID}"] and _ids(merged, "definition") == ["ac-1", "ac-2"]
+    merged = _merge(_mission(), {"blocks": {"definition": {"refs": []}}})
+    assert merged["blocks"]["definition"]["refs"] == [] and merged["blocks"]["definition"]["text"] == "验收"
 
 
 def test_components_merge_by_id_rewrite_in_place_remove_and_append_new_ones():
@@ -104,7 +104,8 @@ def test_a_rewritten_component_is_replaced_whole():
         {"id": "p-2", "type": "plan_item", "text": "培训（改）"}]}}})
     assert merged["blocks"]["execution_plan"]["components"][1] == {
         "id": "p-2", "type": "plan_item", "scope": None, "text": "培训（改）", "refs": [], "artifacts": [],
-        "attributes": {"responsible": None}}
+        "attributes": {"responsible": None, "expected_output": None, "quality_standard": None, "executor": None,
+                       "division": None}}
 
 
 def test_a_null_block_clears_it_and_a_block_merged_to_nothing_is_stored_as_null():
@@ -115,8 +116,10 @@ def test_a_null_block_clears_it_and_a_block_merged_to_nothing_is_stored_as_null(
 
 
 def test_a_block_that_was_empty_takes_new_content():
-    merged = _merge(_mission(), {"blocks": {"definition": {"components": []}, "constraint": {"text": "预算 10 万"}}})
-    assert merged["blocks"]["definition"] is None and merged["blocks"]["constraint"]["text"] == "预算 10 万"
+    empty = _mission(mission_plan=None)
+    assert _merge(empty, {"blocks": {"mission_plan": {"components": []}}})["blocks"]["mission_plan"] is None
+    merged = _merge(empty, {"blocks": {"mission_plan": {"text": "预算 10 万"}}})
+    assert merged["blocks"]["mission_plan"]["text"] == "预算 10 万"
 
 
 def _removed(stored, block, cid, version=2):
@@ -141,17 +144,17 @@ def test_the_ledger_records_the_removal_version_and_new_components():
     ({"blocks": {"execution_plan": {"components": [{"id": "p-2", "type": "plan_item", "text": "又来"}]}}},
      "reused"),
     # 组件不跨块移动：另一块里还在的 id 不能出现在这一块
-    ({"blocks": {"acceptance": {"components": [{"id": "p-1", "type": "acceptance_criterion", "text": "x"}]}}},
+    ({"blocks": {"definition": {"components": [{"id": "p-1", "type": "acceptance_criterion", "text": "x"}]}}},
      "move"),
     # 删了再在另一块用同一个 id 加也不行
     ({"blocks": {"execution_plan": {"components": [{"id": "p-1", "removed": True}]},
-                 "acceptance": {"components": [{"id": "p-1", "type": "acceptance_criterion", "text": "x"}]}}},
+                 "definition": {"components": [{"id": "p-1", "type": "acceptance_criterion", "text": "x"}]}}},
      "move"),
     # 同一个 id 不换类型
-    ({"blocks": {"acceptance": {"components": [{"id": "ac-1", "type": "outcome", "text": "x"}]}}}, None),
+    ({"blocks": {"definition": {"components": [{"id": "ac-1", "type": "outcome", "text": "x"}]}}}, None),
     # 删除只删这一块里现存的组件
     ({"blocks": {"execution_plan": {"components": [{"id": "no-such", "removed": True}]}}}, "present"),
-    ({"blocks": {"acceptance": {"components": [{"id": "p-1", "removed": True}]}}}, "present"),
+    ({"blocks": {"definition": {"components": [{"id": "p-1", "removed": True}]}}}, "present"),
     ({"blocks": {"execution_plan": {"components": [{"id": "p-2", "removed": True}]}}}, "present"),
     # 删除标记就是 {"id": …, "removed": true}
     ({"blocks": {"execution_plan": {"components": [{"id": "p-1", "removed": True, "text": "x"}]}}}, None),
@@ -164,7 +167,8 @@ def test_the_ledger_records_the_removal_version_and_new_components():
     ({"blocks": {"execution_plan": "x"}}, None),
     ({"blocks": {"execution_plan": {"components": {}}}}, None),
     ({"blocks": {"no_such_block": {"text": "x"}}}, None),
-    ({"blocks": {"play": {"text": "x", "owner": "y"}}}, None),
+    ({"blocks": {"mission_plan": {"text": "x", "owner": "y"}}}, None),
+    ({"blocks": {"acceptance": {"text": "x"}}}, None),                  # Content Pact 替换后没有验收块
     # 只由服务写的字段不能经修订写
     ({"responsible": PID}, None), ({"core_battle": True}, None), ({"depends_on": []}, None),
     ({"component_ledger": []}, None),
@@ -186,11 +190,11 @@ def test_a_revision_patch_is_an_object():
     ("Mission", {"blocks": {"execution_plan": None}}, False),
     ("Mission", {"external_refs": []}, False),
     ("Mission", {"external_refs": [], "blocks": {"execution_plan": {"text": "x"}}}, False),
-    ("Mission", {"blocks": {"play": {"text": "x"}}}, True),
+    ("Mission", {"blocks": {"mission_plan": {"text": "x"}}}, True),
     ("Mission", {"title": "x"}, True),
     ("Mission", {"goal_ref": f"{OID}@2"}, True),         # 建对象时写的关系按正式算
     ("Task", {"blocks": {"plan": {"text": "x"}}}, False),
-    ("Task", {"blocks": {"plan": {"text": "x"}, "constraint": None}}, True),
+    ("Task", {"blocks": {"plan": {"text": "x"}, "task_plan": None}}, True),
     ("Activity", {"external_refs": []}, False),
     ("Activity", {"blocks": {"instruction": {"text": "x"}}}, True),
     ("Company", {}, False),
@@ -221,7 +225,7 @@ def _relate(**params):
 def test_a_relation_request_replaces_one_list_of_distinct_objects():
     assert _relate().refs == [f"{OID}@1"] and _relate(refs=[]).refs == []
     assert _relate(field="contributes_to").field == "contributes_to"
-    for bad in ({"field": "goal_ref"}, {"refs": [f"{OID}@1", f"{OID}@2"]}, {"refs": [f"{OID}@1#play"]},
+    for bad in ({"field": "goal_ref"}, {"refs": [f"{OID}@1", f"{OID}@2"]}, {"refs": [f"{OID}@1#mission_plan"]},
                 {"refs": [f"event:{EID}"]}, {"declaration": {"scene": f"{OID}@1"}}):
         with pytest.raises(ValueError):
             _relate(**bad)

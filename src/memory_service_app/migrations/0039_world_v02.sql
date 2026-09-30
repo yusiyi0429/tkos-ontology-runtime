@@ -195,10 +195,10 @@ BEGIN
         IF (prow.schema_version = 'tkos.world-profile/0.2'
             AND prow.content->'action_contract_ref'->>'contract_id' = 'tkos.world'
             AND prow.content->'action_contract_ref'->>'revision' = '0.2'
-            AND prow.content->'action_contract_ref'->>'content_sha256' = '9e6d1c6ce465df692dcd017074ac506e152f574f8765ada86f6c52607aae022a'
+            AND prow.content->'action_contract_ref'->>'content_sha256' = 'c2e986987fe812fa13eacfd881d3198f2a7d2682520641d0edd938fdfae7b9f4'
             AND prow.content->'world_registry_ref'->>'registry_id' = 'tkos.world-registry'
             AND prow.content->'world_registry_ref'->>'revision' = '0.2.0'
-            AND prow.content->'world_registry_ref'->>'content_sha256' = '2fc36f4f2d0631aa60a6f50afa30fb9a0e11ea152e2c97607a25c83cfccbdf40') IS NOT TRUE THEN
+            AND prow.content->'world_registry_ref'->>'content_sha256' = 'd1b332e17b54b9e717cfb4fe831c3ffc939040ebc5d6d5d84a0e416ac407e074') IS NOT TRUE THEN
             RAISE EXCEPTION 'world 0.2 requires its exact business-world contract and registry' USING ERRCODE='23514';
         END IF;
     ELSE

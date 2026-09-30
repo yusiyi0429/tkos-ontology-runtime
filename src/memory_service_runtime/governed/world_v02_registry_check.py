@@ -4,6 +4,8 @@
 
 - 动作：事件种类在词表里、类别与种类一致、结果是种类允许的；词表里每个种类都有动作产生；目标类型存在。
 - 块与组件：块允许的组件类型已登记，每个组件类型至少有一个块允许；payload 的主体与类型的 payload 对得上。
+- 组件的取上下文角色（``context_role``，映射表第 1 节第 4 条）：取值是登记的角色之一或 null；带角色的类型至少被一个
+  业务对象的块允许（取上下文按角色读的是对象的块，只在快照里出现的角色读不到）。
 - 状态表（各类型与 Issue）：状态已声明且都可达；转移的动作存在、以该类型为目标；守卫、记录者（``by``）、
   处置已定义；结果是动作允许的；终态只经重开离开；没有重复转移。
 - 一轮与正式段：有门类型都有 ``formal_on`` 与 ``rounds``，其中的动作与状态（可开轮的、进入即作废的）存在；每种处置都有转移。
@@ -91,6 +93,14 @@ def check(registry: dict[str, Any]) -> list[str]:
                     errors.append(f"{owner}.{block['id']}: component type {component} is not registered")
     for component in sorted(component_types - allowed):
         errors.append(f"component type {component} is allowed in no block")
+    roles = {item["id"] for item in registry["components"]["context_roles"]}
+    in_objects = {component for item in registry["objects"] for block in item["blocks"] for component in block["components"]}
+    for item in registry["components"]["types"]:
+        role = item.get("context_role")
+        if role is not None and role not in roles:
+            errors.append(f"component type {item['id']}: context role {role} is not registered")
+        if role is not None and item["id"] not in in_objects:
+            errors.append(f"component type {item['id']}: has context role {role} but no object block allows it")
     for item in registry["objects"]:
         payload = item["state_payload"]
         if payload is not None and item["type"] not in payloads.get(payload, {}).get("subjects", []):

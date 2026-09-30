@@ -205,5 +205,12 @@ def test_a_snapshot_view_gives_the_shell_payload_blocks_and_marks_it_unconfirmed
     assert view["source_event_refs"] == [{"event_id": EID, "ref": f"event:{EID}"}]
     assert view["generator"]["principal_id"] == PID and view["ref"] == "s@1" and view["title"] == "第 40 周"
     blocks = {block["id"]: block for block in view["blocks"]}
-    assert list(blocks) == ["progress", "issues", "materials"] and blocks["progress"]["text"] == "当前没有进展与偏差"
+    assert list(blocks) == ["current_state", "progress", "key_risks", "issues", "materials"]
+    assert blocks["progress"]["text"] == "当前没有进展" and blocks["key_risks"]["text"] == "当前没有关键风险"
     assert blocks["issues"]["components"][0]["ref"] == "s@1#issues/iss-7"
+    # 快照的块都可以缺省：登记后加的块在此前存的载荷里没有键，也读作空块，给标准句（#79，映射表第 4 节）。
+    older = {**stored, "blocks": {key: value for key, value in stored["blocks"].items() if key != "key_risks"}}
+    view = readers.snapshot_view({"object_id": "s", "domain_id": "d"},
+                                 {"revision_id": RID, "object_version": 1, "payload": older}, generator=view["generator"])
+    assert [(block["id"], block["empty"], block["text"]) for block in view["blocks"] if block["id"] == "key_risks"] == [
+        ("key_risks", True, "当前没有关键风险")]

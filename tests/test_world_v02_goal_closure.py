@@ -206,5 +206,5 @@ def test_review_ref_is_formal_content_that_a_direct_revision_rewrites():
 def test_a_candidate_may_name_review_ref_and_keeps_it_when_written_back():
     models.check_candidate("PeriodGoal", {"review_ref": f"{SID}@1"})
     base = _stored_goal(f"{SID}@1")
-    written = models.written_back("PeriodGoal", base, {"blocks": {"realization_logic": {"text": "两场试点"}}}, base)
+    written = models.written_back("PeriodGoal", base, {"blocks": {"target": {"text": "两场试点"}}}, base)
     assert written["review_ref"] == f"{SID}@1"

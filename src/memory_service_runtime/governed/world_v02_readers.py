@@ -3,7 +3,7 @@
 读权限同 0.1（契约第 15.1 节）：scope 内有任一生效角色指派的责任主体可读该 scope 的全部
 world 对象，不走域级 read 策略；非 world 对象一律 NOT_FOUND，授权先于任何协议错误。
 读投影按三层分组：``business``、``identity``、``records``。``business`` 给块、组件、组件台账与关系，
-引用同时给钉定结构与业务形式，另给正式内容指针与进行中的一轮（票 #54）；``identity`` 给责任人与委托范围覆盖
+引用同时给钉定结构与业务形式，另给正式内容指针与进行中的一轮（票 #54），以及读取时从下级对象投影的投影项（票 #79）；``identity`` 给责任人与委托范围覆盖
 对象所在域的当前有效委托（票 #62）；``records`` 给生命周期与推出它的事件（按登记的状态表推导，ADR-0002）、最新
 状态快照（标明未经确认）、最近的已确认复盘（票 #60）与主受影响对象是它、还没处置的问题（票 #61）。状态快照是时间
 记录，按 id 读回的是快照视图，不分三组；复盘确认不改快照本身（契约第 7 节）。Strategy 的一轮另给被指定的人、
@@ -75,6 +75,47 @@ def block_view(object_id: str, version: int, spec: dict[str, Any], value: dict[s
             "components": components, "ref": citation(object_id, version, spec["id"])}
 
 
+# 投影项（契约第 3.2、15.1 节，映射表对齐点 5）：Content Pact 里由下级对象给出的内容，读取时投影，不存第二份。
+# 出发类型 -> (投影 id, 显示名, 下级类型, 下级怎样挂到它上面, 下级的块, 取的组件类型)。
+PROJECTIONS = {
+    "Mission": ("task_expectations", "Task 预期结果与质量标准", "Task", "parent_ref", "definition",
+                ("outcome", "acceptance_criterion")),
+    "ResponsibilityUnit": ("mission_refs", "战役引用", "Mission", "domain", None, ()),
+}
+
+
+def projections(conn: Any, ctx: Any, head: dict[str, Any]) -> dict[str, Any] | None:
+    """一个对象的投影项，没有投影项的类型为 None。下级各取最新修订，按建立先后：
+    - Mission 的「Task 预期结果与质量标准」：parent_ref 指向它的 Task，各给任务定义块里的工作结果与成功 / 验收标准
+      组件（组件引用钉到那个 Task 的最新修订）；
+    - 责任单元的「战役引用」：本单元域里的 Mission，只给引用与标题，只作导航。"""
+    if head["object_type"] not in PROJECTIONS:
+        return None
+    projection_id, display_name, child, via, block_id, kinds = PROJECTIONS[head["object_type"]]
+    where = ("r.payload->'parent_ref'->>'object_id'=%s" if via == "parent_ref" else "o.domain_id::text=%s")
+    rows = [db.jsonable(row) for row in conn.execute(
+        """SELECT o.object_id, r.object_version, r.revision_id, r.payload
+             FROM gov_objects o JOIN gov_object_revisions r
+               ON r.scope_id=o.scope_id AND r.revision_id=o.latest_revision_id
+            WHERE o.scope_id=%s AND o.object_type=%s AND """ + where + """
+            ORDER BY o.created_at, o.object_id""",
+        (ctx.scope_id, child, head["object_id"] if via == "parent_ref" else str(head["domain_id"]))).fetchall()]
+    spec = world_registry.object_spec(child)
+    block = next((item for item in spec["blocks"] if item["id"] == block_id), None)
+    items = []
+    for row in rows:
+        pin = {"object_id": row["object_id"], "object_version": row["object_version"],
+               "revision_id": row["revision_id"], "block": None, "component": None}
+        item = {"object_id": row["object_id"], "object_type": child, "type_display_name": spec["display_name"],
+                "title": row["payload"]["title"], "ref": cite(pin), "pinned": cited(pin)}
+        if block is not None:
+            view = block_view(row["object_id"], row["object_version"], block, row["payload"]["blocks"].get(block_id))
+            item["components"] = [{**component, "pinned": cited({**pin, "block": block_id, "component": component["id"]})}
+                                  for component in view["components"] if component["type"] in kinds]
+        items.append(item)
+    return {"id": projection_id, "display_name": display_name, "items": items}
+
+
 def responsible_principals(conn: Any, ctx: Any, head: dict[str, Any], payload: dict[str, Any],
                            rule: dict[str, Any] | None = None) -> list[dict[str, Any]]:
     """责任人（契约第 3.3 节）：按角色解析的是当前在对象所在域持该角色、启用的人；按属性解析的是
@@ -138,7 +179,8 @@ def object_view(head: dict[str, Any], revision: dict[str, Any], metadata: dict[s
                 lifecycle: dict[str, Any] | None = None, current_round: dict[str, Any] | None = None,
                 delegations: list[dict[str, Any]] | None = None,
                 open_issues: list[dict[str, Any]] | None = None,
-                confirmed_review: dict[str, Any] | None = None) -> dict[str, Any]:
+                confirmed_review: dict[str, Any] | None = None,
+                projection: dict[str, Any] | None = None) -> dict[str, Any]:
     spec = world_registry.object_spec(head["object_type"])
     payload, version = revision["payload"], revision["object_version"]
     category = world_registry.category(spec["category"])
@@ -152,9 +194,11 @@ def object_view(head: dict[str, Any], revision: dict[str, Any], metadata: dict[s
                        if attribute["id"] != "title"},
         "relations": [{"field": field["field"], "relation": field["relation"], "value": cited(payload.get(field["field"]))}
                       for field in spec["relation_fields"]],
-        "blocks": [block_view(head["object_id"], version, block, payload["blocks"][block["id"]])
+        # 登记后加的块在此前存的载荷里没有键，读作空块（契约第 4 节）。
+        "blocks": [block_view(head["object_id"], version, block, payload["blocks"].get(block["id"]))
                    for block in spec["blocks"]],
         "component_ledger": payload.get("component_ledger", []),
+        "projection": projection,
         "formal": {"lifecycle_status": head["lifecycle_status"], "effective_revision_id": head["effective_revision_id"]},
         "round": current_round,
     }
@@ -190,7 +234,8 @@ def read_object(conn: Any, ctx: Any, object_id: str, version: int | None = None)
                        delegations=[delegation_view(conn, ctx, row) for row in
                                     delegations_in_force(conn, ctx, domain_id=head["domain_id"])],
                        open_issues=open_issues(conn, ctx, head["object_id"]),
-                       confirmed_review=confirmed_review(conn, ctx, head["object_id"]))
+                       confirmed_review=confirmed_review(conn, ctx, head["object_id"]),
+                       projection=projections(conn, ctx, head))
 
 
 # ------------------------------------------------------------ issues
@@ -327,7 +372,8 @@ def snapshot_view(head: dict[str, Any], revision: dict[str, Any], *, generator: 
             "period": payload["period"], "generator": generator,
             "source_event_refs": cited(payload["source_event_refs"]),
             "payload_type": {"id": spec["id"], "display_name": spec["display_name"]},
-            "blocks": [block_view(head["object_id"], version, block, payload["blocks"][block["id"]])
+            # 快照的块都可以缺省（契约第 7 节）：没写或登记后加的块读作空块，给标准句。
+            "blocks": [block_view(head["object_id"], version, block, payload["blocks"].get(block["id"]))
                        for block in spec["blocks"]],
             "unconfirmed": True}
 

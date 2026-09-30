@@ -19,11 +19,18 @@
   批次 D），放在该层的 hop 里，检索计划记在 hops。主干本来就经责任单元走到 Strategy 与 Company，所以 Why（覆盖
   与指引）由近及远追到公司级长期目标、Strategy 与 Company；多取的一跳与上溯各层一样算作上层。
 - Markdown 按六问组织（#64）：标题之后先是六问指引（同 0.1 批次 D，按问题给出处，只指向包里留下的内容），然后
-  以六问为节，每条内容只出现一次，按登记的块类别分节：
+  以六问为节，每条内容只出现一次，块按登记的块类（kind）分节：
   为什么——当前对象之上各层（由近及远）的跨链关系与定义类块，多取的一跳跟在它那一层之后；
-  做什么——当前对象的定义类块与各层的计划类块；谁负责——逐层的责任人与来源；
-  现在怎样——逐层的生命周期与正式内容，然后是各层的最新状态快照；发生了什么——各层的近期事件；
-  凭什么——各层的约束类块。同一层的跨链关系、一跳、块与快照在文档里的先后同 0.1 的分层写法。
+  做什么——当前对象的定义类块与各层的计划类块，出发对象是 Mission 或责任单元时另有它的投影项；
+  谁负责——逐层的责任人与来源；现在怎样——逐层的生命周期与正式内容，然后是各层的最新状态快照；
+  发生了什么——各层的近期事件；凭什么——逐层带约束与验收角色的组件引用。同一层的跨链关系、一跳、块与快照在文档
+  里的先后同 0.1 的分层写法。
+- 约束、验收与贡献按组件类型的取上下文角色（登记 components.types[].context_role）取，精确到组件引用（#79，契约
+  第 4、15.3 节，映射表第 1 节第 4 条），不再按块 id acceptance 或块类 constraint 取：约束沿主干逐层读，约束与验收
+  计入「凭什么」，当前对象的贡献计入「为什么」。约束不再单独成块，所以「凭什么」一节是逐层的组件引用清单，内容在
+  它们所在的块里，不重复。
+- 投影项（#79，契约第 15.1 节，映射表对齐点 5）：出发对象是 Mission 时给「Task 预期结果与质量标准」，是责任单元时
+  给「战役引用」，读取时从下级对象投影（world_v02_readers.projections），不存；放在「做什么」，预算裁剪不裁。
 - 事件行写出记录者；代记的同时写出被代记的人，指派另写被指派者（#64，同 0.1 批次 D 写人名）。
 - 形成时带入（#64 第二段，契约第 15.3 节与补 43，见 _carried_in）：出发对象是有门类型时，带入待带入的问题；从周期
   目标出发另带本 scope 最近的已确认公司复盘与本单元有效的长期目标。放在六问指引之后自成一节，预算裁剪不裁；复盘与
@@ -66,6 +73,8 @@ _CARRIED_NOTES = {"PeriodGoal": "形成周期目标时必须看到、不必须�
                   None: f"形成时必须看到、不必须采用：{_PENDING}。"}
 # 公司复盘里带入的块：材料放的是 Agent 起草的内容与候选稿（契约第 7 节），不是复盘本身，不带。
 _REVIEW_LEFT_OUT = {"materials"}
+# 取上下文角色（契约第 4 节）：「凭什么」取约束与验收，「为什么」另取当前对象的贡献。
+BASIS_ROLES, WHY_ROLES = ("constraint", "acceptance"), ("contribution",)
 QUESTIONS = {"why": "为什么", "what": "做什么", "who": "谁负责", "now": "现在怎样", "happened": "发生了什么",
              "basis": "凭什么"}
 _GAPS = {"why": "主干上层没有取到非空的定义类块", "what": "当前对象的定义类块都是空的",
@@ -88,8 +97,9 @@ def why_keys(layers: list[dict[str, Any]], walked: list[tuple[str, dict[str, Any
       修订，引用钉定的版本只作出处。只钉到对象本身的引用不另指块，那个对象的定义类块已按上一条算；事件引用不指块；
     - 多取的一跳整条算：它只带定义类块。
 
-    按现在的登记，主干的引用字段钉的是对象或责任单元条目（在定义类的责任结构块里），所以第二条实际多出来的，是块值
-    与组件引用钉到的计划类、约束类块。裁剪以块为单位：块里只要有一条组件被钉到，整块都算。"""
+    按现在的登记，主干的引用字段钉的是对象或责任单元条目（在定义类的战略责任结构块里），正式块都是定义类（#79 起约束
+    不再单独成块），所以第二条实际多出来的，是块值与组件引用钉到的计划类块（Task 全景、Activity 全景）。裁剪以块为
+    单位：块里只要有一条组件被钉到，整块都算。"""
     targets = {(layer["object"]["object_id"], block["id"]): (layer["level"], f"block:{block['ref']}")
                for layer in layers if layer["level"] > 0 for block in layer["blocks"]}
     keys = {f"hop:{layer['hop']['object']['ref']}" for layer in layers if layer["hop"]}
@@ -185,11 +195,23 @@ def _cites(block: dict[str, Any]) -> list[dict[str, str]]:
     return ([{"ref": block["ref"]}] if own else []) + [{"ref": item["ref"]} for item in block["components"]]
 
 
+def _role(component: dict[str, Any]) -> str | None:
+    """组件类型登记的取上下文角色，没有为 None。"""
+    return component_spec(component["type"]).get("context_role")
+
+
+def _role_refs(layers: list[dict[str, Any]], roles: Collection[str]) -> list[dict[str, str]]:
+    """各层块里带这些角色的组件，逐条给组件引用（按层、块与组件的顺序）。"""
+    return [{"ref": item["ref"]} for layer in layers for block in layer["blocks"] for item in block["components"]
+            if _role(item) in roles]
+
+
 def cover(layers: list[dict[str, Any]], carried: dict[str, Any] | None = None) -> dict[str, Any]:
     """六问各自答没答（按上下文包里留下的内容判），依据哪些引用，答不了的缺口。第 0 层是当前对象；上溯各层与多取的
-    一跳都算上层。判法同 0.1，依据细到组件、事件给事件引用；「凭什么」的上层正式内容只算已正式对象的正式块。形成时
-    带入的也计入：公司复盘（快照与它有内容的块、组件）与待带入的问题（问题组件与处置事件）算「凭什么」，本单元有效的
-    长期目标（非空的定义类块）算「为什么」。"""
+    一跳都算上层。判法同 0.1，依据细到组件、事件给事件引用；「凭什么」的上层正式内容只算已正式对象的正式块。约束、
+    验收与贡献按组件的取上下文角色取（#79）：主干各层（不含多取的一跳）带约束与验收角色的组件算「凭什么」，当前对象
+    带贡献角色的组件算「为什么」。形成时带入的也计入：公司复盘（快照与它有内容的块、组件）与待带入的问题（问题组件与
+    处置事件）算「凭什么」，本单元有效的长期目标（非空的定义类块）算「为什么」。"""
     current, upper = layers[0], _reach(layers)
     carried = carried or {}
     review = carried.get("company_review")
@@ -197,13 +219,13 @@ def cover(layers: list[dict[str, Any]], carried: dict[str, Any] | None = None) -
     def cites(chosen: list[dict[str, Any]], test) -> list[dict[str, str]]:
         return [item for layer in chosen for block in layer["blocks"] if test(block) for item in _cites(block)]
     basis = (cites([layer for layer in upper if layer["object"]["formal"]], lambda block: block["class"] == "formal")
-             + cites(layers, lambda block: block["id"] in {"acceptance", "constraint"})
+             + _role_refs(layers, BASIS_ROLES)
              + ([{"ref": review["snapshot"]["ref"]}] + [item for block in review["snapshot"]["blocks"]
                                                            for item in _cites(block)] if review else [])
              + [{"ref": ref} for item in carried.get("issues", [])
                 for ref in (item["issue_ref"]["ref"], item["disposed_by"]["ref"])])
     evidence = {
-        "why": cites(upper, lambda block: block["kind"] == "definition")
+        "why": _role_refs([current], WHY_ROLES) + cites(upper, lambda block: block["kind"] == "definition")
         + [{"ref": block["ref"]} for goal in carried.get("long_term_goals", [])
            for block in goal["definition_refs"] if not block["empty"]],
         "what": cites([current], lambda block: block["kind"] == "definition"),
@@ -219,12 +241,13 @@ def cover(layers: list[dict[str, Any]], carried: dict[str, Any] | None = None) -
 def guide(layers: list[dict[str, Any]], carried: dict[str, Any] | None = None) -> str:
     """六问指引（同 0.1 批次 D）：Markdown 开头按问题给出处，内容在下文各节；只指向包里留下的内容，没有就写缺口。
 
-    - 为什么：当前对象之上的各层与多取的一跳，由近及远直到 Company，各给非空的定义类块，没有就给对象。
-    - 做什么：当前对象的非空定义类块，与各层非空的计划类块。
+    - 为什么：当前对象带贡献角色的组件；当前对象之上的各层与多取的一跳，由近及远直到 Company，各给非空的定义类块，
+      没有就给对象。
+    - 做什么：当前对象的非空定义类块，与各层非空的计划类块；出发对象的投影项。
     - 谁负责：执行链（当前对象向上直到 Mission）各层的责任人，与当前对象最近一条指派事件。
     - 现在怎样：当前对象的生命周期与各层的最新状态快照。发生了什么：外部事件，其余事件只计条数。
-    - 凭什么：形成时带入的公司复盘与问题、非空的验收标准与约束、上层已确认正式内容的对象、执行链上带文档链接的块、
-      快照与事件。为什么另指形成时带入的有效长期目标。
+    - 凭什么：形成时带入的公司复盘与问题、各层带验收与约束角色的组件、上层已确认正式内容的对象、执行链上带文档链接
+      的块、快照与事件。为什么另指形成时带入的有效长期目标。
 
     口径与 cover() 不同（同 0.1）：cover() 是契约的六问判定，这里是给模型的阅读出处。"""
     current, reach = layers[0], _reach(layers)
@@ -247,6 +270,7 @@ def guide(layers: list[dict[str, Any]], carried: dict[str, Any] | None = None) -
 
     doing = [(layer, (defs(layer) if layer is current else []) + refs(layer, lambda block: block["kind"] == "plan"))
              for layer in layers]
+    projection = current.get("projection")
     who = [f"{place(layer)} `{layer['object']['ref']}`："
            + ("、".join(person["display_name"] for person in layer["object"]["responsible"]["principals"]) or "未指派")
            for layer in executing]
@@ -263,8 +287,8 @@ def guide(layers: list[dict[str, Any]], carried: dict[str, Any] | None = None) -
                                       for event in external)) if external else "窗口内没有外部事件"
     if len(events) > len(external):
         happened += f"；另有 {len(events) - len(external)} 条门、生命周期与其余记录事件"
-    standards = [ref for layer in layers
-                 for ref in refs(layer, lambda block: block["id"] == "acceptance" or block["kind"] == "constraint")]
+    standards = [item["ref"] for item in _role_refs(layers, BASIS_ROLES)]
+    contributions = [item["ref"] for item in _role_refs([current], WHY_ROLES)]
     formal = [f"{place(part)} `{part['object']['ref']}`" for part in reach if part["object"]["formal"]]
     linked = [("块", [block["ref"] for layer in executing for block in layer["blocks"]
                      if block["value"] and block["value"]["artifacts"]]),
@@ -279,9 +303,12 @@ def guide(layers: list[dict[str, Any]], carried: dict[str, Any] | None = None) -
            if any(values for _, values in linked) else [])
     answers = {
         "why": "；".join(part for part in (
+            f"当前对象的贡献 {code(contributions)}" if contributions else "",
             " → ".join(f"{place(part)} {code(defs(part) or [part['object']['ref']])}" for part in reach),
             f"形成时带入的有效长期目标 {code([goal['ref'] for goal in goals])}" if goals else "") if part),
-        "what": "；".join(f"{place(layer)} {code(values)}" for layer, values in doing if values),
+        "what": "；".join([f"{place(layer)} {code(values)}" for layer, values in doing if values]
+                         + ([f"当前对象的投影项「{projection['display_name']}」"
+                             f"（{len(projection['items'])} 项，读取时从下级对象投影）"] if projection else [])),
         "who": "；".join(who),
         "now": "；".join(now),
         "happened": happened if events else "",
@@ -310,7 +337,7 @@ def _pin_block(view: dict[str, Any], object_id: str, version: int, revision_id: 
 
 def _blocks(head: dict[str, Any], revision: dict[str, Any]) -> list[dict[str, Any]]:
     object_id, version, payload = head["object_id"], revision["object_version"], revision["payload"]
-    return [_pin_block(readers.block_view(object_id, version, spec, payload["blocks"][spec["id"]]), object_id, version,
+    return [_pin_block(readers.block_view(object_id, version, spec, payload["blocks"].get(spec["id"])), object_id, version,
                        revision["revision_id"])
             for spec in world_registry.object_spec(head["object_type"])["blocks"]]
 
@@ -371,6 +398,8 @@ def _layer(conn: Any, ctx: Any, head: dict[str, Any], revision: dict[str, Any], 
                       for field in spec["relation_fields"] if field["written_by"] == "world_relate"],
         "referenced_by": _referenced_by(conn, ctx, object_id),
         "hop": None, "state": None, "events": [],
+        # 投影项只给出发对象（契约第 15.3 节）：Mission 的 Task 预期结果与质量标准、责任单元的战役引用。
+        "projection": readers.projections(conn, ctx, head) if level == 0 else None,
     }
     if level == 0 or head["object_type"] in _EXECUTION_TYPES:
         snapshot = state or readers.latest_snapshot(conn, ctx, object_id)
@@ -640,6 +669,35 @@ def _where(layer: dict[str, Any]) -> str:
     return "当前对象" if layer["level"] == 0 else f"上溯第 {layer['level']} 层"
 
 
+def _roles_text(layers: list[dict[str, Any]]) -> str | None:
+    """「凭什么」：逐层带约束与验收角色的组件引用（约束沿关系读），注明组件类型；内容在它们所在的块里，不重复。
+    这份清单同「谁负责」「现在怎样」的逐层清单一样不裁：所在的块被预算裁掉时引用照样有效，可以按引用另取。没有这样
+    的组件时为 None。"""
+    names = {item["id"]: item["display_name"] for item in world_registry.registry()["components"]["context_roles"]}
+    lines = []
+    for layer in layers:
+        found = [item for block in layer["blocks"] for item in block["components"] if _role(item) in BASIS_ROLES]
+        if found:
+            obj = layer["object"]
+            lines.append(f"- {_where(layer)} {obj['type_display_name']}《{obj['title']}》：" + "；".join(
+                f"{names[role]} " + "、".join(f"`{item['ref']}`（{component_spec(item['type'])['display_name']}）"
+                                             for item in found if _role(item) == role)
+                for role in BASIS_ROLES if any(_role(item) == role for item in found)))
+    return "\n".join(["按组件的取上下文角色逐层列出约束与验收（内容在它们所在的块里）：", *lines]) if lines else None
+
+
+def _projection_text(projection: dict[str, Any], name: str) -> str:
+    """出发对象的投影项：读取时从下级对象投影，不存。Task 预期结果与质量标准逐个 Task 写出它的组件；战役引用只列引用。"""
+    lines = [f"### {name}·{projection['display_name']}（读取时从下级对象投影，不存）"]
+    for item in projection["items"]:
+        lines.append(f"- {item['type_display_name']}《{item['title']}》 `{item['ref']}`")
+        lines += ["  " + line for component in item.get("components", [])
+                  for line in _component_text(component).split("\n")]
+    if not projection["items"]:
+        lines.append(f"当前没有{projection['display_name']}")
+    return "\n".join(lines)
+
+
 def _who_text(layers: list[dict[str, Any]]) -> str:
     """「谁负责」：逐层的对象与责任人（注明来源）。"""
     lines = []
@@ -669,11 +727,11 @@ def _items(question: str, start: str, layers: list[dict[str, Any]],
     """把上下文包渲染成按文档顺序排列、可逐条裁剪的 Markdown 片段（条目的形状同 0.1，交给本模块的 trim）。
 
     标题之后由 trim 插入六问指引；形成时带入（从周期目标出发，或有待带入的问题时）自成一节，依次是公司复盘（或缺口）、
-    有效的长期目标、待带入的问题；然后以六问为节。条目按块类别分节：定义类块在当前对象
-    是「做什么」、在上层是「为什么」，计划类块是「做什么」，约束类块是「凭什么」；跨链关系与多取的一跳放在「为什么」，
-    分别在该层的块之前与之后。这样同一层的条目在文档里的先后与 0.1 的分层写法一致（登记里每类对象的块都是定义类在
-    前、计划类其次、约束类最后），trim 同一层里「从后往前」裁块的先后也同 0.1。节名、「谁负责」与「现在怎样」的逐层
-    清单不裁。"""
+    有效的长期目标、待带入的问题；然后以六问为节。块按块类分节：定义类块在当前对象是「做什么」、在上层是「为什么」，
+    计划类块是「做什么」；跨链关系与多取的一跳放在「为什么」，分别在该层的块之前与之后。这样同一层的条目在文档里的
+    先后与 0.1 的分层写法一致（登记里每类对象的块都是定义类在前、计划类在后），trim 同一层里「从后往前」裁块的先后
+    也同 0.1。约束不再单独成块（#79）：「凭什么」是逐层带约束与验收角色的组件引用清单；出发对象的投影项放在「做什么」。
+    节名、「谁负责」「现在怎样」「凭什么」的逐层清单与投影项不裁。"""
     kinds = {item["kind"]: item["display_name"] for item in world_registry.registry()["event_kinds"]}
 
     def entry(key: str, kind: str, level: int, object_id: str | None, text: str,
@@ -682,6 +740,9 @@ def _items(question: str, start: str, layers: list[dict[str, Any]],
     parts: dict[str, list[dict[str, Any]]] = {name: [] for name in QUESTIONS}
     parts["who"].append(entry("who", "header", -1, None, _who_text(layers)))
     parts["now"].append(entry("now", "header", -1, None, _now_text(layers)))
+    roles = _roles_text(layers)
+    if roles:
+        parts["basis"].append(entry("basis", "header", -1, None, roles))
     for layer in layers:
         obj, level, name = layer["object"], layer["level"], layer["object"]["type_display_name"]
         relations = [f"{relation['field']}：" + _codes(relation["refs"]) for relation in layer["relations"] if relation["refs"]]
@@ -690,10 +751,12 @@ def _items(question: str, start: str, layers: list[dict[str, Any]],
             parts["why"].append(entry(f"relations:{level}", "relations", level, obj["object_id"],
                                       f"{name} 的跨链关系（只列引用，不展开）：\n" + "\n".join(relations)))
         for block in layer["blocks"]:
-            answers = ("basis" if block["kind"] == "constraint" else
-                       "what" if block["kind"] == "plan" or level == 0 else "why")
+            answers = "what" if block["kind"] == "plan" or level == 0 else "why"
             parts[answers].append(entry(f"block:{block['ref']}", "block", level, obj["object_id"],
                                          _block_text(block, f"### {name}·{block['display_name']} `{block['ref']}`")))
+        if layer["projection"]:
+            parts["what"].append(entry(f"projection:{obj['ref']}", "projection", level, obj["object_id"],
+                                       _projection_text(layer["projection"], name)))
         if layer["hop"]:
             parts["why"].append(entry(f"hop:{layer['hop']['object']['ref']}", "hop", level,
                                       layer["hop"]["object"]["object_id"], _hop_text(layer["hop"])))

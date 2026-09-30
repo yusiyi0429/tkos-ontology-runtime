@@ -100,37 +100,76 @@ def object_get(object_id: uuid.UUID, token: Annotated[str, Depends(bearer)]):
         return readers.object_state(conn, ctx, str(object_id))
 
 
+@router.get("/world/objects")
+def world_object_list(request: Request, response: Response, token: Annotated[str, Depends(bearer)],
+                      unit_id: Annotated[uuid.UUID | None, Query()] = None,
+                      domain_id: Annotated[uuid.UUID | None, Query()] = None,
+                      object_type: Annotated[str | None, Query(alias="type")] = None,
+                      period: Annotated[str | None, Query(pattern=r"^[0-9]{4}-(0[1-9]|1[0-2])$")] = None,
+                      external_system: Annotated[str | None, Query(min_length=1, max_length=256, pattern=r"\S")] = None,
+                      external_id: Annotated[str | None, Query(min_length=1, max_length=256, pattern=r"\S")] = None,
+                      limit: Annotated[int, Query(ge=1, le=100)] = 50,
+                      cursor: Annotated[str | None, Query(max_length=workbench.MAX_CURSOR_LENGTH)] = None):
+    """列对象与按外部引用查找（票 #63，契约第 15.2 节）：筛选与分页见 world_v02_list。"""
+    from . import world_v02_list
+    workbench.strict_query(request.query_params, world_v02_list.QUERY)
+    given = world_v02_list.filters(unit_id=unit_id, domain_id=domain_id, object_type=object_type, period=period,
+                                   external_system=external_system, external_id=external_id)
+    with db.transaction(token) as (conn, ctx):
+        result = world_v02_list.list_objects(conn, ctx, given, limit, cursor)
+    response.headers["Cache-Control"] = "no-store"
+    return result
+
+
+# 0.2 读侧读 0.1 对象（票 #63，契约第 15.4 节）：默认仍给 0.1 的形状；显式带这一参数时按 0.2 读投影的三组给出。
+WorldView = Annotated[Literal["tkos.world/0.2"] | None, Query()]
+
+
 @router.get("/world/objects/{object_id}")
 def world_object_get(object_id: uuid.UUID, token: Annotated[str, Depends(bearer)],
-                     version: Annotated[int | None, Query(ge=1)] = None):
-    from . import world_v01_readers
+                     version: Annotated[int | None, Query(ge=1)] = None, view: WorldView = None):
+    """取对象：按对象绑定的契约版本出形状，0.1 对象仍是 0.1 形状；带 view=tkos.world/0.2 时 0.1 对象按 0.2 的三组读。"""
+    from . import world_v01_readers, world_v02_legacy, world_v02_readers
     with db.transaction(token) as (conn, ctx):
+        if world_v02_readers.bound_contract(conn, ctx, str(object_id)) == world_v02_readers.CONTRACT_VERSION:
+            return world_v02_readers.read_object(conn, ctx, str(object_id), version)
+        if view is not None:
+            return world_v02_legacy.read_object(conn, ctx, str(object_id), version)
         return world_v01_readers.read_object(conn, ctx, str(object_id), version)
 
 
 @router.get("/world/objects/{object_id}/state")
 def world_object_state(object_id: uuid.UUID, token: Annotated[str, Depends(bearer)],
-                       as_of: Annotated[AwareDatetime | None, Query()] = None):
-    from . import world_v01_readers
+                       as_of: Annotated[AwareDatetime | None, Query()] = None, view: WorldView = None):
+    from . import world_v01_readers, world_v02_legacy, world_v02_readers
     with db.transaction(token) as (conn, ctx):
+        if world_v02_readers.bound_contract(conn, ctx, str(object_id)) == world_v02_readers.CONTRACT_VERSION:
+            return world_v02_readers.state(conn, ctx, str(object_id), as_of)
+        if view is not None:
+            return world_v02_legacy.state(conn, ctx, str(object_id), as_of)
         return world_v01_readers.state(conn, ctx, str(object_id), as_of)
 
 
 @router.get("/world/objects/{object_id}/events")
 def world_object_events(object_id: uuid.UUID, token: Annotated[str, Depends(bearer)],
                         since: Annotated[AwareDatetime | None, Query()] = None):
-    from . import world_v01_readers
+    from . import world_v01_readers, world_v02_readers
     with db.transaction(token) as (conn, ctx):
+        if world_v02_readers.bound_contract(conn, ctx, str(object_id)) == world_v02_readers.CONTRACT_VERSION:
+            return world_v02_readers.events(conn, ctx, str(object_id), since)
         return world_v01_readers.events(conn, ctx, str(object_id), since)
 
 
 @router.post("/world/objects/{object_id}/context")
 def world_object_context(object_id: uuid.UUID, body: WorldContextRequest, response: Response,
                          token: Annotated[str, Depends(bearer)]):
-    """取上下文（票 #25）：每次调用在同一事务里落一行上下文包。"""
-    from . import world_v01_context
+    """取上下文（票 #25、#56）：按对象绑定的契约版本分派，0.1 对象的输出不变；每次调用在同一事务里落一行上下文包。"""
+    from . import world_v01_context, world_v02_context, world_v02_readers
     with db.transaction(token) as (conn, ctx):
-        result = world_v01_context.build(conn, ctx, str(object_id), body)
+        if world_v02_readers.bound_contract(conn, ctx, str(object_id)) == world_v02_readers.CONTRACT_VERSION:
+            result = world_v02_context.build(conn, ctx, str(object_id), body)
+        else:
+            result = world_v01_context.build(conn, ctx, str(object_id), body)
     response.headers["Cache-Control"] = "no-store"
     return result
 

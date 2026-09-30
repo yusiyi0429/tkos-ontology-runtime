@@ -1,0 +1,14 @@
+{
+  "format": "tkos-world-02-experiment-b-lines/0.2",
+  "title": "对照实验 B：可信 Context / Memory 与真实 Agent 读写闭环（试用回放）",
+  "source": {
+    "plan": "deploy/world-02/seed-eo-2026-10.json",
+    "mission": "mission_context",
+    "steps": ["company", "strategy", "unit_eo", "company_goal", "eo_goal", "confirm_company_goal", "confirm_eo_goal",
+              "october_goal", "mission_context", "assign_mission_context"]
+  },
+  "event_text": "对照实验 B 播种",
+  "steps": [],
+  "tasks": [],
+  "notes": "试用回放的主干：取 E&O 十月起点（deploy/world-02/seed-eo-2026-10.json，按天枢个人任务重播的那份）里 mission_context 到公司的主干，正文与顺序照原计划；这条 Mission 的 Owner 就是 eo-dri。另外两个 Mission 与三条委托不带。门（周期目标与这条 Mission 的承诺、确认）、Task 与段不预设：由转写（b_transcribe）从真实 scope 的记录得出，写进转写产物 b-lines.json 的 steps 与 tasks（同一格式，主干原样照抄），本文件只是它的主干。"
+}

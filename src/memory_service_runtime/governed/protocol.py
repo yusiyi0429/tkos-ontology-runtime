@@ -49,6 +49,7 @@ SUPPORTED_PROTOCOL_CONTRACTS = frozenset(
         ("tkos.method", "tkos.method/0.4"),
         ("tkos.method", "tkos.method/0.5"),
         ("tkos.world", "tkos.world/0.1"),
+        ("tkos.world", "tkos.world/0.2"),
         (profile.CONTRACT_A_PROTOCOL_ID, profile.CONTRACT_A_CONTRACT_VERSION),
     }
 )
@@ -185,15 +186,26 @@ def _check_registry(conn: Any, scope_id: str, protocol_id: str,
     return _registry_content(row)
 
 
-def gate_world_action(conn: Any, scope_id: str, action_type: str) -> str:
-    """不落在某个对象上的 world 动作（外部事件）：支持登记列出该动作且可写。声明的契约已由请求信封限定为 world。"""
-    from .world_v01_models import CONTRACT_VERSION as WORLD_CONTRACT
-    registry = _check_registry(conn, scope_id, "tkos.world", WORLD_CONTRACT)
+def world_models(contract_version: str) -> Any:
+    """world 各版本的请求模型模块：动作参数与目标表按版本取，0.1 与 0.2 同名动作互不借用。"""
+    if contract_version == "tkos.world/0.2":
+        from . import world_v02_models
+        return world_v02_models
+    from . import world_v01_models
+    return world_v01_models
+
+
+def gate_world_action(conn: Any, scope_id: str, action_type: str, contract_version: str | None = None) -> str:
+    """不落在某个对象上的 world 动作（外部事件）：该版本的支持登记列出该动作且可写。声明的契约已由请求信封
+    限定为 world；不给版本即 0.1。"""
+    from .world_v01_models import CONTRACT_VERSION as WORLD_V01
+    contract_version = contract_version or WORLD_V01
+    registry = _check_registry(conn, scope_id, "tkos.world", contract_version)
     if action_type not in registry.actions:
         _fail("ACTION_NOT_SUPPORTED_FOR_PROTOCOL")
     if not registry.can_write:
         _fail("PROTOCOL_WRITE_DISABLED")
-    return WORLD_CONTRACT
+    return contract_version
 
 
 def _declared_mismatch(code_for_known_legacy_or_absent: bool, declared: str | None,
@@ -266,7 +278,7 @@ def gate_target_action(conn: Any, scope_id: str, target_object_id: str,
     registry = _check_registry(conn, scope_id, binding["protocol_id"], binding["contract_version"])
     _check_binding_profile(conn, scope_id, binding)
     if binding["protocol_id"] == "tkos.world":
-        from .world_v01_models import ACTION_TARGETS as WORLD_ACTION_TARGETS
+        WORLD_ACTION_TARGETS = world_models(binding["contract_version"]).ACTION_TARGETS
         if declared != binding["contract_version"]:
             _fail("PROTOCOL_BINDING_CONFLICT")
         target = conn.execute("SELECT object_type FROM gov_objects WHERE scope_id=%s AND object_id=%s",
@@ -397,19 +409,24 @@ def resolve_creation(conn: Any, scope_id: str, domain_id: str, object_type: str,
     if (policy.default_protocol, policy.default_contract_version) not in SUPPORTED_PROTOCOL_CONTRACTS:
         _fail("PROTOCOL_NOT_SUPPORTED")
     if policy.default_protocol == "tkos.world":
-        from .world_v01_models import ACTION_PARAMS as WORLD_ACTION_PARAMS
-        from .world_v01_registry import object_types as world_object_types
+        world = world_models(policy.default_contract_version)
         if for_evidence:
-            # world 0.1 不收证据上传：artifacts 只是 URL（契约第 13 节）。
+            # world 不收证据上传：artifacts 只是 URL（0.1 契约第 13 节、0.2 契约第 20 节）。
             _fail("PROTOCOL_WRITE_DISABLED")
         if declared != policy.default_contract_version:
             _fail("PROTOCOL_BINDING_CONFLICT")
         registry = _check_registry(conn, scope_id, policy.default_protocol, policy.default_contract_version)
         if not registry.can_write or not registry.can_create:
             _fail("PROTOCOL_WRITE_DISABLED")
-        if object_type not in world_object_types() or object_type not in registry.object_types:
+        if policy.default_contract_version == "tkos.world/0.2":
+            # 0.2 按票逐类开放，可建类型是编译进来的集合，支持登记只能在这之内收窄；0.1 冻结，仍取它的登记。
+            creatable = world.CREATABLE
+        else:
+            from .world_v01_registry import object_types
+            creatable = object_types()
+        if object_type not in creatable or object_type not in registry.object_types:
             _fail("ACTION_NOT_SUPPORTED_FOR_PROTOCOL")
-        if action_type not in WORLD_ACTION_PARAMS or action_type not in registry.actions:
+        if action_type not in world.ACTION_PARAMS or action_type not in registry.actions:
             _fail("ACTION_NOT_SUPPORTED_FOR_PROTOCOL")
     elif policy.default_protocol == "tkos.method":
         from .method_models import registry as method_registry
@@ -613,6 +630,9 @@ def _binding_interpretation(installed: dict[str, Any] | None,
     if not read_supported:
         return "read_unsupported", ("The current support registry does not grant read interpretation "
                                     "for this protocol/contract version; no legacy meaning is attached.")
+    if binding["protocol_id"] == "tkos.world" and binding["contract_version"] == "tkos.world/0.2":
+        return "world_v0_2", ("World 0.2 draft; objects read in three groups (business objects, identity "
+                              "projection, time records) with an append-only event log.")
     if binding["protocol_id"] == "tkos.world":
         return "world_v0_1", ("World 0.1; business world objects with content blocks, pinned references, "
                               "an append-only event log and lifecycle derived from events.")

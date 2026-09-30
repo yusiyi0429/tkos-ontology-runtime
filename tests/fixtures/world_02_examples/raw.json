@@ -1,0 +1,393 @@
+{
+ "format": "world-02-examples/1",
+ "run": "20261012-073000-abcd",
+ "commit": "0000000",
+ "base_url": "http://127.0.0.1:8050",
+ "tenant_id": "fixture-smoke",
+ "identities": {
+  "scope_id": "eade66e4-1672-5467-8cb1-f52a922005df",
+  "company_id": "10e2abac-1195-527d-8742-62f474b4b333",
+  "domains": {
+   "company": "6e38418a-d6a2-5cd0-8d5e-2ecba3028ab4",
+   "eo": "0f3f4519-5f10-5a23-b15e-e072d331964a"
+  },
+  "skeleton": {
+   "company": "5e3350ab-66cc-52e6-befd-0ea18438dfc8",
+   "strategy": "a1529cc4-d855-5e15-a99a-e1f42fbb344b",
+   "unit-eo": "f673215e-519d-583d-a9b2-a4dd24671ac7"
+  },
+  "principals": {
+   "ceo": {
+    "principal_id": "a4fa2c89-5593-5a52-a3f5-57d02afe3608",
+    "display_name": "CEO",
+    "assignments": [
+     {
+      "domain": "eo",
+      "role": "CEO",
+      "assignment_id": "f869c458-7533-5793-9d40-2dc61819decd"
+     }
+    ]
+   },
+   "eo-owner": {
+    "principal_id": "6f890d9c-51ab-5776-8cd2-5c5a763df239",
+    "display_name": "测试姓名甲",
+    "assignments": [
+     {
+      "domain": "eo",
+      "role": "OWNER",
+      "assignment_id": "0c6f4542-a789-53f4-9d93-8de50c950d52"
+     }
+    ]
+   },
+   "tianshu": {
+    "principal_id": "688bec98-b027-5e83-af0c-d24434bbf7b9",
+    "display_name": "天枢服务主体",
+    "assignments": [
+     {
+      "domain": "eo",
+      "role": "AGENT",
+      "assignment_id": "1338f750-70ab-579c-bb53-a7a9b5e5465d"
+     }
+    ]
+   }
+  }
+ },
+ "external_ids": {
+  "2e1ddaa2-a6fe-531c-857d-5ae5db6fd575": "todo-uuid"
+ },
+ "types": {
+  "1c7c1cb8-5918-5a2d-a1d2-ae4d642a0d52": "Mission",
+  "6c3db609-9b90-5d68-96de-ccf8143e6429": "Task",
+  "b9a09b93-5883-5057-a0d8-f2a112fd63f3": "PeriodGoal"
+ },
+ "prep": [
+  {
+   "who": "ceo",
+   "text": "建 Mission",
+   "object_id": "1c7c1cb8-5918-5a2d-a1d2-ae4d642a0d52"
+  }
+ ],
+ "steps": {
+  "prep": {
+   "status": "passed"
+  },
+  "1": {
+   "status": "passed"
+  },
+  "5": {
+   "status": "passed"
+  },
+  "7": {
+   "status": "passed"
+  },
+  "10": {
+   "status": "passed"
+  }
+ },
+ "records": [
+  {
+   "step": "1",
+   "caption": "列 E&O 单元本期的 Mission",
+   "method": "GET",
+   "path": "/v1/world/objects?unit_id=f673215e-519d-583d-a9b2-a4dd24671ac7&type=Mission&period=2026-10&limit=5",
+   "who": "tianshu",
+   "body": null,
+   "status": 200,
+   "response": {
+    "items": [
+     {
+      "object_id": "1c7c1cb8-5918-5a2d-a1d2-ae4d642a0d52",
+      "object_type": "Mission",
+      "title": "示例 20261012-073000-abcd Mission",
+      "version": 1,
+      "revision_id": "f2b139fc-d2a2-5f7d-be73-c9228b8ec788",
+      "lifecycle": {
+       "status": "draft",
+       "event_id": "464e3173-9598-5d9e-a27a-a340259b3677"
+      },
+      "domain_id": "0f3f4519-5f10-5a23-b15e-e072d331964a",
+      "external_refs": []
+     }
+    ],
+    "next_cursor": "b3BhcXVlLWN1cnNvcg"
+   }
+  },
+  {
+   "step": "1",
+   "caption": null,
+   "method": "GET",
+   "path": "/v1/world/objects?unit_id=f673215e-519d-583d-a9b2-a4dd24671ac7&type=Mission&period=2026-10&limit=5&cursor=b3BhcXVlLWN1cnNvcg",
+   "who": "tianshu",
+   "body": null,
+   "status": 200,
+   "response": {
+    "items": [],
+    "next_cursor": null
+   }
+  },
+  {
+   "step": "5",
+   "caption": "代 Mission Owner 承诺 Mission",
+   "method": "POST",
+   "path": "/v1/actions",
+   "who": "tianshu",
+   "body": {
+    "action_type": "world_commit_mission",
+    "contract_version": "tkos.world/0.2",
+    "target": {
+     "object_id": "1c7c1cb8-5918-5a2d-a1d2-ae4d642a0d52",
+     "revision_id": "40df712e-0601-5ad3-8d8c-1c39becc946d",
+     "expected_version": 3
+    },
+    "expected_versions": [],
+    "idempotency_key": "world-02-examples:20261012-073000-abcd:020",
+    "reason": "world-02 天枢接入示例",
+    "params": {
+     "on_behalf_of": {
+      "principal_id": "6f890d9c-51ab-5776-8cd2-5c5a763df239",
+      "external_record_id": "tianshu:card-submit:20261012-073000-abcd-019",
+      "external_confirmed_at": "2026-10-12T15:27:00+08:00"
+     }
+    }
+   },
+   "status": 200,
+   "response": {
+    "receipt_id": "26ecd7a7-c15e-5b3e-b0fb-c9176c4dafde",
+    "action_type": "world_commit_mission",
+    "actor_id": "688bec98-b027-5e83-af0c-d24434bbf7b9",
+    "status": "committed",
+    "result": {
+     "event_id": "5993968d-6a0c-5586-ae30-9ff1ad08a915",
+     "object_id": "1c7c1cb8-5918-5a2d-a1d2-ae4d642a0d52",
+     "revision_id": "40df712e-0601-5ad3-8d8c-1c39becc946d",
+     "subject_refs": [
+      {
+       "ref": "1c7c1cb8-5918-5a2d-a1d2-ae4d642a0d52@2",
+       "block": null,
+       "component": null,
+       "object_id": "1c7c1cb8-5918-5a2d-a1d2-ae4d642a0d52",
+       "revision_id": "40df712e-0601-5ad3-8d8c-1c39becc946d",
+       "object_version": 2
+      }
+     ],
+     "on_behalf_of": {
+      "principal_id": "6f890d9c-51ab-5776-8cd2-5c5a763df239",
+      "delegation_event_id": "5e5f2d8b-42c6-5246-8086-2a6af6115692"
+     },
+     "referenced_object_ids": [
+      "1c7c1cb8-5918-5a2d-a1d2-ae4d642a0d52",
+      "b9a09b93-5883-5057-a0d8-f2a112fd63f3"
+     ],
+     "required_assignment_ids": [
+      "0c6f4542-a789-53f4-9d93-8de50c950d52"
+     ],
+     "contract_version": "tkos.world/0.2"
+    },
+    "recorded_at": "2026-10-12T07:30:05.123456+00:00"
+   }
+  },
+  {
+   "step": "5",
+   "caption": "取事件",
+   "method": "GET",
+   "path": "/v1/world/objects/1c7c1cb8-5918-5a2d-a1d2-ae4d642a0d52/events",
+   "who": "tianshu",
+   "body": null,
+   "status": 200,
+   "response": {
+    "object_id": "1c7c1cb8-5918-5a2d-a1d2-ae4d642a0d52",
+    "events": [
+     {
+      "event_id": "5993968d-6a0c-5586-ae30-9ff1ad08a915",
+      "kind": "commit",
+      "principal": {
+       "principal_id": "688bec98-b027-5e83-af0c-d24434bbf7b9",
+       "display_name": "天枢服务主体"
+      },
+      "on_behalf_of": {
+       "principal_id": "6f890d9c-51ab-5776-8cd2-5c5a763df239",
+       "display_name": "测试姓名甲"
+      },
+      "action_id": "26ecd7a7-c15e-5b3e-b0fb-c9176c4dafde",
+      "n": 0
+     },
+     {
+      "event_id": "5993968d-6a0c-5586-ae30-9ff1ad08a915",
+      "kind": "commit",
+      "principal": {
+       "principal_id": "688bec98-b027-5e83-af0c-d24434bbf7b9",
+       "display_name": "天枢服务主体"
+      },
+      "on_behalf_of": {
+       "principal_id": "6f890d9c-51ab-5776-8cd2-5c5a763df239",
+       "display_name": "测试姓名甲"
+      },
+      "action_id": "26ecd7a7-c15e-5b3e-b0fb-c9176c4dafde",
+      "n": 1
+     },
+     {
+      "event_id": "5993968d-6a0c-5586-ae30-9ff1ad08a915",
+      "kind": "commit",
+      "principal": {
+       "principal_id": "688bec98-b027-5e83-af0c-d24434bbf7b9",
+       "display_name": "天枢服务主体"
+      },
+      "on_behalf_of": {
+       "principal_id": "6f890d9c-51ab-5776-8cd2-5c5a763df239",
+       "display_name": "测试姓名甲"
+      },
+      "action_id": "26ecd7a7-c15e-5b3e-b0fb-c9176c4dafde",
+      "n": 2
+     },
+     {
+      "event_id": "5993968d-6a0c-5586-ae30-9ff1ad08a915",
+      "kind": "commit",
+      "principal": {
+       "principal_id": "688bec98-b027-5e83-af0c-d24434bbf7b9",
+       "display_name": "天枢服务主体"
+      },
+      "on_behalf_of": {
+       "principal_id": "6f890d9c-51ab-5776-8cd2-5c5a763df239",
+       "display_name": "测试姓名甲"
+      },
+      "action_id": "26ecd7a7-c15e-5b3e-b0fb-c9176c4dafde",
+      "n": 3
+     },
+     {
+      "event_id": "5993968d-6a0c-5586-ae30-9ff1ad08a915",
+      "kind": "commit",
+      "principal": {
+       "principal_id": "688bec98-b027-5e83-af0c-d24434bbf7b9",
+       "display_name": "天枢服务主体"
+      },
+      "on_behalf_of": {
+       "principal_id": "6f890d9c-51ab-5776-8cd2-5c5a763df239",
+       "display_name": "测试姓名甲"
+      },
+      "action_id": "26ecd7a7-c15e-5b3e-b0fb-c9176c4dafde",
+      "n": 4
+     },
+     {
+      "event_id": "5993968d-6a0c-5586-ae30-9ff1ad08a915",
+      "kind": "commit",
+      "principal": {
+       "principal_id": "688bec98-b027-5e83-af0c-d24434bbf7b9",
+       "display_name": "天枢服务主体"
+      },
+      "on_behalf_of": {
+       "principal_id": "6f890d9c-51ab-5776-8cd2-5c5a763df239",
+       "display_name": "测试姓名甲"
+      },
+      "action_id": "26ecd7a7-c15e-5b3e-b0fb-c9176c4dafde",
+      "n": 5
+     },
+     {
+      "event_id": "5993968d-6a0c-5586-ae30-9ff1ad08a915",
+      "kind": "commit",
+      "principal": {
+       "principal_id": "688bec98-b027-5e83-af0c-d24434bbf7b9",
+       "display_name": "天枢服务主体"
+      },
+      "on_behalf_of": {
+       "principal_id": "6f890d9c-51ab-5776-8cd2-5c5a763df239",
+       "display_name": "测试姓名甲"
+      },
+      "action_id": "26ecd7a7-c15e-5b3e-b0fb-c9176c4dafde",
+      "n": 6
+     },
+     {
+      "event_id": "5993968d-6a0c-5586-ae30-9ff1ad08a915",
+      "kind": "commit",
+      "principal": {
+       "principal_id": "688bec98-b027-5e83-af0c-d24434bbf7b9",
+       "display_name": "天枢服务主体"
+      },
+      "on_behalf_of": {
+       "principal_id": "6f890d9c-51ab-5776-8cd2-5c5a763df239",
+       "display_name": "测试姓名甲"
+      },
+      "action_id": "26ecd7a7-c15e-5b3e-b0fb-c9176c4dafde",
+      "n": 7
+     }
+    ]
+   }
+  },
+  {
+   "step": "7",
+   "caption": "建 Task，带执行事项的外部引用",
+   "method": "POST",
+   "path": "/v1/actions",
+   "who": "eo-owner",
+   "body": {
+    "action_type": "world_create_object",
+    "contract_version": "tkos.world/0.2",
+    "target": null,
+    "params": {
+     "object_type": "Task",
+     "payload": {
+      "title": "示例 20261012-073000-abcd Task",
+      "parent_ref": "1c7c1cb8-5918-5a2d-a1d2-ae4d642a0d52@2",
+      "external_refs": [
+       {
+        "system": "tianshu",
+        "id": "todo:2e1ddaa2-a6fe-531c-857d-5ae5db6fd575"
+       }
+      ]
+     }
+    }
+   },
+   "status": 200,
+   "response": {
+    "receipt_id": "99256dea-ddd6-577e-b707-fe397afe4cb3",
+    "status": "committed",
+    "result": {
+     "object_id": "6c3db609-9b90-5d68-96de-ccf8143e6429",
+     "external_refs": [
+      {
+       "system": "tianshu",
+       "id": "todo:2e1ddaa2-a6fe-531c-857d-5ae5db6fd575"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "step": "10",
+   "caption": "从 Mission 出发取上下文",
+   "method": "POST",
+   "path": "/v1/world/objects/1c7c1cb8-5918-5a2d-a1d2-ae4d642a0d52/context",
+   "who": "tianshu",
+   "body": {
+    "question": "为什么做？"
+   },
+   "status": 200,
+   "response": {
+    "context_pack_id": "60116534-7602-5f65-aa0c-c8306af33fc8",
+    "object_id": "1c7c1cb8-5918-5a2d-a1d2-ae4d642a0d52",
+    "context_pack": {
+     "layers": [
+      {
+       "object": {
+        "object_id": "1c7c1cb8-5918-5a2d-a1d2-ae4d642a0d52",
+        "object_type": "Mission"
+       }
+      },
+      {
+       "object": {
+        "object_id": "6c3db609-9b90-5d68-96de-ccf8143e6429",
+        "object_type": "Task"
+       }
+      },
+      {
+       "object": {
+        "object_id": "b1fb782d-4fc5-5287-be54-3f33e84aecb2",
+        "object_type": "StateSnapshot"
+       }
+      }
+     ],
+     "markdown": "- 谁负责：`1c7c1cb8-5918-5a2d-a1d2-ae4d642a0d52@2`：测试姓名甲，天枢服务主体代测试姓名甲记\n正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文正文"
+    }
+   }
+  }
+ ]
+}

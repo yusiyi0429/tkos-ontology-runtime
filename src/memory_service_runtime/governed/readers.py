@@ -157,7 +157,9 @@ def authorize_receipt(conn, ctx, receipt: dict):
     if receipt["action_type"].startswith("workspace."):
         from . import workspace_service
         return workspace_service.authorize_receipt(conn, ctx, receipt)
-    from . import world_v01_readers
+    from . import world_v01_readers, world_v02_readers
+    if world_v02_readers.is_receipt(receipt):
+        return world_v02_readers.authorize_receipt(conn, ctx, db.jsonable(receipt))
     if world_v01_readers.is_receipt(receipt):
         return world_v01_readers.authorize_receipt(conn, ctx, db.jsonable(receipt))
     from . import method_readers

@@ -1,0 +1,20 @@
+{
+  "tenant_id": "tokenking-world-02",
+  "domains": {
+    "company": "词元云集（公司域）",
+    "eo": "E&O（责任单元）",
+    "agents": "Agents（责任单元）"
+  },
+  "principals": {
+    "ceo": {"type": "human", "display_name": "CEO", "roles": {"company": ["CEO"], "eo": ["CEO"], "agents": ["CEO"]}},
+    "eo-dri": {"type": "human", "display_name": "E&O DRI", "roles": {"eo": ["DOMAIN_DRI"]}},
+    "agents-dri": {"type": "human", "display_name": "Agents DRI", "roles": {"agents": ["DOMAIN_DRI"]}},
+    "eo-owner": {"type": "human", "display_name": "E&O Mission Owner", "roles": {"eo": ["OWNER", "IC"]}},
+    "eo-ic": {"type": "human", "display_name": "E&O 执行者", "roles": {"eo": ["IC"]}},
+    "agents-ic": {"type": "human", "display_name": "Agents 执行者", "roles": {"agents": ["IC"]}},
+    "tianshu": {"type": "agent", "display_name": "天枢服务主体", "roles": {"company": ["AGENT"], "eo": ["AGENT"], "agents": ["AGENT"]}},
+    "eo-coagent": {"type": "agent", "display_name": "E&O Co-Agent", "roles": {"eo": ["AGENT"]}},
+    "exec-agent": {"type": "agent", "display_name": "执行 Agent", "roles": {"eo": ["AGENT"]}}
+  },
+  "notes": "world-02：tkos.world/0.2 实验实例；锁版前迁移 0039 会重写，对象、事件与快照可整体清空重建"
+}

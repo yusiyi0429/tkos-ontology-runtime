@@ -1,0 +1,2952 @@
+{
+ "objects": [
+  {
+   "object_id": "81fcaee2-0dd9-50f7-bb07-e908c6e9d202",
+   "business": {
+    "object_id": "81fcaee2-0dd9-50f7-bb07-e908c6e9d202",
+    "object_type": "ResponsibilityUnit",
+    "type_display_name": "责任单元",
+    "category": {
+     "id": "business_object",
+     "display_name": "业务对象"
+    },
+    "candidate": false,
+    "version": 1,
+    "revision_id": "00000000-0000-4000-8000-000000000001",
+    "object_version": 1,
+    "title": "E&O",
+    "attributes": {
+     "unit_kind": "domain",
+     "external_refs": []
+    },
+    "relations": [
+     {
+      "field": "architecture_ref",
+      "relation": "defines",
+      "value": {
+       "block": "responsibility_structure",
+       "component": "eo",
+       "object_id": "0fdc1d7e-0a3b-5ef7-acd5-8957bb76af7d",
+       "revision_id": "00000000-0000-4000-8000-000000000002",
+       "object_version": 1,
+       "ref": "0fdc1d7e-0a3b-5ef7-acd5-8957bb76af7d@1#responsibility_structure/eo"
+      }
+     }
+    ],
+    "blocks": [
+     {
+      "id": "definition",
+      "display_name": "责任定义",
+      "kind": "definition",
+      "class": "formal",
+      "value": {
+       "refs": [],
+       "text": "",
+       "artifacts": [],
+       "components": [
+        {
+         "id": "contribution",
+         "refs": [],
+         "text": "主要支撑灯塔项目的 Mission 01-2、01-3、01-4。",
+         "type": "contribution",
+         "scope": null,
+         "artifacts": [],
+         "attributes": {},
+         "ref": "81fcaee2-0dd9-50f7-bb07-e908c6e9d202@1#definition/contribution"
+        },
+        {
+         "id": "mandate",
+         "refs": [],
+         "text": "Engine & Ontology，战场图编号 05 的能力域：主导语义模型（本体）与 Context Runtime。",
+         "type": "mandate",
+         "scope": null,
+         "artifacts": [],
+         "attributes": {},
+         "ref": "81fcaee2-0dd9-50f7-bb07-e908c6e9d202@1#definition/mandate"
+        },
+        {
+         "id": "boundary",
+         "refs": [],
+         "text": "业务建模不归 E&O：由 CEO 与 Method 锁定业务语义，E&O 忠实翻译成语义模型、数据承载与运行时。Activity 要不要成为对象由 E&O 自己定。",
+         "type": "scope_boundary",
+         "scope": null,
+         "artifacts": [],
+         "attributes": {},
+         "ref": "81fcaee2-0dd9-50f7-bb07-e908c6e9d202@1#definition/boundary"
+        },
+        {
+         "id": "method-frozen",
+         "refs": [],
+         "text": "tkos.method/0.4、0.5 冻结不改。",
+         "type": "key_constraint",
+         "scope": null,
+         "artifacts": [],
+         "attributes": {},
+         "ref": "81fcaee2-0dd9-50f7-bb07-e908c6e9d202@1#definition/method-frozen"
+        },
+        {
+         "id": "no-graph-db",
+         "refs": [],
+         "text": "当前量级用 PostgreSQL 加 pgvector，不引入图数据库。",
+         "type": "key_constraint",
+         "scope": null,
+         "artifacts": [],
+         "attributes": {},
+         "ref": "81fcaee2-0dd9-50f7-bb07-e908c6e9d202@1#definition/no-graph-db"
+        }
+       ]
+      },
+      "empty": false,
+      "text": "",
+      "components": [
+       {
+        "id": "contribution",
+        "refs": [],
+        "text": "主要支撑灯塔项目的 Mission 01-2、01-3、01-4。",
+        "type": "contribution",
+        "scope": null,
+        "artifacts": [],
+        "attributes": {},
+        "ref": "81fcaee2-0dd9-50f7-bb07-e908c6e9d202@1#definition/contribution"
+       },
+       {
+        "id": "mandate",
+        "refs": [],
+        "text": "Engine & Ontology，战场图编号 05 的能力域：主导语义模型（本体）与 Context Runtime。",
+        "type": "mandate",
+        "scope": null,
+        "artifacts": [],
+        "attributes": {},
+        "ref": "81fcaee2-0dd9-50f7-bb07-e908c6e9d202@1#definition/mandate"
+       },
+       {
+        "id": "boundary",
+        "refs": [],
+        "text": "业务建模不归 E&O：由 CEO 与 Method 锁定业务语义，E&O 忠实翻译成语义模型、数据承载与运行时。Activity 要不要成为对象由 E&O 自己定。",
+        "type": "scope_boundary",
+        "scope": null,
+        "artifacts": [],
+        "attributes": {},
+        "ref": "81fcaee2-0dd9-50f7-bb07-e908c6e9d202@1#definition/boundary"
+       },
+       {
+        "id": "method-frozen",
+        "refs": [],
+        "text": "tkos.method/0.4、0.5 冻结不改。",
+        "type": "key_constraint",
+        "scope": null,
+        "artifacts": [],
+        "attributes": {},
+        "ref": "81fcaee2-0dd9-50f7-bb07-e908c6e9d202@1#definition/method-frozen"
+       },
+       {
+        "id": "no-graph-db",
+        "refs": [],
+        "text": "当前量级用 PostgreSQL 加 pgvector，不引入图数据库。",
+        "type": "key_constraint",
+        "scope": null,
+        "artifacts": [],
+        "attributes": {},
+        "ref": "81fcaee2-0dd9-50f7-bb07-e908c6e9d202@1#definition/no-graph-db"
+       }
+      ],
+      "ref": "81fcaee2-0dd9-50f7-bb07-e908c6e9d202@1#definition"
+     }
+    ],
+    "component_ledger": [
+     {
+      "id": "contribution",
+      "type": "contribution",
+      "block": "definition",
+      "added_in_version": 1,
+      "removed_in_version": null
+     },
+     {
+      "id": "mandate",
+      "type": "mandate",
+      "block": "definition",
+      "added_in_version": 1,
+      "removed_in_version": null
+     },
+     {
+      "id": "boundary",
+      "type": "scope_boundary",
+      "block": "definition",
+      "added_in_version": 1,
+      "removed_in_version": null
+     },
+     {
+      "id": "method-frozen",
+      "type": "key_constraint",
+      "block": "definition",
+      "added_in_version": 1,
+      "removed_in_version": null
+     },
+     {
+      "id": "no-graph-db",
+      "type": "key_constraint",
+      "block": "definition",
+      "added_in_version": 1,
+      "removed_in_version": null
+     }
+    ],
+    "projection": {
+     "id": "mission_refs",
+     "display_name": "战役引用",
+     "items": [
+      {
+       "object_id": "89a0f064-5ccf-5126-aed6-946e455d2cab",
+       "object_type": "Mission",
+       "type_display_name": "Mission",
+       "title": "天枢 × 本体 0.2 试用",
+       "ref": "89a0f064-5ccf-5126-aed6-946e455d2cab@2",
+       "pinned": {
+        "object_id": "89a0f064-5ccf-5126-aed6-946e455d2cab",
+        "object_version": 2,
+        "revision_id": "00000000-0000-4000-8000-000000000057",
+        "block": null,
+        "component": null,
+        "ref": "89a0f064-5ccf-5126-aed6-946e455d2cab@2"
+       }
+      },
+      {
+       "object_id": "90bfd291-b335-5fb4-8385-0679368a9e50",
+       "object_type": "Mission",
+       "type_display_name": "Mission",
+       "title": "0.2 实验与报告",
+       "ref": "90bfd291-b335-5fb4-8385-0679368a9e50@2",
+       "pinned": {
+        "object_id": "90bfd291-b335-5fb4-8385-0679368a9e50",
+        "object_version": 2,
+        "revision_id": "00000000-0000-4000-8000-000000000006",
+        "block": null,
+        "component": null,
+        "ref": "90bfd291-b335-5fb4-8385-0679368a9e50@2"
+       }
+      },
+      {
+       "object_id": "8f5159a4-1855-5996-84c1-b524a94113fc",
+       "object_type": "Mission",
+       "type_display_name": "Mission",
+       "title": "0.2 锁版",
+       "ref": "8f5159a4-1855-5996-84c1-b524a94113fc@2",
+       "pinned": {
+        "object_id": "8f5159a4-1855-5996-84c1-b524a94113fc",
+        "object_version": 2,
+        "revision_id": "00000000-0000-4000-8000-000000000009",
+        "block": null,
+        "component": null,
+        "ref": "8f5159a4-1855-5996-84c1-b524a94113fc@2"
+       }
+      }
+     ]
+    },
+    "formal": {
+     "lifecycle_status": "recorded",
+     "effective_revision_id": "00000000-0000-4000-8000-000000000001"
+    },
+    "round": null
+   },
+   "identity": {
+    "responsible": {
+     "role": "DOMAIN_DRI",
+     "source": "role",
+     "principals": [
+      {
+       "principal_id": "00000000-0000-4000-8000-000000000003",
+       "principal_type": "human",
+       "display_name": "E&O DRI"
+      }
+     ]
+    },
+    "delegations": []
+   },
+   "records": {
+    "lifecycle": null,
+    "latest_state": null,
+    "confirmed_review": null,
+    "open_issues": []
+   }
+  },
+  {
+   "object_id": "04e1479e-c221-58b6-a541-e3c34930dee4",
+   "business": {
+    "object_id": "04e1479e-c221-58b6-a541-e3c34930dee4",
+    "object_type": "PeriodGoal",
+    "type_display_name": "周期目标",
+    "category": {
+     "id": "business_object",
+     "display_name": "业务对象"
+    },
+    "candidate": false,
+    "version": 2,
+    "revision_id": "00000000-0000-4000-8000-000000000004",
+    "object_version": 5,
+    "title": "E&O 10 月：tkos.world 0.2 在真实经营中跑通",
+    "attributes": {
+     "period": "2026-10",
+     "external_refs": []
+    },
+    "relations": [
+     {
+      "field": "goal_ref",
+      "relation": "advances",
+      "value": {
+       "block": null,
+       "component": null,
+       "object_id": "9fcc28fd-254d-56e2-9738-bb0cc67f88f6",
+       "revision_id": "00000000-0000-4000-8000-000000000005",
+       "object_version": 1,
+       "ref": "9fcc28fd-254d-56e2-9738-bb0cc67f88f6@1"
+      }
+     },
+     {
+      "field": "review_ref",
+      "relation": "based_on_review",
+      "value": null
+     },
+     {
+      "field": "depends_on",
+      "relation": "depends_on",
+      "value": []
+     }
+    ],
+    "blocks": [
+     {
+      "id": "alignment",
+      "display_name": "定位与承接",
+      "kind": "definition",
+      "class": "formal",
+      "value": null,
+      "empty": true,
+      "text": "定位与承接：暂无",
+      "components": [],
+      "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@2#alignment"
+     },
+     {
+      "id": "target",
+      "display_name": "目标定义",
+      "kind": "definition",
+      "class": "formal",
+      "value": {
+       "refs": [],
+       "text": "",
+       "artifacts": [],
+       "components": [
+        {
+         "id": "tianshu",
+         "refs": [],
+         "text": "10 月 16 日天枢联调验收通过",
+         "type": "outcome",
+         "scope": null,
+         "artifacts": [],
+         "attributes": {},
+         "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@2#target/tianshu"
+        },
+        {
+         "id": "records",
+         "refs": [],
+         "text": "E&O 十月的工作全部经本体记录",
+         "type": "outcome",
+         "scope": null,
+         "artifacts": [],
+         "attributes": {},
+         "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@2#target/records"
+        },
+        {
+         "id": "lock",
+         "refs": [],
+         "text": "tkos.world 0.2 锁版",
+         "type": "outcome",
+         "scope": null,
+         "artifacts": [],
+         "attributes": {},
+         "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@2#target/lock"
+        },
+        {
+         "id": "ac-tianshu",
+         "refs": [],
+         "text": "10 月 16 日天枢联调验收通过",
+         "type": "acceptance_criterion",
+         "scope": null,
+         "artifacts": [],
+         "attributes": {},
+         "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@2#target/ac-tianshu"
+        },
+        {
+         "id": "ac-records",
+         "refs": [],
+         "text": "E&O 十月的工作全部经本体记录（每张任务卡有每周快照，执行事项的完成由交付事件推出）",
+         "type": "acceptance_criterion",
+         "scope": null,
+         "artifacts": [],
+         "attributes": {},
+         "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@2#target/ac-records"
+        },
+        {
+         "id": "ac-lock",
+         "refs": [],
+         "text": "10 月 20 日 CEO 定下对象结构之后，tkos.world 0.2 锁版（验收冻结并钉定提交）",
+         "type": "acceptance_criterion",
+         "scope": null,
+         "artifacts": [],
+         "attributes": {},
+         "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@2#target/ac-lock"
+        }
+       ]
+      },
+      "empty": false,
+      "text": "",
+      "components": [
+       {
+        "id": "tianshu",
+        "refs": [],
+        "text": "10 月 16 日天枢联调验收通过",
+        "type": "outcome",
+        "scope": null,
+        "artifacts": [],
+        "attributes": {},
+        "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@2#target/tianshu"
+       },
+       {
+        "id": "records",
+        "refs": [],
+        "text": "E&O 十月的工作全部经本体记录",
+        "type": "outcome",
+        "scope": null,
+        "artifacts": [],
+        "attributes": {},
+        "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@2#target/records"
+       },
+       {
+        "id": "lock",
+        "refs": [],
+        "text": "tkos.world 0.2 锁版",
+        "type": "outcome",
+        "scope": null,
+        "artifacts": [],
+        "attributes": {},
+        "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@2#target/lock"
+       },
+       {
+        "id": "ac-tianshu",
+        "refs": [],
+        "text": "10 月 16 日天枢联调验收通过",
+        "type": "acceptance_criterion",
+        "scope": null,
+        "artifacts": [],
+        "attributes": {},
+        "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@2#target/ac-tianshu"
+       },
+       {
+        "id": "ac-records",
+        "refs": [],
+        "text": "E&O 十月的工作全部经本体记录（每张任务卡有每周快照，执行事项的完成由交付事件推出）",
+        "type": "acceptance_criterion",
+        "scope": null,
+        "artifacts": [],
+        "attributes": {},
+        "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@2#target/ac-records"
+       },
+       {
+        "id": "ac-lock",
+        "refs": [],
+        "text": "10 月 20 日 CEO 定下对象结构之后，tkos.world 0.2 锁版（验收冻结并钉定提交）",
+        "type": "acceptance_criterion",
+        "scope": null,
+        "artifacts": [],
+        "attributes": {},
+        "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@2#target/ac-lock"
+       }
+      ],
+      "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@2#target"
+     }
+    ],
+    "component_ledger": [
+     {
+      "id": "tianshu",
+      "type": "outcome",
+      "block": "target",
+      "added_in_version": 1,
+      "removed_in_version": null
+     },
+     {
+      "id": "records",
+      "type": "outcome",
+      "block": "target",
+      "added_in_version": 1,
+      "removed_in_version": null
+     },
+     {
+      "id": "lock",
+      "type": "outcome",
+      "block": "target",
+      "added_in_version": 1,
+      "removed_in_version": null
+     },
+     {
+      "id": "ac-tianshu",
+      "type": "acceptance_criterion",
+      "block": "target",
+      "added_in_version": 1,
+      "removed_in_version": null
+     },
+     {
+      "id": "ac-records",
+      "type": "acceptance_criterion",
+      "block": "target",
+      "added_in_version": 1,
+      "removed_in_version": null
+     },
+     {
+      "id": "ac-lock",
+      "type": "acceptance_criterion",
+      "block": "target",
+      "added_in_version": 1,
+      "removed_in_version": null
+     }
+    ],
+    "projection": null,
+    "formal": {
+     "lifecycle_status": "confirmed",
+     "effective_revision_id": "00000000-0000-4000-8000-000000000004"
+    },
+    "round": null
+   },
+   "identity": {
+    "responsible": {
+     "role": "DOMAIN_DRI",
+     "source": "role",
+     "principals": [
+      {
+       "principal_id": "00000000-0000-4000-8000-000000000003",
+       "principal_type": "human",
+       "display_name": "E&O DRI"
+      }
+     ]
+    },
+    "delegations": []
+   },
+   "records": {
+    "lifecycle": {
+     "status": "confirmed",
+     "display_name": "已确认",
+     "event_id": "9afd8202-872d-5db8-a129-fabb25d72a70"
+    },
+    "latest_state": null,
+    "confirmed_review": null,
+    "open_issues": []
+   }
+  },
+  {
+   "object_id": "90bfd291-b335-5fb4-8385-0679368a9e50",
+   "business": {
+    "object_id": "90bfd291-b335-5fb4-8385-0679368a9e50",
+    "object_type": "Mission",
+    "type_display_name": "Mission",
+    "category": {
+     "id": "business_object",
+     "display_name": "业务对象"
+    },
+    "candidate": false,
+    "version": 2,
+    "revision_id": "00000000-0000-4000-8000-000000000006",
+    "object_version": 4,
+    "title": "0.2 实验与报告",
+    "attributes": {
+     "core_battle": false,
+     "responsible": "00000000-0000-4000-8000-000000000007",
+     "external_refs": []
+    },
+    "relations": [
+     {
+      "field": "goal_ref",
+      "relation": "serves",
+      "value": {
+       "block": null,
+       "component": null,
+       "object_id": "04e1479e-c221-58b6-a541-e3c34930dee4",
+       "revision_id": "00000000-0000-4000-8000-000000000008",
+       "object_version": 1,
+       "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@1"
+      }
+     },
+     {
+      "field": "depends_on",
+      "relation": "depends_on",
+      "value": []
+     },
+     {
+      "field": "contributes_to",
+      "relation": "contributes_to",
+      "value": []
+     }
+    ],
+    "blocks": [
+     {
+      "id": "definition",
+      "display_name": "战役定义",
+      "kind": "definition",
+      "class": "formal",
+      "value": {
+       "refs": [],
+       "text": "",
+       "artifacts": [],
+       "components": [
+        {
+         "id": "report",
+         "refs": [],
+         "text": "0.2 的实验与实验报告。",
+         "type": "outcome",
+         "scope": null,
+         "artifacts": [],
+         "attributes": {},
+         "ref": "90bfd291-b335-5fb4-8385-0679368a9e50@2#definition/report"
+        }
+       ]
+      },
+      "empty": false,
+      "text": "",
+      "components": [
+       {
+        "id": "report",
+        "refs": [],
+        "text": "0.2 的实验与实验报告。",
+        "type": "outcome",
+        "scope": null,
+        "artifacts": [],
+        "attributes": {},
+        "ref": "90bfd291-b335-5fb4-8385-0679368a9e50@2#definition/report"
+       }
+      ],
+      "ref": "90bfd291-b335-5fb4-8385-0679368a9e50@2#definition"
+     },
+     {
+      "id": "mission_plan",
+      "display_name": "Mission 计划",
+      "kind": "definition",
+      "class": "formal",
+      "value": {
+       "refs": [],
+       "text": "",
+       "artifacts": [],
+       "components": [
+        {
+         "id": "path",
+         "refs": [],
+         "text": "对照实验 B（Task-only 与 Task+Activity），实验 E（五个场景、真实战略材料与标准答案），四种取法对照（含 RAG），写成实验报告。",
+         "type": "core_path",
+         "scope": null,
+         "artifacts": [],
+         "attributes": {},
+         "ref": "90bfd291-b335-5fb4-8385-0679368a9e50@2#mission_plan/path"
+        }
+       ]
+      },
+      "empty": false,
+      "text": "",
+      "components": [
+       {
+        "id": "path",
+        "refs": [],
+        "text": "对照实验 B（Task-only 与 Task+Activity），实验 E（五个场景、真实战略材料与标准答案），四种取法对照（含 RAG），写成实验报告。",
+        "type": "core_path",
+        "scope": null,
+        "artifacts": [],
+        "attributes": {},
+        "ref": "90bfd291-b335-5fb4-8385-0679368a9e50@2#mission_plan/path"
+       }
+      ],
+      "ref": "90bfd291-b335-5fb4-8385-0679368a9e50@2#mission_plan"
+     },
+     {
+      "id": "execution_plan",
+      "display_name": "Task 全景",
+      "kind": "plan",
+      "class": "activity",
+      "value": null,
+      "empty": true,
+      "text": "Task 全景：暂无",
+      "components": [],
+      "ref": "90bfd291-b335-5fb4-8385-0679368a9e50@2#execution_plan"
+     }
+    ],
+    "component_ledger": [
+     {
+      "id": "report",
+      "type": "outcome",
+      "block": "definition",
+      "added_in_version": 1,
+      "removed_in_version": null
+     },
+     {
+      "id": "path",
+      "type": "core_path",
+      "block": "mission_plan",
+      "added_in_version": 1,
+      "removed_in_version": null
+     }
+    ],
+    "projection": {
+     "id": "task_expectations",
+     "display_name": "Task 预期结果与质量标准",
+     "items": [
+      {
+       "object_id": "deed8ddf-fbd5-5b5c-bb24-2799e0cbfce0",
+       "object_type": "Task",
+       "type_display_name": "Task",
+       "title": "对照实验 B：Task-only 与 Task+Activity",
+       "ref": "deed8ddf-fbd5-5b5c-bb24-2799e0cbfce0@2",
+       "pinned": {
+        "object_id": "deed8ddf-fbd5-5b5c-bb24-2799e0cbfce0",
+        "object_version": 2,
+        "revision_id": "00000000-0000-4000-8000-000000000058",
+        "block": null,
+        "component": null,
+        "ref": "deed8ddf-fbd5-5b5c-bb24-2799e0cbfce0@2"
+       },
+       "components": [
+        {
+         "id": "outcome",
+         "refs": [],
+         "text": "对照 Task-only 与 Task+Activity 两种做法。",
+         "type": "outcome",
+         "scope": null,
+         "artifacts": [],
+         "attributes": {},
+         "ref": "deed8ddf-fbd5-5b5c-bb24-2799e0cbfce0@2#definition/outcome",
+         "pinned": {
+          "object_id": "deed8ddf-fbd5-5b5c-bb24-2799e0cbfce0",
+          "object_version": 2,
+          "revision_id": "00000000-0000-4000-8000-000000000058",
+          "block": "definition",
+          "component": "outcome",
+          "ref": "deed8ddf-fbd5-5b5c-bb24-2799e0cbfce0@2#definition/outcome"
+         }
+        }
+       ]
+      },
+      {
+       "object_id": "b36b3a82-e9bc-5228-8154-1d90b9921b16",
+       "object_type": "Task",
+       "type_display_name": "Task",
+       "title": "实验 E：五个场景、真实战略材料与标准答案",
+       "ref": "b36b3a82-e9bc-5228-8154-1d90b9921b16@3",
+       "pinned": {
+        "object_id": "b36b3a82-e9bc-5228-8154-1d90b9921b16",
+        "object_version": 3,
+        "revision_id": "00000000-0000-4000-8000-000000000059",
+        "block": null,
+        "component": null,
+        "ref": "b36b3a82-e9bc-5228-8154-1d90b9921b16@3"
+       },
+       "components": [
+        {
+         "id": "outcome",
+         "refs": [],
+         "text": "五个场景，用真实战略材料，写标准答案。",
+         "type": "outcome",
+         "scope": null,
+         "artifacts": [],
+         "attributes": {},
+         "ref": "b36b3a82-e9bc-5228-8154-1d90b9921b16@3#definition/outcome",
+         "pinned": {
+          "object_id": "b36b3a82-e9bc-5228-8154-1d90b9921b16",
+          "object_version": 3,
+          "revision_id": "00000000-0000-4000-8000-000000000059",
+          "block": "definition",
+          "component": "outcome",
+          "ref": "b36b3a82-e9bc-5228-8154-1d90b9921b16@3#definition/outcome"
+         }
+        },
+        {
+         "id": "ac-gold",
+         "refs": [],
+         "text": "五个场景各有播种、标准答案与反例判定；标准答案经 E&O DRI 批准，跑器拒用未批准或已改动的标准答案。",
+         "type": "acceptance_criterion",
+         "scope": null,
+         "artifacts": [],
+         "attributes": {},
+         "ref": "b36b3a82-e9bc-5228-8154-1d90b9921b16@3#definition/ac-gold",
+         "pinned": {
+          "object_id": "b36b3a82-e9bc-5228-8154-1d90b9921b16",
+          "object_version": 3,
+          "revision_id": "00000000-0000-4000-8000-000000000059",
+          "block": "definition",
+          "component": "ac-gold",
+          "ref": "b36b3a82-e9bc-5228-8154-1d90b9921b16@3#definition/ac-gold"
+         }
+        }
+       ]
+      },
+      {
+       "object_id": "293565b4-840b-52f2-8ee0-73c6f3f9519e",
+       "object_type": "Task",
+       "type_display_name": "Task",
+       "title": "四种取法对照（含 RAG）与实验报告",
+       "ref": "293565b4-840b-52f2-8ee0-73c6f3f9519e@3",
+       "pinned": {
+        "object_id": "293565b4-840b-52f2-8ee0-73c6f3f9519e",
+        "object_version": 3,
+        "revision_id": "00000000-0000-4000-8000-000000000010",
+        "block": null,
+        "component": null,
+        "ref": "293565b4-840b-52f2-8ee0-73c6f3f9519e@3"
+       },
+       "components": [
+        {
+         "id": "outcome",
+         "refs": [],
+         "text": "对照四种取法（含 RAG），写成实验报告。",
+         "type": "outcome",
+         "scope": null,
+         "artifacts": [],
+         "attributes": {},
+         "ref": "293565b4-840b-52f2-8ee0-73c6f3f9519e@3#definition/outcome",
+         "pinned": {
+          "object_id": "293565b4-840b-52f2-8ee0-73c6f3f9519e",
+          "object_version": 3,
+          "revision_id": "00000000-0000-4000-8000-000000000010",
+          "block": "definition",
+          "component": "outcome",
+          "ref": "293565b4-840b-52f2-8ee0-73c6f3f9519e@3#definition/outcome"
+         }
+        }
+       ]
+      }
+     ]
+    },
+    "formal": {
+     "lifecycle_status": "confirmed",
+     "effective_revision_id": "00000000-0000-4000-8000-000000000006"
+    },
+    "round": null
+   },
+   "identity": {
+    "responsible": {
+     "roles": {
+      "human": "OWNER"
+     },
+     "source": "attribute",
+     "principals": [
+      {
+       "principal_id": "00000000-0000-4000-8000-000000000007",
+       "principal_type": "human",
+       "display_name": "E&O Mission Owner"
+      }
+     ]
+    },
+    "delegations": []
+   },
+   "records": {
+    "lifecycle": {
+     "status": "established",
+     "display_name": "已成立",
+     "event_id": "1f51d0dd-cb14-5738-b6d4-14f655c5a6e5"
+    },
+    "latest_state": null,
+    "confirmed_review": null,
+    "open_issues": []
+   }
+  },
+  {
+   "object_id": "8f5159a4-1855-5996-84c1-b524a94113fc",
+   "business": {
+    "object_id": "8f5159a4-1855-5996-84c1-b524a94113fc",
+    "object_type": "Mission",
+    "type_display_name": "Mission",
+    "category": {
+     "id": "business_object",
+     "display_name": "业务对象"
+    },
+    "candidate": false,
+    "version": 2,
+    "revision_id": "00000000-0000-4000-8000-000000000009",
+    "object_version": 4,
+    "title": "0.2 锁版",
+    "attributes": {
+     "core_battle": false,
+     "responsible": "00000000-0000-4000-8000-000000000007",
+     "external_refs": []
+    },
+    "relations": [
+     {
+      "field": "goal_ref",
+      "relation": "serves",
+      "value": {
+       "block": null,
+       "component": null,
+       "object_id": "04e1479e-c221-58b6-a541-e3c34930dee4",
+       "revision_id": "00000000-0000-4000-8000-000000000008",
+       "object_version": 1,
+       "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@1"
+      }
+     },
+     {
+      "field": "depends_on",
+      "relation": "depends_on",
+      "value": []
+     },
+     {
+      "field": "contributes_to",
+      "relation": "contributes_to",
+      "value": []
+     }
+    ],
+    "blocks": [
+     {
+      "id": "definition",
+      "display_name": "战役定义",
+      "kind": "definition",
+      "class": "formal",
+      "value": {
+       "refs": [],
+       "text": "",
+       "artifacts": [],
+       "components": [
+        {
+         "id": "lock",
+         "refs": [],
+         "text": "tkos.world 0.2 锁版。",
+         "type": "outcome",
+         "scope": null,
+         "artifacts": [],
+         "attributes": {},
+         "ref": "8f5159a4-1855-5996-84c1-b524a94113fc@2#definition/lock"
+        },
+        {
+         "id": "ac-lock",
+         "refs": [
+          {
+           "block": "target",
+           "component": "ac-lock",
+           "object_id": "04e1479e-c221-58b6-a541-e3c34930dee4",
+           "revision_id": "00000000-0000-4000-8000-000000000008",
+           "object_version": 1,
+           "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@1#target/ac-lock"
+          }
+         ],
+         "text": "tkos.world 0.2 锁版（验收冻结并钉定提交）",
+         "type": "acceptance_criterion",
+         "scope": null,
+         "artifacts": [],
+         "attributes": {},
+         "ref": "8f5159a4-1855-5996-84c1-b524a94113fc@2#definition/ac-lock"
+        }
+       ]
+      },
+      "empty": false,
+      "text": "",
+      "components": [
+       {
+        "id": "lock",
+        "refs": [],
+        "text": "tkos.world 0.2 锁版。",
+        "type": "outcome",
+        "scope": null,
+        "artifacts": [],
+        "attributes": {},
+        "ref": "8f5159a4-1855-5996-84c1-b524a94113fc@2#definition/lock"
+       },
+       {
+        "id": "ac-lock",
+        "refs": [
+         {
+          "block": "target",
+          "component": "ac-lock",
+          "object_id": "04e1479e-c221-58b6-a541-e3c34930dee4",
+          "revision_id": "00000000-0000-4000-8000-000000000008",
+          "object_version": 1,
+          "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@1#target/ac-lock"
+         }
+        ],
+        "text": "tkos.world 0.2 锁版（验收冻结并钉定提交）",
+        "type": "acceptance_criterion",
+        "scope": null,
+        "artifacts": [],
+        "attributes": {},
+        "ref": "8f5159a4-1855-5996-84c1-b524a94113fc@2#definition/ac-lock"
+       }
+      ],
+      "ref": "8f5159a4-1855-5996-84c1-b524a94113fc@2#definition"
+     },
+     {
+      "id": "mission_plan",
+      "display_name": "Mission 计划",
+      "kind": "definition",
+      "class": "formal",
+      "value": {
+       "refs": [],
+       "text": "",
+       "artifacts": [],
+       "components": [
+        {
+         "id": "path",
+         "refs": [],
+         "text": "验收冻结并钉定提交，然后发版、切换实例。",
+         "type": "core_path",
+         "scope": null,
+         "artifacts": [],
+         "attributes": {},
+         "ref": "8f5159a4-1855-5996-84c1-b524a94113fc@2#mission_plan/path"
+        }
+       ]
+      },
+      "empty": false,
+      "text": "",
+      "components": [
+       {
+        "id": "path",
+        "refs": [],
+        "text": "验收冻结并钉定提交，然后发版、切换实例。",
+        "type": "core_path",
+        "scope": null,
+        "artifacts": [],
+        "attributes": {},
+        "ref": "8f5159a4-1855-5996-84c1-b524a94113fc@2#mission_plan/path"
+       }
+      ],
+      "ref": "8f5159a4-1855-5996-84c1-b524a94113fc@2#mission_plan"
+     },
+     {
+      "id": "execution_plan",
+      "display_name": "Task 全景",
+      "kind": "plan",
+      "class": "activity",
+      "value": null,
+      "empty": true,
+      "text": "Task 全景：暂无",
+      "components": [],
+      "ref": "8f5159a4-1855-5996-84c1-b524a94113fc@2#execution_plan"
+     }
+    ],
+    "component_ledger": [
+     {
+      "id": "lock",
+      "type": "outcome",
+      "block": "definition",
+      "added_in_version": 1,
+      "removed_in_version": null
+     },
+     {
+      "id": "ac-lock",
+      "type": "acceptance_criterion",
+      "block": "definition",
+      "added_in_version": 1,
+      "removed_in_version": null
+     },
+     {
+      "id": "path",
+      "type": "core_path",
+      "block": "mission_plan",
+      "added_in_version": 1,
+      "removed_in_version": null
+     }
+    ],
+    "projection": {
+     "id": "task_expectations",
+     "display_name": "Task 预期结果与质量标准",
+     "items": [
+      {
+       "object_id": "2497ba8a-bfa4-5037-8fb5-660a84bff557",
+       "object_type": "Task",
+       "type_display_name": "Task",
+       "title": "验收冻结与钉定提交",
+       "ref": "2497ba8a-bfa4-5037-8fb5-660a84bff557@2",
+       "pinned": {
+        "object_id": "2497ba8a-bfa4-5037-8fb5-660a84bff557",
+        "object_version": 2,
+        "revision_id": "00000000-0000-4000-8000-000000000013",
+        "block": null,
+        "component": null,
+        "ref": "2497ba8a-bfa4-5037-8fb5-660a84bff557@2"
+       },
+       "components": [
+        {
+         "id": "outcome",
+         "refs": [],
+         "text": "0.2 验收冻结，钉定提交。",
+         "type": "outcome",
+         "scope": null,
+         "artifacts": [],
+         "attributes": {},
+         "ref": "2497ba8a-bfa4-5037-8fb5-660a84bff557@2#definition/outcome",
+         "pinned": {
+          "object_id": "2497ba8a-bfa4-5037-8fb5-660a84bff557",
+          "object_version": 2,
+          "revision_id": "00000000-0000-4000-8000-000000000013",
+          "block": "definition",
+          "component": "outcome",
+          "ref": "2497ba8a-bfa4-5037-8fb5-660a84bff557@2#definition/outcome"
+         }
+        }
+       ]
+      },
+      {
+       "object_id": "7cd6c496-929e-5be7-b29b-a8d536578875",
+       "object_type": "Task",
+       "type_display_name": "Task",
+       "title": "发版与实例切换",
+       "ref": "7cd6c496-929e-5be7-b29b-a8d536578875@1",
+       "pinned": {
+        "object_id": "7cd6c496-929e-5be7-b29b-a8d536578875",
+        "object_version": 1,
+        "revision_id": "00000000-0000-4000-8000-000000000060",
+        "block": null,
+        "component": null,
+        "ref": "7cd6c496-929e-5be7-b29b-a8d536578875@1"
+       },
+       "components": [
+        {
+         "id": "outcome",
+         "refs": [],
+         "text": "按钉定的提交发版，实例切换到发版的版本。",
+         "type": "outcome",
+         "scope": null,
+         "artifacts": [],
+         "attributes": {},
+         "ref": "7cd6c496-929e-5be7-b29b-a8d536578875@1#definition/outcome",
+         "pinned": {
+          "object_id": "7cd6c496-929e-5be7-b29b-a8d536578875",
+          "object_version": 1,
+          "revision_id": "00000000-0000-4000-8000-000000000060",
+          "block": "definition",
+          "component": "outcome",
+          "ref": "7cd6c496-929e-5be7-b29b-a8d536578875@1#definition/outcome"
+         }
+        }
+       ]
+      }
+     ]
+    },
+    "formal": {
+     "lifecycle_status": "confirmed",
+     "effective_revision_id": "00000000-0000-4000-8000-000000000009"
+    },
+    "round": null
+   },
+   "identity": {
+    "responsible": {
+     "roles": {
+      "human": "OWNER"
+     },
+     "source": "attribute",
+     "principals": [
+      {
+       "principal_id": "00000000-0000-4000-8000-000000000007",
+       "principal_type": "human",
+       "display_name": "E&O Mission Owner"
+      }
+     ]
+    },
+    "delegations": []
+   },
+   "records": {
+    "lifecycle": {
+     "status": "established",
+     "display_name": "已成立",
+     "event_id": "0af25f5f-fa7d-5186-adb8-562c9673e7ed"
+    },
+    "latest_state": null,
+    "confirmed_review": null,
+    "open_issues": []
+   }
+  },
+  {
+   "object_id": "293565b4-840b-52f2-8ee0-73c6f3f9519e",
+   "business": {
+    "object_id": "293565b4-840b-52f2-8ee0-73c6f3f9519e",
+    "object_type": "Task",
+    "type_display_name": "Task",
+    "category": {
+     "id": "business_object",
+     "display_name": "业务对象"
+    },
+    "candidate": false,
+    "version": 3,
+    "revision_id": "00000000-0000-4000-8000-000000000010",
+    "object_version": 4,
+    "title": "四种取法对照（含 RAG）与实验报告",
+    "attributes": {
+     "responsible": "00000000-0000-4000-8000-000000000011",
+     "external_refs": []
+    },
+    "relations": [
+     {
+      "field": "parent_ref",
+      "relation": "decomposed_into",
+      "value": {
+       "block": null,
+       "component": null,
+       "object_id": "90bfd291-b335-5fb4-8385-0679368a9e50",
+       "revision_id": "00000000-0000-4000-8000-000000000006",
+       "object_version": 2,
+       "ref": "90bfd291-b335-5fb4-8385-0679368a9e50@2"
+      }
+     },
+     {
+      "field": "depends_on",
+      "relation": "depends_on",
+      "value": []
+     }
+    ],
+    "blocks": [
+     {
+      "id": "definition",
+      "display_name": "任务定义",
+      "kind": "definition",
+      "class": "formal",
+      "value": {
+       "refs": [],
+       "text": "",
+       "artifacts": [],
+       "components": [
+        {
+         "id": "outcome",
+         "refs": [],
+         "text": "对照四种取法（含 RAG），写成实验报告。",
+         "type": "outcome",
+         "scope": null,
+         "artifacts": [],
+         "attributes": {},
+         "ref": "293565b4-840b-52f2-8ee0-73c6f3f9519e@3#definition/outcome"
+        }
+       ]
+      },
+      "empty": false,
+      "text": "",
+      "components": [
+       {
+        "id": "outcome",
+        "refs": [],
+        "text": "对照四种取法（含 RAG），写成实验报告。",
+        "type": "outcome",
+        "scope": null,
+        "artifacts": [],
+        "attributes": {},
+        "ref": "293565b4-840b-52f2-8ee0-73c6f3f9519e@3#definition/outcome"
+       }
+      ],
+      "ref": "293565b4-840b-52f2-8ee0-73c6f3f9519e@3#definition"
+     },
+     {
+      "id": "task_plan",
+      "display_name": "Task 计划",
+      "kind": "definition",
+      "class": "formal",
+      "value": {
+       "refs": [],
+       "text": "",
+       "artifacts": [],
+       "components": [
+        {
+         "id": "graph-db",
+         "refs": [],
+         "text": "RAG 组的检索环境：切块与对象关系存进单独部署的图数据库，用邻接检索补向量检索的召回。",
+         "type": "execution_context",
+         "scope": null,
+         "artifacts": [],
+         "attributes": {},
+         "ref": "293565b4-840b-52f2-8ee0-73c6f3f9519e@3#task_plan/graph-db"
+        }
+       ]
+      },
+      "empty": false,
+      "text": "",
+      "components": [
+       {
+        "id": "graph-db",
+        "refs": [],
+        "text": "RAG 组的检索环境：切块与对象关系存进单独部署的图数据库，用邻接检索补向量检索的召回。",
+        "type": "execution_context",
+        "scope": null,
+        "artifacts": [],
+        "attributes": {},
+        "ref": "293565b4-840b-52f2-8ee0-73c6f3f9519e@3#task_plan/graph-db"
+       }
+      ],
+      "ref": "293565b4-840b-52f2-8ee0-73c6f3f9519e@3#task_plan"
+     },
+     {
+      "id": "plan",
+      "display_name": "Activity 全景",
+      "kind": "plan",
+      "class": "activity",
+      "value": {
+       "refs": [],
+       "text": "",
+       "artifacts": [],
+       "components": [
+        {
+         "id": "rag-graph",
+         "refs": [],
+         "text": "RAG 组：把 scope 内的对象与事件切块，建进单独部署的图数据库，按向量与邻接关系检索。",
+         "type": "plan_item",
+         "scope": null,
+         "artifacts": [],
+         "attributes": {
+          "responsible": "00000000-0000-4000-8000-000000000011"
+         },
+         "ref": "293565b4-840b-52f2-8ee0-73c6f3f9519e@3#plan/rag-graph"
+        },
+        {
+         "id": "cost",
+         "refs": [],
+         "text": "四种取法各按交给模型的字符数记成本，预算只报告、不作门。",
+         "type": "plan_item",
+         "scope": null,
+         "artifacts": [],
+         "attributes": {
+          "responsible": "00000000-0000-4000-8000-000000000011"
+         },
+         "ref": "293565b4-840b-52f2-8ee0-73c6f3f9519e@3#plan/cost"
+        },
+        {
+         "id": "report",
+         "refs": [],
+         "text": "写实验报告，写明触发调整对象结构的条件。",
+         "type": "plan_item",
+         "scope": null,
+         "artifacts": [],
+         "attributes": {
+          "responsible": "00000000-0000-4000-8000-000000000011"
+         },
+         "ref": "293565b4-840b-52f2-8ee0-73c6f3f9519e@3#plan/report"
+        }
+       ]
+      },
+      "empty": false,
+      "text": "",
+      "components": [
+       {
+        "id": "rag-graph",
+        "refs": [],
+        "text": "RAG 组：把 scope 内的对象与事件切块，建进单独部署的图数据库，按向量与邻接关系检索。",
+        "type": "plan_item",
+        "scope": null,
+        "artifacts": [],
+        "attributes": {
+         "responsible": "00000000-0000-4000-8000-000000000011"
+        },
+        "ref": "293565b4-840b-52f2-8ee0-73c6f3f9519e@3#plan/rag-graph"
+       },
+       {
+        "id": "cost",
+        "refs": [],
+        "text": "四种取法各按交给模型的字符数记成本，预算只报告、不作门。",
+        "type": "plan_item",
+        "scope": null,
+        "artifacts": [],
+        "attributes": {
+         "responsible": "00000000-0000-4000-8000-000000000011"
+        },
+        "ref": "293565b4-840b-52f2-8ee0-73c6f3f9519e@3#plan/cost"
+       },
+       {
+        "id": "report",
+        "refs": [],
+        "text": "写实验报告，写明触发调整对象结构的条件。",
+        "type": "plan_item",
+        "scope": null,
+        "artifacts": [],
+        "attributes": {
+         "responsible": "00000000-0000-4000-8000-000000000011"
+        },
+        "ref": "293565b4-840b-52f2-8ee0-73c6f3f9519e@3#plan/report"
+       }
+      ],
+      "ref": "293565b4-840b-52f2-8ee0-73c6f3f9519e@3#plan"
+     }
+    ],
+    "component_ledger": [
+     {
+      "id": "outcome",
+      "type": "outcome",
+      "block": "definition",
+      "added_in_version": 1,
+      "removed_in_version": null
+     },
+     {
+      "id": "graph-db",
+      "type": "execution_context",
+      "block": "task_plan",
+      "added_in_version": 3,
+      "removed_in_version": null
+     },
+     {
+      "id": "rag-graph",
+      "type": "plan_item",
+      "block": "plan",
+      "added_in_version": 3,
+      "removed_in_version": null
+     },
+     {
+      "id": "cost",
+      "type": "plan_item",
+      "block": "plan",
+      "added_in_version": 3,
+      "removed_in_version": null
+     },
+     {
+      "id": "report",
+      "type": "plan_item",
+      "block": "plan",
+      "added_in_version": 3,
+      "removed_in_version": null
+     }
+    ],
+    "projection": null,
+    "formal": {
+     "lifecycle_status": "recorded",
+     "effective_revision_id": "00000000-0000-4000-8000-000000000010"
+    },
+    "round": null
+   },
+   "identity": {
+    "responsible": {
+     "roles": {
+      "human": "IC"
+     },
+     "source": "attribute",
+     "principals": [
+      {
+       "principal_id": "00000000-0000-4000-8000-000000000011",
+       "principal_type": "human",
+       "display_name": "取法对照 Task 责任人"
+      }
+     ]
+    },
+    "delegations": []
+   },
+   "records": {
+    "lifecycle": {
+     "status": "in_progress",
+     "display_name": "进行中",
+     "event_id": "1b4b94d6-a255-5b63-8456-10279321d0d8"
+    },
+    "latest_state": {
+     "object_id": "2c7d70bd-aa85-50bf-9cd3-6513a54370ef",
+     "object_type": "StateSnapshot",
+     "category": {
+      "id": "time_record",
+      "display_name": "时间记录"
+     },
+     "version": 1,
+     "revision_id": "00000000-0000-4000-8000-000000000012",
+     "ref": "2c7d70bd-aa85-50bf-9cd3-6513a54370ef@1",
+     "title": "取法对照 Task 状态",
+     "subject_ref": {
+      "block": null,
+      "component": null,
+      "object_id": "293565b4-840b-52f2-8ee0-73c6f3f9519e",
+      "revision_id": "00000000-0000-4000-8000-000000000010",
+      "object_version": 3,
+      "ref": "293565b4-840b-52f2-8ee0-73c6f3f9519e@3"
+     },
+     "as_of": "2026-09-29T02:24:40.263332Z",
+     "period": "2026-10",
+     "generator": {
+      "principal_id": "00000000-0000-4000-8000-000000000011",
+      "principal_type": "human",
+      "display_name": "取法对照 Task 责任人"
+     },
+     "source_event_refs": [
+      {
+       "event_id": "61cf7ff3-f179-58a3-b8c2-a8a394829296",
+       "ref": "event:61cf7ff3-f179-58a3-b8c2-a8a394829296"
+      }
+     ],
+     "payload_type": {
+      "id": "execution_state",
+      "display_name": "执行状态"
+     },
+     "blocks": [
+      {
+       "id": "current_state",
+       "display_name": "当前状态",
+       "kind": "state",
+       "class": null,
+       "value": null,
+       "empty": true,
+       "text": "当前状态：暂无",
+       "components": [],
+       "ref": "2c7d70bd-aa85-50bf-9cd3-6513a54370ef@1#current_state"
+      },
+      {
+       "id": "progress",
+       "display_name": "进展",
+       "kind": "state",
+       "class": null,
+       "value": {
+        "refs": [],
+        "text": "RAG 组的图数据库已在本机起好，切块脚本写了一半；成本记法已定。",
+        "artifacts": [],
+        "components": []
+       },
+       "empty": false,
+       "text": "RAG 组的图数据库已在本机起好，切块脚本写了一半；成本记法已定。",
+       "components": [],
+       "ref": "2c7d70bd-aa85-50bf-9cd3-6513a54370ef@1#progress"
+      },
+      {
+       "id": "blockers",
+       "display_name": "关键风险与阻塞",
+       "kind": "state",
+       "class": null,
+       "value": null,
+       "empty": true,
+       "text": "关键风险与阻塞：暂无",
+       "components": [],
+       "ref": "2c7d70bd-aa85-50bf-9cd3-6513a54370ef@1#blockers"
+      },
+      {
+       "id": "issues",
+       "display_name": "问题",
+       "kind": "state",
+       "class": null,
+       "value": null,
+       "empty": true,
+       "text": "问题：暂无",
+       "components": [],
+       "ref": "2c7d70bd-aa85-50bf-9cd3-6513a54370ef@1#issues"
+      },
+      {
+       "id": "materials",
+       "display_name": "材料",
+       "kind": "state",
+       "class": null,
+       "value": null,
+       "empty": true,
+       "text": "材料：暂无",
+       "components": [],
+       "ref": "2c7d70bd-aa85-50bf-9cd3-6513a54370ef@1#materials"
+      }
+     ],
+     "unconfirmed": true
+    },
+    "confirmed_review": null,
+    "open_issues": []
+   }
+  },
+  {
+   "object_id": "2497ba8a-bfa4-5037-8fb5-660a84bff557",
+   "business": {
+    "object_id": "2497ba8a-bfa4-5037-8fb5-660a84bff557",
+    "object_type": "Task",
+    "type_display_name": "Task",
+    "category": {
+     "id": "business_object",
+     "display_name": "业务对象"
+    },
+    "candidate": false,
+    "version": 2,
+    "revision_id": "00000000-0000-4000-8000-000000000013",
+    "object_version": 3,
+    "title": "验收冻结与钉定提交",
+    "attributes": {
+     "responsible": "00000000-0000-4000-8000-000000000014",
+     "external_refs": []
+    },
+    "relations": [
+     {
+      "field": "parent_ref",
+      "relation": "decomposed_into",
+      "value": {
+       "block": null,
+       "component": null,
+       "object_id": "8f5159a4-1855-5996-84c1-b524a94113fc",
+       "revision_id": "00000000-0000-4000-8000-000000000009",
+       "object_version": 2,
+       "ref": "8f5159a4-1855-5996-84c1-b524a94113fc@2"
+      }
+     },
+     {
+      "field": "depends_on",
+      "relation": "depends_on",
+      "value": []
+     }
+    ],
+    "blocks": [
+     {
+      "id": "definition",
+      "display_name": "任务定义",
+      "kind": "definition",
+      "class": "formal",
+      "value": {
+       "refs": [],
+       "text": "",
+       "artifacts": [],
+       "components": [
+        {
+         "id": "outcome",
+         "refs": [],
+         "text": "0.2 验收冻结，钉定提交。",
+         "type": "outcome",
+         "scope": null,
+         "artifacts": [],
+         "attributes": {},
+         "ref": "2497ba8a-bfa4-5037-8fb5-660a84bff557@2#definition/outcome"
+        }
+       ]
+      },
+      "empty": false,
+      "text": "",
+      "components": [
+       {
+        "id": "outcome",
+        "refs": [],
+        "text": "0.2 验收冻结，钉定提交。",
+        "type": "outcome",
+        "scope": null,
+        "artifacts": [],
+        "attributes": {},
+        "ref": "2497ba8a-bfa4-5037-8fb5-660a84bff557@2#definition/outcome"
+       }
+      ],
+      "ref": "2497ba8a-bfa4-5037-8fb5-660a84bff557@2#definition"
+     },
+     {
+      "id": "task_plan",
+      "display_name": "Task 计划",
+      "kind": "definition",
+      "class": "formal",
+      "value": null,
+      "empty": true,
+      "text": "Task 计划：暂无",
+      "components": [],
+      "ref": "2497ba8a-bfa4-5037-8fb5-660a84bff557@2#task_plan"
+     },
+     {
+      "id": "plan",
+      "display_name": "Activity 全景",
+      "kind": "plan",
+      "class": "activity",
+      "value": null,
+      "empty": true,
+      "text": "Activity 全景：暂无",
+      "components": [],
+      "ref": "2497ba8a-bfa4-5037-8fb5-660a84bff557@2#plan"
+     }
+    ],
+    "component_ledger": [
+     {
+      "id": "outcome",
+      "type": "outcome",
+      "block": "definition",
+      "added_in_version": 1,
+      "removed_in_version": null
+     }
+    ],
+    "projection": null,
+    "formal": {
+     "lifecycle_status": "recorded",
+     "effective_revision_id": "00000000-0000-4000-8000-000000000013"
+    },
+    "round": null
+   },
+   "identity": {
+    "responsible": {
+     "roles": {
+      "human": "IC"
+     },
+     "source": "attribute",
+     "principals": [
+      {
+       "principal_id": "00000000-0000-4000-8000-000000000014",
+       "principal_type": "human",
+       "display_name": "锁版 Task 责任人"
+      }
+     ]
+    },
+    "delegations": []
+   },
+   "records": {
+    "lifecycle": {
+     "status": "in_progress",
+     "display_name": "进行中",
+     "event_id": "304c29f4-0f8a-5d2d-81be-c61daadabdac"
+    },
+    "latest_state": {
+     "object_id": "9550b165-c6bb-50a5-b9e2-7bcebc1e7b60",
+     "object_type": "StateSnapshot",
+     "category": {
+      "id": "time_record",
+      "display_name": "时间记录"
+     },
+     "version": 1,
+     "revision_id": "00000000-0000-4000-8000-000000000015",
+     "ref": "9550b165-c6bb-50a5-b9e2-7bcebc1e7b60@1",
+     "title": "冻结 Task 状态",
+     "subject_ref": {
+      "block": null,
+      "component": null,
+      "object_id": "2497ba8a-bfa4-5037-8fb5-660a84bff557",
+      "revision_id": "00000000-0000-4000-8000-000000000013",
+      "object_version": 2,
+      "ref": "2497ba8a-bfa4-5037-8fb5-660a84bff557@2"
+     },
+     "as_of": "2026-09-29T02:24:40.396859Z",
+     "period": "2026-10",
+     "generator": {
+      "principal_id": "00000000-0000-4000-8000-000000000014",
+      "principal_type": "human",
+      "display_name": "锁版 Task 责任人"
+     },
+     "source_event_refs": [
+      {
+       "event_id": "fd8ced55-b60a-5e73-80d5-eacbb74f336f",
+       "ref": "event:fd8ced55-b60a-5e73-80d5-eacbb74f336f"
+      }
+     ],
+     "payload_type": {
+      "id": "execution_state",
+      "display_name": "执行状态"
+     },
+     "blocks": [
+      {
+       "id": "current_state",
+       "display_name": "当前状态",
+       "kind": "state",
+       "class": null,
+       "value": null,
+       "empty": true,
+       "text": "当前状态：暂无",
+       "components": [],
+       "ref": "9550b165-c6bb-50a5-b9e2-7bcebc1e7b60@1#current_state"
+      },
+      {
+       "id": "progress",
+       "display_name": "进展",
+       "kind": "state",
+       "class": null,
+       "value": {
+        "refs": [],
+        "text": "冻结清单在整理：独立验收矩阵、契约与登记的钉定、迁移 0039；锁版时点按周期目标的新验收条件排在 10 月 20 日之后。",
+        "artifacts": [],
+        "components": []
+       },
+       "empty": false,
+       "text": "冻结清单在整理：独立验收矩阵、契约与登记的钉定、迁移 0039；锁版时点按周期目标的新验收条件排在 10 月 20 日之后。",
+       "components": [],
+       "ref": "9550b165-c6bb-50a5-b9e2-7bcebc1e7b60@1#progress"
+      },
+      {
+       "id": "blockers",
+       "display_name": "关键风险与阻塞",
+       "kind": "state",
+       "class": null,
+       "value": null,
+       "empty": true,
+       "text": "关键风险与阻塞：暂无",
+       "components": [],
+       "ref": "9550b165-c6bb-50a5-b9e2-7bcebc1e7b60@1#blockers"
+      },
+      {
+       "id": "issues",
+       "display_name": "问题",
+       "kind": "state",
+       "class": null,
+       "value": null,
+       "empty": true,
+       "text": "问题：暂无",
+       "components": [],
+       "ref": "9550b165-c6bb-50a5-b9e2-7bcebc1e7b60@1#issues"
+      },
+      {
+       "id": "materials",
+       "display_name": "材料",
+       "kind": "state",
+       "class": null,
+       "value": null,
+       "empty": true,
+       "text": "材料：暂无",
+       "components": [],
+       "ref": "9550b165-c6bb-50a5-b9e2-7bcebc1e7b60@1#materials"
+      }
+     ],
+     "unconfirmed": true
+    },
+    "confirmed_review": null,
+    "open_issues": []
+   }
+  },
+  {
+   "object_id": "2c7d70bd-aa85-50bf-9cd3-6513a54370ef",
+   "object_type": "StateSnapshot",
+   "category": {
+    "id": "time_record",
+    "display_name": "时间记录"
+   },
+   "version": 1,
+   "revision_id": "00000000-0000-4000-8000-000000000012",
+   "ref": "2c7d70bd-aa85-50bf-9cd3-6513a54370ef@1",
+   "title": "取法对照 Task 状态",
+   "subject_ref": {
+    "block": null,
+    "component": null,
+    "object_id": "293565b4-840b-52f2-8ee0-73c6f3f9519e",
+    "revision_id": "00000000-0000-4000-8000-000000000010",
+    "object_version": 3,
+    "ref": "293565b4-840b-52f2-8ee0-73c6f3f9519e@3"
+   },
+   "as_of": "2026-09-29T02:24:40.263332Z",
+   "period": "2026-10",
+   "generator": {
+    "principal_id": "00000000-0000-4000-8000-000000000011",
+    "principal_type": "human",
+    "display_name": "取法对照 Task 责任人"
+   },
+   "source_event_refs": [
+    {
+     "event_id": "61cf7ff3-f179-58a3-b8c2-a8a394829296",
+     "ref": "event:61cf7ff3-f179-58a3-b8c2-a8a394829296"
+    }
+   ],
+   "payload_type": {
+    "id": "execution_state",
+    "display_name": "执行状态"
+   },
+   "blocks": [
+    {
+     "id": "current_state",
+     "display_name": "当前状态",
+     "kind": "state",
+     "class": null,
+     "value": null,
+     "empty": true,
+     "text": "当前状态：暂无",
+     "components": [],
+     "ref": "2c7d70bd-aa85-50bf-9cd3-6513a54370ef@1#current_state"
+    },
+    {
+     "id": "progress",
+     "display_name": "进展",
+     "kind": "state",
+     "class": null,
+     "value": {
+      "refs": [],
+      "text": "RAG 组的图数据库已在本机起好，切块脚本写了一半；成本记法已定。",
+      "artifacts": [],
+      "components": []
+     },
+     "empty": false,
+     "text": "RAG 组的图数据库已在本机起好，切块脚本写了一半；成本记法已定。",
+     "components": [],
+     "ref": "2c7d70bd-aa85-50bf-9cd3-6513a54370ef@1#progress"
+    },
+    {
+     "id": "blockers",
+     "display_name": "关键风险与阻塞",
+     "kind": "state",
+     "class": null,
+     "value": null,
+     "empty": true,
+     "text": "关键风险与阻塞：暂无",
+     "components": [],
+     "ref": "2c7d70bd-aa85-50bf-9cd3-6513a54370ef@1#blockers"
+    },
+    {
+     "id": "issues",
+     "display_name": "问题",
+     "kind": "state",
+     "class": null,
+     "value": null,
+     "empty": true,
+     "text": "问题：暂无",
+     "components": [],
+     "ref": "2c7d70bd-aa85-50bf-9cd3-6513a54370ef@1#issues"
+    },
+    {
+     "id": "materials",
+     "display_name": "材料",
+     "kind": "state",
+     "class": null,
+     "value": null,
+     "empty": true,
+     "text": "材料：暂无",
+     "components": [],
+     "ref": "2c7d70bd-aa85-50bf-9cd3-6513a54370ef@1#materials"
+    }
+   ],
+   "unconfirmed": true
+  },
+  {
+   "object_id": "9550b165-c6bb-50a5-b9e2-7bcebc1e7b60",
+   "object_type": "StateSnapshot",
+   "category": {
+    "id": "time_record",
+    "display_name": "时间记录"
+   },
+   "version": 1,
+   "revision_id": "00000000-0000-4000-8000-000000000015",
+   "ref": "9550b165-c6bb-50a5-b9e2-7bcebc1e7b60@1",
+   "title": "冻结 Task 状态",
+   "subject_ref": {
+    "block": null,
+    "component": null,
+    "object_id": "2497ba8a-bfa4-5037-8fb5-660a84bff557",
+    "revision_id": "00000000-0000-4000-8000-000000000013",
+    "object_version": 2,
+    "ref": "2497ba8a-bfa4-5037-8fb5-660a84bff557@2"
+   },
+   "as_of": "2026-09-29T02:24:40.396859Z",
+   "period": "2026-10",
+   "generator": {
+    "principal_id": "00000000-0000-4000-8000-000000000014",
+    "principal_type": "human",
+    "display_name": "锁版 Task 责任人"
+   },
+   "source_event_refs": [
+    {
+     "event_id": "fd8ced55-b60a-5e73-80d5-eacbb74f336f",
+     "ref": "event:fd8ced55-b60a-5e73-80d5-eacbb74f336f"
+    }
+   ],
+   "payload_type": {
+    "id": "execution_state",
+    "display_name": "执行状态"
+   },
+   "blocks": [
+    {
+     "id": "current_state",
+     "display_name": "当前状态",
+     "kind": "state",
+     "class": null,
+     "value": null,
+     "empty": true,
+     "text": "当前状态：暂无",
+     "components": [],
+     "ref": "9550b165-c6bb-50a5-b9e2-7bcebc1e7b60@1#current_state"
+    },
+    {
+     "id": "progress",
+     "display_name": "进展",
+     "kind": "state",
+     "class": null,
+     "value": {
+      "refs": [],
+      "text": "冻结清单在整理：独立验收矩阵、契约与登记的钉定、迁移 0039；锁版时点按周期目标的新验收条件排在 10 月 20 日之后。",
+      "artifacts": [],
+      "components": []
+     },
+     "empty": false,
+     "text": "冻结清单在整理：独立验收矩阵、契约与登记的钉定、迁移 0039；锁版时点按周期目标的新验收条件排在 10 月 20 日之后。",
+     "components": [],
+     "ref": "9550b165-c6bb-50a5-b9e2-7bcebc1e7b60@1#progress"
+    },
+    {
+     "id": "blockers",
+     "display_name": "关键风险与阻塞",
+     "kind": "state",
+     "class": null,
+     "value": null,
+     "empty": true,
+     "text": "关键风险与阻塞：暂无",
+     "components": [],
+     "ref": "9550b165-c6bb-50a5-b9e2-7bcebc1e7b60@1#blockers"
+    },
+    {
+     "id": "issues",
+     "display_name": "问题",
+     "kind": "state",
+     "class": null,
+     "value": null,
+     "empty": true,
+     "text": "问题：暂无",
+     "components": [],
+     "ref": "9550b165-c6bb-50a5-b9e2-7bcebc1e7b60@1#issues"
+    },
+    {
+     "id": "materials",
+     "display_name": "材料",
+     "kind": "state",
+     "class": null,
+     "value": null,
+     "empty": true,
+     "text": "材料：暂无",
+     "components": [],
+     "ref": "9550b165-c6bb-50a5-b9e2-7bcebc1e7b60@1#materials"
+    }
+   ],
+   "unconfirmed": true
+  }
+ ],
+ "events": [
+  {
+   "event_id": "00000000-0000-4000-8000-000000000016",
+   "scope_id": "00000000-0000-4000-8000-000000000017",
+   "kind": "object.created",
+   "class": "record",
+   "category": null,
+   "outcome": null,
+   "disposition": null,
+   "subject_refs": [
+    {
+     "block": null,
+     "component": null,
+     "object_id": "81fcaee2-0dd9-50f7-bb07-e908c6e9d202",
+     "revision_id": "00000000-0000-4000-8000-000000000001",
+     "object_version": 1,
+     "ref": "81fcaee2-0dd9-50f7-bb07-e908c6e9d202@1"
+    }
+   ],
+   "principal": {
+    "principal_id": "00000000-0000-4000-8000-000000000018",
+    "principal_type": "human",
+    "display_name": "CEO"
+   },
+   "on_behalf_of": null,
+   "external_confirmation": null,
+   "occurred_at": "2026-09-29T02:24:38.859337Z",
+   "recorded_at": "2026-09-29T02:24:38.859337Z",
+   "late": false,
+   "content": null,
+   "detail": null,
+   "action": "world_create_object",
+   "action_id": "00000000-0000-4000-8000-000000000019",
+   "supersedes_event_id": null,
+   "corrected_by": [],
+   "withdrawn_by": []
+  },
+  {
+   "event_id": "00000000-0000-4000-8000-000000000020",
+   "scope_id": "00000000-0000-4000-8000-000000000017",
+   "kind": "object.created",
+   "class": "record",
+   "category": null,
+   "outcome": null,
+   "disposition": null,
+   "subject_refs": [
+    {
+     "block": null,
+     "component": null,
+     "object_id": "04e1479e-c221-58b6-a541-e3c34930dee4",
+     "revision_id": "00000000-0000-4000-8000-000000000008",
+     "object_version": 1,
+     "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@1"
+    }
+   ],
+   "principal": {
+    "principal_id": "00000000-0000-4000-8000-000000000003",
+    "principal_type": "human",
+    "display_name": "E&O DRI"
+   },
+   "on_behalf_of": null,
+   "external_confirmation": null,
+   "occurred_at": "2026-09-29T02:24:39.048895Z",
+   "recorded_at": "2026-09-29T02:24:39.048895Z",
+   "late": false,
+   "content": null,
+   "detail": null,
+   "action": "world_create_object",
+   "action_id": "00000000-0000-4000-8000-000000000021",
+   "supersedes_event_id": null,
+   "corrected_by": [],
+   "withdrawn_by": []
+  },
+  {
+   "event_id": "04c36715-bd47-5f0c-8819-3127fe830be2",
+   "scope_id": "00000000-0000-4000-8000-000000000017",
+   "kind": "commit",
+   "class": "gate",
+   "category": null,
+   "outcome": null,
+   "disposition": null,
+   "subject_refs": [
+    {
+     "block": null,
+     "component": null,
+     "object_id": "04e1479e-c221-58b6-a541-e3c34930dee4",
+     "revision_id": "00000000-0000-4000-8000-000000000008",
+     "object_version": 1,
+     "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@1"
+    }
+   ],
+   "principal": {
+    "principal_id": "00000000-0000-4000-8000-000000000003",
+    "principal_type": "human",
+    "display_name": "E&O DRI"
+   },
+   "on_behalf_of": null,
+   "external_confirmation": null,
+   "occurred_at": "2026-09-29T02:24:39.089149Z",
+   "recorded_at": "2026-09-29T02:24:39.089149Z",
+   "late": false,
+   "content": null,
+   "detail": null,
+   "action": "world_commit_period_goal",
+   "action_id": "00000000-0000-4000-8000-000000000022",
+   "supersedes_event_id": null,
+   "corrected_by": [],
+   "withdrawn_by": []
+  },
+  {
+   "event_id": "9afd8202-872d-5db8-a129-fabb25d72a70",
+   "scope_id": "00000000-0000-4000-8000-000000000017",
+   "kind": "confirm",
+   "class": "gate",
+   "category": null,
+   "outcome": "accepted",
+   "disposition": null,
+   "subject_refs": [
+    {
+     "block": null,
+     "component": null,
+     "object_id": "04e1479e-c221-58b6-a541-e3c34930dee4",
+     "revision_id": "00000000-0000-4000-8000-000000000008",
+     "object_version": 1,
+     "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@1"
+    }
+   ],
+   "principal": {
+    "principal_id": "00000000-0000-4000-8000-000000000018",
+    "principal_type": "human",
+    "display_name": "CEO"
+   },
+   "on_behalf_of": null,
+   "external_confirmation": null,
+   "occurred_at": "2026-09-29T02:24:39.138828Z",
+   "recorded_at": "2026-09-29T02:24:39.138828Z",
+   "late": false,
+   "content": null,
+   "detail": null,
+   "action": "world_confirm_period_goal",
+   "action_id": "00000000-0000-4000-8000-000000000023",
+   "supersedes_event_id": null,
+   "corrected_by": [],
+   "withdrawn_by": []
+  },
+  {
+   "event_id": "00000000-0000-4000-8000-000000000024",
+   "scope_id": "00000000-0000-4000-8000-000000000017",
+   "kind": "object.created",
+   "class": "record",
+   "category": null,
+   "outcome": null,
+   "disposition": null,
+   "subject_refs": [
+    {
+     "block": null,
+     "component": null,
+     "object_id": "90bfd291-b335-5fb4-8385-0679368a9e50",
+     "revision_id": "00000000-0000-4000-8000-000000000025",
+     "object_version": 1,
+     "ref": "90bfd291-b335-5fb4-8385-0679368a9e50@1"
+    }
+   ],
+   "principal": {
+    "principal_id": "00000000-0000-4000-8000-000000000003",
+    "principal_type": "human",
+    "display_name": "E&O DRI"
+   },
+   "on_behalf_of": null,
+   "external_confirmation": null,
+   "occurred_at": "2026-09-29T02:24:39.240514Z",
+   "recorded_at": "2026-09-29T02:24:39.240514Z",
+   "late": false,
+   "content": null,
+   "detail": null,
+   "action": "world_create_object",
+   "action_id": "00000000-0000-4000-8000-000000000026",
+   "supersedes_event_id": null,
+   "corrected_by": [],
+   "withdrawn_by": []
+  },
+  {
+   "event_id": "5520d3cf-39a2-56d4-8e35-bc9771bd9589",
+   "scope_id": "00000000-0000-4000-8000-000000000017",
+   "kind": "assign",
+   "class": "record",
+   "category": null,
+   "outcome": null,
+   "disposition": null,
+   "subject_refs": [
+    {
+     "block": null,
+     "component": null,
+     "object_id": "90bfd291-b335-5fb4-8385-0679368a9e50",
+     "revision_id": "00000000-0000-4000-8000-000000000006",
+     "object_version": 2,
+     "ref": "90bfd291-b335-5fb4-8385-0679368a9e50@2"
+    }
+   ],
+   "principal": {
+    "principal_id": "00000000-0000-4000-8000-000000000003",
+    "principal_type": "human",
+    "display_name": "E&O DRI"
+   },
+   "on_behalf_of": null,
+   "external_confirmation": null,
+   "occurred_at": "2026-09-29T02:24:39.272543Z",
+   "recorded_at": "2026-09-29T02:24:39.272543Z",
+   "late": false,
+   "content": null,
+   "detail": {
+    "principal_id": "00000000-0000-4000-8000-000000000007"
+   },
+   "action": "world_assign",
+   "action_id": "00000000-0000-4000-8000-000000000027",
+   "supersedes_event_id": null,
+   "corrected_by": [],
+   "withdrawn_by": []
+  },
+  {
+   "event_id": "00000000-0000-4000-8000-000000000028",
+   "scope_id": "00000000-0000-4000-8000-000000000017",
+   "kind": "object.created",
+   "class": "record",
+   "category": null,
+   "outcome": null,
+   "disposition": null,
+   "subject_refs": [
+    {
+     "block": null,
+     "component": null,
+     "object_id": "8f5159a4-1855-5996-84c1-b524a94113fc",
+     "revision_id": "00000000-0000-4000-8000-000000000029",
+     "object_version": 1,
+     "ref": "8f5159a4-1855-5996-84c1-b524a94113fc@1"
+    }
+   ],
+   "principal": {
+    "principal_id": "00000000-0000-4000-8000-000000000003",
+    "principal_type": "human",
+    "display_name": "E&O DRI"
+   },
+   "on_behalf_of": null,
+   "external_confirmation": null,
+   "occurred_at": "2026-09-29T02:24:39.309825Z",
+   "recorded_at": "2026-09-29T02:24:39.309825Z",
+   "late": false,
+   "content": null,
+   "detail": null,
+   "action": "world_create_object",
+   "action_id": "00000000-0000-4000-8000-000000000030",
+   "supersedes_event_id": null,
+   "corrected_by": [],
+   "withdrawn_by": []
+  },
+  {
+   "event_id": "c7c40230-f623-5b55-bc60-cf828ab2b9c0",
+   "scope_id": "00000000-0000-4000-8000-000000000017",
+   "kind": "assign",
+   "class": "record",
+   "category": null,
+   "outcome": null,
+   "disposition": null,
+   "subject_refs": [
+    {
+     "block": null,
+     "component": null,
+     "object_id": "8f5159a4-1855-5996-84c1-b524a94113fc",
+     "revision_id": "00000000-0000-4000-8000-000000000009",
+     "object_version": 2,
+     "ref": "8f5159a4-1855-5996-84c1-b524a94113fc@2"
+    }
+   ],
+   "principal": {
+    "principal_id": "00000000-0000-4000-8000-000000000003",
+    "principal_type": "human",
+    "display_name": "E&O DRI"
+   },
+   "on_behalf_of": null,
+   "external_confirmation": null,
+   "occurred_at": "2026-09-29T02:24:39.341584Z",
+   "recorded_at": "2026-09-29T02:24:39.341584Z",
+   "late": false,
+   "content": null,
+   "detail": {
+    "principal_id": "00000000-0000-4000-8000-000000000007"
+   },
+   "action": "world_assign",
+   "action_id": "00000000-0000-4000-8000-000000000031",
+   "supersedes_event_id": null,
+   "corrected_by": [],
+   "withdrawn_by": []
+  },
+  {
+   "event_id": "a63bc2f2-358c-502d-86a4-cdc50a8bb150",
+   "scope_id": "00000000-0000-4000-8000-000000000017",
+   "kind": "commit",
+   "class": "gate",
+   "category": null,
+   "outcome": null,
+   "disposition": null,
+   "subject_refs": [
+    {
+     "block": null,
+     "component": null,
+     "object_id": "90bfd291-b335-5fb4-8385-0679368a9e50",
+     "revision_id": "00000000-0000-4000-8000-000000000006",
+     "object_version": 2,
+     "ref": "90bfd291-b335-5fb4-8385-0679368a9e50@2"
+    }
+   ],
+   "principal": {
+    "principal_id": "00000000-0000-4000-8000-000000000007",
+    "principal_type": "human",
+    "display_name": "E&O Mission Owner"
+   },
+   "on_behalf_of": null,
+   "external_confirmation": null,
+   "occurred_at": "2026-09-29T02:24:39.424882Z",
+   "recorded_at": "2026-09-29T02:24:39.424882Z",
+   "late": false,
+   "content": null,
+   "detail": null,
+   "action": "world_commit_mission",
+   "action_id": "00000000-0000-4000-8000-000000000032",
+   "supersedes_event_id": null,
+   "corrected_by": [],
+   "withdrawn_by": []
+  },
+  {
+   "event_id": "5f968708-77ee-532d-8739-f7e8a9b72855",
+   "scope_id": "00000000-0000-4000-8000-000000000017",
+   "kind": "commit",
+   "class": "gate",
+   "category": null,
+   "outcome": null,
+   "disposition": null,
+   "subject_refs": [
+    {
+     "block": null,
+     "component": null,
+     "object_id": "8f5159a4-1855-5996-84c1-b524a94113fc",
+     "revision_id": "00000000-0000-4000-8000-000000000009",
+     "object_version": 2,
+     "ref": "8f5159a4-1855-5996-84c1-b524a94113fc@2"
+    }
+   ],
+   "principal": {
+    "principal_id": "00000000-0000-4000-8000-000000000007",
+    "principal_type": "human",
+    "display_name": "E&O Mission Owner"
+   },
+   "on_behalf_of": null,
+   "external_confirmation": null,
+   "occurred_at": "2026-09-29T02:24:39.465714Z",
+   "recorded_at": "2026-09-29T02:24:39.465714Z",
+   "late": false,
+   "content": null,
+   "detail": null,
+   "action": "world_commit_mission",
+   "action_id": "00000000-0000-4000-8000-000000000033",
+   "supersedes_event_id": null,
+   "corrected_by": [],
+   "withdrawn_by": []
+  },
+  {
+   "event_id": "1f51d0dd-cb14-5738-b6d4-14f655c5a6e5",
+   "scope_id": "00000000-0000-4000-8000-000000000017",
+   "kind": "confirm",
+   "class": "gate",
+   "category": null,
+   "outcome": "accepted",
+   "disposition": null,
+   "subject_refs": [
+    {
+     "block": null,
+     "component": null,
+     "object_id": "90bfd291-b335-5fb4-8385-0679368a9e50",
+     "revision_id": "00000000-0000-4000-8000-000000000006",
+     "object_version": 2,
+     "ref": "90bfd291-b335-5fb4-8385-0679368a9e50@2"
+    }
+   ],
+   "principal": {
+    "principal_id": "00000000-0000-4000-8000-000000000003",
+    "principal_type": "human",
+    "display_name": "E&O DRI"
+   },
+   "on_behalf_of": null,
+   "external_confirmation": null,
+   "occurred_at": "2026-09-29T02:24:39.546317Z",
+   "recorded_at": "2026-09-29T02:24:39.546317Z",
+   "late": false,
+   "content": null,
+   "detail": null,
+   "action": "world_confirm_mission",
+   "action_id": "00000000-0000-4000-8000-000000000034",
+   "supersedes_event_id": null,
+   "corrected_by": [],
+   "withdrawn_by": []
+  },
+  {
+   "event_id": "0af25f5f-fa7d-5186-adb8-562c9673e7ed",
+   "scope_id": "00000000-0000-4000-8000-000000000017",
+   "kind": "confirm",
+   "class": "gate",
+   "category": null,
+   "outcome": "accepted",
+   "disposition": null,
+   "subject_refs": [
+    {
+     "block": null,
+     "component": null,
+     "object_id": "8f5159a4-1855-5996-84c1-b524a94113fc",
+     "revision_id": "00000000-0000-4000-8000-000000000009",
+     "object_version": 2,
+     "ref": "8f5159a4-1855-5996-84c1-b524a94113fc@2"
+    }
+   ],
+   "principal": {
+    "principal_id": "00000000-0000-4000-8000-000000000003",
+    "principal_type": "human",
+    "display_name": "E&O DRI"
+   },
+   "on_behalf_of": null,
+   "external_confirmation": null,
+   "occurred_at": "2026-09-29T02:24:39.587612Z",
+   "recorded_at": "2026-09-29T02:24:39.587612Z",
+   "late": false,
+   "content": null,
+   "detail": null,
+   "action": "world_confirm_mission",
+   "action_id": "00000000-0000-4000-8000-000000000035",
+   "supersedes_event_id": null,
+   "corrected_by": [],
+   "withdrawn_by": []
+  },
+  {
+   "event_id": "00000000-0000-4000-8000-000000000036",
+   "scope_id": "00000000-0000-4000-8000-000000000017",
+   "kind": "object.created",
+   "class": "record",
+   "category": null,
+   "outcome": null,
+   "disposition": null,
+   "subject_refs": [
+    {
+     "block": null,
+     "component": null,
+     "object_id": "293565b4-840b-52f2-8ee0-73c6f3f9519e",
+     "revision_id": "00000000-0000-4000-8000-000000000037",
+     "object_version": 1,
+     "ref": "293565b4-840b-52f2-8ee0-73c6f3f9519e@1"
+    }
+   ],
+   "principal": {
+    "principal_id": "00000000-0000-4000-8000-000000000007",
+    "principal_type": "human",
+    "display_name": "E&O Mission Owner"
+   },
+   "on_behalf_of": null,
+   "external_confirmation": null,
+   "occurred_at": "2026-09-29T02:24:39.720922Z",
+   "recorded_at": "2026-09-29T02:24:39.720922Z",
+   "late": false,
+   "content": null,
+   "detail": null,
+   "action": "world_create_object",
+   "action_id": "00000000-0000-4000-8000-000000000038",
+   "supersedes_event_id": null,
+   "corrected_by": [],
+   "withdrawn_by": []
+  },
+  {
+   "event_id": "00000000-0000-4000-8000-000000000039",
+   "scope_id": "00000000-0000-4000-8000-000000000017",
+   "kind": "object.created",
+   "class": "record",
+   "category": null,
+   "outcome": null,
+   "disposition": null,
+   "subject_refs": [
+    {
+     "block": null,
+     "component": null,
+     "object_id": "2497ba8a-bfa4-5037-8fb5-660a84bff557",
+     "revision_id": "00000000-0000-4000-8000-000000000040",
+     "object_version": 1,
+     "ref": "2497ba8a-bfa4-5037-8fb5-660a84bff557@1"
+    }
+   ],
+   "principal": {
+    "principal_id": "00000000-0000-4000-8000-000000000007",
+    "principal_type": "human",
+    "display_name": "E&O Mission Owner"
+   },
+   "on_behalf_of": null,
+   "external_confirmation": null,
+   "occurred_at": "2026-09-29T02:24:39.740910Z",
+   "recorded_at": "2026-09-29T02:24:39.740910Z",
+   "late": false,
+   "content": null,
+   "detail": null,
+   "action": "world_create_object",
+   "action_id": "00000000-0000-4000-8000-000000000041",
+   "supersedes_event_id": null,
+   "corrected_by": [],
+   "withdrawn_by": []
+  },
+  {
+   "event_id": "7d9adf35-c8d0-5d79-9fdc-88649f13b38a",
+   "scope_id": "00000000-0000-4000-8000-000000000017",
+   "kind": "commit",
+   "class": "gate",
+   "category": null,
+   "outcome": null,
+   "disposition": null,
+   "subject_refs": [
+    {
+     "block": null,
+     "component": null,
+     "object_id": "04e1479e-c221-58b6-a541-e3c34930dee4",
+     "revision_id": "00000000-0000-4000-8000-000000000008",
+     "object_version": 1,
+     "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@1"
+    }
+   ],
+   "principal": {
+    "principal_id": "00000000-0000-4000-8000-000000000003",
+    "principal_type": "human",
+    "display_name": "E&O DRI"
+   },
+   "on_behalf_of": null,
+   "external_confirmation": null,
+   "occurred_at": "2026-09-29T02:24:39.795731Z",
+   "recorded_at": "2026-09-29T02:24:39.795731Z",
+   "late": false,
+   "content": {
+    "refs": [],
+    "text": "一轮重走：锁版放到 10 月 20 日 CEO 定下对象结构之后，改锁版那一条验收条件。",
+    "artifacts": [],
+    "components": []
+   },
+   "detail": {
+    "candidate": {
+     "blocks": {
+      "target": {
+       "components": [
+        {
+         "id": "ac-lock",
+         "text": "10 月 20 日 CEO 定下对象结构之后，tkos.world 0.2 锁版（验收冻结并钉定提交）",
+         "type": "acceptance_criterion"
+        }
+       ]
+      }
+     }
+    }
+   },
+   "action": "world_commit_period_goal",
+   "action_id": "00000000-0000-4000-8000-000000000042",
+   "supersedes_event_id": null,
+   "corrected_by": [],
+   "withdrawn_by": []
+  },
+  {
+   "event_id": "0868ce02-be68-5beb-8331-f3b09ddcc1e1",
+   "scope_id": "00000000-0000-4000-8000-000000000017",
+   "kind": "confirm",
+   "class": "gate",
+   "category": null,
+   "outcome": "accepted",
+   "disposition": null,
+   "subject_refs": [
+    {
+     "block": null,
+     "component": null,
+     "object_id": "04e1479e-c221-58b6-a541-e3c34930dee4",
+     "revision_id": "00000000-0000-4000-8000-000000000004",
+     "object_version": 2,
+     "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@2"
+    }
+   ],
+   "principal": {
+    "principal_id": "00000000-0000-4000-8000-000000000018",
+    "principal_type": "human",
+    "display_name": "CEO"
+   },
+   "on_behalf_of": null,
+   "external_confirmation": null,
+   "occurred_at": "2026-09-29T02:24:39.844697Z",
+   "recorded_at": "2026-09-29T02:24:39.844697Z",
+   "late": false,
+   "content": {
+    "refs": [],
+    "text": "接受这一轮的候选。",
+    "artifacts": [],
+    "components": []
+   },
+   "detail": null,
+   "action": "world_confirm_period_goal",
+   "action_id": "00000000-0000-4000-8000-000000000043",
+   "supersedes_event_id": null,
+   "corrected_by": [],
+   "withdrawn_by": []
+  },
+  {
+   "event_id": "d6f670f3-cce2-5d24-ba64-d532334bb4ad",
+   "scope_id": "00000000-0000-4000-8000-000000000017",
+   "kind": "assign",
+   "class": "record",
+   "category": null,
+   "outcome": null,
+   "disposition": null,
+   "subject_refs": [
+    {
+     "block": null,
+     "component": null,
+     "object_id": "293565b4-840b-52f2-8ee0-73c6f3f9519e",
+     "revision_id": "00000000-0000-4000-8000-000000000044",
+     "object_version": 2,
+     "ref": "293565b4-840b-52f2-8ee0-73c6f3f9519e@2"
+    }
+   ],
+   "principal": {
+    "principal_id": "00000000-0000-4000-8000-000000000007",
+    "principal_type": "human",
+    "display_name": "E&O Mission Owner"
+   },
+   "on_behalf_of": null,
+   "external_confirmation": null,
+   "occurred_at": "2026-09-29T02:24:40.145177Z",
+   "recorded_at": "2026-09-29T02:24:40.145177Z",
+   "late": false,
+   "content": null,
+   "detail": {
+    "principal_id": "00000000-0000-4000-8000-000000000011"
+   },
+   "action": "world_assign",
+   "action_id": "00000000-0000-4000-8000-000000000045",
+   "supersedes_event_id": null,
+   "corrected_by": [],
+   "withdrawn_by": []
+  },
+  {
+   "event_id": "ddee1784-f05e-5a68-87e2-469698d21f27",
+   "scope_id": "00000000-0000-4000-8000-000000000017",
+   "kind": "object.revised",
+   "class": "record",
+   "category": null,
+   "outcome": null,
+   "disposition": null,
+   "subject_refs": [
+    {
+     "block": null,
+     "component": null,
+     "object_id": "293565b4-840b-52f2-8ee0-73c6f3f9519e",
+     "revision_id": "00000000-0000-4000-8000-000000000010",
+     "object_version": 3,
+     "ref": "293565b4-840b-52f2-8ee0-73c6f3f9519e@3"
+    }
+   ],
+   "principal": {
+    "principal_id": "00000000-0000-4000-8000-000000000011",
+    "principal_type": "human",
+    "display_name": "取法对照 Task 责任人"
+   },
+   "on_behalf_of": null,
+   "external_confirmation": null,
+   "occurred_at": "2026-09-29T02:24:40.187614Z",
+   "recorded_at": "2026-09-29T02:24:40.187614Z",
+   "late": false,
+   "content": null,
+   "detail": null,
+   "action": "world_revise_object",
+   "action_id": "00000000-0000-4000-8000-000000000046",
+   "supersedes_event_id": null,
+   "corrected_by": [],
+   "withdrawn_by": []
+  },
+  {
+   "event_id": "1b4b94d6-a255-5b63-8456-10279321d0d8",
+   "scope_id": "00000000-0000-4000-8000-000000000017",
+   "kind": "start",
+   "class": "lifecycle",
+   "category": null,
+   "outcome": null,
+   "disposition": null,
+   "subject_refs": [
+    {
+     "block": null,
+     "component": null,
+     "object_id": "293565b4-840b-52f2-8ee0-73c6f3f9519e",
+     "revision_id": "00000000-0000-4000-8000-000000000010",
+     "object_version": 3,
+     "ref": "293565b4-840b-52f2-8ee0-73c6f3f9519e@3"
+    }
+   ],
+   "principal": {
+    "principal_id": "00000000-0000-4000-8000-000000000011",
+    "principal_type": "human",
+    "display_name": "取法对照 Task 责任人"
+   },
+   "on_behalf_of": null,
+   "external_confirmation": null,
+   "occurred_at": "2026-09-29T02:24:40.226832Z",
+   "recorded_at": "2026-09-29T02:24:40.226832Z",
+   "late": false,
+   "content": null,
+   "detail": null,
+   "action": "world_start",
+   "action_id": "00000000-0000-4000-8000-000000000047",
+   "supersedes_event_id": null,
+   "corrected_by": [],
+   "withdrawn_by": []
+  },
+  {
+   "event_id": "61cf7ff3-f179-58a3-b8c2-a8a394829296",
+   "scope_id": "00000000-0000-4000-8000-000000000017",
+   "kind": "event.recorded",
+   "class": "record",
+   "category": "review",
+   "outcome": null,
+   "disposition": null,
+   "subject_refs": [
+    {
+     "block": null,
+     "component": null,
+     "object_id": "293565b4-840b-52f2-8ee0-73c6f3f9519e",
+     "revision_id": "00000000-0000-4000-8000-000000000010",
+     "object_version": 3,
+     "ref": "293565b4-840b-52f2-8ee0-73c6f3f9519e@3"
+    }
+   ],
+   "principal": {
+    "principal_id": "00000000-0000-4000-8000-000000000011",
+    "principal_type": "human",
+    "display_name": "取法对照 Task 责任人"
+   },
+   "on_behalf_of": null,
+   "external_confirmation": null,
+   "occurred_at": "2026-09-29T02:24:40.241943Z",
+   "recorded_at": "2026-09-29T02:24:40.255589Z",
+   "late": false,
+   "content": {
+    "refs": [
+     {
+      "block": "task_plan",
+      "component": "graph-db",
+      "object_id": "293565b4-840b-52f2-8ee0-73c6f3f9519e",
+      "revision_id": "00000000-0000-4000-8000-000000000010",
+      "object_version": 3,
+      "ref": "293565b4-840b-52f2-8ee0-73c6f3f9519e@3#task_plan/graph-db"
+     }
+    ],
+    "text": "RAG 组检索方案评审：切块与对象关系存进图数据库，邻接检索补向量检索的召回；按这个方案搭环境。",
+    "artifacts": [],
+    "components": []
+   },
+   "detail": null,
+   "action": "world_record_event",
+   "action_id": "00000000-0000-4000-8000-000000000048",
+   "supersedes_event_id": null,
+   "corrected_by": [],
+   "withdrawn_by": []
+  },
+  {
+   "event_id": "00000000-0000-4000-8000-000000000049",
+   "scope_id": "00000000-0000-4000-8000-000000000017",
+   "kind": "state.refreshed",
+   "class": "record",
+   "category": null,
+   "outcome": null,
+   "disposition": null,
+   "subject_refs": [
+    {
+     "block": null,
+     "component": null,
+     "object_id": "2c7d70bd-aa85-50bf-9cd3-6513a54370ef",
+     "revision_id": "00000000-0000-4000-8000-000000000012",
+     "object_version": 1,
+     "ref": "2c7d70bd-aa85-50bf-9cd3-6513a54370ef@1"
+    },
+    {
+     "block": null,
+     "component": null,
+     "object_id": "293565b4-840b-52f2-8ee0-73c6f3f9519e",
+     "revision_id": "00000000-0000-4000-8000-000000000010",
+     "object_version": 3,
+     "ref": "293565b4-840b-52f2-8ee0-73c6f3f9519e@3"
+    }
+   ],
+   "principal": {
+    "principal_id": "00000000-0000-4000-8000-000000000011",
+    "principal_type": "human",
+    "display_name": "取法对照 Task 责任人"
+   },
+   "on_behalf_of": null,
+   "external_confirmation": null,
+   "occurred_at": "2026-09-29T02:24:40.263332Z",
+   "recorded_at": "2026-09-29T02:24:40.289701Z",
+   "late": false,
+   "content": null,
+   "detail": null,
+   "action": "world_refresh_state",
+   "action_id": "00000000-0000-4000-8000-000000000050",
+   "supersedes_event_id": null,
+   "corrected_by": [],
+   "withdrawn_by": []
+  },
+  {
+   "event_id": "5b505a40-22ab-5448-8c03-020e399d0e30",
+   "scope_id": "00000000-0000-4000-8000-000000000017",
+   "kind": "assign",
+   "class": "record",
+   "category": null,
+   "outcome": null,
+   "disposition": null,
+   "subject_refs": [
+    {
+     "block": null,
+     "component": null,
+     "object_id": "2497ba8a-bfa4-5037-8fb5-660a84bff557",
+     "revision_id": "00000000-0000-4000-8000-000000000013",
+     "object_version": 2,
+     "ref": "2497ba8a-bfa4-5037-8fb5-660a84bff557@2"
+    }
+   ],
+   "principal": {
+    "principal_id": "00000000-0000-4000-8000-000000000007",
+    "principal_type": "human",
+    "display_name": "E&O Mission Owner"
+   },
+   "on_behalf_of": null,
+   "external_confirmation": null,
+   "occurred_at": "2026-09-29T02:24:40.321458Z",
+   "recorded_at": "2026-09-29T02:24:40.321458Z",
+   "late": false,
+   "content": null,
+   "detail": {
+    "principal_id": "00000000-0000-4000-8000-000000000014"
+   },
+   "action": "world_assign",
+   "action_id": "00000000-0000-4000-8000-000000000051",
+   "supersedes_event_id": null,
+   "corrected_by": [],
+   "withdrawn_by": []
+  },
+  {
+   "event_id": "fd8ced55-b60a-5e73-80d5-eacbb74f336f",
+   "scope_id": "00000000-0000-4000-8000-000000000017",
+   "kind": "event.recorded",
+   "class": "record",
+   "category": "meeting",
+   "outcome": null,
+   "disposition": null,
+   "subject_refs": [
+    {
+     "block": null,
+     "component": null,
+     "object_id": "8f5159a4-1855-5996-84c1-b524a94113fc",
+     "revision_id": "00000000-0000-4000-8000-000000000009",
+     "object_version": 2,
+     "ref": "8f5159a4-1855-5996-84c1-b524a94113fc@2"
+    }
+   ],
+   "principal": {
+    "principal_id": "00000000-0000-4000-8000-000000000007",
+    "principal_type": "human",
+    "display_name": "E&O Mission Owner"
+   },
+   "on_behalf_of": null,
+   "external_confirmation": null,
+   "occurred_at": "2026-09-29T02:24:40.338189Z",
+   "recorded_at": "2026-09-29T02:24:40.352000Z",
+   "late": false,
+   "content": {
+    "refs": [
+     {
+      "block": "target",
+      "component": "ac-lock",
+      "object_id": "04e1479e-c221-58b6-a541-e3c34930dee4",
+      "revision_id": "00000000-0000-4000-8000-000000000004",
+      "object_version": 2,
+      "ref": "04e1479e-c221-58b6-a541-e3c34930dee4@2#target/ac-lock"
+     }
+    ],
+    "text": "锁版时间对齐：十月周期目标经一轮重走改了锁版那条验收条件，锁版放到 10 月 20 日 CEO 定下对象结构之后；本 Mission 与下面的 Task 按新条件排期。",
+    "artifacts": [],
+    "components": []
+   },
+   "detail": null,
+   "action": "world_record_event",
+   "action_id": "00000000-0000-4000-8000-000000000052",
+   "supersedes_event_id": null,
+   "corrected_by": [],
+   "withdrawn_by": []
+  },
+  {
+   "event_id": "304c29f4-0f8a-5d2d-81be-c61daadabdac",
+   "scope_id": "00000000-0000-4000-8000-000000000017",
+   "kind": "start",
+   "class": "lifecycle",
+   "category": null,
+   "outcome": null,
+   "disposition": null,
+   "subject_refs": [
+    {
+     "block": null,
+     "component": null,
+     "object_id": "2497ba8a-bfa4-5037-8fb5-660a84bff557",
+     "revision_id": "00000000-0000-4000-8000-000000000013",
+     "object_version": 2,
+     "ref": "2497ba8a-bfa4-5037-8fb5-660a84bff557@2"
+    }
+   ],
+   "principal": {
+    "principal_id": "00000000-0000-4000-8000-000000000014",
+    "principal_type": "human",
+    "display_name": "锁版 Task 责任人"
+   },
+   "on_behalf_of": null,
+   "external_confirmation": null,
+   "occurred_at": "2026-09-29T02:24:40.380849Z",
+   "recorded_at": "2026-09-29T02:24:40.380849Z",
+   "late": false,
+   "content": null,
+   "detail": null,
+   "action": "world_start",
+   "action_id": "00000000-0000-4000-8000-000000000053",
+   "supersedes_event_id": null,
+   "corrected_by": [],
+   "withdrawn_by": []
+  },
+  {
+   "event_id": "00000000-0000-4000-8000-000000000054",
+   "scope_id": "00000000-0000-4000-8000-000000000017",
+   "kind": "state.refreshed",
+   "class": "record",
+   "category": null,
+   "outcome": null,
+   "disposition": null,
+   "subject_refs": [
+    {
+     "block": null,
+     "component": null,
+     "object_id": "9550b165-c6bb-50a5-b9e2-7bcebc1e7b60",
+     "revision_id": "00000000-0000-4000-8000-000000000015",
+     "object_version": 1,
+     "ref": "9550b165-c6bb-50a5-b9e2-7bcebc1e7b60@1"
+    },
+    {
+     "block": null,
+     "component": null,
+     "object_id": "2497ba8a-bfa4-5037-8fb5-660a84bff557",
+     "revision_id": "00000000-0000-4000-8000-000000000013",
+     "object_version": 2,
+     "ref": "2497ba8a-bfa4-5037-8fb5-660a84bff557@2"
+    }
+   ],
+   "principal": {
+    "principal_id": "00000000-0000-4000-8000-000000000014",
+    "principal_type": "human",
+    "display_name": "锁版 Task 责任人"
+   },
+   "on_behalf_of": null,
+   "external_confirmation": null,
+   "occurred_at": "2026-09-29T02:24:40.396859Z",
+   "recorded_at": "2026-09-29T02:24:40.418551Z",
+   "late": false,
+   "content": null,
+   "detail": null,
+   "action": "world_refresh_state",
+   "action_id": "00000000-0000-4000-8000-000000000055",
+   "supersedes_event_id": null,
+   "corrected_by": [],
+   "withdrawn_by": []
+  }
+ ]
+}

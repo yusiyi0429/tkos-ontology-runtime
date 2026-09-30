@@ -1,0 +1,182 @@
+{
+  "format": "tkos-world-02-seed/0.1",
+  "title": "E&O 十月起点",
+  "contract_version": "tkos.world/0.2",
+  "event_text": "E&O 十月起点播种",
+  "notes": "world-02 实验 scope（spec.eo.example.json 的键）的 E&O 十月起点：公司层取 experiments/world_v01/seed.json（E&O 九月回放）的正文，按 0.2 的块与组件改形状，其中 Company 与 Strategy 的正文 2026-09-30 换成公司知识库《总体战略定位与阶段路径》（2026-07）的原句（#67，逐条原句与页码见 experiments/world_v02/strategy_material.json，Strategy 的责任结构块照旧）；十月周期目标、三个 Mission 与各自的 Task 按用户 2026-09-29 给定。2026-09-30 按方法侧 Content Pact 换成新块（#82，映射表 docs/world-v02-content-pact-mapping.md）：步骤、键、after 与顺序不变，旧块的正文按意思放进新块的组件，只在分号、冒号处拆开，不改写字句；约束不再单独成块，公司与周期目标没有约束。占位：@键 是该步建出的对象的当前版本，后面可带 #块 与 /组件。after 按用户给的九段顺序写，比 0.2 的守卫严（见 README）。不写 external_refs：天枢的战场、任务卡 id 联调时由天枢以修订补上。Task 不指派执行人，试用中在天枢里指派。",
+  "steps": [
+    {"key": "company", "by": "ceo", "do": "create", "after": [], "type": "Company", "domain": "company",
+     "payload": {"title": "词元云集（TokenKing）", "blocks": {
+       "identity": {"components": [
+         {"id": "long-term-identity", "type": "business_definition", "text": "本轮管理层需要确认的 6 个问题：是否确认“企业经营范式重构与 Token 运营中枢”为词元云集长期身份？"},
+         {"id": "vision", "type": "vision", "text": "长期愿景：建设系统性 Token 工厂，推动收入从空间、算力升级到 Token 与数字劳动力。"},
+         {"id": "token-principle", "type": "values_principles", "text": "创业公司，不追求 Token 用量最大化：研发按需用模型。"},
+         {"id": "core-principle", "type": "values_principles", "text": "核心原则：短期见利见效，长期具有战略意义；不能用长期愿景替代当前商业模式，也不能因短期收入把战略越讲越窄。"}]}}},
+     "note": "正文是公司知识库《总体战略定位与阶段路径》（2026-07）的原句（#67，逐条原句见 experiments/world_v02/strategy_material.json）：long-term-identity 第 10 页，vision 第 2 页，core-principle 第 2 页。长期身份是第 10 页「本轮管理层需要确认的 6 个问题」的问题 1，组件正文就是带该页标题的问句，不写成已定；标题式短语连同它下面的说明合成一句，写成「标题：说明」。token-principle 出自 9/23 会议，不在材料里，保留 0.1 审过的原文（原是公司约束块，Content Pact 的公司没有约束，放在价值观与公司原则）。企业使命材料里没有，留空。组件 id 沿用十月起点。"},
+    {"key": "strategy", "by": "ceo", "do": "create", "after": ["company"], "type": "Strategy", "domain": "company",
+     "payload": {"title": "词元云集总体战略定位与阶段路径", "parent_ref": "@company", "blocks": {
+       "strategy_core": {"components": [
+         {"id": "current-strategy", "type": "strategic_thesis", "text": "当前战略：词元云集承接第 3-6 层，成为连接智能供给与企业价值的运营中枢。"},
+         {"id": "main-line", "type": "strategic_thesis", "text": "阶段打法：主线做 AI 企业智能决策网络；辅线以 TokenOps 获取高频真实负载并训练底层能力。"},
+         {"id": "closed-loop", "type": "strategic_thesis", "text": "总体战略：系统性 Token 工厂的关键不是“七层全自建”，而是形成闭环、掌握控制点"},
+         {"id": "path", "type": "strategic_thesis", "text": "阶段路径：先内部灯塔，再外部复制； 831 是“闭环验证节点”而非“大平台完成节点”"},
+         {"id": "success-831", "type": "strategic_thesis", "text": "831 成功标准：真实客户、真实使用、真实调用、真实反馈、可复制方案和明确 Owner 同时成立。"},
+         {"id": "confirm-831", "type": "strategic_thesis", "text": "本轮管理层需要确认的 6 个问题：是否确认 831 以真实使用、真实闭环和可复制资产为主要判断标准？"},
+         {"id": "layer-6", "type": "value_proposition", "text": "第 6 层：FDE / Agent / 数字劳动力产品化"},
+         {"id": "layer-5", "type": "value_proposition", "text": "第 5 层：统一入口、路由、计量与治理"},
+         {"id": "layer-4-3", "type": "value_proposition", "text": "第 4-3 层：用真实调用逐步补足模型运营与推理优化"},
+         {"id": "foundation", "type": "competitive_advantage", "text": "本轮管理层需要确认的 6 个问题：是否确认 Foundry / Ontology、引擎与 TokenHub 是两条业务共同底座？"},
+         {"id": "control-points", "type": "competitive_advantage", "text": "词元云集真正要掌握的不是“四层全部自建”，而是五个关键控制点"},
+         {"id": "control-customer-entry", "type": "competitive_advantage", "text": "客户与场景入口：知道 AI 应进入什么任务，并保持长期客户关系"},
+         {"id": "control-runtime-entry", "type": "competitive_advantage", "text": "企业智能运行入口：掌握 Agent、工作流与企业上下文的持续运行"},
+         {"id": "control-token-calls", "type": "competitive_advantage", "text": "Token 调用关系：掌握统一接入、计量、权限、日志与运营数据"},
+         {"id": "control-routing", "type": "competitive_advantage", "text": "模型选择与路由权：持续优化任务、质量、成本和供应组合"},
+         {"id": "control-feedback", "type": "competitive_advantage", "text": "结果反馈数据：让真实业务结果回流，形成跨项目可复用能力"},
+         {"id": "stage-now-831", "type": "go_to_market", "text": "现在 - 831：内部兄弟公司灯塔项目；形成真实议题、LOP、报价、CEO Agent 初版、Foundry / TokenHub 最小能力"},
+         {"id": "stage-831-spring-festival", "type": "go_to_market", "text": "831 - 春节前：内部验证 + 少量外部试点；形成 1-2 个可复制模块、管理者 Agent / 数字劳动力样板、TokenOps 真实负载"},
+         {"id": "stage-after-funding", "type": "go_to_market", "text": "下一轮注资后：产品线与平台能力扩张；扩大客户复制、持续使用收入和单位经济性，按真实增长点扩组织"},
+         {"id": "value-chain-boundary", "type": "trade_offs", "text": "战略边界：覆盖完整价值链，不等于一个主体一次性建设全部能力。"},
+         {"id": "organization", "type": "trade_offs", "text": "组织建设：主体资源围绕主产品组合，辅助业务保持轻量，底层能力共用"},
+         {"id": "confirm-resource-focus", "type": "trade_offs", "text": "本轮管理层需要确认的 6 个问题：是否确认 AI 企业智能决策网络为主体资源方向，TokenOps 仅保持轻量验证？"}]},
+       "business_logic": {"components": [
+         {"id": "one-main-one-side", "type": "business_model", "text": "商业模式：一主一副，不是两个彼此独立的方向"},
+         {"id": "core-business", "type": "business_model", "text": "核心业务：AI 企业智能决策网络；建立高价值经营入口与长期公司身份"},
+         {"id": "side-business", "type": "business_model", "text": "辅助业务：TokenOps FDE；获取高频真实负载，训练路由、评测和调优能力"},
+         {"id": "revenue-structure", "type": "business_model", "text": "收入结构：先用项目进入，再转向系统持续使用与 Token 运营收入"},
+         {"id": "revenue-short-term", "type": "business_model", "text": "短期：项目与部署收入；战略诊断、FDE、产品设计、部署实施；先形成现金流和灯塔案例"},
+         {"id": "revenue-mid-term", "type": "business_model", "text": "中期：系统持续使用收入；Agent / Foundry 授权、订阅、托管与扩展；把一次项目变成持续运行关系"},
+         {"id": "revenue-long-term", "type": "business_model", "text": "长期：Token 与数字劳动力运营收入；模型调用、统一治理、数字劳动力与平台运营；随组织级部署深度持续放大"},
+         {"id": "confirm-revenue-shift", "type": "business_model", "text": "本轮管理层需要确认的 6 个问题：是否确认短期以项目与部署收入为主，中长期向系统持续使用和 Token 运营收入迁移？"},
+         {"id": "shared-capability", "type": "value_logic", "text": "两类业务分别贡献不同输入，但最终训练同一套核心能力"},
+         {"id": "scenario-inputs", "type": "value_logic", "text": "高价值场景输入：企业经营上下文；Agent / 数字劳动力部署经验；长期客户关系与业务结果"},
+         {"id": "load-inputs", "type": "value_logic", "text": "高频真实负载输入：模型选择与调用链；成本、质量、稳定性数据；路由与优化实验"},
+         {"id": "flywheel", "type": "value_logic", "text": "能力提升反过来降低交付成本、改善客户效果，并推动更多场景部署与更多真实负载。"},
+         {"id": "token-traction", "type": "assumption", "text": "关键判断：当前不能把 Token 消纳设为唯一牵引；只有从 CEO 向管理者矩阵和数字劳动力扩展，持续调用才会真正放大。"},
+         {"id": "capability-rule", "type": "strategy_constraint", "text": "判断标准：任何新增能力，都应强化上述控制点，并沉淀可复用的客户、调用或反馈数据。"},
+         {"id": "confirm-first-project", "type": "strategy_constraint", "text": "本轮管理层需要确认的 6 个问题：是否确认首个内部项目必须同步产出产品、服务、报价和复制模板？"}]},
+       "responsibility_structure": {
+         "text": "3 个战场：01 灯塔项目、02 Token Ops、03 002 客户。7 个能力域：02 Re-architecture、03 Method、04 Agents、05 E&O、07 TokenHub、08 Talent & Organization、09 Finance, Compliance & Operations。",
+         "components": [{"id": "eo", "type": "unit_entry", "text": "05 E&O"}]}}},
+     "note": "正文是公司知识库《总体战略定位与阶段路径》（2026-07）的原句（#67，逐条原句见 experiments/world_v02/strategy_material.json）。战略块：总体战略是 current-strategy 第 2 页、main-line 第 2 页、closed-loop 第 3 页、path 第 8 页、success-831 第 8 页、confirm-831 第 10 页；产品与价值主张是第 3 页「词元云集重点承接」下的三层 layer-6 第 3 页、layer-5 第 3 页、layer-4-3 第 3 页；核心壁垒是 foundation 第 10 页、control-points 第 4 页与五个控制点 control-customer-entry 第 4 页、control-runtime-entry 第 4 页、control-token-calls 第 4 页、control-routing 第 4 页、control-feedback 第 4 页；市场进入与获客方式是阶段路径的三段 stage-now-831 第 8 页、stage-831-spring-festival 第 8 页、stage-after-funding 第 8 页；战略取舍是 value-chain-boundary 第 3 页、organization 第 9 页、confirm-resource-focus 第 10 页。商业模式与成立逻辑块：商业模式是 one-main-one-side 第 5 页、core-business 第 5 页、side-business 第 5 页、revenue-structure 第 7 页、revenue-short-term 第 7 页、revenue-mid-term 第 7 页、revenue-long-term 第 7 页、confirm-revenue-shift 第 10 页；价值实现逻辑是 shared-capability 第 6 页、scenario-inputs 第 6 页、load-inputs 第 6 页、flywheel 第 6 页；关键假设是 token-traction 第 7 页；战略约束是 capability-rule 第 4 页、confirm-first-project 第 10 页。第 10 页「本轮管理层需要确认的 6 个问题」的问题 2–6 待管理层确认，组件正文就是带该页标题的问句，不写成已定；第 7 页收入结构、第 8 页 831 成功标准与第 9 页组织建设分别是问题 6、5、2 要确认的内容。标题式短语连同它下面的说明合成一句，写成「标题：说明」，几条说明以「；」隔开。目标客户、目标市场材料里没有，留空。组件 id 沿用十月起点。责任结构块不在这份材料里（第 9 页组织建设原稿是图），照旧取自 0.1 审过的战场图 V1，只列 E&O 一个责任单元条目组件（这个实验 scope 只有 E&O 一个单元）。留在草稿。"},
+    {"key": "unit_eo", "by": "ceo", "do": "create", "after": ["strategy"], "type": "ResponsibilityUnit", "domain": "eo",
+     "payload": {"title": "E&O", "unit_kind": "domain", "architecture_ref": "@strategy#responsibility_structure/eo", "blocks": {
+       "definition": {"components": [
+         {"id": "contribution", "type": "contribution", "text": "主要支撑灯塔项目的 Mission 01-2、01-3、01-4。"},
+         {"id": "mandate", "type": "mandate", "text": "Engine & Ontology，战场图编号 05 的能力域：主导语义模型（本体）与 Context Runtime。"},
+         {"id": "boundary", "type": "scope_boundary", "text": "业务建模不归 E&O：由 CEO 与 Method 锁定业务语义，E&O 忠实翻译成语义模型、数据承载与运行时。Activity 要不要成为对象由 E&O 自己定。"},
+         {"id": "method-frozen", "type": "key_constraint", "text": "tkos.method/0.4、0.5 冻结不改。"},
+         {"id": "no-graph-db", "type": "key_constraint", "text": "当前量级用 PostgreSQL 加 pgvector，不引入图数据库。"}]}}},
+     "note": "正文照搬 seed.json 的 unit_eo；architecture_ref 在 0.2 是指到责任单元条目的组件引用。原定义块拆成核心责任与战略贡献，原边界块是责任边界，原约束块按分号拆成两条关键约束。"},
+    {"key": "company_goal", "by": "ceo", "do": "create", "after": ["company"], "type": "LongTermGoal", "domain": "company",
+     "payload": {"title": "春节前核心业务第一次被真实证明", "scope": "company", "horizon": "2027 年春节前", "parent_ref": "@company", "blocks": {
+       "target": {"components": [
+         {"id": "outcome", "type": "outcome", "text": "跑通「Re-architecture 进入客户 → TKOS 持续经营」这条主线，形成可复制的产品、交付与商业模式；同时跑通 TokenHub / TokenOps 的商业闭环。"}]}}},
+     "note": "正文照搬 seed.json 的 company_goal，放进目标定义块的目标结果；成功标准、实现逻辑与定位与承接块材料里没有，留空。"},
+    {"key": "eo_goal", "by": "eo-dri", "do": "create", "after": ["unit_eo", "company_goal"], "type": "LongTermGoal", "domain": "eo",
+     "payload": {"title": "E&O 六个月目标", "scope": "unit", "horizon": "六个月", "parent_ref": "@unit_eo", "goal_ref": "@company_goal", "blocks": {
+       "target": {"components": [
+         {"id": "outcome", "type": "outcome", "text": "建立支撑 TKOS 长期运行的 Enterprise Context 与 Agent Infrastructure，让真实经营数据能持续进入、调用、回写和复用。"}]}}},
+     "note": "正文照搬 seed.json 的 eo_goal，放进目标定义块的目标结果；成功标准、实现逻辑与定位与承接块材料里没有，留空。"},
+    {"key": "confirm_company_goal", "by": "ceo", "do": "gate", "after": ["eo_goal"],
+     "action": "world_confirm_long_term_goal", "target": "company_goal", "outcome": "accepted",
+     "note": "只守卫草稿；按用户的顺序与 E&O 长期目标一起确认。"},
+    {"key": "confirm_eo_goal", "by": "ceo", "do": "gate", "after": ["eo_goal"],
+     "action": "world_confirm_long_term_goal", "target": "eo_goal", "outcome": "accepted"},
+    {"key": "october_goal", "by": "eo-dri", "do": "create", "after": ["confirm_company_goal", "confirm_eo_goal"], "type": "PeriodGoal", "domain": "eo",
+     "payload": {"title": "E&O 10 月：tkos.world 0.2 在真实经营中跑通", "period": "2026-10", "goal_ref": "@eo_goal", "blocks": {
+       "target": {"components": [
+         {"id": "tianshu", "type": "outcome", "text": "10 月 16 日天枢联调验收通过"},
+         {"id": "records", "type": "outcome", "text": "E&O 十月的工作全部经本体记录"},
+         {"id": "lock", "type": "outcome", "text": "tkos.world 0.2 锁版"},
+         {"id": "ac-tianshu", "type": "acceptance_criterion", "text": "10 月 16 日天枢联调验收通过"},
+         {"id": "ac-records", "type": "acceptance_criterion", "text": "E&O 十月的工作全部经本体记录（每张任务卡有每周快照，执行事项的完成由交付事件推出）"},
+         {"id": "ac-lock", "type": "acceptance_criterion", "text": "tkos.world 0.2 锁版（验收冻结并钉定提交）"}]}}},
+     "note": "不带 review_ref：scope 里还没有已确认的公司复盘，形成锚定放行。结果写三条的主句，验收标准写全文，都在目标定义块里（组件 id 不变）；定位与承接块、时间边界与实现逻辑材料里没有，留空。"},
+    {"key": "commit_october_goal", "by": "eo-dri", "do": "gate", "after": ["october_goal"],
+     "action": "world_commit_period_goal", "target": "october_goal",
+     "note": "形成锚定：E&O 长期目标须已确认。"},
+    {"key": "confirm_october_goal", "by": "ceo", "do": "gate", "after": ["commit_october_goal"],
+     "action": "world_confirm_period_goal", "target": "october_goal", "outcome": "accepted"},
+    {"key": "delegate_ceo", "by": "ceo", "do": "delegate", "after": ["confirm_october_goal"],
+     "to": "tianshu", "families": ["gate", "assign", "lifecycle"], "domains": ["company", "eo"], "valid_until": "2026-10-31T23:59:59+08:00",
+     "note": "CEO 那段的最后一步。"},
+    {"key": "mission_trial", "by": "eo-dri", "do": "create", "after": ["confirm_october_goal"], "type": "Mission", "domain": "eo",
+     "payload": {"title": "天枢 × 本体 0.2 试用", "goal_ref": "@october_goal", "blocks": {
+       "definition": {"components": [
+         {"id": "trial", "type": "outcome", "text": "天枢与本体 tkos.world 0.2 联调并试用。"},
+         {"id": "ac-tianshu", "type": "acceptance_criterion", "text": "10 月 16 日天枢联调验收通过", "refs": ["@october_goal#target/ac-tianshu"]},
+         {"id": "window", "type": "time_boundary", "text": "10 月 9 日至 16 日。"}]},
+       "mission_plan": {"components": [
+         {"id": "ms-integration", "type": "milestone", "text": "10/9–11 联调与委托登记。"},
+         {"id": "ms-trial-week", "type": "milestone", "text": "10/12–16 试用周每周快照与问题流转。"},
+         {"id": "ms-acceptance", "type": "milestone", "text": "10/16 联调验收。"}]}}},
+     "note": "原定义块拆开：战役结果与时间边界在战役定义块，冒号后的三段是 Mission 计划块的关键里程碑；验收条件在战役定义块里（组件 id 不变）。"},
+    {"key": "assign_mission_trial", "by": "eo-dri", "do": "assign", "after": ["mission_trial"], "target": "mission_trial", "to": "eo-owner"},
+    {"key": "mission_experiments", "by": "eo-dri", "do": "create", "after": ["confirm_october_goal"], "type": "Mission", "domain": "eo",
+     "payload": {"title": "0.2 实验与报告", "goal_ref": "@october_goal", "blocks": {
+       "definition": {"components": [
+         {"id": "report", "type": "outcome", "text": "0.2 的实验与实验报告。"}]},
+       "mission_plan": {"components": [
+         {"id": "path", "type": "core_path", "text": "对照实验 B（Task-only 与 Task+Activity），实验 E（五个场景、真实战略材料与标准答案），四种取法对照（含 RAG），写成实验报告。"}]}}},
+     "note": "验收标准没有给定，留空。原定义块按冒号拆成战役结果与 Mission 计划块的核心路径。"},
+    {"key": "assign_mission_experiments", "by": "eo-dri", "do": "assign", "after": ["mission_experiments"], "target": "mission_experiments", "to": "eo-owner"},
+    {"key": "mission_lock", "by": "eo-dri", "do": "create", "after": ["confirm_october_goal"], "type": "Mission", "domain": "eo",
+     "payload": {"title": "0.2 锁版", "goal_ref": "@october_goal", "blocks": {
+       "definition": {"components": [
+         {"id": "lock", "type": "outcome", "text": "tkos.world 0.2 锁版。"},
+         {"id": "ac-lock", "type": "acceptance_criterion", "text": "tkos.world 0.2 锁版（验收冻结并钉定提交）", "refs": ["@october_goal#target/ac-lock"]}]},
+       "mission_plan": {"components": [
+         {"id": "path", "type": "core_path", "text": "验收冻结并钉定提交，然后发版、切换实例。"}]}}},
+     "note": "原定义块按冒号拆成战役结果与 Mission 计划块的核心路径；验收条件在战役定义块里（组件 id 不变）。"},
+    {"key": "assign_mission_lock", "by": "eo-dri", "do": "assign", "after": ["mission_lock"], "target": "mission_lock", "to": "eo-owner"},
+    {"key": "commit_mission_trial", "by": "eo-owner", "do": "gate", "after": ["assign_mission_trial"],
+     "action": "world_commit_mission", "target": "mission_trial", "note": "守卫 parent_goal_confirmed：十月周期目标须已确认。"},
+    {"key": "commit_mission_experiments", "by": "eo-owner", "do": "gate", "after": ["assign_mission_experiments"],
+     "action": "world_commit_mission", "target": "mission_experiments"},
+    {"key": "commit_mission_lock", "by": "eo-owner", "do": "gate", "after": ["assign_mission_lock"],
+     "action": "world_commit_mission", "target": "mission_lock"},
+    {"key": "confirm_mission_trial", "by": "eo-dri", "do": "gate", "after": ["commit_mission_trial"],
+     "action": "world_confirm_mission", "target": "mission_trial", "outcome": "accepted"},
+    {"key": "confirm_mission_experiments", "by": "eo-dri", "do": "gate", "after": ["commit_mission_experiments"],
+     "action": "world_confirm_mission", "target": "mission_experiments", "outcome": "accepted"},
+    {"key": "confirm_mission_lock", "by": "eo-dri", "do": "gate", "after": ["commit_mission_lock"],
+     "action": "world_confirm_mission", "target": "mission_lock", "outcome": "accepted"},
+    {"key": "delegate_dri", "by": "eo-dri", "do": "delegate", "after": ["confirm_mission_trial", "confirm_mission_experiments", "confirm_mission_lock"],
+     "to": "tianshu", "families": ["gate", "assign", "lifecycle"], "domains": ["eo"], "valid_until": "2026-10-31T23:59:59+08:00",
+     "note": "DRI 那段的最后一步。"},
+    {"key": "task_trial_integration", "by": "eo-owner", "do": "create", "after": ["confirm_mission_trial"], "type": "Task", "domain": "eo",
+     "payload": {"title": "联调与委托登记（10/9–11）", "parent_ref": "@mission_trial", "blocks": {
+       "definition": {"components": [
+         {"id": "outcome", "type": "outcome", "text": "天枢与本体 0.2 联调，登记给天枢的委托。"},
+         {"id": "window", "type": "time_boundary", "text": "10 月 9 日至 11 日。"}]}}},
+     "note": "原定义块按冒号拆成工作结果与时间边界。"},
+    {"key": "task_trial_week", "by": "eo-owner", "do": "create", "after": ["confirm_mission_trial"], "type": "Task", "domain": "eo",
+     "payload": {"title": "试用周每周快照与问题流转（10/12–16）", "parent_ref": "@mission_trial", "blocks": {
+       "definition": {"components": [
+         {"id": "outcome", "type": "outcome", "text": "每周快照与问题流转经本体记录。"},
+         {"id": "window", "type": "time_boundary", "text": "10 月 12 日至 16 日试用周。"}]}}},
+     "note": "原定义块按冒号拆成工作结果与时间边界。"},
+    {"key": "task_trial_acceptance", "by": "eo-owner", "do": "create", "after": ["confirm_mission_trial"], "type": "Task", "domain": "eo",
+     "payload": {"title": "10/16 联调验收", "parent_ref": "@mission_trial", "blocks": {
+       "definition": {"components": [{"id": "outcome", "type": "outcome", "text": "10 月 16 日天枢联调验收。"}]}}}},
+    {"key": "task_experiment_b", "by": "eo-owner", "do": "create", "after": ["confirm_mission_experiments"], "type": "Task", "domain": "eo",
+     "payload": {"title": "对照实验 B：Task-only 与 Task+Activity", "parent_ref": "@mission_experiments", "blocks": {
+       "definition": {"components": [{"id": "outcome", "type": "outcome", "text": "对照 Task-only 与 Task+Activity 两种做法。"}]}}}},
+    {"key": "task_experiment_e", "by": "eo-owner", "do": "create", "after": ["confirm_mission_experiments"], "type": "Task", "domain": "eo",
+     "payload": {"title": "实验 E：五个场景、真实战略材料与标准答案", "parent_ref": "@mission_experiments", "blocks": {
+       "definition": {"components": [{"id": "outcome", "type": "outcome", "text": "五个场景，用真实战略材料，写标准答案。"}]}}}},
+    {"key": "task_retrieval_report", "by": "eo-owner", "do": "create", "after": ["confirm_mission_experiments"], "type": "Task", "domain": "eo",
+     "payload": {"title": "四种取法对照（含 RAG）与实验报告", "parent_ref": "@mission_experiments", "blocks": {
+       "definition": {"components": [{"id": "outcome", "type": "outcome", "text": "对照四种取法（含 RAG），写成实验报告。"}]}}}},
+    {"key": "task_freeze", "by": "eo-owner", "do": "create", "after": ["confirm_mission_lock"], "type": "Task", "domain": "eo",
+     "payload": {"title": "验收冻结与钉定提交", "parent_ref": "@mission_lock", "blocks": {
+       "definition": {"components": [{"id": "outcome", "type": "outcome", "text": "0.2 验收冻结，钉定提交。"}]}}}},
+    {"key": "task_release", "by": "eo-owner", "do": "create", "after": ["confirm_mission_lock"], "type": "Task", "domain": "eo",
+     "payload": {"title": "发版与实例切换", "parent_ref": "@mission_lock", "blocks": {
+       "definition": {"components": [{"id": "outcome", "type": "outcome", "text": "按钉定的提交发版，实例切换到发版的版本。"}]}}}},
+    {"key": "delegate_owner", "by": "eo-owner", "do": "delegate",
+     "after": ["task_trial_integration", "task_trial_week", "task_trial_acceptance", "task_experiment_b", "task_experiment_e", "task_retrieval_report", "task_freeze", "task_release"],
+     "to": "tianshu", "families": ["gate", "assign", "lifecycle"], "domains": ["eo"], "valid_until": "2026-10-31T23:59:59+08:00",
+     "note": "Owner 那段的最后一步。"}
+  ]
+}

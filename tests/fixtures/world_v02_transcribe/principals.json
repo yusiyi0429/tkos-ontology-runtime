@@ -1,0 +1,35 @@
+{
+ "format": "tkos-world-02-experiment-b-principals/0.1",
+ "principals": {
+  "ceo": {
+   "principal_id": "14eb880a-620f-4506-a1b0-853870b3b6c1",
+   "display_name": "CEO",
+   "role": "ceo"
+  },
+  "eo-dri": {
+   "principal_id": "133ccfdf-e954-4388-908c-b9e9a0bd76a7",
+   "display_name": "E&O DRI",
+   "role": "eo-dri"
+  },
+  "eo-owner": {
+   "principal_id": "6366eca8-6c8b-4040-b01a-2d331aa4fcb8",
+   "display_name": "E&O Mission Owner",
+   "role": "eo-owner"
+  },
+  "tianshu": {
+   "principal_id": "f11cbf8f-a37d-478e-9275-cd49075b0eb3",
+   "display_name": "天枢服务主体",
+   "role": "agent"
+  },
+  "eo-coagent": {
+   "principal_id": "d08b8f00-cf8e-40ea-8de1-07569e81c6f0",
+   "display_name": "E&O Co-Agent",
+   "role": "eo-coagent"
+  },
+  "exec-agent": {
+   "principal_id": "952e3247-a6c5-4205-95ed-e151763c7aa7",
+   "display_name": "执行 Agent",
+   "role": "exec-agent"
+  }
+ }
+}

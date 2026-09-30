@@ -1,0 +1,16 @@
+{
+  "tenant_id": "tokenking-world-02-experiment-b",
+  "domains": {
+    "company": "词元云集（公司域）",
+    "eo": "E&O（责任单元）"
+  },
+  "principals": {
+    "ceo": {"type": "human", "display_name": "CEO", "roles": {"company": ["CEO"], "eo": ["CEO"]}},
+    "eo-dri": {"type": "human", "display_name": "E&O DRI", "roles": {"eo": ["DOMAIN_DRI", "OWNER", "IC"]}},
+    "eo-owner": {"type": "human", "display_name": "E&O Mission Owner", "roles": {"eo": ["OWNER", "IC"]}},
+    "eo-ic": {"type": "human", "display_name": "E&O 执行者", "roles": {"eo": ["IC"]}},
+    "eo-coagent": {"type": "agent", "display_name": "E&O Co-Agent", "roles": {"eo": ["AGENT"]}},
+    "exec-agent": {"type": "agent", "display_name": "执行 Agent", "roles": {"eo": ["AGENT"]}}
+  },
+  "notes": "world-02 对照实验 B：Task-only 与 Task+Activity 两条线各供给一个 scope（同一份名单，provision.py 每次生成新的 scope 与 company id）。身份一律是角色名，不填真名。eo-dri 另持 OWNER：试用回放的 Mission（mission_context）的 Owner 就是 E&O DRI 本人，同 world-02 实例的名单；锁版前迁移 0039 会重写，对象、事件与快照可整体清空重建"
+}

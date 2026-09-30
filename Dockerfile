@@ -56,13 +56,17 @@ PY
 # the exact contract bytes they pin, the ontology/world registries, and support registries.
 COPY docs/contracts/method-profile.json docs/contracts/method-profile-0.2.json docs/contracts/method-profile-0.3.json \
      docs/contracts/method-profile-0.4.json docs/contracts/method-profile-0.5.json docs/contracts/world-profile-0.1.json \
+     docs/contracts/world-profile-0.2.json \
      docs/contracts/tkos-method-0.1.md docs/contracts/tkos-method-0.2.md docs/contracts/tkos-method-0.3.md \
      docs/contracts/tkos-method-0.4.md docs/contracts/tkos-method-0.5.md docs/contracts/tkos-world-0.1.md \
+     docs/contracts/tkos-world-0.2.md \
      docs/contracts/ontology-registry-0.7.json docs/contracts/world-registry-0.1.json \
+     docs/contracts/world-registry-0.2.json \
      /opt/tkos/docs/contracts/
 COPY docs/runtime-a2-registry.json docs/runtime-a3-registry.json docs/runtime-method-registry.json \
      docs/runtime-method-registry-0.2.json docs/runtime-method-registry-0.3.json \
      docs/runtime-method-registry-0.4.json docs/runtime-method-registry-0.5.json docs/runtime-world-support-0.1.json \
+     docs/runtime-world-support-0.2.json \
      /opt/tkos/docs/
 
 USER memory-service

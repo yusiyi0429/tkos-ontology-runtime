@@ -81,6 +81,7 @@ def approve(path: Path, by: str) -> dict:
 # ------------------------------------------------------------------ review document
 _TYPES = {item['type']: item for item in spec.REGISTRY['objects']}
 _ACTIONS = {item['action']: item['display_name'] for item in spec.REGISTRY['actions']}
+_COMPONENTS = {item['id']: item['display_name'] for item in spec.REGISTRY['components']['types']}
 
 
 class _Describer:
@@ -152,7 +153,8 @@ def _block_lines(values: dict, names: dict[str, str]) -> list[str]:
             attributes = item.get('attributes') or {}
             who = f"（责任人 `{attributes['responsible']}`）" if attributes.get('responsible') else ''
             refs = f"（引用 {', '.join(f'`{ref}`' for ref in item['refs'])}）" if item.get('refs') else ''
-            lines.append(f"    - 组件 `{item['id']}`：{item.get('text', '')}{who}{refs}")
+            kind = f"（{_COMPONENTS.get(item.get('type'), item.get('type'))}）" if item.get('type') else ''
+            lines.append(f"    - 组件 `{item['id']}`{kind}：{item.get('text', '')}{who}{refs}")
     return lines
 
 

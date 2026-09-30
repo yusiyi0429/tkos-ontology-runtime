@@ -10,10 +10,6 @@ import pytest
 
 from experiments.world_v02 import counterexamples, gold, spec
 
-# #79 按 Content Pact 替换了 0.2 登记，实验 E 的场景、世界播种与标准答案还引用替换前的块（acceptance、outcome、
-# constraint 等），由 #82 改写。改写之前这几条严格 xfail：改好后会 XPASS 而失败，届时去掉标记。
-PENDING_82 = pytest.mark.xfail(strict=True, reason="待 #82：实验 E 的场景与世界播种仍用 Content Pact 替换前的块")
-
 ROOT = Path(__file__).resolve().parents[1]
 FOLDER = ROOT / 'experiments/world_v02'
 FIXTURES = ROOT / 'tests/fixtures/world_v02_experiment_e'
@@ -42,7 +38,6 @@ def concrete(ref, manifest):
 
 
 # ------------------------------------------------------------------ the committed files
-@PENDING_82
 def test_the_committed_scenarios_and_gold_are_consistent_and_not_yet_approved():
     scenarios, answers = committed()
     spec.validate(scenarios)
@@ -68,12 +63,14 @@ def test_every_why_reaches_the_strategy_and_the_company_through_slots_waiting_fo
     slots = {item['slot'] for item in scenarios['pending_material']}
     for item in answers['scenario_answers']:
         why = item['questions'][0]['expected']
-        assert {'@strategy#responsibility_structure/eo', '@strategy#choices', '@company#identity'} <= set(why) & slots
+        assert {'@strategy#responsibility_structure/eo', '@strategy#strategy_core/main-line',
+                '@company#identity/long-term-identity'} <= set(why) & slots
 
 
 def test_the_trunk_repeats_the_october_starting_point_and_the_reviewed_september_text():
     """主干的正文照搬换任务卡之前的十月起点（原样存在 b_source-2026-10.json，公司层来自 0.1 审过的材料），只有 Strategy
-    多一条责任单元条目；Agents 单元的正文取自 0.1 审过的 seed.json，只把结果改成结果组件。"""
+    多一条责任单元条目；Agents 单元的正文取自 0.1 审过的 seed.json，按 Content Pact 放进新块的组件（#82），逐条正文
+    与 0.1 相同。"""
     scenarios, _ = committed()
     trunk = {step['key']: step for step in scenarios['base']['steps'] if step.get('key')}
     scenario_steps = {step['key']: step for item in scenarios['scenarios'] for step in item['steps'] if step.get('key')}
@@ -92,13 +89,21 @@ def test_the_trunk_repeats_the_october_starting_point_and_the_reviewed_september
     assert '04 Agents' in structure['text']
     september = {step['key']: step for step in json.loads((ROOT / 'experiments/world_v01/seed.json').read_text())['steps']
                  if step.get('key')}
-    assert (scenario_steps['unit_agents']['payload']['blocks']['definition']['text']
-            == september['unit_agents']['payload']['blocks']['definition']['text'])
+    def texts(blocks):  # 各块的正文与组件正文，按块与组件的顺序
+        return [text for value in blocks.values()
+                for text in ([value['text']] if value.get('text') else []) + [item['text'] for item in value.get('components', [])]]
+
+    assert (texts(scenario_steps['unit_agents']['payload']['blocks'])
+            == [september['unit_agents']['payload']['blocks']['definition']['text']])
     for key in ('agents_goal', 'agents_period'):
-        assert ([item['text'] for item in scenario_steps[key]['payload']['blocks']['outcome']['components']]
+        assert ([item['text'] for item in scenario_steps[key]['payload']['blocks']['target']['components']]
                 == [september[key]['payload']['blocks']['outcome']['text']])
         assert scenario_steps[key]['payload']['title'] == september[key]['payload']['title']
-    assert scenario_steps['agents_mission']['payload']['blocks'] == september['agents_mission']['payload']['blocks']
+    # 0.1 的定义块成了战役结果，约束块成了 Mission 计划块的关键约束与依赖（Mission 不再有约束块）
+    mission = scenario_steps['agents_mission']['payload']['blocks']
+    assert list(mission) == ['definition', 'mission_plan']
+    assert texts(mission) == texts(september['agents_mission']['payload']['blocks'])
+    assert [item['type'] for value in mission.values() for item in value['components']] == ['outcome', 'constraint_dependency']
 
 
 def test_identities_are_seeded_under_role_names():
@@ -110,12 +115,12 @@ def test_identities_are_seeded_under_role_names():
 # ------------------------------------------------------------------ placeholders
 def test_placeholders_resolve_objects_blocks_components_events_and_people():
     objects = {'goal': {'object_id': '11111111-1111-4111-8111-111111111111', 'version': 2}}
-    value = {'refs': ['@goal', '@goal@1#acceptance/ac-lock', '@goal#outcome', 'event:done'], 'who': '$owner',
+    value = {'refs': ['@goal', '@goal@1#target/ac-lock', '@goal#target', 'event:done'], 'who': '$owner',
              'text': '见 @goal'}
     resolved = spec.resolve(value, objects, {'owner': '33333333-3333-4333-8333-333333333333'},
                             {'done': '44444444-4444-4444-8444-444444444444'})
-    assert resolved == {'refs': ['11111111-1111-4111-8111-111111111111@2', '11111111-1111-4111-8111-111111111111@1#acceptance/ac-lock',
-                                 '11111111-1111-4111-8111-111111111111@2#outcome', 'event:44444444-4444-4444-8444-444444444444'],
+    assert resolved == {'refs': ['11111111-1111-4111-8111-111111111111@2', '11111111-1111-4111-8111-111111111111@1#target/ac-lock',
+                                 '11111111-1111-4111-8111-111111111111@2#target', 'event:44444444-4444-4444-8444-444444444444'],
                         'who': '33333333-3333-4333-8333-333333333333', 'text': '见 @goal'}
     for bad in ('@nowhere', '@goal@3', '$nobody'):
         with pytest.raises(spec.SeedError):
@@ -139,9 +144,11 @@ def _scenario(scenarios, name):
     # 引用后面才记下的事件
     lambda s: _scenario(s, 'cross_unit')['steps'][-1]['payload'].update(source_event_refs=['event:ev_rag_design']),
     # 指定的版本比当时的新
-    lambda s: s['base']['steps'][10]['payload']['blocks']['acceptance']['components'][0].update(refs=['@october_goal@2#acceptance/ac-tianshu']),
+    lambda s: s['base']['steps'][10]['payload']['blocks']['definition']['components'][1].update(refs=['@october_goal@2#target/ac-tianshu']),
     # 引用那一版里没有的组件
-    lambda s: s['base']['steps'][10]['payload']['blocks']['acceptance']['components'][0].update(refs=['@october_goal#acceptance/ac-nope']),
+    lambda s: s['base']['steps'][10]['payload']['blocks']['definition']['components'][1].update(refs=['@october_goal#target/ac-nope']),
+    # 引用登记里已经没有的块（Content Pact 之前的周期目标验收块）
+    lambda s: s['base']['steps'][10]['payload']['blocks']['definition']['components'][1].update(refs=['@october_goal#acceptance/ac-tianshu']),
     # 被指派者不存在
     lambda s: _scenario(s, 'rework_restart')['steps'][0].update(to='nobody'),
     # 键重复
@@ -159,12 +166,14 @@ def test_inconsistent_scenarios_are_refused(breaks):
 
 
 @pytest.mark.parametrize('breaks', [
-    lambda g: g['scenario_answers'][0]['questions'][0]['expected'].remove('@company#identity'),     # Why 不到 Company
-    lambda g: g['scenario_answers'][0]['questions'][1]['expected'].append('@agents_mission#constraint'),  # 诱饵也是应引用
+    lambda g: g['scenario_answers'][0]['questions'][0]['expected'].remove('@company#identity/long-term-identity'),  # Why 不到 Company
+    lambda g: g['scenario_answers'][0]['questions'][1]['expected'].append('@agents_mission#mission_plan/manual-fallback'),  # 诱饵也是应引用
     lambda g: g['scenario_answers'][1]['counterexamples'][0].pop('conflict'),                       # 冲突类没写冲突
-    lambda g: g['scenario_answers'][1]['questions'][1]['expected'].remove('@unit_eo#constraint'),   # 要指出冲突的问没引上层
+    lambda g: g['scenario_answers'][1]['questions'][1]['expected'].remove('@unit_eo#definition/no-graph-db'),  # 要指出冲突的问没引上层
+    lambda g: g['scenario_answers'][1]['questions'][5]['expected'].remove('@task_retrieval_report#plan/rag-graph'),  # 要指出冲突的问少了下层一条
     lambda g: g['scenario_answers'][4]['counterexamples'].pop(),                                     # 少了该判的类别
-    lambda g: g['scenario_answers'][2]['questions'][0]['expected'].append('@october_goal#acceptance/ac-nope'),  # 组件不存在
+    lambda g: g['scenario_answers'][2]['questions'][0]['expected'].append('@october_goal#target/ac-nope'),  # 组件不存在
+    lambda g: g['scenario_answers'][2]['questions'][0]['expected'].append('@october_goal#acceptance/ac-lock'),  # 登记里已经没有的块
     lambda g: g['scenario_answers'][3]['questions'][4]['expected'].append('event:nowhere'),         # 事件不存在
     lambda g: g['scenario_answers'].reverse(),                                                       # 场景顺序
 ])
@@ -188,7 +197,6 @@ def test_unapproved_gold_is_refused(copies):
         gold.load_approved(copies / 'gold.json')
 
 
-@PENDING_82
 def test_approved_gold_is_loaded_until_either_file_changes(copies):
     gold.approve(copies / 'gold.json', 'E&O DRI')
     loaded = gold.load_approved(copies / 'gold.json')
@@ -201,13 +209,12 @@ def test_approved_gold_is_loaded_until_either_file_changes(copies):
     gold.approve(copies / 'gold.json', 'E&O DRI')
     gold.load_approved(copies / 'gold.json')
     scenarios = json.loads((copies / 'scenarios.json').read_text())
-    scenarios['base']['steps'][0]['payload']['blocks']['identity']['text'] += '（改过）'
+    scenarios['base']['steps'][0]['payload']['blocks']['identity']['components'][0]['text'] += '（改过）'
     (copies / 'scenarios.json').write_text(json.dumps(scenarios, ensure_ascii=False))
     with pytest.raises(gold.NotApproved):
         gold.load_approved(copies / 'gold.json')
 
 
-@PENDING_82
 def test_approved_gold_is_refused_for_a_world_seeded_from_other_content(copies):
     approval = gold.approve(copies / 'gold.json', 'E&O DRI')
     assert gold.load_approved(copies / 'gold.json', {'content_sha256': approval['content_sha256']})
@@ -232,12 +239,10 @@ def test_the_approval_section_is_outside_the_content_hash():
     assert gold.content_sha256(signed, scenarios) != gold.content_sha256(answers, committed()[0])
 
 
-@PENDING_82
 def test_the_review_document_is_generated_from_the_two_files():
     assert (ROOT / 'docs/world-v02-scenarios-review.md').read_text() == gold.render()
 
 
-@PENDING_82
 def test_the_review_document_marks_the_slots_waiting_for_the_real_material_and_every_decoy():
     text = gold.render()
     scenarios, answers = committed()

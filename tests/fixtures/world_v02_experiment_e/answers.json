@@ -3,25 +3,25 @@
   "cases": [
     {"scenario": "cross_unit", "name": "只引 E&O 的主干，提到 M1-B 依赖本 Mission 时只引对象本身", "question": "why",
      "claims": [
-       {"claim": "它服务试用 Mission 与十月周期目标的天枢联调验收。", "kind": "fact", "refs": ["@mission_trial#definition", "@october_goal#outcome/tianshu"]},
-       {"claim": "E&O 是战略责任结构里的 05 能力域。", "kind": "fact", "refs": ["@strategy#responsibility_structure/eo", "@company#identity"]},
+       {"claim": "它服务试用 Mission 与十月周期目标的天枢联调验收。", "kind": "fact", "refs": ["@mission_trial#definition/trial", "@october_goal#target/tianshu"]},
+       {"claim": "E&O 是战略责任结构里的 05 能力域。", "kind": "fact", "refs": ["@strategy#responsibility_structure/eo", "@company#identity/long-term-identity"]},
        {"claim": "Agents 的 M1-B 依赖本 Mission。", "kind": "fact", "refs": ["@agents_mission"]}],
      "occurred": {}},
     {"scenario": "cross_unit", "name": "把 Agents 的约束与目标当成本 Task 的", "question": "basis",
      "claims": [
-       {"claim": "允许人工兜底，不要求完整自动化。", "kind": "fact", "refs": ["@agents_mission#constraint"]},
-       {"claim": "目标是 CEO Agent 常态化使用，衡量还没写。", "kind": "gap", "refs": ["@agents_goal#outcome/agent-usage"]},
-       {"claim": "E&O 不引入图数据库。", "kind": "fact", "refs": ["@unit_eo#constraint"]}],
+       {"claim": "允许人工兜底，不要求完整自动化。", "kind": "fact", "refs": ["@agents_mission#mission_plan/manual-fallback"]},
+       {"claim": "目标是 CEO Agent 常态化使用，衡量还没写。", "kind": "gap", "refs": ["@agents_goal#target/agent-usage"]},
+       {"claim": "E&O 不引入图数据库。", "kind": "fact", "refs": ["@unit_eo#definition/no-graph-db"]}],
      "occurred": {"other_unit": [0, 1]}},
     {"scenario": "constraint_conflict", "name": "做什么一问里指出冲突并同时引两处", "question": "what",
      "claims": [
        {"claim": "计划三条：RAG 组、成本、报告。", "kind": "fact", "refs": ["@task_retrieval_report#plan/cost", "@task_retrieval_report#plan/report"]},
-       {"claim": "RAG 组要单独部署图数据库，与 E&O 不引入图数据库的约束冲突。", "kind": "conflict", "refs": ["@unit_eo#constraint", "@task_retrieval_report#plan/rag-graph"]}],
+       {"claim": "执行上下文要单独部署图数据库，与 E&O 不引入图数据库的关键约束冲突。", "kind": "conflict", "refs": ["@unit_eo#definition/no-graph-db", "@task_retrieval_report#task_plan/graph-db"]}],
      "occurred": {}},
     {"scenario": "constraint_conflict", "name": "凭什么一问两处都引了，但没有 conflict 断言", "question": "basis",
      "claims": [
-       {"claim": "约束是不引入图数据库。", "kind": "fact", "refs": ["@unit_eo#constraint"]},
-       {"claim": "计划用图数据库做 RAG 检索。", "kind": "fact", "refs": ["@task_retrieval_report#plan/rag-graph"]}],
+       {"claim": "约束是不引入图数据库。", "kind": "fact", "refs": ["@unit_eo#definition/no-graph-db"]},
+       {"claim": "执行上下文用图数据库做 RAG 检索。", "kind": "fact", "refs": ["@task_retrieval_report#task_plan/graph-db"]}],
      "occurred": {"conflict_missed": []}, "reason": "not_stated"},
     {"scenario": "constraint_conflict", "name": "谁负责一问不要求指出冲突", "question": "who",
      "claims": [
@@ -29,22 +29,27 @@
      "occurred": {}},
     {"scenario": "constraint_conflict", "name": "conflict 断言只引一处，哪一问都算", "question": "who",
      "claims": [
-       {"claim": "图数据库与约束冲突。", "kind": "conflict", "refs": ["@unit_eo#constraint"]}],
+       {"claim": "图数据库与约束冲突。", "kind": "conflict", "refs": ["@unit_eo#definition/no-graph-db"]}],
      "occurred": {"conflict_missed": [0]}, "reason": "one_sided"},
-    {"scenario": "constraint_conflict", "name": "整份回答判一次，冲突引到计划块里的那条组件", "question": null,
+    {"scenario": "constraint_conflict", "name": "conflict 断言引的是单元的另一条关键约束或整个责任定义块，只算引到本层一侧", "question": "basis",
      "claims": [
-       {"claim": "计划与约束冲突。", "kind": "conflict", "refs": ["@unit_eo@1#constraint", "@task_retrieval_report#plan/rag-graph"]}],
+       {"claim": "图数据库与 method 冻结冲突。", "kind": "conflict", "refs": ["@unit_eo#definition/method-frozen", "@task_retrieval_report#task_plan/graph-db"]},
+       {"claim": "图数据库与单元定义冲突。", "kind": "conflict", "refs": ["@unit_eo#definition", "@task_retrieval_report#plan/rag-graph"]}],
+     "occurred": {"conflict_missed": [0, 1]}, "reason": "one_sided"},
+    {"scenario": "constraint_conflict", "name": "整份回答判一次，冲突引到 Activity 全景里的那条计划条目", "question": null,
+     "claims": [
+       {"claim": "计划与约束冲突。", "kind": "conflict", "refs": ["@unit_eo@1#definition/no-graph-db", "@task_retrieval_report#plan/rag-graph"]}],
      "occurred": {}},
     {"scenario": "version_change", "name": "引生效的第 2 版", "question": "why",
      "claims": [
-       {"claim": "锁版放到 10 月 20 日 CEO 定下对象结构之后。", "kind": "fact", "refs": ["@october_goal#acceptance/ac-lock", "@mission_lock#acceptance/ac-lock"]},
-       {"claim": "Mission 是 0.2 锁版。", "kind": "fact", "refs": ["@mission_lock#definition"]}],
+       {"claim": "锁版放到 10 月 20 日 CEO 定下对象结构之后。", "kind": "fact", "refs": ["@october_goal#target/ac-lock", "@mission_lock#definition/ac-lock"]},
+       {"claim": "Mission 是 0.2 锁版。", "kind": "fact", "refs": ["@mission_lock#definition/lock"]}],
      "occurred": {}},
     {"scenario": "version_change", "name": "顺着 Mission 的钉定引到第 1 版，另引一个更旧的版本", "question": "basis",
      "claims": [
-       {"claim": "验收条件是 tkos.world 0.2 锁版。", "kind": "fact", "refs": ["@october_goal@1#acceptance/ac-lock"]},
+       {"claim": "验收条件是 tkos.world 0.2 锁版。", "kind": "fact", "refs": ["@october_goal@1#target/ac-lock"]},
        {"claim": "Mission 的定义。", "kind": "fact", "refs": ["@mission_lock@1#definition"]},
-       {"claim": "约束。", "kind": "fact", "refs": ["@unit_eo#constraint"]}],
+       {"claim": "约束。", "kind": "fact", "refs": ["@unit_eo#definition/method-frozen", "@unit_eo#definition/no-graph-db"]}],
      "occurred": {"stale_version": [0, 1]}},
     {"scenario": "rework_restart", "name": "现状引重开事件、退回事件与重开后的快照", "question": "now",
      "claims": [
@@ -60,7 +65,7 @@
      "claims": [
        {"claim": "反例判定由 E&O Agent 做，审阅由 E&O DRI。", "kind": "fact", "refs": ["@task_experiment_e#plan/judge", "@task_experiment_e#plan/review"]},
        {"claim": "本 Task 下没有 Activity。", "kind": "gap", "refs": ["@task_experiment_e"]},
-       {"claim": "约束块是空的。", "kind": "gap", "refs": ["@task_experiment_e#constraint"]}],
+       {"claim": "Task 计划块是空的。", "kind": "gap", "refs": ["@task_experiment_e#task_plan"]}],
      "occurred": {}},
     {"scenario": "task_only", "name": "引兄弟 Task 的 Activity、不存在的对象，并把计划块说成空", "question": "what",
      "claims": [

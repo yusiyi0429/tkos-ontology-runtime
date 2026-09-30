@@ -8,12 +8,12 @@
       "start": "task_trial_week",
       "questions": [
         {"id": "why", "question": "为什么要做「试用周每周快照与问题流转」这个 Task？",
-         "answer": "它是 Mission「天枢 × 本体 0.2 试用」的一段：10 月 9 日至 16 日天枢与本体 0.2 联调并试用。这个 Mission 服务 E&O 十月周期目标的结果「10 月 16 日天枢联调验收通过」；十月周期目标推进 E&O 六个月目标（建立 Enterprise Context 与 Agent Infrastructure），再往上是公司的「春节前核心业务第一次被真实证明」。E&O 是战略责任结构里的 05 能力域，战略主线是 AI 企业智能决策网络，公司拟定的长期身份是企业经营范式重构与 Token 运营中枢（战略与公司两层是存根，待真实战略材料）。",
-         "expected": ["@mission_trial#definition", "@october_goal#outcome/tianshu", "@eo_goal#outcome", "@company_goal#outcome",
-                      "@strategy#responsibility_structure/eo", "@strategy#choices", "@company#identity"]},
+         "answer": "它是 Mission「天枢 × 本体 0.2 试用」的一段，这个 Mission 的战役结果是天枢与本体 tkos.world 0.2 联调并试用。Mission 服务 E&O 十月周期目标的目标结果「10 月 16 日天枢联调验收通过」；十月周期目标推进 E&O 六个月目标的目标结果（建立 Enterprise Context 与 Agent Infrastructure），再往上是公司长期目标「春节前核心业务第一次被真实证明」的目标结果。E&O 是战略责任结构里的 05 能力域，总体战略的主线是 AI 企业智能决策网络，公司拟定的长期身份（业务定义）是企业经营范式重构与 Token 运营中枢（战略与公司两层是存根，待真实战略材料）。",
+         "expected": ["@mission_trial#definition/trial", "@october_goal#target/tianshu", "@eo_goal#target/outcome", "@company_goal#target/outcome",
+                      "@strategy#responsibility_structure/eo", "@strategy#strategy_core/main-line", "@company#identity/long-term-identity"]},
         {"id": "what", "question": "这个 Task 要做成什么？",
-         "answer": "10 月 12 日至 16 日试用周：每周快照与问题流转经本体记录。Task 没有写验收标准与计划。",
-         "expected": ["@task_trial_week#definition"]},
+         "answer": "工作结果是每周快照与问题流转经本体记录，时间边界是 10 月 12 日至 16 日试用周。任务定义里没有写验收标准，Task 计划与 Activity 全景都是空的。",
+         "expected": ["@task_trial_week#definition/outcome", "@task_trial_week#definition/window"]},
         {"id": "who", "question": "谁负责这个 Task？",
          "answer": "试用 Task 责任人，由 E&O Mission Owner 指派。",
          "expected": ["@task_trial_week", "event:assign_trial_week"]},
@@ -24,13 +24,14 @@
          "answer": "责任人记了开始；开过一次试用周安排的会：天枢每周先记一条每周同步事件再写进展快照，问题由 Co-Agent 提出并路由；M1-B 经营协同的 CEO Agent 与 DRI Agent 在天枢上跑，靠本 Mission 的读写。",
          "expected": ["event:start_trial_week", "event:ev_trial_week_plan"]},
         {"id": "basis", "question": "凭什么这样做？受什么约束？",
-         "answer": "依据是 Mission 的验收条件「10 月 16 日天枢联调验收通过」，它逐条引用十月周期目标的同名验收条件。约束是 E&O 单元的约束：tkos.method 0.4、0.5 冻结不改，当前量级用 PostgreSQL 加 pgvector，不引入图数据库。Agents 单元 M1-B 的「允许人工兜底」不是本 Task 的约束。",
-         "expected": ["@mission_trial#acceptance/ac-tianshu", "@october_goal#acceptance/ac-tianshu", "@unit_eo#constraint"]}
+         "answer": "依据是 Mission 的验收条件「10 月 16 日天枢联调验收通过」，它引用十月周期目标目标定义块里的同名验收条件。约束：本 Task 的时间边界是 10 月 12 日至 16 日试用周；E&O 单元的两条关键约束是 tkos.method 0.4、0.5 冻结不改，当前量级用 PostgreSQL 加 pgvector、不引入图数据库。Agents 单元 M1-B 的关键约束与依赖「允许人工兜底」不是本 Task 的约束。",
+         "expected": ["@mission_trial#definition/ac-tianshu", "@october_goal#target/ac-tianshu", "@task_trial_week#definition/window",
+                      "@unit_eo#definition/method-frozen", "@unit_eo#definition/no-graph-db"]}
       ],
       "counterexamples": [
         {"category": "other_unit",
-         "rule": "把 Agents 单元的目标或约束混进本 Task 的回答：Agents 六个月目标与 9 月周期目标的结果、M1-B Mission 的约束「允许人工兜底，不要求完整自动化」。断言不论哪一种，引了这些块或其中的组件就算出现。可以说 M1-B 依赖本 Mission，只引 M1-B 对象本身不算。",
-         "decoys": ["@agents_goal#outcome", "@agents_period#outcome", "@agents_mission#constraint"]}
+         "rule": "把 Agents 单元的目标或约束混进本 Task 的回答：Agents 六个月目标与 9 月周期目标的目标定义块、M1-B Mission 的关键约束与依赖「允许人工兜底，不要求完整自动化」。断言不论哪一种，引了这些块或其中的组件、或这条组件，就算出现。可以说 M1-B 依赖本 Mission，只引 M1-B 对象本身不算。",
+         "decoys": ["@agents_goal#target", "@agents_period#target", "@agents_mission#mission_plan/manual-fallback"]}
       ]
     },
     {
@@ -38,31 +39,34 @@
       "start": "task_retrieval_report",
       "questions": [
         {"id": "why", "question": "为什么要做「四种取法对照（含 RAG）与实验报告」这个 Task？",
-         "answer": "它属于 Mission「0.2 实验与报告」：对照实验 B、实验 E 与四种取法对照，写成实验报告。这个 Mission 服务 E&O 十月周期目标的结果「tkos.world 0.2 锁版」：现行的锁版验收条件是 10 月 20 日 CEO 定下对象结构之后锁版，实验结果是定对象结构的依据。再往上是 E&O 六个月目标、公司春节前的长期目标、战略责任结构里的 05 E&O、战略主线与公司身份（战略与公司两层待真实战略材料）。",
-         "expected": ["@mission_experiments#definition", "@october_goal#outcome/lock", "@eo_goal#outcome", "@company_goal#outcome",
-                      "@strategy#responsibility_structure/eo", "@strategy#choices", "@company#identity"]},
+         "answer": "它属于 Mission「0.2 实验与报告」，战役结果是 0.2 的实验与实验报告。这个 Mission 服务 E&O 十月周期目标的目标结果「tkos.world 0.2 锁版」：现行的锁版验收条件是 10 月 20 日 CEO 定下对象结构之后锁版，实验结果是定对象结构的依据。再往上是 E&O 六个月目标、公司春节前的长期目标、战略责任结构里的 05 E&O、总体战略的主线与公司的长期身份（战略与公司两层待真实战略材料）。",
+         "expected": ["@mission_experiments#definition/report", "@october_goal#target/lock", "@eo_goal#target/outcome", "@company_goal#target/outcome",
+                      "@strategy#responsibility_structure/eo", "@strategy#strategy_core/main-line", "@company#identity/long-term-identity"]},
         {"id": "what", "question": "这个 Task 要做成什么、打算怎么做？",
-         "answer": "对照四种取法（含 RAG），写成实验报告。计划三条，都写的是取法对照 Task 责任人：RAG 组把对象与事件切块，建进单独部署的图数据库；四种取法按交给模型的字符数记成本，预算只报告；写实验报告与触发调整对象结构的条件。RAG 组用图数据库这一条与 E&O 单元的约束「不引入图数据库」冲突，要指出来，不能当成定了的做法。",
-         "expected": ["@task_retrieval_report#definition", "@task_retrieval_report#plan/rag-graph", "@task_retrieval_report#plan/cost",
-                      "@task_retrieval_report#plan/report", "@unit_eo#constraint"]},
+         "answer": "工作结果是对照四种取法（含 RAG），写成实验报告。Task 计划的执行上下文与约束写了 RAG 组的切块与对象关系存进单独部署的图数据库；Activity 全景里三条计划条目，都写的是取法对照 Task 责任人：RAG 组把对象与事件切块，建进单独部署的图数据库；四种取法按交给模型的字符数记成本，预算只报告；写实验报告与触发调整对象结构的条件。用图数据库这一点与 E&O 单元的关键约束「不引入图数据库」冲突，要指出来，不能当成定了的做法。",
+         "expected": ["@task_retrieval_report#definition/outcome", "@task_retrieval_report#task_plan/graph-db", "@task_retrieval_report#plan/rag-graph",
+                      "@task_retrieval_report#plan/cost", "@task_retrieval_report#plan/report", "@unit_eo#definition/no-graph-db"]},
         {"id": "who", "question": "谁负责这个 Task？",
          "answer": "取法对照 Task 责任人，由 E&O Mission Owner 指派；三条计划条目也都写的是他。",
          "expected": ["@task_retrieval_report", "event:assign_retrieval"]},
         {"id": "now", "question": "现在进展到哪了？",
-         "answer": "进行中，由开始事件推出。最近一条状态：RAG 组的图数据库已在本机起好，切块脚本写了一半，成本记法已定。也就是说，冲突的那条计划已经在做。",
+         "answer": "进行中，由开始事件推出。最近一条状态：RAG 组的图数据库已在本机起好，切块脚本写了一半，成本记法已定。也就是说，冲突的那条执行上下文已经在照着做。",
          "expected": ["@task_retrieval_report", "event:start_retrieval", "@snap_retrieval"]},
         {"id": "happened", "question": "最近发生了什么？",
-         "answer": "责任人写了计划并开始；RAG 组检索方案评审定下用图数据库存切块与对象关系，按这个方案搭环境。",
+         "answer": "责任人写了 Task 计划与计划条目并开始；RAG 组检索方案评审定下用图数据库存切块与对象关系，按这个方案搭环境。",
          "expected": ["event:start_retrieval", "event:ev_rag_design"]},
         {"id": "basis", "question": "凭什么这样做？受什么约束？",
-         "answer": "上层约束是 E&O 单元的约束：当前量级用 PostgreSQL 加 pgvector，不引入图数据库。本 Task 的计划条目 rag-graph 要单独部署图数据库，两者冲突，回答要同时引这两处。Task 自己没有写约束与验收标准。",
-         "expected": ["@unit_eo#constraint", "@task_retrieval_report#plan/rag-graph"]}
+         "answer": "上层约束是 E&O 单元的关键约束：当前量级用 PostgreSQL 加 pgvector，不引入图数据库（另一条是 tkos.method 0.4、0.5 冻结不改）。本层的执行上下文与约束 graph-db 和照它执行的计划条目 rag-graph 要单独部署图数据库，与上层那条关键约束冲突，回答要同时引上下两处。Task 自己没有写验收标准与时间边界。",
+         "expected": ["@unit_eo#definition/method-frozen", "@unit_eo#definition/no-graph-db", "@task_retrieval_report#task_plan/graph-db",
+                      "@task_retrieval_report#plan/rag-graph"]}
       ],
       "counterexamples": [
         {"category": "conflict_missed",
-         "rule": "没有指出冲突，或只引一处：回答「做什么」与「凭什么」时，都要有一条 kind 为 conflict 的断言，同时引到 E&O 单元的约束块与计划条目 rag-graph。只引其中一处的 conflict 断言，在哪一问里都算出现。",
-         "decoys": ["@task_retrieval_report#plan/rag-graph"],
-         "conflict": {"upper": ["@unit_eo#constraint"], "lower": ["@task_retrieval_report#plan/rag-graph"], "questions": ["what", "basis"]}}
+         "rule": "没有指出冲突，或只引一侧：回答「做什么」与「凭什么」时，都要有一条 kind 为 conflict 的断言，同时引到上层 E&O 单元的关键约束 no-graph-db，与本层的执行上下文与约束 graph-db 或计划条目 rag-graph 之一。只引到一侧的 conflict 断言，在哪一问里都算出现；引单元的另一条关键约束、或只以块级引用引责任定义块，不算引到上层那一侧。",
+         "decoys": ["@task_retrieval_report#task_plan/graph-db", "@task_retrieval_report#plan/rag-graph"],
+         "conflict": {"upper": ["@unit_eo#definition/no-graph-db"],
+                      "lower": ["@task_retrieval_report#task_plan/graph-db", "@task_retrieval_report#plan/rag-graph"],
+                      "questions": ["what", "basis"]}}
       ]
     },
     {
@@ -70,13 +74,13 @@
       "start": "task_freeze",
       "questions": [
         {"id": "why", "question": "为什么要做「验收冻结与钉定提交」这个 Task？",
-         "answer": "它属于 Mission「0.2 锁版」（验收冻结并钉定提交，然后发版、切换实例），Mission 的验收条件对应十月周期目标里锁版那一条。十月周期目标经一轮重走出了第 2 版，这一条现在是「10 月 20 日 CEO 定下对象结构之后，tkos.world 0.2 锁版（验收冻结并钉定提交）」；Mission 的验收条件还钉在第 1 版，回答以生效的第 2 版为准。再往上是 E&O 六个月目标、公司春节前的长期目标、战略责任结构里的 05 E&O、战略主线与公司身份（战略与公司两层待真实战略材料）。",
-         "expected": ["@mission_lock#definition", "@mission_lock#acceptance/ac-lock", "@october_goal#acceptance/ac-lock", "@october_goal#outcome/lock",
-                      "@eo_goal#outcome", "@company_goal#outcome", "@strategy#responsibility_structure/eo", "@strategy#choices",
-                      "@company#identity"]},
+         "answer": "它属于 Mission「0.2 锁版」，战役结果是 tkos.world 0.2 锁版；Mission 的验收条件对应十月周期目标里锁版那一条。十月周期目标经一轮重走出了第 2 版，这一条现在是「10 月 20 日 CEO 定下对象结构之后，tkos.world 0.2 锁版（验收冻结并钉定提交）」；Mission 的验收条件还钉在第 1 版，回答以生效的第 2 版为准。再往上是十月周期目标的目标结果「tkos.world 0.2 锁版」、E&O 六个月目标、公司春节前的长期目标、战略责任结构里的 05 E&O、总体战略的主线与公司的长期身份（战略与公司两层待真实战略材料）。",
+         "expected": ["@mission_lock#definition/lock", "@mission_lock#definition/ac-lock", "@october_goal#target/ac-lock", "@october_goal#target/lock",
+                      "@eo_goal#target/outcome", "@company_goal#target/outcome", "@strategy#responsibility_structure/eo", "@strategy#strategy_core/main-line",
+                      "@company#identity/long-term-identity"]},
         {"id": "what", "question": "这个 Task 要做成什么？",
-         "answer": "0.2 验收冻结，钉定提交。Task 没有写验收标准与计划。",
-         "expected": ["@task_freeze#definition"]},
+         "answer": "工作结果是 0.2 验收冻结，钉定提交。任务定义里没有写验收标准与时间边界，Task 计划与 Activity 全景都是空的。",
+         "expected": ["@task_freeze#definition/outcome"]},
         {"id": "who", "question": "谁负责这个 Task？",
          "answer": "锁版 Task 责任人，由 E&O Mission Owner 指派。",
          "expected": ["@task_freeze", "event:assign_freeze"]},
@@ -87,13 +91,14 @@
          "answer": "Mission Owner 记了一次锁版时间对齐：十月周期目标改了锁版那条验收条件，锁版放到 10 月 20 日 CEO 定下对象结构之后，Mission 与 Task 按新条件排期；之后责任人记了开始。",
          "expected": ["event:ev_lock_timing", "event:start_freeze"]},
         {"id": "basis", "question": "凭什么这样做？受什么约束？",
-         "answer": "依据是十月周期目标第 2 版（现行）锁版那条验收条件；Mission 的验收条件仍引第 1 版，只作出处。约束是 E&O 单元的约束。",
-         "expected": ["@october_goal#acceptance/ac-lock", "@mission_lock#acceptance/ac-lock", "@unit_eo#constraint"]}
+         "answer": "依据是十月周期目标第 2 版（现行）锁版那条验收条件；Mission 的验收条件仍引第 1 版，只作出处。约束是 E&O 单元的两条关键约束：tkos.method 0.4、0.5 冻结不改，不引入图数据库。",
+         "expected": ["@october_goal#target/ac-lock", "@mission_lock#definition/ac-lock", "@unit_eo#definition/method-frozen",
+                      "@unit_eo#definition/no-graph-db"]}
       ],
       "counterexamples": [
         {"category": "stale_version",
-         "rule": "把旧版本当现行：引十月周期目标第 1 版（锁版那条还没改的一版），例如顺着 Mission 验收条件里钉住的引用引到它。回答引了比这次播种结束时更旧的任何版本，都算出现。",
-         "decoys": ["@october_goal@1#acceptance/ac-lock"]}
+         "rule": "把旧版本当现行：引十月周期目标第 1 版目标定义块里的锁版验收条件（还没改的一版），例如顺着 Mission 验收条件里钉住的引用引到它。回答引了比这次播种结束时更旧的任何版本，都算出现。",
+         "decoys": ["@october_goal@1#target/ac-lock"]}
       ]
     },
     {
@@ -101,12 +106,13 @@
       "start": "task_trial_integration",
       "questions": [
         {"id": "why", "question": "为什么要做「联调与委托登记（10/9–11）」这个 Task？",
-         "answer": "它是 Mission「天枢 × 本体 0.2 试用」的第一段：10 月 9 日至 11 日天枢与本体 0.2 联调，登记给天枢的委托。Mission 的验收条件是「10 月 16 日天枢联调验收通过」，服务十月周期目标的同名结果；再往上是 E&O 六个月目标、公司春节前的长期目标、战略责任结构里的 05 E&O、战略主线与公司身份（战略与公司两层待真实战略材料）。",
-         "expected": ["@mission_trial#definition", "@mission_trial#acceptance/ac-tianshu", "@october_goal#outcome/tianshu", "@eo_goal#outcome",
-                      "@company_goal#outcome", "@strategy#responsibility_structure/eo", "@strategy#choices", "@company#identity"]},
+         "answer": "它是 Mission「天枢 × 本体 0.2 试用」的第一段，这个 Mission 的战役结果是天枢与本体 tkos.world 0.2 联调并试用。Mission 的验收条件是「10 月 16 日天枢联调验收通过」，服务十月周期目标的同名目标结果；再往上是 E&O 六个月目标、公司春节前的长期目标、战略责任结构里的 05 E&O、总体战略的主线与公司的长期身份（战略与公司两层待真实战略材料）。",
+         "expected": ["@mission_trial#definition/trial", "@mission_trial#definition/ac-tianshu", "@october_goal#target/tianshu", "@eo_goal#target/outcome",
+                      "@company_goal#target/outcome", "@strategy#responsibility_structure/eo", "@strategy#strategy_core/main-line",
+                      "@company#identity/long-term-identity"]},
         {"id": "what", "question": "这个 Task 要做成什么？",
-         "answer": "10 月 9 日至 11 日天枢与本体 0.2 联调，登记给天枢的委托。Task 没有写验收标准与计划。",
-         "expected": ["@task_trial_integration#definition"]},
+         "answer": "工作结果是天枢与本体 0.2 联调，登记给天枢的委托；时间边界是 10 月 9 日至 11 日。任务定义里没有写验收标准，Task 计划与 Activity 全景都是空的。",
+         "expected": ["@task_trial_integration#definition/outcome", "@task_trial_integration#definition/window"]},
         {"id": "who", "question": "谁负责这个 Task？",
          "answer": "联调 Task 责任人，由 E&O Mission Owner 指派；验收、退回与重开由 Mission Owner 记。",
          "expected": ["@task_trial_integration", "event:assign_integration"]},
@@ -118,8 +124,9 @@
          "expected": ["event:deliver_integration_first", "event:reject_integration", "event:deliver_integration_second", "event:accept_integration",
                       "event:reopen_integration"]},
         {"id": "basis", "question": "凭什么这样做？受什么约束？",
-         "answer": "依据是 Mission 的验收条件「10 月 16 日天枢联调验收通过」；退回与重开的理由写在那两条事件里。约束是 E&O 单元的约束。",
-         "expected": ["@mission_trial#acceptance/ac-tianshu", "@unit_eo#constraint", "event:reject_integration", "event:reopen_integration"]}
+         "answer": "依据是 Mission 的验收条件「10 月 16 日天枢联调验收通过」；退回与重开的理由写在那两条事件里。约束是本 Task 的时间边界（10 月 9 日至 11 日）与 E&O 单元的两条关键约束。",
+         "expected": ["@mission_trial#definition/ac-tianshu", "@task_trial_integration#definition/window", "@unit_eo#definition/method-frozen",
+                      "@unit_eo#definition/no-graph-db", "event:reject_integration", "event:reopen_integration"]}
       ],
       "counterexamples": [
         {"category": "stale_state",
@@ -132,12 +139,12 @@
       "start": "task_experiment_e",
       "questions": [
         {"id": "why", "question": "为什么要做「实验 E：五个场景、真实战略材料与标准答案」这个 Task？",
-         "answer": "它属于 Mission「0.2 实验与报告」。这个 Mission 服务 E&O 十月周期目标的结果「tkos.world 0.2 锁版」：现行的锁版验收条件是 10 月 20 日 CEO 定下对象结构之后锁版，实验结果是定对象结构的依据。再往上是 E&O 六个月目标、公司春节前的长期目标、战略责任结构里的 05 E&O、战略主线与公司身份（战略与公司两层待真实战略材料）。",
-         "expected": ["@mission_experiments#definition", "@october_goal#outcome/lock", "@eo_goal#outcome", "@company_goal#outcome",
-                      "@strategy#responsibility_structure/eo", "@strategy#choices", "@company#identity"]},
+         "answer": "它属于 Mission「0.2 实验与报告」，战役结果是 0.2 的实验与实验报告。这个 Mission 服务 E&O 十月周期目标的目标结果「tkos.world 0.2 锁版」：现行的锁版验收条件是 10 月 20 日 CEO 定下对象结构之后锁版，实验结果是定对象结构的依据。再往上是 E&O 六个月目标、公司春节前的长期目标、战略责任结构里的 05 E&O、总体战略的主线与公司的长期身份（战略与公司两层待真实战略材料）。",
+         "expected": ["@mission_experiments#definition/report", "@october_goal#target/lock", "@eo_goal#target/outcome", "@company_goal#target/outcome",
+                      "@strategy#responsibility_structure/eo", "@strategy#strategy_core/main-line", "@company#identity/long-term-identity"]},
         {"id": "what", "question": "这个 Task 要做成什么、怎么安排？",
-         "answer": "五个场景，用真实战略材料，写标准答案。验收条件一条：五个场景各有播种、标准答案与反例判定，标准答案经 E&O DRI 批准，跑器拒用未批准或改过的。按 Task-only 写法，不建 Activity，计划块里四条计划条目：写五个场景的播种与标准答案；反例判定写成纯函数并配无库测试；审阅稿交 E&O DRI 按内容哈希批准；真实战略材料到位后替换、重新播种与批准。",
-         "expected": ["@task_experiment_e#definition", "@task_experiment_e#acceptance/ac-gold", "@task_experiment_e#plan/scenarios",
+         "answer": "工作结果是五个场景，用真实战略材料，写标准答案。任务定义里一条验收标准：五个场景各有播种、标准答案与反例判定，标准答案经 E&O DRI 批准，跑器拒用未批准或改过的。按 Task-only 写法，不建 Activity，Activity 全景块里四条计划条目：写五个场景的播种与标准答案；反例判定写成纯函数并配无库测试；审阅稿交 E&O DRI 按内容哈希批准；真实战略材料到位后替换、重新播种与批准。Task 计划块是空的。",
+         "expected": ["@task_experiment_e#definition/outcome", "@task_experiment_e#definition/ac-gold", "@task_experiment_e#plan/scenarios",
                       "@task_experiment_e#plan/judge", "@task_experiment_e#plan/review", "@task_experiment_e#plan/material"]},
         {"id": "who", "question": "谁负责这个 Task，各段由谁做？",
          "answer": "实验 E Task 责任人，由 E&O Mission Owner 指派。分段按计划条目：写场景与材料到位后的重播种是他本人，反例判定是 E&O Agent，审阅批准是 E&O DRI。计划条目的责任人只是记录，不是指派；本 Task 下没有 Activity。",
@@ -147,36 +154,40 @@
          "answer": "进行中，由开始事件推出。最近一条状态：五个场景的播种、标准答案与反例判定已写完，等 E&O DRI 审阅；阻塞是真实战略材料的提供方待 CEO 定。",
          "expected": ["@task_experiment_e", "event:start_experiment_e", "@snap_experiment_e"]},
         {"id": "happened", "question": "最近发生了什么？",
-         "answer": "责任人写了验收条件与计划并开始；E&O 定下本 Task 的范围：材料未到，先做不依赖材料的部分，Company 与 Strategy 用存根并预留块与组件的位置。",
+         "answer": "责任人写了验收标准与计划条目并开始；E&O 定下本 Task 的范围：材料未到，先做不依赖材料的部分，Company 与 Strategy 用存根并预留块与组件的位置。",
          "expected": ["event:start_experiment_e", "event:ev_scope_e"]},
         {"id": "basis", "question": "凭什么这样做？受什么约束？",
-         "answer": "依据是本 Task 的验收条件与 E&O 定下范围的那条事件；约束是 E&O 单元的约束。",
-         "expected": ["@task_experiment_e#acceptance/ac-gold", "event:ev_scope_e", "@unit_eo#constraint"]}
+         "answer": "依据是本 Task 任务定义里的验收标准与 E&O 定下范围的那条事件；约束是 E&O 单元的两条关键约束。",
+         "expected": ["@task_experiment_e#definition/ac-gold", "event:ev_scope_e", "@unit_eo#definition/method-frozen", "@unit_eo#definition/no-graph-db"]}
       ],
       "counterexamples": [
         {"category": "phantom_activity",
          "rule": "引用不存在的 Activity：本 Task 按 Task-only 写法，下面没有 Activity。断言不论哪一种，引了任一 Activity（包括兄弟 Task「对照实验 B」下的那条）或 scope 里不存在的对象，就算出现。",
          "decoys": ["@activity_b_run"]},
         {"category": "content_as_empty",
-         "rule": "把有内容的块说成空：没有 Activity 不等于没有安排，本 Task 的计划块有四条带责任人的计划条目，验收标准有一条。gap 断言以块级引用引了这两块，就算出现；引块里的某一条（以某条计划或验收标准为依据说它还没满足）不算。",
-         "decoys": ["@task_experiment_e#plan", "@task_experiment_e#acceptance"]}
+         "rule": "把有内容的块说成空：没有 Activity 不等于没有安排，本 Task 的 Activity 全景块有四条带责任人的计划条目，任务定义块有工作结果与一条验收标准。gap 断言以块级引用引了这两块，就算出现；引块里的某一条（以某条计划或验收标准为依据说它还没满足）不算。Task 计划块确实为空，说它为空不算。",
+         "decoys": ["@task_experiment_e#plan", "@task_experiment_e#definition"]}
       ]
     }
   ],
   "to_confirm": [
-    "公司层（Company、Strategy、E&O 单元与两条长期目标）的正文照搬十月起点，都来自 0.1 审过的材料；Company 与 Strategy 是存根，九个位置标「待真实战略材料」，到了整块或按组件替换。Strategy 仍留在草稿，同十月起点；材料到位后要不要走指定本轮、Agreement 与确认生效，请你定。",
+    "本稿按方法侧 Content Pact 改写（#82，依据 docs/world-v02-content-pact-mapping.md）：主干、场景与标准答案的引用都换成了新块与组件，内容哈希随之改变。此前的内容也还没有经你批准；请按本稿重新审阅、逐条确认下面各项后再批准，批准之前实验跑器拒用。",
+    "公司层（Company、Strategy、E&O 单元与两条长期目标）的正文照搬十月起点，都来自 0.1 审过的材料；按 Content Pact 只在分号、冒号处拆进新组件，不改写字句。Company 与 Strategy 是存根，十二个位置标「待真实战略材料」，材料到了按组件替换或补上。Strategy 仍留在草稿，同十月起点；材料到位后要不要走指定本轮、Agreement 与确认生效，请你定。",
+    "旧块落到哪个新组件是推断：Company 原身份块拆成业务定义（长期身份）与愿景，原约束「不追求 Token 用量最大化」放在价值观与公司原则（Content Pact 的公司没有约束）；Strategy 原主线辅线与三段路径都放在总体战略，原共同底座放在核心壁垒，原关键假设放在关键假设；E&O 单元原定义块拆成核心责任与战略贡献，原边界块是责任边界，原约束块拆成两条关键约束；Mission 与 Task 原定义块按冒号拆成结果、时间边界、关键里程碑或核心路径。",
+    "材料里没有的新组件都留空，没有编：企业使命；目标客户、目标市场、产品与价值主张、市场进入与获客方式、战略取舍；商业模式、价值实现逻辑、战略约束；两条长期目标的定位与承接块、成功标准与实现逻辑；十月周期目标的定位与承接块、时间边界与实现逻辑；各 Mission 的贡献、责任边界、关键取舍与关键约束与依赖（M1-B 除外）；各 Task 的贡献、工作边界与 Task 计划块（取法对照 Task 除外）。",
     "Strategy 的责任结构块加了 Agents 的责任单元条目组件，文字「04 Agents」取自同一块的正文。",
-    "Agents 单元、六个月目标、9 月周期目标与 M1-B Mission 的正文取自 0.1 审过的 seed.json，按 0.2 改了形状（结果写成结果组件）。没有 Agents 十月的材料，周期目标仍是九月；三者都留在草稿。",
+    "Agents 单元、六个月目标、9 月周期目标与 M1-B Mission 的正文取自 0.1 审过的 seed.json，按 0.2 改了形状：单元正文是核心责任，结果写成目标定义块的目标结果组件，M1-B 原约束块的正文是 Mission 计划块的关键约束与依赖。没有 Agents 十月的材料，周期目标仍是九月；三者都留在草稿。",
     "M1-B 依赖「天枢 × 本体 0.2 试用」是推断：0.1 里它依赖 E&O 九月的 Mission，十月改指试用 Mission，理由是 CEO 与 DRI 的 Agent 在天枢上跑。",
-    "十月周期目标的一轮重走（锁版那条验收条件改为「10 月 20 日 CEO 定下对象结构之后」）是为版本变化场景推断的，依据是规格里 10 月 20 日 CEO 决定对象结构的安排。",
+    "十月周期目标的一轮重走（目标定义块里锁版那条验收条件改为「10 月 20 日 CEO 定下对象结构之后」）是为版本变化场景推断的，依据是规格里 10 月 20 日 CEO 决定对象结构的安排。",
     "「0.2 实验与报告」服务十月周期目标的锁版那条结果：推断，理由是 CEO 依据实验定对象结构，之后才锁版。",
-    "约束冲突场景里「RAG 组用单独部署的图数据库」这条计划，以及对应的评审与状态，是为反例合成的。",
+    "约束冲突场景按新形状改写：约束不再单独成块，上层一侧是 E&O 单元的关键约束组件「不引入图数据库」，本层一侧是取法对照 Task 在 Task 计划块里的执行上下文与约束 graph-db（带约束角色），或照它执行的 Activity 全景计划条目 rag-graph。考点不变：上下层的约束冲突要被取到并指出，同时引两侧。graph-db 与 rag-graph 以及对应的评审与状态都是为反例合成的。",
+    "「凭什么」的应引用项：起点链上直接对应的验收条件、起点自己的时间边界与 E&O 单元的两条关键约束。Mission 的时间边界、E&O 单元的责任边界与十月周期目标的其余验收条件也带约束或验收角色，取上下文会列出，引了不算错，但不算应引用。「为什么」里 Mission 那一层只要求引战役结果（有验收条件出处的另引验收条件），关键里程碑与核心路径不算应引用。",
     "验收失败重启场景的两次交付、退回理由（缺 Mission Owner 的委托）、重开理由（天枢外部确认时刻的取法）与三条状态都是合成的。",
     "版本变化场景里 Mission Owner 记的「锁版时间对齐」会与冻结 Task 的状态（冻结清单在整理、锁版排在 10 月 20 日之后）是合成的。",
     "三个 Mission 都停在「已成立」，没有记开始，下面的 Task 已在进行中；十月起点没给 Mission 的开始，这里也不补。",
     "试用周安排会、各场景的开始与状态是合成的。各 Task 的责任人用角色名（试用、联调、取法对照、锁版、实验 E、实验 B 各一名 Task 责任人）；十月起点里 Task 不指派，试用中在天枢里指派。",
-    "对照实验 B 的 Task 下那条 Activity（Task+Activity 线）是为 Task-only 场景合成的诱饵。",
-    "实验 E Task 的验收条件、四条计划与范围事件取自票 #67 的正文与评论；计划条目分给谁（E&O Agent 写判定、E&O DRI 审阅）是推断。",
+    "对照实验 B 的 Task 下那条 Activity（Task+Activity 线）是为 Task-only 场景合成的诱饵，正文是执行事项。",
+    "实验 E Task 的验收条件、四条计划与范围事件取自票 #67 的正文与评论；计划条目分给谁（E&O Agent 写判定、E&O DRI 审阅）是推断。验收条件放在任务定义块，计划条目放在 Activity 全景块。",
     "外部事件与状态快照的时刻取播种那一步的数据库时刻：场景写的是十月的事，在十月之前播种也照此写，不写具体日期。"
   ],
   "approval": {"approved_by": null, "approved_at": null, "content_sha256": null}

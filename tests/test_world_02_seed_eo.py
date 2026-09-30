@@ -2,7 +2,8 @@
 以及脚本的提交与重发（假服务）。不连库、不起服务。
 
 2026-09-29 起（#73）计划按天枢个人任务重播：公司层照旧，十月周期目标与三个 Mission 只建不过门（门留给天枢代记），
-不建 Task，三人各给天枢登记含议题族的委托。2026-09-30 起（#81）块与组件按方法侧 Content Pact 重排，正文不变。"""
+不建 Task，三人各给天枢登记含议题族的委托。2026-09-30 起（#81）块与组件按方法侧 Content Pact 重排，正文不变；同日（#67）
+Company 与 Strategy 的正文换成公司知识库战略材料的原句。"""
 from __future__ import annotations
 
 from copy import deepcopy
@@ -207,11 +208,24 @@ def texts(payload: dict) -> list[str]:
     return found
 
 
+def test_the_company_and_the_strategy_are_the_ones_of_the_experiment_e_trunk() -> None:
+    """Company 与 Strategy 的正文是公司知识库战略材料的原句（#67）：与实验 E 的主干所照的十月起点原计划
+    （experiments/world_v02/b_source-2026-10.json）整步相同，那里逐条对 experiments/world_v02/strategy_material.json 的
+    原句与页码核对（tests/test_world_v02_experiment_e.py）。"""
+    original = {step["key"]: step for step in json.loads(
+        (ROOT / "experiments/world_v02/b_source-2026-10.json").read_text(encoding="utf-8"))["steps"]}
+    for key in ("company", "strategy"):
+        assert {k: v for k, v in STEPS[key].items() if k != "note"} == {
+            k: v for k, v in original[key].items() if k != "note"}, key
+        assert "strategy_material.json" in STEPS[key]["note"] and "b_source-2026-10.json" in STEPS[key]["note"], key
+
+
 def test_the_company_layer_moves_the_september_replay_text_into_the_new_blocks_without_adding_any() -> None:
-    """公司层正文取自九月回放（experiments/world_v01/seed.json），按 Content Pact 放进新块与组件（#81）：每一段正文都是
-    同一对象某个原块正文的一段（去掉句末标点），原块正文拆出去之后只剩标点——不编造，也不丢。"""
+    """E&O 单元与两条长期目标的正文取自九月回放（experiments/world_v01/seed.json），按 Content Pact 放进新块与组件（#81）：
+    每一段正文都是同一对象某个原块正文的一段（去掉句末标点），原块正文拆出去之后只剩标点——不编造，也不丢。Company 与
+    Strategy 的正文 #67 换成了战略材料的原句，见上一条。"""
     replay = {step["key"]: step for step in REPLAY["steps"] if step["do"] == "create"}
-    for key in ("company", "strategy", "unit_eo", "company_goal", "eo_goal"):
+    for key in ("unit_eo", "company_goal", "eo_goal"):
         mine, theirs = STEPS[key]["payload"], replay[key]["payload"]
         assert (STEPS[key]["type"], STEPS[key]["domain"]) == (replay[key]["type"], replay[key]["domain"]), key
         assert {k: v for k, v in mine.items() if k != "blocks"} == {
@@ -229,18 +243,12 @@ def test_the_company_layer_moves_the_september_replay_text_into_the_new_blocks_w
                        for value in mine["blocks"].values()), "feishu.example 占位链接不带"
     assert {key: {block: [(c["id"], c["type"]) for c in value.get("components", [])]
                   for block, value in STEPS[key]["payload"]["blocks"].items()} for key in replay
-            if key in ("company", "strategy", "unit_eo", "company_goal", "eo_goal")} == {
-        "company": {"identity": [("long-term-identity", "business_definition"), ("vision", "vision"),
-                                 ("token-principle", "values_principles")]},
-        "strategy": {"strategy_core": [("main-line", "strategic_thesis"), ("path", "strategic_thesis"),
-                                       ("foundation", "competitive_advantage")],
-                     "business_logic": [("token-traction", "assumption")],
-                     "responsibility_structure": [("eo", "unit_entry")]},
+            if key in ("unit_eo", "company_goal", "eo_goal")} == {
         "unit_eo": {"definition": [("contribution", "contribution"), ("mandate", "mandate"),
                                    ("boundary", "scope_boundary"), ("method-frozen", "key_constraint"),
                                    ("no-graph-db", "key_constraint")]},
         "company_goal": {"target": [("outcome", "outcome")]},
-        "eo_goal": {"target": [("outcome", "outcome")]}}, "责任结构只列 E&O 一个条目；没有原文的组件留空"
+        "eo_goal": {"target": [("outcome", "outcome")]}}, "没有原文的组件留空"
 
 
 def test_the_october_goal_and_the_three_missions_are_the_ones_asked_for() -> None:

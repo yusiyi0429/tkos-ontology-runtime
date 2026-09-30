@@ -116,7 +116,7 @@ class _Describer:
         if component:
             text += f'里的组件 `{component}`'
         slot = f'@{key}' + (f'#{block}' if block else '') + (f'/{component}' if component else '')
-        pending = '　**待真实战略材料**' if slot in self.pending else ''
+        pending = '　**材料里没有**' if slot in self.pending else ''
         return text + f'（`{ref}`）' + pending
 
     def step_title(self, step: dict) -> str:
@@ -227,10 +227,11 @@ def render(path: Path = GOLD) -> str:
     for key, identity in scenarios['identities'].items():
         roles = '；'.join(f"{', '.join(names)}（{scenarios['domains'][domain]}）" for domain, names in identity['roles'].items())
         lines.append(f"| `{key}` | {identity['display_name']} | {identity['type']} | {roles} |")
-    lines += ['', '## 二、待真实战略材料', '',
-              'Company 与 Strategy 的真实材料还没到，下面这些块与组件先用现有存根；材料到了按位置替换正文（组件 id 不变），'
-              '重新播种，再请 E&O DRI 批准。各场景 Why 的标准答案引到其中几处。', '',
-              '| 位置 | 现在的存根 |', '|---|---|']
+    lines += ['', '## 二、战略材料里没有的组件', '',
+              'Company 与 Strategy 的正文是公司知识库战略材料的原句（票 #67），逐条原句与页码见 '
+              '`experiments/world_v02/strategy_material.json`，第三节这两步的说明里也逐条写了页码。下面这些块里，'
+              '材料没有讲到的组件类型留空，没有编。', '',
+              '| 位置 | 留空的组件类型 |', '|---|---|']
     lines += [f"| {describer.ref(item['slot'])} | {item['stub']} |" for item in scenarios['pending_material']]
     lines += ['', '## 三、共用主干的播种', '', scenarios['notes'], '']
     for number, step in enumerate(scenarios['base']['steps'], 1):

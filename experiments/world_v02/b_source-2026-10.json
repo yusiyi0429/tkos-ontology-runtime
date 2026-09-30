@@ -14,7 +14,7 @@
          {"id": "core-principle", "type": "values_principles", "text": "核心原则：短期见利见效，长期具有战略意义；不能用长期愿景替代当前商业模式，也不能因短期收入把战略越讲越窄。"}]}}},
      "note": "正文是公司知识库《总体战略定位与阶段路径》（2026-07）的原句（#67，逐条原句见 experiments/world_v02/strategy_material.json）：long-term-identity 第 10 页，vision 第 2 页，core-principle 第 2 页。长期身份是第 10 页「本轮管理层需要确认的 6 个问题」的问题 1，组件正文就是带该页标题的问句，不写成已定；标题式短语连同它下面的说明合成一句，写成「标题：说明」。token-principle 出自 9/23 会议，不在材料里，保留 0.1 审过的原文（原是公司约束块，Content Pact 的公司没有约束，放在价值观与公司原则）。企业使命材料里没有，留空。组件 id 沿用十月起点。"},
     {"key": "strategy", "by": "ceo", "do": "create", "after": ["company"], "type": "Strategy", "domain": "company",
-     "payload": {"title": "词元云集总体战略（存根）", "parent_ref": "@company", "blocks": {
+     "payload": {"title": "词元云集总体战略定位与阶段路径", "parent_ref": "@company", "blocks": {
        "strategy_core": {"components": [
          {"id": "current-strategy", "type": "strategic_thesis", "text": "当前战略：词元云集承接第 3-6 层，成为连接智能供给与企业价值的运营中枢。"},
          {"id": "main-line", "type": "strategic_thesis", "text": "阶段打法：主线做 AI 企业智能决策网络；辅线以 TokenOps 获取高频真实负载并训练底层能力。"},

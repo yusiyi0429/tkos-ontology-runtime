@@ -346,7 +346,7 @@ def test_the_status_view_says_who_did_each_step_in_person_or_by_proxy_and_who_is
     text = "\n".join(lines)
     assert lines[0].startswith("== 状态：E&O 十月起点，共 17 步，已做 2（其中代录 1）")
     assert "建公司「词元云集（TokenKing）」 —— 已做·代录（eo-dri 代） event:e1" in text
-    assert "建战略「词元云集总体战略（存根）」 —— 已做·本人 event:e2" in text
+    assert "建战略「词元云集总体战略定位与阶段路径」 —— 已做·本人 event:e2" in text
     assert "建责任单元「E&O」 —— 可以做" in text
     assert "建长期目标「E&O 六个月目标」 —— 在等 ceo：建责任单元「E&O」 等 2 步" in text
     assert ("eo-owner 登记给 tianshu 的委托（门、指派、生命周期、议题；域 eo） —— "

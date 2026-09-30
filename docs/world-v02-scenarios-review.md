@@ -5,7 +5,7 @@
 > 实验跑器（票 #68）才能使用。
 
 - 批准状态：未批准：实验跑器会拒绝使用
-- 当前内容哈希：`32c714b56b59d10fdea27ec549825c46f535a9bb32a6f8911f8879a0bd3f9022`
+- 当前内容哈希：`5fa4c8881565664ca6a157ab7bbd834f7f184138cdfb4b7c66a3aa894c66ce5a`
 - 占位：`@键` 是该对象播种结束时的最新版本，`@键@N` 是第 N 版，`#块`、`#块/组件` 指到块与组件；`$身份键` 是身份；`event:键` 是那一步记下的事件；时刻写 `now` 的取播种那一步的数据库时刻。
 
 ## 一、身份
@@ -31,7 +31,7 @@ Company 与 Strategy 的正文是公司知识库战略材料的原句（票 #67�
 | 位置 | 留空的组件类型 |
 |---|---|
 | 公司「词元云集（TokenKing）」（最新版，第 1 版）的「企业身份与长期意图」块（`@company#identity`）　**材料里没有** | 企业使命：材料里没有，留空 |
-| 战略「词元云集总体战略（存根）」（最新版，第 1 版）的「战略」块（`@strategy#strategy_core`）　**材料里没有** | 目标客户、目标市场：材料里没有，留空 |
+| 战略「词元云集总体战略定位与阶段路径」（最新版，第 1 版）的「战略」块（`@strategy#strategy_core`）　**材料里没有** | 目标客户、目标市场：材料里没有，留空 |
 
 ## 三、共用主干的播种
 
@@ -44,7 +44,7 @@ Company 与 Strategy 的正文是公司知识库战略材料的原句（票 #67�
     - 组件 `token-principle`（价值观与公司原则）：创业公司，不追求 Token 用量最大化：研发按需用模型。
     - 组件 `core-principle`（价值观与公司原则）：核心原则：短期见利见效，长期具有战略意义；不能用长期愿景替代当前商业模式，也不能因短期收入把战略越讲越窄。
   - 说明：正文照搬十月起点（b_source-2026-10.json）。正文是公司知识库《总体战略定位与阶段路径》（2026-07）的原句（#67，逐条原句见 experiments/world_v02/strategy_material.json）：long-term-identity 第 10 页，vision 第 2 页，core-principle 第 2 页。长期身份是第 10 页「本轮管理层需要确认的 6 个问题」的问题 1，组件正文就是带该页标题的问句，不写成已定；标题式短语连同它下面的说明合成一句，写成「标题：说明」。token-principle 出自 9/23 会议，不在材料里，保留 0.1 审过的原文（原是公司约束块，Content Pact 的公司没有约束，放在价值观与公司原则）。企业使命材料里没有，留空。组件 id 沿用十月起点。
-2. CEO 建战略「词元云集总体战略（存根）」（键 `strategy`）
+2. CEO 建战略「词元云集总体战略定位与阶段路径」（键 `strategy`）
   - 战略：
     - 组件 `current-strategy`（总体战略）：当前战略：词元云集承接第 3-6 层，成为连接智能供给与企业价值的运营中枢。
     - 组件 `main-line`（总体战略）：阶段打法：主线做 AI 企业智能决策网络；辅线以 TokenOps 获取高频真实负载并训练底层能力。
@@ -257,8 +257,8 @@ Agents 单元的 M1-B Mission 依赖试用 Mission，从试用周 Task 取上下
 - 周期目标「E&O 10 月：tkos.world 0.2 在真实经营中跑通」（最新版，第 2 版）的「目标定义」块里的组件 `tianshu`（`@october_goal#target/tianshu`）
 - 长期目标「E&O 六个月目标」（最新版，第 1 版）的「目标定义」块里的组件 `outcome`（`@eo_goal#target/outcome`）
 - 长期目标「春节前核心业务第一次被真实证明」（最新版，第 1 版）的「目标定义」块里的组件 `outcome`（`@company_goal#target/outcome`）
-- 战略「词元云集总体战略（存根）」（最新版，第 1 版）的「战略责任结构」块里的组件 `eo`（`@strategy#responsibility_structure/eo`）
-- 战略「词元云集总体战略（存根）」（最新版，第 1 版）的「战略」块里的组件 `main-line`（`@strategy#strategy_core/main-line`）
+- 战略「词元云集总体战略定位与阶段路径」（最新版，第 1 版）的「战略责任结构」块里的组件 `eo`（`@strategy#responsibility_structure/eo`）
+- 战略「词元云集总体战略定位与阶段路径」（最新版，第 1 版）的「战略」块里的组件 `main-line`（`@strategy#strategy_core/main-line`）
 - 公司「词元云集（TokenKing）」（最新版，第 1 版）的「企业身份与长期意图」块里的组件 `long-term-identity`（`@company#identity/long-term-identity`）
 
 #### what：这个 Task 要做成什么？
@@ -357,8 +357,8 @@ Agents 单元的 M1-B Mission 依赖试用 Mission，从试用周 Task 取上下
 - 周期目标「E&O 10 月：tkos.world 0.2 在真实经营中跑通」（最新版，第 2 版）的「目标定义」块里的组件 `lock`（`@october_goal#target/lock`）
 - 长期目标「E&O 六个月目标」（最新版，第 1 版）的「目标定义」块里的组件 `outcome`（`@eo_goal#target/outcome`）
 - 长期目标「春节前核心业务第一次被真实证明」（最新版，第 1 版）的「目标定义」块里的组件 `outcome`（`@company_goal#target/outcome`）
-- 战略「词元云集总体战略（存根）」（最新版，第 1 版）的「战略责任结构」块里的组件 `eo`（`@strategy#responsibility_structure/eo`）
-- 战略「词元云集总体战略（存根）」（最新版，第 1 版）的「战略」块里的组件 `main-line`（`@strategy#strategy_core/main-line`）
+- 战略「词元云集总体战略定位与阶段路径」（最新版，第 1 版）的「战略责任结构」块里的组件 `eo`（`@strategy#responsibility_structure/eo`）
+- 战略「词元云集总体战略定位与阶段路径」（最新版，第 1 版）的「战略」块里的组件 `main-line`（`@strategy#strategy_core/main-line`）
 - 公司「词元云集（TokenKing）」（最新版，第 1 版）的「企业身份与长期意图」块里的组件 `long-term-identity`（`@company#identity/long-term-identity`）
 
 #### what：这个 Task 要做成什么、打算怎么做？
@@ -459,8 +459,8 @@ Agents 单元的 M1-B Mission 依赖试用 Mission，从试用周 Task 取上下
 - 周期目标「E&O 10 月：tkos.world 0.2 在真实经营中跑通」（最新版，第 2 版）的「目标定义」块里的组件 `lock`（`@october_goal#target/lock`）
 - 长期目标「E&O 六个月目标」（最新版，第 1 版）的「目标定义」块里的组件 `outcome`（`@eo_goal#target/outcome`）
 - 长期目标「春节前核心业务第一次被真实证明」（最新版，第 1 版）的「目标定义」块里的组件 `outcome`（`@company_goal#target/outcome`）
-- 战略「词元云集总体战略（存根）」（最新版，第 1 版）的「战略责任结构」块里的组件 `eo`（`@strategy#responsibility_structure/eo`）
-- 战略「词元云集总体战略（存根）」（最新版，第 1 版）的「战略」块里的组件 `main-line`（`@strategy#strategy_core/main-line`）
+- 战略「词元云集总体战略定位与阶段路径」（最新版，第 1 版）的「战略责任结构」块里的组件 `eo`（`@strategy#responsibility_structure/eo`）
+- 战略「词元云集总体战略定位与阶段路径」（最新版，第 1 版）的「战略」块里的组件 `main-line`（`@strategy#strategy_core/main-line`）
 - 公司「词元云集（TokenKing）」（最新版，第 1 版）的「企业身份与长期意图」块里的组件 `long-term-identity`（`@company#identity/long-term-identity`）
 
 #### what：这个 Task 要做成什么？
@@ -569,8 +569,8 @@ Mission Owner 记了一次锁版时间对齐：十月周期目标改了锁版那
 - 周期目标「E&O 10 月：tkos.world 0.2 在真实经营中跑通」（最新版，第 2 版）的「目标定义」块里的组件 `tianshu`（`@october_goal#target/tianshu`）
 - 长期目标「E&O 六个月目标」（最新版，第 1 版）的「目标定义」块里的组件 `outcome`（`@eo_goal#target/outcome`）
 - 长期目标「春节前核心业务第一次被真实证明」（最新版，第 1 版）的「目标定义」块里的组件 `outcome`（`@company_goal#target/outcome`）
-- 战略「词元云集总体战略（存根）」（最新版，第 1 版）的「战略责任结构」块里的组件 `eo`（`@strategy#responsibility_structure/eo`）
-- 战略「词元云集总体战略（存根）」（最新版，第 1 版）的「战略」块里的组件 `main-line`（`@strategy#strategy_core/main-line`）
+- 战略「词元云集总体战略定位与阶段路径」（最新版，第 1 版）的「战略责任结构」块里的组件 `eo`（`@strategy#responsibility_structure/eo`）
+- 战略「词元云集总体战略定位与阶段路径」（最新版，第 1 版）的「战略」块里的组件 `main-line`（`@strategy#strategy_core/main-line`）
 - 公司「词元云集（TokenKing）」（最新版，第 1 版）的「企业身份与长期意图」块里的组件 `long-term-identity`（`@company#identity/long-term-identity`）
 
 #### what：这个 Task 要做成什么？
@@ -682,8 +682,8 @@ Mission Owner 记了一次锁版时间对齐：十月周期目标改了锁版那
 - 周期目标「E&O 10 月：tkos.world 0.2 在真实经营中跑通」（最新版，第 2 版）的「目标定义」块里的组件 `lock`（`@october_goal#target/lock`）
 - 长期目标「E&O 六个月目标」（最新版，第 1 版）的「目标定义」块里的组件 `outcome`（`@eo_goal#target/outcome`）
 - 长期目标「春节前核心业务第一次被真实证明」（最新版，第 1 版）的「目标定义」块里的组件 `outcome`（`@company_goal#target/outcome`）
-- 战略「词元云集总体战略（存根）」（最新版，第 1 版）的「战略责任结构」块里的组件 `eo`（`@strategy#responsibility_structure/eo`）
-- 战略「词元云集总体战略（存根）」（最新版，第 1 版）的「战略」块里的组件 `main-line`（`@strategy#strategy_core/main-line`）
+- 战略「词元云集总体战略定位与阶段路径」（最新版，第 1 版）的「战略责任结构」块里的组件 `eo`（`@strategy#responsibility_structure/eo`）
+- 战略「词元云集总体战略定位与阶段路径」（最新版，第 1 版）的「战略」块里的组件 `main-line`（`@strategy#strategy_core/main-line`）
 - 公司「词元云集（TokenKing）」（最新版，第 1 版）的「企业身份与长期意图」块里的组件 `long-term-identity`（`@company#identity/long-term-identity`）
 
 #### what：这个 Task 要做成什么、怎么安排？

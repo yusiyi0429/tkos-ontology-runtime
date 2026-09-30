@@ -158,8 +158,10 @@ def test_the_company_and_the_strategy_of_the_three_seed_files_are_the_sentences_
             blocks = {block: value for block, value in payload['blocks'].items() if block != 'responsibility_structure'}
             assert {block: value['components'] for block, value in blocks.items()} == expected, (name, key)
             assert all(set(value) == {'components'} for value in blocks.values()), (name, key)
+            # Strategy 的标题取材料的标题（不再是 0.1 的「存根」），其余非块字段同 0.1。
+            title = {'title': '词元云集总体战略定位与阶段路径'} if key == 'strategy' else {}
             assert ({k: v for k, v in payload.items() if k != 'blocks'}
-                    == {k: v for k, v in SEPTEMBER[key]['payload'].items() if k != 'blocks'}), (name, key)
+                    == {k: v for k, v in SEPTEMBER[key]['payload'].items() if k != 'blocks'} | title), (name, key)
             models.validate_input(kind, {**payload, **({'parent_ref': fake['company']} if key == 'strategy' else {})})
         structure = found['strategy']['payload']['blocks']['responsibility_structure']
         assert structure['text'] == SEPTEMBER['strategy']['payload']['blocks']['responsibility_structure']['text'], name

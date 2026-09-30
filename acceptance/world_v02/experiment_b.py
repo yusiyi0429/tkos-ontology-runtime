@@ -5,9 +5,10 @@
 experiments/world_v02/b_spec.json 的角色名单，owner SQL 播种身份与凭证，控制面 CLI 装 0.2），用实验本身的代码
 （b_seed、b_drive、b_observe，打本次起的 API）播种、读回核对、驱动、取证与算观测，与实例上跑的是同一段代码。
 
-- 播种：两条线读回都照冒烟的 b_smoke_lines.json（b_seed 的默认；Mission 已成立、Owner 与 Task 责任人照计划、执行计划每个 Task 一条带责任人的
-  计划条目；Task-only 线每段是计划条目、scope 里没有 Activity；Task+Activity 线每段是已指派的 Activity），Task 之上的
-  对象在两条线上同形。
+- 播种：两条线读回都照冒烟的 b_smoke_lines.json（b_seed 的默认；Mission 已成立、Owner 与 Task 责任人照计划、执行计划
+  每个 Task 一条带责任人的计划条目；Task-only 线每段是 Task 计划块里的计划条目，责任人与 plan_item 的四个可选属性照段表、
+  scope 里没有 Activity；Task+Activity 线每段是已指派的 Activity，instruction 块的执行事项、预期产出与成功 / 验收标准
+  组件照段表），Task 之上的对象在两条线上同形。
 - 驱动：两条线的 Mission 都已关闭（读投影 records.lifecycle），Task 都已关闭，Activity 都已关闭。
 - 日志与事件对得上：运行日志里每个提交了的动作（播种与脚本），在该 scope 的事件表里恰好有一条事件——种类是登记里这个
   动作的事件种类、记录者是日志写的行动者、action_id 是日志记下的回执；scope 里的事件与回执数都正好等于日志提交的动作

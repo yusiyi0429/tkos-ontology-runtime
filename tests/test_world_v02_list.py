@@ -221,8 +221,8 @@ def test_a_0_1_mission_is_read_in_three_groups_under_the_0_1_registry():
     # 属性与块按 0.1 登记：没有外部引用与执行计划块；0.1 没有块类别与组件。
     assert business["attributes"] == {"core_battle": False, "responsible": owner}
     assert [(b["id"], b["class"], b["empty"], b["text"], b["components"]) for b in business["blocks"]] == [
-        ("definition", None, False, "做试点。", []), ("acceptance", None, True, "当前没有验收标准", []),
-        ("play", None, True, "当前没有打法", []), ("constraint", None, True, "当前没有约束", [])]
+        ("definition", None, False, "做试点。", []), ("acceptance", None, True, "验收标准：暂无", []),
+        ("play", None, True, "打法：暂无", []), ("constraint", None, True, "约束：暂无", [])]
     # 0.1 的引用读成 0.2 的对象或块形式：钉定结构补上 component，另给业务形式。
     assert business["blocks"][0]["value"] == {"text": "做试点。", "components": [], "artifacts": [], "refs": [
         {**pin(goal, 1, "acceptance"), "component": None, "ref": f"{goal}@1#acceptance"}]}
@@ -256,7 +256,7 @@ def test_a_0_1_snapshot_is_read_as_the_read_only_legacy_payload():
         "payload_type": {"id": "legacy_0_1", "display_name": "0.1 状态快照（只读）"},
         "blocks": view["blocks"], "unconfirmed": True}
     assert [(b["id"], b["display_name"], b["class"], b["empty"], b["text"]) for b in view["blocks"]] == [
-        ("progress", "进展", None, False, "完成一半。"), ("issue", "问题", None, True, "当前没有问题"),
+        ("progress", "进展", None, False, "完成一半。"), ("issue", "问题", None, True, "问题：暂无"),
         ("artifacts", "产物", None, False, "")]
     assert view["blocks"][0]["value"]["refs"][0]["ref"] == f"{subject}@2#acceptance"
     assert view["blocks"][2]["ref"] == f"{sid}@1#artifacts"

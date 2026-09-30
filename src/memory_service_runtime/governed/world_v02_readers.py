@@ -25,7 +25,7 @@ from .world_v01_models import utc_text
 from .world_v02_models import CONTRACT_VERSION, citation, cite, payload_spec
 
 # 空块的标准句在投影层配置（契约第 4 节）。
-EMPTY_BLOCK_SENTENCE = "当前没有{name}"
+EMPTY_BLOCK_SENTENCE = "{name}：暂无"
 
 
 def head_and_binding(conn: Any, ctx: Any, object_id: str) -> tuple[dict[str, Any], dict[str, Any]]:

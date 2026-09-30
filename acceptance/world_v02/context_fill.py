@@ -432,7 +432,7 @@ def context_fill(book, h, f, flow, trunk):
           # 材料不带；#79 新加的整体经营状态、关键风险与问题照带，没写的给标准句。
           and [block['id'] for block in review['snapshot']['blocks']]
           == ['overall_state', 'results', 'gaps', 'causes', 'key_changes', 'implications', 'key_risks', 'issues']
-          and '当前没有整体经营状态' in review_md and '当前没有关键风险' in review_md
+          and '整体经营状态：暂无' in review_md and '关键风险：暂无' in review_md
           and all(block['pinned']['revision_id'] == first_review['revision_id'] for block in review['snapshot']['blocks'])
           and review['principal']['principal_id'] == actor_id['ceo']
           and f"### 已确认的公司复盘《公司复盘 2036-01》 `{first_review['ref']}`" in review_md

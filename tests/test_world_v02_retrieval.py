@@ -151,7 +151,7 @@ def test_objects_are_cut_into_a_header_their_blocks_and_components_and_every_eve
     assert found[snapshot].kind == 'object' and '主体' in found[snapshot].text  # 快照：表头加块
     assert found[concrete('@snap_retrieval#progress', manifest)].kind == 'block'
     assert found[concrete('event:start_retrieval', manifest)].kind == 'event'
-    assert found[concrete('@task_freeze#plan', manifest)].text.endswith('当前没有Activity 全景')  # 空块写标准句
+    assert found[concrete('@task_freeze#plan', manifest)].text.endswith('Activity 全景：暂无')  # 空块写标准句
     # 投影项只在出发对象的表头里列下级对象的引用（内容在下级对象自己的分块里），表头只带自己的引用
     mission = found[concrete('@mission_experiments', manifest)]
     assert '投影项「Task 预期结果与质量标准」' in mission.text and concrete('@task_retrieval_report', manifest) in mission.text

@@ -219,7 +219,7 @@ python3 -m experiments.world_v02.b_observe $B/task-only/b-run.json $B/task-activ
   - 不用 Markdown 的 `used_chars`：它比交给模型的文本少一层 JSON 外壳，拿它作上限，RAG 的成本就按另一个口径量了。
   - 代码里不写死预算：固定路径的预算读自取上下文返回的 `budget.max_chars`，RAG 的上限是固定路径那段文本的长度。
 - **固定路径交给模型的文本**：与 MCP 交给调用方的完全相同，由 `tkos_world_mcp.server._shown` 生成（第二个私有函数依赖），含包 id、Markdown、六问覆盖与按原因计的裁剪条数，所以比 `used_chars` 大一层 JSON 外壳。
-- **空块**留在索引里：它写的是标准句（「当前没有Activity 全景」），gap 回答要引到它。模型遍历组保留列对象。
+- **空块**留在索引里：它写的是标准句（「Activity 全景：暂无」），gap 回答要引到它。模型遍历组保留列对象。
 
 ### 命令
 

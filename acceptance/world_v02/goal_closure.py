@@ -256,8 +256,8 @@ def goal_closure(book, h, f, flow, trunk, event_kinds):
           and review_blocks['overall_state']['text'] == '整体经营达成九成'
           and review_blocks['overall_state']['display_name'] == '整体经营状态'
           and review_blocks['gaps']['display_name'] == '关键结果差距'
-          and (review_blocks['key_risks']['empty'], review_blocks['key_risks']['text']) == (True, '当前没有关键风险')
-          and (review_blocks['issues']['empty'], review_blocks['issues']['text']) == (True, '当前没有问题'))
+          and (review_blocks['key_risks']['empty'], review_blocks['key_risks']['text']) == (True, '关键风险：暂无')
+          and (review_blocks['issues']['empty'], review_blocks['issues']['text']) == (True, '问题：暂无'))
 
     deny_review('ceo', review1, {'INVALID_STATE'}, says='already confirmed')
     deny_review('ceo', review1, {'INVALID_STATE'}, {'outcome': 'withdrawn', 'supersedes_event_id': row['event_id']},

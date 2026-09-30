@@ -481,11 +481,11 @@ def objects(book, h, f, flow, company):
              for object_type, spec in OBJECTS.items()}
     check('an_empty_block_reads_back_with_the_standard_sentence_named_by_the_registry',
           all(block['empty'] == (block['value'] is None) and block['display_name'] == names[object_type][block['id']]
-              and (not block['empty'] or (block['text'] == f"当前没有{names[object_type][block['id']]}"
+              and (not block['empty'] or (block['text'] == f"{names[object_type][block['id']]}：暂无"
                                           and block['components'] == []))
               for object_type, view in views.items() for block in view['business']['blocks'])
-          and blocks_of(unit_goal_view)['alignment']['text'] == '当前没有定位与承接'
-          and blocks_of(task_view)['task_plan']['text'] == '当前没有Task 计划'
+          and blocks_of(unit_goal_view)['alignment']['text'] == '定位与承接：暂无'
+          and blocks_of(task_view)['task_plan']['text'] == 'Task 计划：暂无'
           and not blocks_of(mission_view)['mission_plan']['empty'])
     events = flow.rows("SELECT kind, contract_version, subject_refs FROM gov_world_events WHERE scope_id=%s", (f['scope_id'],))
     check('every_creation_wrote_one_0_2_object_created_event_pinned_to_its_first_revision',
@@ -1540,7 +1540,7 @@ def state_events(book, h, f, flow, trunk, foreign):
               and all(block['empty'] == (block['id'] not in given[name])
                       and block['display_name'] == spec['display_name'] for block, spec
                       in zip(view['blocks'], PAYLOADS[name]['blocks']))
-              and all(block['text'] == f"当前没有{block['display_name']}" and block['value'] is None
+              and all(block['text'] == f"{block['display_name']}：暂无" and block['value'] is None
                       and block['components'] == [] for block in new[name])
               for name, view in views.items())
           and {name: [block['id'] for block in new[name] if block['id'] in {
@@ -1549,7 +1549,7 @@ def state_events(book, h, f, flow, trunk, foreign):
                                     'unit_state': ['current_state', 'key_risks'],
                                     'strategy_state': ['validity', 'assumption_status', 'key_risks'],
                                     'company_review': ['key_risks']}
-          and {block['id']: block['text'] for block in new['execution_state']}['current_state'] == '当前没有当前状态')
+          and {block['id']: block['text'] for block in new['execution_state']}['current_state'] == '当前状态：暂无')
     goal_blocks = {block['id']: block for block in views['goal_state']['blocks']}
     review_blocks = {block['id']: block for block in views['company_review']['blocks']}
     check('the_new_state_blocks_read_back_as_written',

@@ -486,7 +486,7 @@ def test_each_component_is_cited_in_component_form_pinned_to_the_revision_read(w
     assert section(markdown, f"{MISSION}@2#execution_plan") == [
         f"### Mission·Task 全景 `{MISSION}@2#execution_plan`", f"- 计划条目 `{MISSION}@2#execution_plan/plan-1`：搭环境",
         f"  责任人（只作记录）：`{OWNER}`"]
-    assert section(markdown, f"{TASK}@2#task_plan") == [f"### Task·Task 计划 `{TASK}@2#task_plan`", "当前没有Task 计划"]
+    assert section(markdown, f"{TASK}@2#task_plan") == [f"### Task·Task 计划 `{TASK}@2#task_plan`", "Task 计划：暂无"]
 
 
 def test_events_are_cited_by_event_reference_newest_first_and_once_at_the_nearest_level(world):
@@ -520,16 +520,16 @@ def test_the_latest_snapshot_is_its_shell_view_marked_unconfirmed(world):
         f"### Activity 的最新状态快照（未经确认，截至 2026-09-24T10:00:00Z） `{SNAP_ACTIVITY}@1`",
         f"payload：执行状态；周期：2026-10；生成者：E&O Agent；来源事件：`event:{MET}`",
         # 快照里没写的新块（当前状态）读作空块，给标准句。
-        f"#### 当前状态 `{SNAP_ACTIVITY}@1#current_state`", "当前没有当前状态",
+        f"#### 当前状态 `{SNAP_ACTIVITY}@1#current_state`", "当前状态：暂无",
         f"#### 进展 `{SNAP_ACTIVITY}@1#progress`",
         f"- 进展条目 `{SNAP_ACTIVITY}@1#progress/todo:17`：改了一半",
         f"  本体主体 id：`{AGENT}`", "  姓名（写入时）：E&O Agent", "  外部状态：进行中",
         "  本期条目：2026-09-24T09:00:00Z Codex：改完第一节",
-        f"#### 关键风险与阻塞 `{SNAP_ACTIVITY}@1#blockers`", "当前没有关键风险与阻塞",
+        f"#### 关键风险与阻塞 `{SNAP_ACTIVITY}@1#blockers`", "关键风险与阻塞：暂无",
         f"#### 问题 `{SNAP_ACTIVITY}@1#issues`",
         f"- 问题 `{SNAP_ACTIVITY}@1#issues/iss-1`：评审意见有冲突", "  核心判断问题：按哪条意见改？",
         f"  最低充分责任主体：`{IC}`",
-        f"#### 材料 `{SNAP_ACTIVITY}@1#materials`", "当前没有材料"]
+        f"#### 材料 `{SNAP_ACTIVITY}@1#materials`", "材料：暂无"]
     # 快照只取当前对象与它向上直到 Mission 的执行链；Task 没有快照。
     assert [layer["state"] and layer["state"]["ref"] for layer in result["context_pack"]["layers"]] == [
         f"{SNAP_ACTIVITY}@1", None, f"{SNAP_MISSION}@1", None, None, None, None, None]
@@ -772,7 +772,7 @@ def test_a_unit_goal_takes_one_hop_along_goal_ref_to_the_company_goals_definitio
         "goal_ref", "公司级长期目标", f"{COMPANY_GOAL}@1", cited(COMPANY_GOAL), True, "confirmed")
     # 只取定义类块（长期目标的两块都是）；空块照样读标准句；组件钉到所读修订。
     assert [(block["ref"], block["text"]) for block in hop["blocks"]] == [
-        (f"{COMPANY_GOAL}@1#alignment", "当前没有定位与承接"), (f"{COMPANY_GOAL}@1#target", "")]
+        (f"{COMPANY_GOAL}@1#alignment", "定位与承接：暂无"), (f"{COMPANY_GOAL}@1#target", "")]
     assert [(item["ref"], item["pinned"]) for item in hop["blocks"][1]["components"]] == [
         (f"{COMPANY_GOAL}@1#target/cg-o1", cited(COMPANY_GOAL, 1, "target", "cg-o1"))]
     assert [layer["hop"] for layer in layers if layer["level"] != 4] == [None] * 7
@@ -783,7 +783,7 @@ def test_a_unit_goal_takes_one_hop_along_goal_ref_to_the_company_goals_definitio
     assert section(markdown, f"{COMPANY_GOAL}@1") == [
         f"### 沿 goal_ref 多取一跳：公司级长期目标《公司三年目标》 `{COMPANY_GOAL}@1`",
         f"生命周期：已确认（事件 `event:{uid(62)}`）", "责任人（来自角色 CEO）：CEO", "正式内容：已确认",
-        f"#### 定位与承接 `{COMPANY_GOAL}@1#alignment`", "当前没有定位与承接",
+        f"#### 定位与承接 `{COMPANY_GOAL}@1#alignment`", "定位与承接：暂无",
         f"#### 目标定义 `{COMPANY_GOAL}@1#target`",
         f"- 目标结果 / 战役结果 / 工作结果 `{COMPANY_GOAL}@1#target/cg-o1`：成为企业经营系统的首选"]
     # 这一跳的组件是 Why 的依据；公司级目标已确认，它的正式块也算凭什么。
@@ -1058,13 +1058,13 @@ def test_a_period_goal_carries_the_latest_confirmed_company_review_its_units_eff
     assert parts[1].splitlines() == [
         f"### 已确认的公司复盘《九月公司复盘》 `{REVIEW_SNAPSHOT}@1`（截至 2026-09-30T15:59:59Z）",
         f"确认事件 `event:{REVIEW_EVENT}`（CEO 记，2026-10-01T02:00:00Z）",
-        f"#### 整体经营状态 `{REVIEW_SNAPSHOT}@1#overall_state`", "当前没有整体经营状态",
+        f"#### 整体经营状态 `{REVIEW_SNAPSHOT}@1#overall_state`", "整体经营状态：暂无",
         f"#### 结果 `{REVIEW_SNAPSHOT}@1#results`", "营收达成八成", f"#### 关键结果差距 `{REVIEW_SNAPSHOT}@1#gaps`",
-        "交付慢两周", f"#### 原因 `{REVIEW_SNAPSHOT}@1#causes`", "当前没有原因",
+        "交付慢两周", f"#### 原因 `{REVIEW_SNAPSHOT}@1#causes`", "原因：暂无",
         f"#### 关键变化 `{REVIEW_SNAPSHOT}@1#key_changes`", "换了交付负责人",
         f"#### 经营含义 `{REVIEW_SNAPSHOT}@1#implications`", "十月先补交付",
-        f"#### 关键风险 `{REVIEW_SNAPSHOT}@1#key_risks`", "当前没有关键风险",
-        f"#### 问题 `{REVIEW_SNAPSHOT}@1#issues`", "当前没有问题"]
+        f"#### 关键风险 `{REVIEW_SNAPSHOT}@1#key_risks`", "关键风险：暂无",
+        f"#### 问题 `{REVIEW_SNAPSHOT}@1#issues`", "问题：暂无"]
     assert parts[2].splitlines() == [f"### 有效的长期目标《E&O 客户目标》 `{GOAL_2}@1`",
                                      f"生命周期：已确认（事件 `event:{uid(64)}`）", f"定义类块：`{GOAL_2}@1#target`"]
     assert parts[3].splitlines() == [

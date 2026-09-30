@@ -248,7 +248,7 @@ def list_objects(book, h, f, flow, trunk, foreign):
           and business['attributes'] == {'scope': 'company', 'horizon': '2028'}
           and list(blocks) == ['outcome', 'measures', 'constraint']
           and all(block['class'] is None and block['components'] == [] for block in blocks.values())
-          and blocks['measures']['empty'] and blocks['measures']['text'] == '当前没有衡量'
+          and blocks['measures']['empty'] and blocks['measures']['text'] == '衡量：暂无'
           and business['component_ledger'] == [] and business['round'] is None and business['formal'] == plain['formal']
           and grouped['identity'] == {'responsible': {'role': 'CEO', 'source': 'role', 'principals': [
               {'principal_id': ceo, 'principal_type': 'human', 'display_name': 'Synthetic A2 ceo'}]}, 'delegations': []})

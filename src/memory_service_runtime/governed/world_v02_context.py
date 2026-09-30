@@ -694,7 +694,7 @@ def _projection_text(projection: dict[str, Any], name: str) -> str:
         lines += ["  " + line for component in item.get("components", [])
                   for line in _component_text(component).split("\n")]
     if not projection["items"]:
-        lines.append(f"当前没有{projection['display_name']}")
+        lines.append(f"{projection['display_name']}：暂无")
     return "\n".join(lines)
 
 

@@ -72,7 +72,7 @@ def block(object_id: str, version: int, name: str, text: str | None, components:
     value = None if text is None and not comps else {"text": text or "", "components": comps, "refs": refs or [],
                                                      "artifacts": []}
     return {"id": name, "display_name": name, "kind": "definition", "class": "formal", "value": value,
-            "empty": value is None, "text": f"当前没有{name}" if value is None else value["text"], "components": comps,
+            "empty": value is None, "text": f"{name}：暂无" if value is None else value["text"], "components": comps,
             "ref": f"{object_id}@{version}#{name}"}
 
 

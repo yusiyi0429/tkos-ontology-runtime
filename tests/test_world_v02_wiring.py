@@ -251,7 +251,7 @@ def test_the_company_view_is_grouped_into_business_identity_and_records():
         ("identity", "formal", False, "做企业经营系统。", [], f"{oid}@1#identity"),
     ]
     empty = readers.block_view(oid, 1, business["blocks"][0] | {"kind": "definition"}, None)
-    assert (empty["empty"], empty["text"], empty["ref"]) == (True, "当前没有企业身份与长期意图", f"{oid}@1#identity")
+    assert (empty["empty"], empty["text"], empty["ref"]) == (True, "企业身份与长期意图：暂无", f"{oid}@1#identity")
     assert business["relations"] == [] and business["component_ledger"] == [] and business["round"] is None
     assert business["formal"] == {"lifecycle_status": "recorded", "effective_revision_id": rid}
     assert view["identity"] == {"responsible": {"source": "role", "role": "CEO", "principals": ceo}, "delegations": []}

@@ -140,9 +140,14 @@ def topic_cells(registry=REGISTRY):
         'read:business:blocks_components_ledger': 'business：类别、块类别、组件、台账、空块标准句',
         'read:business:formal': 'business：正式内容指针（生效修订）',
         'read:business:round': 'business：进行中的一轮',
+        'read:business:referenced_by': 'business：指向它的跨链关系（最新修订里钉着它任一版本的 depends_on、contributes_to，'
+                                       '含周期目标的 depends_on；契约第 6 节沿用 0.1，#93）',
+        'read:business:supersedes': 'business：修订链，所读修订取代的上一修订，第一个修订为空（契约第 6 节沿用 0.1，#93）',
         'read:business:projection': 'business：投影项（Mission 的 Task 预期结果与质量标准、责任单元的战役引用，读取时从下级'
                                     '对象投影、不存；其余类型为空）',
         'read:identity:responsible': 'identity：责任人及其来源（角色或属性）',
+        'read:identity:responsible_holds_role': 'identity：按属性解析的责任人须当前在对象所在域持对应角色，撤了角色就不算，'
+                                                '取对象与取上下文都是（契约第 3.3 节同 0.1 第 4 节，#93）',
         'read:identity:delegations': 'identity：覆盖对象所在域的当前有效委托',
         'read:records:lifecycle': 'records：生命周期与推出它的事件',
         'read:records:latest_state': 'records：最新快照（标明未经确认）',
@@ -150,6 +155,8 @@ def topic_cells(registry=REGISTRY):
         'read:records:open_issues': 'records：提出过、还没处置的问题',
         'read:legacy_0_1_view': '0.1 对象的 0.2 视图（view 参数）',
         'read:scope_rule': 'scope 级读规则：scope 内可读，scope 外 404',
+        'read:children': '取子对象：最新修订的 parent_ref 指向它的对象，形状同 0.1，引用给 0.2 的两种形式（契约第 15.1 节'
+                         '「同 0.1」，#93）',
     }
     cells['listing_and_external_refs'] = {
         'list:filters': '列对象按周期、单元、域、类型筛选与组合',
@@ -337,7 +344,8 @@ CHECKS = {
         'an_identity_assigned_only_in_another_domain_reads_the_company_by_the_world_rule': ('read:scope_rule',),
         'the_0_2_receipt_is_read_by_the_world_rule': ('read:scope_rule',),
         'an_identity_from_another_scope_cannot_read_the_company': ('read:scope_rule',),
-        'read_endpoints_not_yet_wired_for_0_2_refuse_instead_of_reading_it_as_0_1': (),
+        'the_children_of_a_0_2_object_are_read_under_0_2_and_start_empty': ('read:children',),
+        'an_identity_from_another_scope_cannot_read_the_children_of_a_0_2_object': ('read:scope_rule', 'read:children'),
         'replaying_the_same_command_returns_the_original_receipt': ('duplicates:same_key_same_request',),
         'reusing_a_key_for_a_different_command_is_refused': ('duplicates:same_key_other_request',),
         'the_world_gate_refuses_a_0_2_binding_whose_profile_does_not_pin_the_exact_contract': ('control:binding_gate',),
@@ -368,6 +376,8 @@ CHECKS = {
             P('world_create_object') + ('read:business:blocks_components_ledger',),
         'an_empty_block_reads_back_with_the_standard_sentence_named_by_the_registry':
             ('read:business:blocks_components_ledger',),
+        'children_list_the_objects_whose_latest_parent_ref_points_at_it_with_0_2_references': ('read:children',),
+        'a_mission_hangs_on_its_period_goal_by_goal_ref_and_is_not_its_child': ('read:children',),
         'every_creation_wrote_one_0_2_object_created_event_pinned_to_its_first_revision': P('world_create_object'),
     },
     'rejections': {
@@ -454,6 +464,10 @@ CHECKS = {
         'a_period_goal_has_no_contributes_to': R('world_relate'),
         'only_a_responsible_person_up_the_spine_relates': R('world_relate'),
         'relating_is_not_on_the_agent_face': R('world_relate'),
+        'supersedes_pins_the_revision_the_read_one_replaced_and_the_first_revision_replaces_nothing':
+            ('read:business:supersedes',),
+        'referenced_by_lists_a_period_goals_depends_on_from_its_latest_revision_pinning_any_version':
+            ('read:business:referenced_by',),
         'replaying_a_revision_returns_the_original_receipt_and_writes_nothing_more':
             ('duplicates:same_key_same_request',),
     },
@@ -838,6 +852,7 @@ CHECKS = {
             'a_0_1_snapshot_is_given_as_the_read_only_legacy_0_1_payload',
             'the_snapshot_and_the_state_read_the_same_legacy_view',
             'a_0_2_object_reads_the_same_with_or_without_the_view_parameter',
+            'the_0_2_view_of_a_0_1_object_gives_supersedes_and_referenced_by_as_0_1_reads_them',
             'an_unknown_view_is_invalid')},
         'the_list_also_heads_0_1_objects_under_the_0_1_contract': ('list:0_1_scope',),
     },
@@ -1162,6 +1177,10 @@ CHECKS = {
             P('world_record_event') + ('duplicates:other_keys_record_events',),
     },
     'revocation': {
+        'a_responsible_by_attribute_is_listed_while_holding_the_role': ('read:identity:responsible',),
+        'after_the_role_is_revoked_the_attribute_still_names_him_but_he_is_not_responsible':
+            ('read:identity:responsible_holds_role',),
+        'the_context_reports_who_as_a_gap_once_the_responsible_lost_the_role': ('read:identity:responsible_holds_role',),
         'a_revoked_ceo_cannot_replay_the_0_2_creation_into_success': R('world_create_object'),
     },
     # 实验 E 的五个场景（#67）：新 scope 里播种与回放，不在票面十项里，检查照列、不证明格。
@@ -1211,7 +1230,7 @@ TITLES = {
     'mcp_end_to_end': 'MCP 端到端', 'list_objects': '列对象、外部引用与 0.1 视图', 'issues': 'Issue',
     'goal_closure': '长期目标与周期目标的收口', 'strategy_gates': 'Strategy 的门', 'context_fill': '取上下文补齐',
     'state_cells': '状态表逐格',
-    'revocation': '撤掉指派后不能重放',
+    'revocation': '撤掉角色后不算责任人，撤掉指派后不能重放',
     'experiment_e': '实验 E 的五个场景：播种与回放',
     'experiment_b': '对照实验 B 的两条线',
     'experiment_r': '四种取法对照：准备与引用核对',

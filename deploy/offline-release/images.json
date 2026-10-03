@@ -1,6 +1,6 @@
 {
   "schema_version": "tkos.offline-images/1",
-  "release": "v0.6.0",
+  "release": "v0.6.1",
   "components": {
     "postgres_pgvector": {
       "repository": "pgvector/pgvector",

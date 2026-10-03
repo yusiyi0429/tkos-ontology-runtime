@@ -342,4 +342,12 @@ rm -rf /tmp/tkos-secrets
 - 归档：tkos-secrets c8df814。**播种状态文件 `seed-eo-state.json` 没有存档**（推送前误删了本机克隆）：库里的数据完整，但不要用 `seed_eo.py` 重跑这个 scope（会多记代录说明）；下次重建后播种，每段跑完就把状态文件提交进 tkos-secrets。
 - world-lab 全程 200；确认不回退后，主机上旧的 `world-02-24e6202-amd64` 两个镜像、`releases/world-02-24e6202`（含旧 `private/` 密钥副本）、旧构建产物目录与 `.env.bak-20260930` 已删，`docker images` 里不再有 24e6202。
 
-未验证：并发写下的外部引用唯一性；大数据量下列对象的性能；天枢凭这三条委托实际代记；v0.6.0 之后再换版本是否能不重建（0039 已冻结，原地升级路径没有演练过）。
+2026-10-03，按 v0.6.1（#93 读面补齐：取子对象、取对象的 `referenced_by` 与 `supersedes`、责任人须持角色）**原地换镜像**，没有重建：v0.6.1 没有新迁移，做法同 `deploy/world-lab/README.md` 8.5 节——离线包解在 `$LAB`、`verify_bundle.py --load`，源码解到 `releases/v0.6.1`，`.env` 五个镜像标签改为 `v0.6.1-amd64`（改前备份 `.env.bak-20261003`），`private/` 以部署用户 `mkdir -m 700` 建好后用 `sudo cp -a` 从 `releases/v0.6.0` 复制，再用新目录的 `start-offline.sh`。数据卷、两个 scope、凭证与 `ids.json` 都不变。
+
+- 换前换后用天枢凭证对实验 scope 的 9 个对象逐个读取对象、事件：去掉两个新键后 `business`、`records`、事件数完全一致。
+- Company 的取子对象列出 Strategy 与公司级长期目标；三个 Mission 的 `business` 都有 `referenced_by` 与 `supersedes`。
+- 实验 scope 的 `--probe-only` 经域名通过；冒烟 scope 完整冒烟经域名 83 项、本机 `--mcp-cli` 92 项全过；`examples.py` 经域名 129 项全过，重新生成 `docs/world-v02-tianshu-examples.md`（构建提交 d4ed957）。
+- world-lab 全程 200。tkos-secrets 的 `compose.env` 同步为新镜像标签。
+
+未验证：并发写下的外部引用唯一性；大数据量下列对象的性能；天枢凭这三条委托实际代记。
+

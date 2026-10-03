@@ -14,16 +14,16 @@ Runtime 提供 Clark 现有月度核对、周进展和会议工作面的 Runtime
 
 ## 当前交付状态
 
-当前功能 Release 为 **[v0.6.0](https://github.com/yusiyi0429/tkos-ontology-runtime/releases/tag/v0.6.0)**，在 v0.5.0 之上纳入 2026-09-30 锁版的 `tkos.world/0.2`（块与组件按方法侧 Content Pact 首版替换，Activity 转为正式类型，只在新建 scope 启用；钉定哈希见[锁版检查点](docs/world-v02-freeze-checkpoint.md)），`tkos-world-mcp` 与新增的 `tkos-world` 命令行都可选 0.2。迁移头到 0039。
+当前功能 Release 为 **[v0.6.1](https://github.com/yusiyi0429/tkos-ontology-runtime/releases/tag/v0.6.1)**，是 v0.6.0 的补丁版本：`tkos.world/0.2` 的读面补齐与 0.1 的等价（#94）——0.2 对象可取子对象，取对象的 `business` 带 `referenced_by` 与 `supersedes`，按属性解析的责任人须当前持角色。契约、登记、profile 钉定与迁移都没变，迁移头仍是 0039。v0.6.0 在 v0.5.0 之上纳入 2026-09-30 锁版的 `tkos.world/0.2`（块与组件按方法侧 Content Pact 首版替换，Activity 转为正式类型，只在新建 scope 启用；钉定哈希见[锁版检查点](docs/world-v02-freeze-checkpoint.md)），`tkos-world-mcp` 与 `tkos-world` 命令行都可选 0.2。
 
-本次交付 wheel、源码包、**amd64/arm64 完整五镜像离线包**及 SHA256 校验和，详见[发布说明](docs/releases/v0.6.0.md)与[离线验收](docs/releases/v0.6.0-offline-acceptance.md)。tag、包版本、离线包文件名与镜像标签统一用同一个版本号（`v0.6.0`，镜像为 `<仓库>:v0.6.0-<架构>`）。v0.5.0 的[发布说明](docs/releases/v0.5.0.md)与[离线验收](docs/releases/v0.5.0-offline-acceptance.md)作为上一版证据保留。
+本次交付 wheel、源码包、**amd64/arm64 完整五镜像离线包**及 SHA256 校验和，详见[发布说明](docs/releases/v0.6.1.md)与[离线验收](docs/releases/v0.6.1-offline-acceptance.md)。tag、包版本、离线包文件名与镜像标签统一用同一个版本号（`v0.6.1`，镜像为 `<仓库>:v0.6.1-<架构>`）。v0.6.0 的[发布说明](docs/releases/v0.6.0.md)与[离线验收](docs/releases/v0.6.0-offline-acceptance.md)作为上一版证据保留。
 
 | 验证范围 | 结果 |
 | --- | --- |
-| Python 回归 | 无库全量 **4538 passed**（本机）；数据库测试（应用角色与迁移所有者）、看板与构建以 #89 的 CI 为准，全部通过 |
-| 双架构离线包 | arm64 **25/25**（原生）、amd64 **25/25**（仿真），各自空卷启动：迁移至 0039、FORCE RLS、证据版本化与保留、真实治理动作、world 0.1 与 0.2 的控制面安装与 HTTP 冒烟、Worker 任务 |
-| v0.5.0 → v0.6.0 升级（arm64） | **11/11**：只补上 0039，升级前的数据、证据与回执仍可读，world 0.1 数据仍按 0.1 读，新 scope 可启用 0.2 |
-| 协议独立验收（沿用最近一次运行） | world 0.2 **871/871**（`46fb876`）、world 0.1 **248/248**（`d261eb9`）、Method 0.5 **27/27**、Method 0.4 **68/68**、v0.2 运行时 **20/20**（`a6d1efa`） |
+| Python 回归 | 无库全量 **4550 passed**（本机）；数据库测试（应用角色与迁移所有者）、看板与构建以 #95 的 CI 为准，全部通过 |
+| 双架构离线包 | arm64 **26/26**（原生）、amd64 **26/26**（仿真），各自空卷启动：迁移至 0039、FORCE RLS、证据版本化与保留、真实治理动作、world 0.1 与 0.2 的控制面安装与 HTTP 冒烟、0.2 取子对象与 `business` 两键、Worker 任务 |
+| v0.6.0 → v0.6.1 升级（arm64） | **14/14**：不应用迁移，升级前的数据、证据与回执仍可读，world 0.1 数据逐字段不变，0.2 数据除新增两键外逐字段不变，升级前建的 0.2 对象可取子对象 |
+| 协议独立验收（沿用最近一次运行） | world 0.2 **880/880**（`96a5a9c`，#94）、world 0.1 **248/248**（`d261eb9`）、Method 0.5 **27/27**、Method 0.4 **68/68**、v0.2 运行时 **20/20**（`a6d1efa`） |
 | 伙伴接线／Clark 浏览器／真实模型／生产部署 | **尚未验证／尚未验证／未运行／未进行** |
 
 验收使用隔离数据库、独立合成身份和受控 Agent 输入。详见 [0.3 验收报告](docs/runtime-anchors-v03-acceptance.md)、[机器检查清单](docs/acceptance/anchors-v03-summary.json) 和 [复跑入口](acceptance/anchors_v03/README.md)。企业身份、历史对象跨版本接续、生产迁移与部署另行安排。
@@ -260,7 +260,7 @@ python3 acceptance/runtime/infra.py up
 
 ## 部署与来源
 
-离线发布说明见 [v0.6.0 发布说明](docs/releases/v0.6.0.md) 与[离线验收](docs/releases/v0.6.0-offline-acceptance.md)；历史版本见 [v0.5.0](docs/releases/v0.5.0.md)、[v0.4.0](docs/releases/v0.4.0.md)、[v0.3.0](docs/releases/v0.3.0.md) 与 [v0.2.1](docs/releases/v0.2.1.md)。AMD64 与 ARM64 分包均包含 Runtime API、Worker、PostgreSQL 17＋pgvector、MinIO Server 和 MinIO Client 五类镜像；Clark 与宿主机 Nginx 不在包内。镜像中的 Method 控制面输入位于 `/opt/tkos/docs/`；发布版本与生产切换分别验收。v0.2.0 只包含 AMD64 API／Worker，已由 v0.2.1 替代。
+离线发布说明见 [v0.6.1 发布说明](docs/releases/v0.6.1.md) 与[离线验收](docs/releases/v0.6.1-offline-acceptance.md)；历史版本见 [v0.6.0](docs/releases/v0.6.0.md)、[v0.5.0](docs/releases/v0.5.0.md)、[v0.4.0](docs/releases/v0.4.0.md)、[v0.3.0](docs/releases/v0.3.0.md) 与 [v0.2.1](docs/releases/v0.2.1.md)。AMD64 与 ARM64 分包均包含 Runtime API、Worker、PostgreSQL 17＋pgvector、MinIO Server 和 MinIO Client 五类镜像；Clark 与宿主机 Nginx 不在包内。镜像中的 Method 控制面输入位于 `/opt/tkos/docs/`；发布版本与生产切换分别验收。v0.2.0 只包含 AMD64 API／Worker，已由 v0.2.1 替代。
 
 代码可构建 API/Worker 镜像，远程试点还需要环境初始化和部署验收，见 [部署边界](docs/deployment.md)。根目录没有可直接投产的 Compose；历史 Memory 模板仅保留在 `deploy/legacy-memory/`。
 

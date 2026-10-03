@@ -93,6 +93,8 @@ def api(monkeypatch):
     for module, name in ((world_v01_readers, "0.1"), (world_v02_readers, "0.2"), (world_v02_legacy, "0.2 view of 0.1")):
         monkeypatch.setattr(module, "read_object", reader(name))
         monkeypatch.setattr(module, "state", reader(name))
+    for module, name in ((world_v01_readers, "0.1"), (world_v02_readers, "0.2")):
+        monkeypatch.setattr(module, "children", reader(name))
     app = FastAPI()
     app.include_router(routes.router)
     routes.install_errors(app)
@@ -158,6 +160,15 @@ def test_reads_take_the_0_2_view_of_a_0_1_object_only_when_asked(api, path):
     assert missing.status_code == 404 and missing.json()["error"]["code"] == "NOT_FOUND"
 
 
+def test_children_are_read_under_the_version_the_object_is_bound_to(api):
+    """取子对象（0.2 契约第 15.1 节「同 0.1」，票 #93）：0.2 对象按 0.2 读，不再 409；0.1 对象仍按 0.1 读。"""
+    client, _ = api
+    assert {object_id: client.get(f"/v1/world/objects/{object_id}/children").json()["read_by"]
+            for object_id in (uid(1), uid(2))} == {uid(1): "0.1", uid(2): "0.2"}
+    missing = client.get(f"/v1/world/objects/{uid(5)}/children")
+    assert missing.status_code == 404 and missing.json()["error"]["code"] == "NOT_FOUND"
+
+
 # ------------------------------------------------------------ 对象头（契约第 15.2 节）
 def row(**change):
     return {"object_id": uid(10), "object_type": "Mission", "domain_id": uid(20), "created_at": "2026-09-29T01:00:00+00:00",
@@ -212,9 +223,9 @@ def test_a_0_1_mission_is_read_in_three_groups_under_the_0_1_registry():
     assert set(view) == {"object_id", "business", "identity", "records", "protocol"}
     business = view["business"]
     assert set(business) == {"object_id", "object_type", "type_display_name", "category", "candidate", "version",
-                             "revision_id", "object_version", "title", "attributes", "relations", "blocks",
-                             "component_ledger", "projection", "formal", "round"}
-    assert business["projection"] is None
+                             "revision_id", "object_version", "title", "attributes", "relations", "referenced_by",
+                             "supersedes", "blocks", "component_ledger", "projection", "formal", "round"}
+    assert business["projection"] is None and business["referenced_by"] == [] and business["supersedes"] is None
     assert (business["object_type"], business["category"], business["candidate"], business["version"],
             business["object_version"], business["title"]) == (
         "Mission", {"id": "business_object", "display_name": "业务对象"}, False, 2, 5, "试点一")

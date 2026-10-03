@@ -2,8 +2,8 @@
 
 读权限同 0.1（契约第 15.1 节）：scope 内有任一生效角色指派的责任主体可读该 scope 的全部
 world 对象，不走域级 read 策略；非 world 对象一律 NOT_FOUND，授权先于任何协议错误。
-读投影按三层分组：``business``、``identity``、``records``。``business`` 给块、组件、组件台账与关系，
-引用同时给钉定结构与业务形式，另给正式内容指针与进行中的一轮（票 #54），以及读取时从下级对象投影的投影项（票 #79）；``identity`` 给责任人与委托范围覆盖
+读投影按三层分组：``business``、``identity``、``records``。``business`` 给块、组件、组件台账与关系，另给指向它的
+跨链关系与修订链（票 #93），引用同时给钉定结构与业务形式，另给正式内容指针与进行中的一轮（票 #54），以及读取时从下级对象投影的投影项（票 #79）；``identity`` 给责任人与委托范围覆盖
 对象所在域的当前有效委托（票 #62）；``records`` 给生命周期与推出它的事件（按登记的状态表推导，ADR-0002）、最新
 状态快照（标明未经确认）、最近的已确认复盘（票 #60）与主受影响对象是它、还没处置的问题（票 #61）。状态快照是时间
 记录，按 id 读回的是快照视图，不分三组；复盘确认不改快照本身（契约第 7 节）。Strategy 的一轮另给被指定的人、
@@ -22,6 +22,7 @@ from . import world_v02_registry as world_registry
 from . import world_v02_strategy as world_strategy
 from .errors import GovernedError
 from .world_v01_models import utc_text
+from .world_v01_readers import holds_role
 from .world_v02_models import CONTRACT_VERSION, citation, cite, payload_spec
 
 # 空块的标准句在投影层配置（契约第 4 节）。
@@ -118,15 +119,20 @@ def projections(conn: Any, ctx: Any, head: dict[str, Any]) -> dict[str, Any] | N
 
 def responsible_principals(conn: Any, ctx: Any, head: dict[str, Any], payload: dict[str, Any],
                            rule: dict[str, Any] | None = None) -> list[dict[str, Any]]:
-    """责任人（契约第 3.3 节）：按角色解析的是当前在对象所在域持该角色、启用的人；按属性解析的是
-    responsible 属性上的身份，还没指派时为空。规则默认取 0.2 登记；读 0.1 对象时给 0.1 登记的规则（票 #63）。"""
+    """责任人（契约第 3.3 节，同 0.1 第 4 节）：按角色解析的是当前在对象所在域持该角色、启用的人；按属性解析的是
+    responsible 属性上的身份，还须启用、当前在对象所在域持登记 ``roles`` 按身份类型给的角色才算，还没指派或不持
+    角色时为空。只用于读侧，写侧授权另判。规则默认取 0.2 登记；读 0.1 对象时给 0.1 登记的规则，角色由调用方按 0.1
+    的规定补进 ``roles``（票 #63、#93）。"""
     rule = rule or world_registry.object_spec(head["object_type"])["responsible"]
     if rule["source"] == "attribute":
-        if payload.get("responsible") is None:
-            return []
-        return [db.jsonable(row) for row in conn.execute(
+        person = payload.get("responsible")
+        found = person and conn.execute(
             """SELECT principal_id, principal_type, display_name FROM gov_principals
-                WHERE scope_id=%s AND principal_id=%s""", (ctx.scope_id, payload["responsible"])).fetchall()]
+                WHERE scope_id=%s AND principal_id=%s AND active""", (ctx.scope_id, person)).fetchone()
+        role = found and rule["roles"].get(found["principal_type"])
+        if not role or not holds_role(conn, ctx, person, head["domain_id"], role):
+            return []
+        return [db.jsonable(found)]
     return [db.jsonable(row) for row in conn.execute(
         """SELECT DISTINCT p.principal_id, p.principal_type, p.display_name
              FROM gov_role_assignments a JOIN gov_principals p
@@ -180,7 +186,8 @@ def object_view(head: dict[str, Any], revision: dict[str, Any], metadata: dict[s
                 delegations: list[dict[str, Any]] | None = None,
                 open_issues: list[dict[str, Any]] | None = None,
                 confirmed_review: dict[str, Any] | None = None,
-                projection: dict[str, Any] | None = None) -> dict[str, Any]:
+                projection: dict[str, Any] | None = None, supersedes: dict[str, Any] | None = None,
+                referenced_by: list[dict[str, Any]] | None = None) -> dict[str, Any]:
     spec = world_registry.object_spec(head["object_type"])
     payload, version = revision["payload"], revision["object_version"]
     category = world_registry.category(spec["category"])
@@ -194,6 +201,8 @@ def object_view(head: dict[str, Any], revision: dict[str, Any], metadata: dict[s
                        if attribute["id"] != "title"},
         "relations": [{"field": field["field"], "relation": field["relation"], "value": cited(payload.get(field["field"]))}
                       for field in spec["relation_fields"]],
+        # 被指向的一端列出指向它的跨链关系，修订链指向所读修订取代的上一修订（契约第 6 节沿用 0.1，票 #93）。
+        "referenced_by": referenced_by or [], "supersedes": supersedes,
         # 登记后加的块在此前存的载荷里没有键，读作空块（契约第 4 节）。
         "blocks": [block_view(head["object_id"], version, block, payload["blocks"].get(block["id"]))
                    for block in spec["blocks"]],
@@ -210,7 +219,8 @@ def object_view(head: dict[str, Any], revision: dict[str, Any], metadata: dict[s
 
 
 def read_object(conn: Any, ctx: Any, object_id: str, version: int | None = None) -> dict[str, Any]:
-    """取对象：默认最新修订，给 version 取该修订序号。业务对象附最新状态快照；状态快照读回快照视图。"""
+    """取对象：默认最新修订，给 version 取该修订序号。业务对象附最新状态快照、修订链与指向它的跨链关系；状态快照读回
+    快照视图。"""
     head, metadata = readable(conn, ctx, object_id)
     if version is None:
         row = conn.execute("SELECT * FROM gov_object_revisions WHERE scope_id=%s AND revision_id=%s",
@@ -235,7 +245,60 @@ def read_object(conn: Any, ctx: Any, object_id: str, version: int | None = None)
                                     delegations_in_force(conn, ctx, domain_id=head["domain_id"])],
                        open_issues=open_issues(conn, ctx, head["object_id"]),
                        confirmed_review=confirmed_review(conn, ctx, head["object_id"]),
-                       projection=projections(conn, ctx, head))
+                       projection=projections(conn, ctx, head),
+                       supersedes=supersedes(conn, ctx, head["object_id"], revision["object_version"]),
+                       referenced_by=referenced_by(conn, ctx, head["object_id"]))
+
+
+# ------------------------------------------------------------ relations read back (契约第 6、15.1 节，票 #93)
+def supersedes(conn: Any, ctx: Any, object_id: str, version: int) -> dict[str, Any] | None:
+    """修订链（同 0.1）：所读修订取代的上一修订的钉定引用，两种形式都给；第一个修订为 None。修订序号从 1 连续递增。"""
+    row = conn.execute(
+        "SELECT revision_id FROM gov_object_revisions WHERE scope_id=%s AND object_id=%s AND object_version=%s",
+        (ctx.scope_id, object_id, version - 1)).fetchone()
+    return row and cited({"object_id": object_id, "object_version": version - 1,
+                          "revision_id": db.jsonable(row)["revision_id"], "block": None, "component": None})
+
+
+def referenced_by(conn: Any, ctx: Any, object_id: str) -> list[dict[str, Any]]:
+    """最新修订的跨链关系列表里钉着该对象（任一版本）的对象，逐条列出（同 0.1，关系字段取 0.2 登记里由建关系写的）：
+    哪个字段、什么关系、源（指向它的那个对象的最新修订）与那条钉定引用，都给两种形式。"""
+    fields = {field["field"]: field["relation"] for item in world_registry.registry()["objects"]
+              for field in item["relation_fields"] if field["written_by"] == "world_relate"}
+    probe = Jsonb([{"object_id": object_id}])
+    rows = conn.execute(
+        """SELECT o.object_id, r.object_version, r.revision_id, r.payload
+             FROM gov_object_revisions r JOIN gov_objects o
+               ON o.scope_id=r.scope_id AND o.object_id=r.object_id AND o.latest_revision_id=r.revision_id
+            WHERE r.scope_id=%s AND (""" + " OR ".join(["r.payload->%s @> %s"] * len(fields)) + """)
+            ORDER BY o.created_at, o.object_id""",
+        (ctx.scope_id, *[value for field in fields for value in (field, probe)])).fetchall()
+    found = []
+    for row in map(db.jsonable, rows):
+        source = cited({"object_id": row["object_id"], "object_version": row["object_version"],
+                        "revision_id": row["revision_id"], "block": None, "component": None})
+        found.extend({"field": field, "relation": relation, "source": source, "target": cited(pin)}
+                     for field, relation in fields.items() for pin in row["payload"].get(field, [])
+                     if pin["object_id"] == object_id)
+    return found
+
+
+def children(conn: Any, ctx: Any, object_id: str) -> dict[str, Any]:
+    """取子对象（契约第 15.1 节，同 0.1）：本 scope 最新修订的 parent_ref 指向该对象（任一版本）的对象，按建立先后；
+    只看 parent_ref（Mission 挂周期目标走 goal_ref，不在其中）。形状同 0.1，引用给 0.2 的两种形式。"""
+    head, _ = readable(conn, ctx, object_id)
+    rows = conn.execute(
+        """SELECT o.object_id, o.object_type, r.object_version, r.revision_id, r.payload
+             FROM gov_object_revisions r JOIN gov_objects o
+               ON o.scope_id=r.scope_id AND o.object_id=r.object_id AND o.latest_revision_id=r.revision_id
+            WHERE r.scope_id=%s AND r.payload ? 'parent_ref' AND r.payload->'parent_ref' ? 'object_version'
+              AND r.payload->'parent_ref'->>'object_id'=%s
+            ORDER BY o.created_at, o.object_id""", (ctx.scope_id, head["object_id"])).fetchall()
+    return {"object_id": head["object_id"], "children": [
+        {"object_id": row["object_id"], "object_type": row["object_type"], "title": row["payload"]["title"],
+         "version": row["object_version"], "revision_id": row["revision_id"],
+         "ref": citation(row["object_id"], row["object_version"]), "parent_ref": cited(row["payload"]["parent_ref"])}
+        for row in map(db.jsonable, rows)]}
 
 
 # ------------------------------------------------------------ issues

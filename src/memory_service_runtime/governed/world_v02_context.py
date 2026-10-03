@@ -364,27 +364,6 @@ def _object(conn: Any, ctx: Any, head: dict[str, Any], revision: dict[str, Any])
                             "principals": readers.responsible_principals(conn, ctx, head, revision["payload"])}}
 
 
-def _referenced_by(conn: Any, ctx: Any, object_id: str) -> list[dict[str, Any]]:
-    """最新修订的跨链关系列表里钉着该对象（任一版本）的对象，逐条列出（同 0.1，关系字段取 0.2 登记）。"""
-    fields = {field["field"]: field["relation"] for item in world_registry.registry()["objects"]
-              for field in item["relation_fields"] if field["written_by"] == "world_relate"}
-    probe = Jsonb([{"object_id": object_id}])
-    rows = conn.execute(
-        """SELECT o.object_id, r.object_version, r.revision_id, r.payload
-             FROM gov_object_revisions r JOIN gov_objects o
-               ON o.scope_id=r.scope_id AND o.object_id=r.object_id AND o.latest_revision_id=r.revision_id
-            WHERE r.scope_id=%s AND (""" + " OR ".join(["r.payload->%s @> %s"] * len(fields)) + """)
-            ORDER BY o.created_at, o.object_id""",
-        (ctx.scope_id, *[value for field in fields for value in (field, probe)])).fetchall()
-    found = []
-    for row in map(db.jsonable, rows):
-        source = _pinned(row["object_id"], row["object_version"], row["revision_id"])
-        found.extend({"field": field, "relation": relation, "source": source, "target": readers.cited(pin)}
-                     for field, relation in fields.items() for pin in row["payload"].get(field, [])
-                     if pin["object_id"] == object_id)
-    return found
-
-
 def _layer(conn: Any, ctx: Any, head: dict[str, Any], revision: dict[str, Any], level: int, window: Any,
            seen_events: set[str], state: dict[str, Any] | None) -> dict[str, Any]:
     spec = world_registry.object_spec(head["object_type"])
@@ -396,7 +375,7 @@ def _layer(conn: Any, ctx: Any, head: dict[str, Any], revision: dict[str, Any], 
         "relations": [{"field": field["field"], "relation": field["relation"],
                        "refs": readers.cited(payload.get(field["field"], []))}
                       for field in spec["relation_fields"] if field["written_by"] == "world_relate"],
-        "referenced_by": _referenced_by(conn, ctx, object_id),
+        "referenced_by": readers.referenced_by(conn, ctx, object_id),
         "hop": None, "state": None, "events": [],
         # 投影项只给出发对象（契约第 15.3 节）：Mission 的 Task 预期结果与质量标准、责任单元的战役引用。
         "projection": readers.projections(conn, ctx, head) if level == 0 else None,

@@ -2,7 +2,7 @@
 
 对象：天枢服务端接入本体的工程师。本文是《接口变化清单》（`docs/world-v02-tianshu-interface-changes.md`）承诺的实测示例，按天枢的接入顺序分节，每节对应清单的一项或几项。
 
-**怎么生成的**：`deploy/world-02/examples.py` 在冒烟 scope 上按下面的顺序逐步真打 HTTP 接口，每一步断言返回码与关键字段，记下全部请求与返回，再脱敏渲染成本文。本文以服务提交 `a38beae`、`https://world-02.tokenkingos.com`上的运行 `20260930-120233-6b1a`（下文写作 `<run>`）为准；实例重建或契约改动后按 `deploy/world-02/README.md` 第 7 节后的说明重新生成。
+**怎么生成的**：`deploy/world-02/examples.py` 在冒烟 scope 上按下面的顺序逐步真打 HTTP 接口，每一步断言返回码与关键字段，记下全部请求与返回，再脱敏渲染成本文。本文以服务提交 `d4ed957`、`https://world-02.tokenkingos.com`上的运行 `20261003-134103-54af`（下文写作 `<run>`）为准；实例重建或契约改动后按 `deploy/world-02/README.md` 第 7 节后的说明重新生成。
 
 **占位规则**：
 
@@ -59,9 +59,9 @@
       "type_display_name": "责任单元",
       "category": {"id": "business_object", "display_name": "业务对象"},
       "title": "E&O",
-      "version": 2,
-      "revision_id": "<revision-7>",
-      "object_version": 3,
+      "version": 3,
+      "revision_id": "<revision-11>",
+      "object_version": 4,
       "lifecycle": null,
       "domain_id": "<domain:eo>",
       "external_refs": [{"id": "capability:05", "url": null, "system": "tianshu"}],
@@ -74,7 +74,7 @@
 
 **列 E&O 单元本期的 Mission：按建立时刻升序分页，每页 5 条，把上一页的 `next_cursor` 原样带回取下一页；这里列出本次 Mission 所在的那一页**
 
-`GET /v1/world/objects?unit_id=<unit:eo>&type=Mission&period=2026-09&limit=5`，身份：`tianshu`（天枢服务主体）
+`GET /v1/world/objects?unit_id=<unit:eo>&type=Mission&period=2026-10&limit=5`，身份：`tianshu`（天枢服务主体）
 
 返回 `200`：
 
@@ -82,13 +82,13 @@
 {
   "items": [
     {
-      "object_id": "<mission-2>",
+      "object_id": "<mission-7>",
       "object_type": "Mission",
       "type_display_name": "Mission",
       "category": {"id": "business_object", "display_name": "业务对象"},
-      "title": "冒烟 20260930-120043-5435 Mission",
+      "title": "冒烟 20261003-134014-56fb Mission",
       "version": 3,
-      "revision_id": "<revision-3>",
+      "revision_id": "<revision-9>",
       "object_version": 6,
       "lifecycle": {"status": "in_progress", "display_name": "进行中", "event_id": "<event-9>"},
       "domain_id": "<domain:eo>",
@@ -96,43 +96,15 @@
       "contract_version": "tkos.world/0.2"
     },
     {
-      "object_id": "<mission-3>",
+      "object_id": "<mission-8>",
       "object_type": "Mission",
       "type_display_name": "Mission",
       "category": {"id": "business_object", "display_name": "业务对象"},
-      "title": "冒烟 20260930-120147-7724 Mission",
+      "title": "冒烟 20261003-134045-4b7e Mission",
       "version": 3,
-      "revision_id": "<revision-4>",
+      "revision_id": "<revision-10>",
       "object_version": 6,
       "lifecycle": {"status": "in_progress", "display_name": "进行中", "event_id": "<event-10>"},
-      "domain_id": "<domain:eo>",
-      "external_refs": [],
-      "contract_version": "tkos.world/0.2"
-    },
-    {
-      "object_id": "<mission-4>",
-      "object_type": "Mission",
-      "type_display_name": "Mission",
-      "category": {"id": "business_object", "display_name": "业务对象"},
-      "title": "冒烟 20260930-120159-826f Mission",
-      "version": 3,
-      "revision_id": "<revision-5>",
-      "object_version": 6,
-      "lifecycle": {"status": "in_progress", "display_name": "进行中", "event_id": "<event-11>"},
-      "domain_id": "<domain:eo>",
-      "external_refs": [],
-      "contract_version": "tkos.world/0.2"
-    },
-    {
-      "object_id": "<mission-5>",
-      "object_type": "Mission",
-      "type_display_name": "Mission",
-      "category": {"id": "business_object", "display_name": "业务对象"},
-      "title": "冒烟 20260930-120217-458e Mission",
-      "version": 3,
-      "revision_id": "<revision-6>",
-      "object_version": 6,
-      "lifecycle": {"status": "in_progress", "display_name": "进行中", "event_id": "<event-12>"},
       "domain_id": "<domain:eo>",
       "external_refs": [],
       "contract_version": "tkos.world/0.2"
@@ -144,7 +116,7 @@
       "category": {"id": "business_object", "display_name": "业务对象"},
       "title": "示例 <run> Mission",
       "version": 2,
-      "revision_id": "<revision-13>",
+      "revision_id": "<revision-17>",
       "object_version": 2,
       "lifecycle": {"status": "draft", "display_name": "草稿", "event_id": "<event-7>"},
       "domain_id": "<domain:eo>",
@@ -172,7 +144,7 @@
     "category": {"id": "business_object", "display_name": "业务对象"},
     "candidate": false,
     "version": 2,
-    "revision_id": "<revision-13>",
+    "revision_id": "<revision-17>",
     "object_version": 2,
     "title": "示例 <run> Mission",
     "attributes": {
@@ -188,7 +160,7 @@
           "block": null,
           "component": null,
           "object_id": "<period-goal-1>",
-          "revision_id": "<revision-11>",
+          "revision_id": "<revision-15>",
           "object_version": 1,
           "ref": "<period-goal-1>@1"
         }
@@ -196,6 +168,15 @@
       {"field": "depends_on", "relation": "depends_on", "value": []},
       {"field": "contributes_to", "relation": "contributes_to", "value": []}
     ],
+    "referenced_by": [],
+    "supersedes": {
+      "object_id": "<mission-1>",
+      "object_version": 1,
+      "revision_id": "<revision-16>",
+      "block": null,
+      "component": null,
+      "ref": "<mission-1>@1"
+    },
     "blocks": [
       {
         "id": "definition",
@@ -214,7 +195,7 @@
                   "block": "target",
                   "component": "pg-ac1",
                   "object_id": "<period-goal-1>",
-                  "revision_id": "<revision-11>",
+                  "revision_id": "<revision-15>",
                   "object_version": 1,
                   "ref": "<period-goal-1>@1#target/pg-ac1"
                 }
@@ -238,7 +219,7 @@
                 "block": "target",
                 "component": "pg-ac1",
                 "object_id": "<period-goal-1>",
-                "revision_id": "<revision-11>",
+                "revision_id": "<revision-15>",
                 "object_version": 1,
                 "ref": "<period-goal-1>@1#target/pg-ac1"
               }
@@ -383,7 +364,7 @@
 {
   "action_type": "world_revise_object",
   "contract_version": "tkos.world/0.2",
-  "target": {"object_id": "<mission-1>", "revision_id": "<revision-13>", "expected_version": 2},
+  "target": {"object_id": "<mission-1>", "revision_id": "<revision-17>", "expected_version": 2},
   "expected_versions": [],
   "idempotency_key": "world-02-examples:<run>:009",
   "reason": "world-02 天枢接入示例",
@@ -404,7 +385,7 @@
 {
   "action_type": "world_revise_object",
   "auth_epoch": 4,
-  "target": {"object_id": "<mission-1>", "expected_version": 2, "revision_id": "<revision-13>"},
+  "target": {"object_id": "<mission-1>", "expected_version": 2, "revision_id": "<revision-17>"},
   "expected_versions": []
 }
 ```
@@ -417,7 +398,7 @@
 {
   "action_type": "world_revise_object",
   "contract_version": "tkos.world/0.2",
-  "target": {"object_id": "<mission-1>", "revision_id": "<revision-13>", "expected_version": 2},
+  "target": {"object_id": "<mission-1>", "revision_id": "<revision-17>", "expected_version": 2},
   "expected_versions": [],
   "idempotency_key": "world-02-examples:<run>:009",
   "reason": "world-02 天枢接入示例",
@@ -444,7 +425,7 @@
   "result": {
     "ref": "<mission-1>@3",
     "version": 3,
-    "event_id": "<event-13>",
+    "event_id": "<event-11>",
     "domain_id": "<domain:eo>",
     "object_id": "<mission-1>",
     "declaration": {
@@ -453,20 +434,20 @@
         "block": null,
         "component": null,
         "object_id": "<mission-1>",
-        "revision_id": "<revision-13>",
+        "revision_id": "<revision-17>",
         "object_version": 2
       },
       "trigger": "天枢 Mission 关联本体",
       "human_acceptance": {"required": false}
     },
-    "revision_id": "<revision-14>",
+    "revision_id": "<revision-18>",
     "contract_version": "tkos.world/0.2",
-    "referenced_object_ids": ["<period-goal-1>", "<mission-1>"],
+    "referenced_object_ids": ["<mission-1>", "<period-goal-1>"],
     "required_assignment_ids": ["<assignment:tianshu:AGENT@eo>"]
   },
   "object_versions": [{"object_id": "<mission-1>", "object_version": 3}],
   "effect_task_ids": [],
-  "recorded_at": "2026-09-30T12:02:39.163803+00:00"
+  "recorded_at": "2026-10-03T13:41:11.943252+00:00"
 }
 ```
 
@@ -486,7 +467,7 @@
       "category": {"id": "business_object", "display_name": "业务对象"},
       "title": "示例 <run> Mission",
       "version": 3,
-      "revision_id": "<revision-14>",
+      "revision_id": "<revision-18>",
       "object_version": 3,
       "lifecycle": {"status": "draft", "display_name": "草稿", "event_id": "<event-7>"},
       "domain_id": "<domain:eo>",
@@ -518,7 +499,7 @@
   "params": {
     "category": "other",
     "subject_refs": ["<mission-1>@3"],
-    "occurred_at": "2026-09-30T20:01:39+08:00",
+    "occurred_at": "2026-10-03T21:40:12+08:00",
     "content": {"text": "天枢每周同步 2026-W40"},
     "declaration": {
       "scene": "<mission-1>@3",
@@ -539,7 +520,7 @@
   "auth_epoch": 4,
   "status": "committed",
   "result": {
-    "event_id": "<event-14>",
+    "event_id": "<event-12>",
     "domain_id": "<domain:eo>",
     "declaration": {
       "scene": {
@@ -547,20 +528,20 @@
         "block": null,
         "component": null,
         "object_id": "<mission-1>",
-        "revision_id": "<revision-14>",
+        "revision_id": "<revision-18>",
         "object_version": 3
       },
       "trigger": "天枢每周同步",
       "human_acceptance": {"required": false}
     },
-    "occurred_at": "2026-09-30T12:01:39Z",
+    "occurred_at": "2026-10-03T13:40:12Z",
     "subject_refs": [
       {
         "ref": "<mission-1>@3",
         "block": null,
         "component": null,
         "object_id": "<mission-1>",
-        "revision_id": "<revision-14>",
+        "revision_id": "<revision-18>",
         "object_version": 3
       }
     ],
@@ -570,7 +551,7 @@
   },
   "object_versions": [],
   "effect_task_ids": [],
-  "recorded_at": "2026-09-30T12:02:39.497406+00:00"
+  "recorded_at": "2026-10-03T13:41:12.610874+00:00"
 }
 ```
 
@@ -595,10 +576,10 @@
     "payload": {
       "title": "示例 <run> 执行状态 2026-W40",
       "subject_ref": "<mission-1>@3",
-      "as_of": "2026-09-30T20:02:09+08:00",
-      "period": "2026-09",
+      "as_of": "2026-10-03T21:40:42+08:00",
+      "period": "2026-10",
       "payload_type": "execution_state",
-      "source_event_refs": ["event:<event-14>"],
+      "source_event_refs": ["event:<event-12>"],
       "blocks": {
         "progress": {
           "components": [
@@ -616,12 +597,12 @@
                 "external_status": "进行中",
                 "entries": [
                   {
-                    "at": "2026-09-28T20:02:39+08:00",
+                    "at": "2026-10-01T21:41:12+08:00",
                     "source": "web",
                     "text": "对齐 0.2 接口变化清单"
                   },
                   {
-                    "at": "2026-09-29T20:02:39+08:00",
+                    "at": "2026-10-02T21:41:12+08:00",
                     "source": "github",
                     "text": "提交接入改动",
                     "url": "https://example.com/tianshu/pr/1"
@@ -662,9 +643,9 @@
   "status": "committed",
   "result": {
     "ref": "<snapshot-1>@1",
-    "as_of": "2026-09-30T12:02:09Z",
+    "as_of": "2026-10-03T13:40:42Z",
     "version": 1,
-    "event_id": "<event-15>",
+    "event_id": "<event-13>",
     "domain_id": "<domain:eo>",
     "generator": "<principal:tianshu>",
     "object_id": "<snapshot-1>",
@@ -674,30 +655,30 @@
         "block": null,
         "component": null,
         "object_id": "<mission-1>",
-        "revision_id": "<revision-14>",
+        "revision_id": "<revision-18>",
         "object_version": 3
       },
       "trigger": "天枢每周同步",
       "human_acceptance": {"required": false}
     },
-    "revision_id": "<revision-15>",
+    "revision_id": "<revision-19>",
     "subject_refs": [
       {
         "ref": "<mission-1>@3",
         "block": null,
         "component": null,
         "object_id": "<mission-1>",
-        "revision_id": "<revision-14>",
+        "revision_id": "<revision-18>",
         "object_version": 3
       }
     ],
     "contract_version": "tkos.world/0.2",
-    "referenced_object_ids": ["<snapshot-1>", "<mission-1>"],
+    "referenced_object_ids": ["<mission-1>", "<snapshot-1>"],
     "required_assignment_ids": ["<assignment:tianshu:AGENT@eo>"]
   },
   "object_versions": [{"object_id": "<snapshot-1>", "object_version": 1}],
   "effect_task_ids": [],
-  "recorded_at": "2026-09-30T12:02:39.674104+00:00"
+  "recorded_at": "2026-10-03T13:41:12.944875+00:00"
 }
 ```
 
@@ -716,25 +697,25 @@
     "object_type": "StateSnapshot",
     "category": {"id": "time_record", "display_name": "时间记录"},
     "version": 1,
-    "revision_id": "<revision-15>",
+    "revision_id": "<revision-19>",
     "ref": "<snapshot-1>@1",
     "title": "示例 <run> 执行状态 2026-W40",
     "subject_ref": {
       "block": null,
       "component": null,
       "object_id": "<mission-1>",
-      "revision_id": "<revision-14>",
+      "revision_id": "<revision-18>",
       "object_version": 3,
       "ref": "<mission-1>@3"
     },
-    "as_of": "2026-09-30T12:02:09Z",
-    "period": "2026-09",
+    "as_of": "2026-10-03T13:40:42Z",
+    "period": "2026-10",
     "generator": {
       "principal_id": "<principal:tianshu>",
       "principal_type": "agent",
       "display_name": "天枢服务主体"
     },
-    "source_event_refs": [{"event_id": "<event-14>", "ref": "event:<event-14>"}],
+    "source_event_refs": [{"event_id": "<event-12>", "ref": "event:<event-12>"}],
     "payload_type": {"id": "execution_state", "display_name": "执行状态"},
     "blocks": [
       {
@@ -771,13 +752,13 @@
               "attributes": {
                 "entries": [
                   {
-                    "at": "2026-09-28T12:02:39Z",
+                    "at": "2026-10-01T13:41:12Z",
                     "url": null,
                     "text": "对齐 0.2 接口变化清单",
                     "source": "web"
                   },
                   {
-                    "at": "2026-09-29T12:02:39Z",
+                    "at": "2026-10-02T13:41:12Z",
                     "url": "https://example.com/tianshu/pr/1",
                     "text": "提交接入改动",
                     "source": "github"
@@ -807,13 +788,13 @@
             "attributes": {
               "entries": [
                 {
-                  "at": "2026-09-28T12:02:39Z",
+                  "at": "2026-10-01T13:41:12Z",
                   "url": null,
                   "text": "对齐 0.2 接口变化清单",
                   "source": "web"
                 },
                 {
-                  "at": "2026-09-29T12:02:39Z",
+                  "at": "2026-10-02T13:41:12Z",
                   "url": "https://example.com/tianshu/pr/1",
                   "text": "提交接入改动",
                   "source": "github"
@@ -925,7 +906,7 @@
   "params": {
     "category": "meeting",
     "subject_refs": ["<mission-1>@3", "<period-goal-1>@1"],
-    "occurred_at": "2026-09-30T18:02:39+08:00",
+    "occurred_at": "2026-10-03T19:41:13+08:00",
     "content": {"text": "E&O 周会：确认本周计划与问题", "artifacts": ["https://example.com/tianshu/minutes/1"]},
     "declaration": {
       "scene": "<mission-1>@3",
@@ -946,7 +927,7 @@
   "auth_epoch": 4,
   "status": "committed",
   "result": {
-    "event_id": "<event-16>",
+    "event_id": "<event-14>",
     "domain_id": "<domain:eo>",
     "declaration": {
       "scene": {
@@ -954,20 +935,20 @@
         "block": null,
         "component": null,
         "object_id": "<mission-1>",
-        "revision_id": "<revision-14>",
+        "revision_id": "<revision-18>",
         "object_version": 3
       },
       "trigger": "天枢同步会议纪要",
       "human_acceptance": {"required": false}
     },
-    "occurred_at": "2026-09-30T10:02:39Z",
+    "occurred_at": "2026-10-03T11:41:13Z",
     "subject_refs": [
       {
         "ref": "<mission-1>@3",
         "block": null,
         "component": null,
         "object_id": "<mission-1>",
-        "revision_id": "<revision-14>",
+        "revision_id": "<revision-18>",
         "object_version": 3
       },
       {
@@ -975,17 +956,17 @@
         "block": null,
         "component": null,
         "object_id": "<period-goal-1>",
-        "revision_id": "<revision-11>",
+        "revision_id": "<revision-15>",
         "object_version": 1
       }
     ],
     "contract_version": "tkos.world/0.2",
-    "referenced_object_ids": ["<period-goal-1>", "<mission-1>"],
+    "referenced_object_ids": ["<mission-1>", "<period-goal-1>"],
     "required_assignment_ids": []
   },
   "object_versions": [],
   "effect_task_ids": [],
-  "recorded_at": "2026-09-30T12:02:40.254016+00:00"
+  "recorded_at": "2026-10-03T13:41:13.618234+00:00"
 }
 ```
 
@@ -1001,7 +982,7 @@
   "since": null,
   "events": [
     {
-      "event_id": "<event-16>",
+      "event_id": "<event-14>",
       "scope_id": "<scope>",
       "kind": "event.recorded",
       "class": "record",
@@ -1013,7 +994,7 @@
           "block": null,
           "component": null,
           "object_id": "<mission-1>",
-          "revision_id": "<revision-14>",
+          "revision_id": "<revision-18>",
           "object_version": 3,
           "ref": "<mission-1>@3"
         },
@@ -1021,7 +1002,7 @@
           "block": null,
           "component": null,
           "object_id": "<period-goal-1>",
-          "revision_id": "<revision-11>",
+          "revision_id": "<revision-15>",
           "object_version": 1,
           "ref": "<period-goal-1>@1"
         }
@@ -1033,8 +1014,8 @@
       },
       "on_behalf_of": null,
       "external_confirmation": null,
-      "occurred_at": "2026-09-30T10:02:39Z",
-      "recorded_at": "2026-09-30T12:02:40.253729Z",
+      "occurred_at": "2026-10-03T11:41:13Z",
+      "recorded_at": "2026-10-03T13:41:13.617808Z",
       "late": true,
       "content": {
         "refs": [],
@@ -1050,7 +1031,7 @@
       "withdrawn_by": []
     },
     {
-      "event_id": "<event-14>",
+      "event_id": "<event-12>",
       "scope_id": "<scope>",
       "kind": "event.recorded",
       "class": "record",
@@ -1062,7 +1043,7 @@
           "block": null,
           "component": null,
           "object_id": "<mission-1>",
-          "revision_id": "<revision-14>",
+          "revision_id": "<revision-18>",
           "object_version": 3,
           "ref": "<mission-1>@3"
         }
@@ -1074,8 +1055,8 @@
       },
       "on_behalf_of": null,
       "external_confirmation": null,
-      "occurred_at": "2026-09-30T12:01:39Z",
-      "recorded_at": "2026-09-30T12:02:39.497081Z",
+      "occurred_at": "2026-10-03T13:40:12Z",
+      "recorded_at": "2026-10-03T13:41:12.610551Z",
       "late": true,
       "content": {"refs": [], "text": "天枢每周同步 2026-W40", "artifacts": [], "components": []},
       "detail": null,
@@ -1086,7 +1067,7 @@
       "withdrawn_by": []
     },
     {
-      "event_id": "<event-15>",
+      "event_id": "<event-13>",
       "scope_id": "<scope>",
       "kind": "state.refreshed",
       "class": "record",
@@ -1098,7 +1079,7 @@
           "block": null,
           "component": null,
           "object_id": "<snapshot-1>",
-          "revision_id": "<revision-15>",
+          "revision_id": "<revision-19>",
           "object_version": 1,
           "ref": "<snapshot-1>@1"
         },
@@ -1106,7 +1087,7 @@
           "block": null,
           "component": null,
           "object_id": "<mission-1>",
-          "revision_id": "<revision-14>",
+          "revision_id": "<revision-18>",
           "object_version": 3,
           "ref": "<mission-1>@3"
         }
@@ -1118,8 +1099,8 @@
       },
       "on_behalf_of": null,
       "external_confirmation": null,
-      "occurred_at": "2026-09-30T12:02:09Z",
-      "recorded_at": "2026-09-30T12:02:39.673719Z",
+      "occurred_at": "2026-10-03T13:40:42Z",
+      "recorded_at": "2026-10-03T13:41:12.944566Z",
       "late": true,
       "content": null,
       "detail": null,
@@ -1142,7 +1123,7 @@
           "block": null,
           "component": null,
           "object_id": "<mission-1>",
-          "revision_id": "<revision-12>",
+          "revision_id": "<revision-16>",
           "object_version": 1,
           "ref": "<mission-1>@1"
         }
@@ -1154,8 +1135,8 @@
       },
       "on_behalf_of": null,
       "external_confirmation": null,
-      "occurred_at": "2026-09-30T12:02:38.449843Z",
-      "recorded_at": "2026-09-30T12:02:38.449843Z",
+      "occurred_at": "2026-10-03T13:41:10.518241Z",
+      "recorded_at": "2026-10-03T13:41:10.518241Z",
       "late": false,
       "content": null,
       "detail": null,
@@ -1178,7 +1159,7 @@
           "block": null,
           "component": null,
           "object_id": "<mission-1>",
-          "revision_id": "<revision-13>",
+          "revision_id": "<revision-17>",
           "object_version": 2,
           "ref": "<mission-1>@2"
         }
@@ -1190,8 +1171,8 @@
       },
       "on_behalf_of": null,
       "external_confirmation": null,
-      "occurred_at": "2026-09-30T12:02:38.658692Z",
-      "recorded_at": "2026-09-30T12:02:38.658692Z",
+      "occurred_at": "2026-10-03T13:41:10.957834Z",
+      "recorded_at": "2026-10-03T13:41:10.957834Z",
       "late": false,
       "content": null,
       "detail": {"principal_id": "<principal:eo-owner>"},
@@ -1202,7 +1183,7 @@
       "withdrawn_by": []
     },
     {
-      "event_id": "<event-13>",
+      "event_id": "<event-11>",
       "scope_id": "<scope>",
       "kind": "object.revised",
       "class": "record",
@@ -1214,7 +1195,7 @@
           "block": null,
           "component": null,
           "object_id": "<mission-1>",
-          "revision_id": "<revision-14>",
+          "revision_id": "<revision-18>",
           "object_version": 3,
           "ref": "<mission-1>@3"
         }
@@ -1226,8 +1207,8 @@
       },
       "on_behalf_of": null,
       "external_confirmation": null,
-      "occurred_at": "2026-09-30T12:02:39.163528Z",
-      "recorded_at": "2026-09-30T12:02:39.163528Z",
+      "occurred_at": "2026-10-03T13:41:11.942954Z",
+      "recorded_at": "2026-10-03T13:41:11.942954Z",
       "late": false,
       "content": null,
       "detail": null,
@@ -1262,7 +1243,7 @@
     "delegate_principal_id": "<principal:tianshu>",
     "families": ["gate"],
     "domain_ids": ["<domain:eo>"],
-    "valid_until": "2026-09-30T21:02:40+08:00"
+    "valid_until": "2026-10-03T22:41:13+08:00"
   }
 }
 ```
@@ -1280,10 +1261,10 @@
     "detail": {
       "families": ["gate"],
       "domain_ids": ["<domain:eo>"],
-      "valid_until": "2026-09-30T13:02:40Z",
+      "valid_until": "2026-10-03T14:41:13Z",
       "delegate_principal_id": "<principal:tianshu>"
     },
-    "event_id": "<event-17>",
+    "event_id": "<event-15>",
     "domain_id": "<domain:company>",
     "subject_refs": [
       {
@@ -1291,7 +1272,7 @@
         "block": null,
         "component": null,
         "object_id": "<company>",
-        "revision_id": "<revision-8>",
+        "revision_id": "<revision-12>",
         "object_version": 1
       }
     ],
@@ -1301,7 +1282,7 @@
   },
   "object_versions": [],
   "effect_task_ids": [],
-  "recorded_at": "2026-09-30T12:02:40.418056+00:00"
+  "recorded_at": "2026-10-03T13:41:13.946924+00:00"
 }
 ```
 
@@ -1321,7 +1302,7 @@
     "delegate_principal_id": "<principal:tianshu>",
     "families": ["gate"],
     "domain_ids": ["<domain:eo>"],
-    "valid_until": "2026-09-30T21:02:40+08:00"
+    "valid_until": "2026-10-03T22:41:13+08:00"
   }
 }
 ```
@@ -1339,10 +1320,10 @@
     "detail": {
       "families": ["gate"],
       "domain_ids": ["<domain:eo>"],
-      "valid_until": "2026-09-30T13:02:40Z",
+      "valid_until": "2026-10-03T14:41:13Z",
       "delegate_principal_id": "<principal:tianshu>"
     },
-    "event_id": "<event-18>",
+    "event_id": "<event-16>",
     "domain_id": "<domain:company>",
     "subject_refs": [
       {
@@ -1350,7 +1331,7 @@
         "block": null,
         "component": null,
         "object_id": "<company>",
-        "revision_id": "<revision-8>",
+        "revision_id": "<revision-12>",
         "object_version": 1
       }
     ],
@@ -1360,7 +1341,7 @@
   },
   "object_versions": [],
   "effect_task_ids": [],
-  "recorded_at": "2026-09-30T12:02:40.524036+00:00"
+  "recorded_at": "2026-10-03T13:41:14.176768+00:00"
 }
 ```
 
@@ -1380,7 +1361,7 @@
     "delegate_principal_id": "<principal:tianshu>",
     "families": ["gate", "assign", "lifecycle", "issue"],
     "domain_ids": ["<domain:eo>"],
-    "valid_until": "2026-09-30T21:02:40+08:00"
+    "valid_until": "2026-10-03T22:41:13+08:00"
   }
 }
 ```
@@ -1398,10 +1379,10 @@
     "detail": {
       "families": ["gate", "assign", "lifecycle", "issue"],
       "domain_ids": ["<domain:eo>"],
-      "valid_until": "2026-09-30T13:02:40Z",
+      "valid_until": "2026-10-03T14:41:13Z",
       "delegate_principal_id": "<principal:tianshu>"
     },
-    "event_id": "<event-19>",
+    "event_id": "<event-17>",
     "domain_id": "<domain:company>",
     "subject_refs": [
       {
@@ -1409,7 +1390,7 @@
         "block": null,
         "component": null,
         "object_id": "<company>",
-        "revision_id": "<revision-8>",
+        "revision_id": "<revision-12>",
         "object_version": 1
       }
     ],
@@ -1419,7 +1400,7 @@
   },
   "object_versions": [],
   "effect_task_ids": [],
-  "recorded_at": "2026-09-30T12:02:40.631554+00:00"
+  "recorded_at": "2026-10-03T13:41:14.397238+00:00"
 }
 ```
 
@@ -1439,7 +1420,7 @@
     "delegate_principal_id": "<principal:tianshu>",
     "families": ["lifecycle"],
     "domain_ids": ["<domain:eo>"],
-    "valid_until": "2026-09-30T21:02:40+08:00"
+    "valid_until": "2026-10-03T22:41:13+08:00"
   }
 }
 ```
@@ -1457,10 +1438,10 @@
     "detail": {
       "families": ["lifecycle"],
       "domain_ids": ["<domain:eo>"],
-      "valid_until": "2026-09-30T13:02:40Z",
+      "valid_until": "2026-10-03T14:41:13Z",
       "delegate_principal_id": "<principal:tianshu>"
     },
-    "event_id": "<event-20>",
+    "event_id": "<event-18>",
     "domain_id": "<domain:company>",
     "subject_refs": [
       {
@@ -1468,7 +1449,7 @@
         "block": null,
         "component": null,
         "object_id": "<company>",
-        "revision_id": "<revision-8>",
+        "revision_id": "<revision-12>",
         "object_version": 1
       }
     ],
@@ -1478,7 +1459,7 @@
   },
   "object_versions": [],
   "effect_task_ids": [],
-  "recorded_at": "2026-09-30T12:02:40.740468+00:00"
+  "recorded_at": "2026-10-03T13:41:14.623798+00:00"
 }
 ```
 
@@ -1490,7 +1471,7 @@
 {
   "action_type": "world_commit_period_goal",
   "contract_version": "tkos.world/0.2",
-  "target": {"object_id": "<period-goal-1>", "revision_id": "<revision-11>", "expected_version": 1},
+  "target": {"object_id": "<period-goal-1>", "revision_id": "<revision-15>", "expected_version": 1},
   "expected_versions": [],
   "idempotency_key": "world-02-examples:<run>:018",
   "reason": "world-02 天枢接入示例",
@@ -1520,7 +1501,7 @@
     "on_behalf_of": {
       "principal_id": "<principal:eo-dri>",
       "external_record_id": "tianshu:plan-submit:<run>-017",
-      "external_confirmed_at": "2026-09-30T19:59:40+08:00"
+      "external_confirmed_at": "2026-10-03T21:38:14+08:00"
     }
   }
 }
@@ -1538,15 +1519,15 @@
   "result": {
     "ref": "<period-goal-1>@1",
     "version": 1,
-    "event_id": "<event-21>",
+    "event_id": "<event-19>",
     "domain_id": "<domain:eo>",
     "object_id": "<period-goal-1>",
-    "revision_id": "<revision-11>",
+    "revision_id": "<revision-15>",
     "on_behalf_of": {
       "principal_id": "<principal:eo-dri>",
       "external_record_id": "tianshu:plan-submit:<run>-017",
-      "delegation_event_id": "<event-18>",
-      "external_confirmed_at": "2026-09-30T11:59:40Z"
+      "delegation_event_id": "<event-16>",
+      "external_confirmed_at": "2026-10-03T13:38:14Z"
     },
     "contract_version": "tkos.world/0.2",
     "referenced_object_ids": ["<long-term-goal-2>", "<period-goal-1>"],
@@ -1554,7 +1535,7 @@
   },
   "object_versions": [{"object_id": "<period-goal-1>", "object_version": 2}],
   "effect_task_ids": [],
-  "recorded_at": "2026-09-30T12:02:40.964196+00:00"
+  "recorded_at": "2026-10-03T13:41:15.268719+00:00"
 }
 ```
 
@@ -1566,7 +1547,7 @@
 {
   "action_type": "world_confirm_period_goal",
   "contract_version": "tkos.world/0.2",
-  "target": {"object_id": "<period-goal-1>", "revision_id": "<revision-11>", "expected_version": 2},
+  "target": {"object_id": "<period-goal-1>", "revision_id": "<revision-15>", "expected_version": 2},
   "expected_versions": [],
   "idempotency_key": "world-02-examples:<run>:020",
   "reason": "world-02 天枢接入示例",
@@ -1575,7 +1556,7 @@
     "on_behalf_of": {
       "principal_id": "<principal:ceo>",
       "external_record_id": "tianshu:plan-sign:<run>-019",
-      "external_confirmed_at": "2026-09-30T19:59:41+08:00"
+      "external_confirmed_at": "2026-10-03T21:38:15+08:00"
     }
   }
 }
@@ -1593,15 +1574,15 @@
   "result": {
     "ref": "<period-goal-1>@2",
     "version": 2,
-    "event_id": "<event-22>",
+    "event_id": "<event-20>",
     "domain_id": "<domain:eo>",
     "object_id": "<period-goal-1>",
-    "revision_id": "<revision-16>",
+    "revision_id": "<revision-20>",
     "on_behalf_of": {
       "principal_id": "<principal:ceo>",
       "external_record_id": "tianshu:plan-sign:<run>-019",
-      "delegation_event_id": "<event-17>",
-      "external_confirmed_at": "2026-09-30T11:59:41Z"
+      "delegation_event_id": "<event-15>",
+      "external_confirmed_at": "2026-10-03T13:38:15Z"
     },
     "contract_version": "tkos.world/0.2",
     "referenced_object_ids": ["<long-term-goal-2>", "<period-goal-1>"],
@@ -1609,7 +1590,7 @@
   },
   "object_versions": [{"object_id": "<period-goal-1>", "object_version": 3}],
   "effect_task_ids": [],
-  "recorded_at": "2026-09-30T12:02:41.205205+00:00"
+  "recorded_at": "2026-10-03T13:41:15.877250+00:00"
 }
 ```
 
@@ -1621,7 +1602,7 @@
 {
   "action_type": "world_commit_mission",
   "contract_version": "tkos.world/0.2",
-  "target": {"object_id": "<mission-1>", "revision_id": "<revision-14>", "expected_version": 3},
+  "target": {"object_id": "<mission-1>", "revision_id": "<revision-18>", "expected_version": 3},
   "expected_versions": [],
   "idempotency_key": "world-02-examples:<run>:022",
   "reason": "world-02 天枢接入示例",
@@ -1656,7 +1637,7 @@
     "on_behalf_of": {
       "principal_id": "<principal:eo-owner>",
       "external_record_id": "tianshu:card-submit:<run>-021",
-      "external_confirmed_at": "2026-09-30T19:59:41+08:00"
+      "external_confirmed_at": "2026-10-03T21:38:16+08:00"
     }
   }
 }
@@ -1674,24 +1655,24 @@
   "result": {
     "ref": "<mission-1>@3",
     "version": 3,
-    "event_id": "<event-23>",
+    "event_id": "<event-21>",
     "domain_id": "<domain:eo>",
     "object_id": "<mission-1>",
-    "revision_id": "<revision-14>",
+    "revision_id": "<revision-18>",
     "on_behalf_of": {
       "principal_id": "<principal:eo-owner>",
       "external_record_id": "tianshu:card-submit:<run>-021",
-      "delegation_event_id": "<event-19>",
-      "external_confirmed_at": "2026-09-30T11:59:41Z"
+      "delegation_event_id": "<event-17>",
+      "external_confirmed_at": "2026-10-03T13:38:16Z"
     },
     "contract_version": "tkos.world/0.2",
     "responsible_through": "<mission-1>",
-    "referenced_object_ids": ["<period-goal-1>", "<mission-1>"],
+    "referenced_object_ids": ["<mission-1>", "<period-goal-1>"],
     "required_assignment_ids": ["<assignment:eo-owner:OWNER@eo>"]
   },
   "object_versions": [{"object_id": "<mission-1>", "object_version": 4}],
   "effect_task_ids": [],
-  "recorded_at": "2026-09-30T12:02:41.472031+00:00"
+  "recorded_at": "2026-10-03T13:41:16.519272+00:00"
 }
 ```
 
@@ -1703,7 +1684,7 @@
 {
   "action_type": "world_confirm_mission",
   "contract_version": "tkos.world/0.2",
-  "target": {"object_id": "<mission-1>", "revision_id": "<revision-14>", "expected_version": 4},
+  "target": {"object_id": "<mission-1>", "revision_id": "<revision-18>", "expected_version": 4},
   "expected_versions": [],
   "idempotency_key": "world-02-examples:<run>:024",
   "reason": "world-02 天枢接入示例",
@@ -1712,7 +1693,7 @@
     "on_behalf_of": {
       "principal_id": "<principal:eo-dri>",
       "external_record_id": "tianshu:card-confirm:<run>-023",
-      "external_confirmed_at": "2026-09-30T19:59:41+08:00"
+      "external_confirmed_at": "2026-10-03T21:38:16+08:00"
     }
   }
 }
@@ -1730,39 +1711,39 @@
   "result": {
     "ref": "<mission-1>@4",
     "version": 4,
-    "event_id": "<event-24>",
+    "event_id": "<event-22>",
     "domain_id": "<domain:eo>",
     "object_id": "<mission-1>",
-    "revision_id": "<revision-17>",
+    "revision_id": "<revision-21>",
     "on_behalf_of": {
       "principal_id": "<principal:eo-dri>",
       "external_record_id": "tianshu:card-confirm:<run>-023",
-      "delegation_event_id": "<event-18>",
-      "external_confirmed_at": "2026-09-30T11:59:41Z"
+      "delegation_event_id": "<event-16>",
+      "external_confirmed_at": "2026-10-03T13:38:16Z"
     },
     "contract_version": "tkos.world/0.2",
-    "referenced_object_ids": ["<period-goal-1>", "<mission-1>"],
+    "referenced_object_ids": ["<mission-1>", "<period-goal-1>"],
     "required_assignment_ids": ["<assignment:eo-dri:DOMAIN_DRI@eo>"]
   },
   "object_versions": [{"object_id": "<mission-1>", "object_version": 5}],
   "effect_task_ids": [],
-  "recorded_at": "2026-09-30T12:02:41.915010+00:00"
+  "recorded_at": "2026-10-03T13:41:16.940832+00:00"
 }
 ```
 
 **取 Mission 的事件（`since` 之后）：记录者是天枢，另有被代记的人与外部确认记录**
 
-`GET /v1/world/objects/<mission-1>/events?since=2026-09-30T12:02:40.799129Z`，身份：`tianshu`（天枢服务主体）
+`GET /v1/world/objects/<mission-1>/events?since=2026-10-03T13:41:14.769252Z`，身份：`tianshu`（天枢服务主体）
 
 返回 `200`：
 
 ```json
 {
   "object_id": "<mission-1>",
-  "since": "2026-09-30T12:02:40.799129Z",
+  "since": "2026-10-03T13:41:14.769252Z",
   "events": [
     {
-      "event_id": "<event-23>",
+      "event_id": "<event-21>",
       "scope_id": "<scope>",
       "kind": "commit",
       "class": "gate",
@@ -1774,7 +1755,7 @@
           "block": null,
           "component": null,
           "object_id": "<mission-1>",
-          "revision_id": "<revision-14>",
+          "revision_id": "<revision-18>",
           "object_version": 3,
           "ref": "<mission-1>@3"
         }
@@ -1787,10 +1768,10 @@
       "on_behalf_of": {"principal_id": "<principal:eo-owner>", "display_name": "E&O Mission Owner"},
       "external_confirmation": {
         "external_record_id": "tianshu:card-submit:<run>-021",
-        "external_confirmed_at": "2026-09-30T11:59:41Z"
+        "external_confirmed_at": "2026-10-03T13:38:16Z"
       },
-      "occurred_at": "2026-09-30T12:02:41.471684Z",
-      "recorded_at": "2026-09-30T12:02:41.471684Z",
+      "occurred_at": "2026-10-03T13:41:16.518979Z",
+      "recorded_at": "2026-10-03T13:41:16.518979Z",
       "late": false,
       "content": null,
       "detail": {
@@ -1829,7 +1810,7 @@
       "withdrawn_by": []
     },
     {
-      "event_id": "<event-24>",
+      "event_id": "<event-22>",
       "scope_id": "<scope>",
       "kind": "confirm",
       "class": "gate",
@@ -1841,7 +1822,7 @@
           "block": null,
           "component": null,
           "object_id": "<mission-1>",
-          "revision_id": "<revision-17>",
+          "revision_id": "<revision-21>",
           "object_version": 4,
           "ref": "<mission-1>@4"
         }
@@ -1854,10 +1835,10 @@
       "on_behalf_of": {"principal_id": "<principal:eo-dri>", "display_name": "E&O DRI"},
       "external_confirmation": {
         "external_record_id": "tianshu:card-confirm:<run>-023",
-        "external_confirmed_at": "2026-09-30T11:59:41Z"
+        "external_confirmed_at": "2026-10-03T13:38:16Z"
       },
-      "occurred_at": "2026-09-30T12:02:41.914669Z",
-      "recorded_at": "2026-09-30T12:02:41.914669Z",
+      "occurred_at": "2026-10-03T13:41:16.940455Z",
+      "recorded_at": "2026-10-03T13:41:16.940455Z",
       "late": false,
       "content": null,
       "detail": null,
@@ -1884,7 +1865,7 @@
 {
   "action_type": "world_revise_object",
   "contract_version": "tkos.world/0.2",
-  "target": {"object_id": "<mission-1>", "revision_id": "<revision-17>", "expected_version": 5},
+  "target": {"object_id": "<mission-1>", "revision_id": "<revision-21>", "expected_version": 5},
   "expected_versions": [],
   "idempotency_key": "world-02-examples:<run>:025",
   "reason": "world-02 天枢接入示例",
@@ -1926,7 +1907,7 @@
   "result": {
     "ref": "<mission-1>@5",
     "version": 5,
-    "event_id": "<event-25>",
+    "event_id": "<event-23>",
     "domain_id": "<domain:eo>",
     "object_id": "<mission-1>",
     "declaration": {
@@ -1935,20 +1916,20 @@
         "block": null,
         "component": null,
         "object_id": "<mission-1>",
-        "revision_id": "<revision-17>",
+        "revision_id": "<revision-21>",
         "object_version": 4
       },
       "trigger": "天枢同步执行事项到执行计划",
       "human_acceptance": {"required": false}
     },
-    "revision_id": "<revision-18>",
+    "revision_id": "<revision-22>",
     "contract_version": "tkos.world/0.2",
-    "referenced_object_ids": ["<period-goal-1>", "<mission-1>"],
+    "referenced_object_ids": ["<mission-1>", "<period-goal-1>"],
     "required_assignment_ids": ["<assignment:tianshu:AGENT@eo>"]
   },
   "object_versions": [{"object_id": "<mission-1>", "object_version": 6}],
   "effect_task_ids": [],
-  "recorded_at": "2026-09-30T12:02:42.602513+00:00"
+  "recorded_at": "2026-10-03T13:41:17.823061+00:00"
 }
 ```
 
@@ -2017,17 +1998,17 @@
   "result": {
     "ref": "<task-1>@1",
     "version": 1,
-    "event_id": "<event-26>",
+    "event_id": "<event-24>",
     "domain_id": "<domain:eo>",
     "object_id": "<task-1>",
-    "revision_id": "<revision-19>",
+    "revision_id": "<revision-23>",
     "contract_version": "tkos.world/0.2",
-    "referenced_object_ids": ["<task-1>", "<mission-1>"],
+    "referenced_object_ids": ["<mission-1>", "<task-1>"],
     "required_assignment_ids": ["<assignment:eo-dri:DOMAIN_DRI@eo>"]
   },
   "object_versions": [{"object_id": "<task-1>", "object_version": 1}],
   "effect_task_ids": [],
-  "recorded_at": "2026-09-30T12:02:43.221901+00:00"
+  "recorded_at": "2026-10-03T13:41:18.622971+00:00"
 }
 ```
 
@@ -2039,7 +2020,7 @@
 {
   "action_type": "world_assign",
   "contract_version": "tkos.world/0.2",
-  "target": {"object_id": "<task-1>", "revision_id": "<revision-19>", "expected_version": 1},
+  "target": {"object_id": "<task-1>", "revision_id": "<revision-23>", "expected_version": 1},
   "expected_versions": [],
   "idempotency_key": "world-02-examples:<run>:028",
   "reason": "world-02 天枢接入示例",
@@ -2048,7 +2029,7 @@
     "on_behalf_of": {
       "principal_id": "<principal:eo-owner>",
       "external_record_id": "tianshu:assign:<run>-027",
-      "external_confirmed_at": "2026-09-30T19:59:43+08:00"
+      "external_confirmed_at": "2026-10-03T21:38:18+08:00"
     }
   }
 }
@@ -2067,15 +2048,15 @@
     "ref": "<task-1>@2",
     "version": 2,
     "assignee": "<principal:eo-ic>",
-    "event_id": "<event-27>",
+    "event_id": "<event-25>",
     "domain_id": "<domain:eo>",
     "object_id": "<task-1>",
-    "revision_id": "<revision-20>",
+    "revision_id": "<revision-24>",
     "on_behalf_of": {
       "principal_id": "<principal:eo-owner>",
       "external_record_id": "tianshu:assign:<run>-027",
-      "delegation_event_id": "<event-19>",
-      "external_confirmed_at": "2026-09-30T11:59:43Z"
+      "delegation_event_id": "<event-17>",
+      "external_confirmed_at": "2026-10-03T13:38:18Z"
     },
     "contract_version": "tkos.world/0.2",
     "responsible_through": "<mission-1>",
@@ -2084,7 +2065,7 @@
   },
   "object_versions": [{"object_id": "<task-1>", "object_version": 2}],
   "effect_task_ids": [],
-  "recorded_at": "2026-09-30T12:02:43.467943+00:00"
+  "recorded_at": "2026-10-03T13:41:19.148306+00:00"
 }
 ```
 
@@ -2096,7 +2077,7 @@
 {
   "action_type": "world_start",
   "contract_version": "tkos.world/0.2",
-  "target": {"object_id": "<task-1>", "revision_id": "<revision-20>", "expected_version": 2},
+  "target": {"object_id": "<task-1>", "revision_id": "<revision-24>", "expected_version": 2},
   "expected_versions": [],
   "idempotency_key": "world-02-examples:<run>:030",
   "reason": "world-02 天枢接入示例",
@@ -2104,7 +2085,7 @@
     "on_behalf_of": {
       "principal_id": "<principal:eo-ic>",
       "external_record_id": "tianshu:start:<run>-029",
-      "external_confirmed_at": "2026-09-30T19:59:43+08:00"
+      "external_confirmed_at": "2026-10-03T21:38:19+08:00"
     }
   }
 }
@@ -2122,15 +2103,15 @@
   "result": {
     "ref": "<task-1>@2",
     "version": 2,
-    "event_id": "<event-28>",
+    "event_id": "<event-26>",
     "domain_id": "<domain:eo>",
     "object_id": "<task-1>",
-    "revision_id": "<revision-20>",
+    "revision_id": "<revision-24>",
     "on_behalf_of": {
       "principal_id": "<principal:eo-ic>",
       "external_record_id": "tianshu:start:<run>-029",
-      "delegation_event_id": "<event-20>",
-      "external_confirmed_at": "2026-09-30T11:59:43Z"
+      "delegation_event_id": "<event-18>",
+      "external_confirmed_at": "2026-10-03T13:38:19Z"
     },
     "contract_version": "tkos.world/0.2",
     "responsible_through": "<task-1>",
@@ -2139,7 +2120,7 @@
   },
   "object_versions": [{"object_id": "<task-1>", "object_version": 3}],
   "effect_task_ids": [],
-  "recorded_at": "2026-09-30T12:02:44.690181+00:00"
+  "recorded_at": "2026-10-03T13:41:19.567530+00:00"
 }
 ```
 
@@ -2151,7 +2132,7 @@
 {
   "action_type": "world_deliver",
   "contract_version": "tkos.world/0.2",
-  "target": {"object_id": "<task-1>", "revision_id": "<revision-20>", "expected_version": 3},
+  "target": {"object_id": "<task-1>", "revision_id": "<revision-24>", "expected_version": 3},
   "expected_versions": [],
   "idempotency_key": "world-02-examples:<run>:032",
   "reason": "world-02 天枢接入示例",
@@ -2160,7 +2141,7 @@
     "on_behalf_of": {
       "principal_id": "<principal:eo-ic>",
       "external_record_id": "tianshu:deliver:<run>-031",
-      "external_confirmed_at": "2026-09-30T19:59:44+08:00"
+      "external_confirmed_at": "2026-10-03T21:38:19+08:00"
     }
   }
 }
@@ -2178,15 +2159,15 @@
   "result": {
     "ref": "<task-1>@2",
     "version": 2,
-    "event_id": "<event-29>",
+    "event_id": "<event-27>",
     "domain_id": "<domain:eo>",
     "object_id": "<task-1>",
-    "revision_id": "<revision-20>",
+    "revision_id": "<revision-24>",
     "on_behalf_of": {
       "principal_id": "<principal:eo-ic>",
       "external_record_id": "tianshu:deliver:<run>-031",
-      "delegation_event_id": "<event-20>",
-      "external_confirmed_at": "2026-09-30T11:59:44Z"
+      "delegation_event_id": "<event-18>",
+      "external_confirmed_at": "2026-10-03T13:38:19Z"
     },
     "contract_version": "tkos.world/0.2",
     "responsible_through": "<task-1>",
@@ -2195,7 +2176,7 @@
   },
   "object_versions": [{"object_id": "<task-1>", "object_version": 4}],
   "effect_task_ids": [],
-  "recorded_at": "2026-09-30T12:02:44.910235+00:00"
+  "recorded_at": "2026-10-03T13:41:20.061075+00:00"
 }
 ```
 
@@ -2207,7 +2188,7 @@
 {
   "action_type": "world_reject",
   "contract_version": "tkos.world/0.2",
-  "target": {"object_id": "<task-1>", "revision_id": "<revision-20>", "expected_version": 4},
+  "target": {"object_id": "<task-1>", "revision_id": "<revision-24>", "expected_version": 4},
   "expected_versions": [],
   "idempotency_key": "world-02-examples:<run>:034",
   "reason": "world-02 天枢接入示例",
@@ -2216,7 +2197,7 @@
     "on_behalf_of": {
       "principal_id": "<principal:eo-owner>",
       "external_record_id": "tianshu:reject:<run>-033",
-      "external_confirmed_at": "2026-09-30T19:59:44+08:00"
+      "external_confirmed_at": "2026-10-03T21:38:20+08:00"
     }
   }
 }
@@ -2234,15 +2215,15 @@
   "result": {
     "ref": "<task-1>@2",
     "version": 2,
-    "event_id": "<event-30>",
+    "event_id": "<event-28>",
     "domain_id": "<domain:eo>",
     "object_id": "<task-1>",
-    "revision_id": "<revision-20>",
+    "revision_id": "<revision-24>",
     "on_behalf_of": {
       "principal_id": "<principal:eo-owner>",
       "external_record_id": "tianshu:reject:<run>-033",
-      "delegation_event_id": "<event-19>",
-      "external_confirmed_at": "2026-09-30T11:59:44Z"
+      "delegation_event_id": "<event-17>",
+      "external_confirmed_at": "2026-10-03T13:38:20Z"
     },
     "contract_version": "tkos.world/0.2",
     "responsible_through": "<mission-1>",
@@ -2251,7 +2232,7 @@
   },
   "object_versions": [{"object_id": "<task-1>", "object_version": 5}],
   "effect_task_ids": [],
-  "recorded_at": "2026-09-30T12:02:45.277848+00:00"
+  "recorded_at": "2026-10-03T13:41:20.541602+00:00"
 }
 ```
 
@@ -2263,7 +2244,7 @@
 {
   "action_type": "world_accept",
   "contract_version": "tkos.world/0.2",
-  "target": {"object_id": "<task-1>", "revision_id": "<revision-20>", "expected_version": 6},
+  "target": {"object_id": "<task-1>", "revision_id": "<revision-24>", "expected_version": 6},
   "expected_versions": [],
   "idempotency_key": "world-02-examples:<run>:038",
   "reason": "world-02 天枢接入示例",
@@ -2271,7 +2252,7 @@
     "on_behalf_of": {
       "principal_id": "<principal:eo-owner>",
       "external_record_id": "tianshu:accept:<run>-037",
-      "external_confirmed_at": "2026-09-30T19:59:45+08:00"
+      "external_confirmed_at": "2026-10-03T21:38:21+08:00"
     }
   }
 }
@@ -2289,15 +2270,15 @@
   "result": {
     "ref": "<task-1>@2",
     "version": 2,
-    "event_id": "<event-32>",
+    "event_id": "<event-30>",
     "domain_id": "<domain:eo>",
     "object_id": "<task-1>",
-    "revision_id": "<revision-20>",
+    "revision_id": "<revision-24>",
     "on_behalf_of": {
       "principal_id": "<principal:eo-owner>",
       "external_record_id": "tianshu:accept:<run>-037",
-      "delegation_event_id": "<event-19>",
-      "external_confirmed_at": "2026-09-30T11:59:45Z"
+      "delegation_event_id": "<event-17>",
+      "external_confirmed_at": "2026-10-03T13:38:21Z"
     },
     "contract_version": "tkos.world/0.2",
     "responsible_through": "<mission-1>",
@@ -2306,7 +2287,7 @@
   },
   "object_versions": [{"object_id": "<task-1>", "object_version": 7}],
   "effect_task_ids": [],
-  "recorded_at": "2026-09-30T12:02:45.708058+00:00"
+  "recorded_at": "2026-10-03T13:41:21.409879+00:00"
 }
 ```
 
@@ -2318,7 +2299,7 @@
 {
   "action_type": "world_reopen",
   "contract_version": "tkos.world/0.2",
-  "target": {"object_id": "<task-1>", "revision_id": "<revision-20>", "expected_version": 7},
+  "target": {"object_id": "<task-1>", "revision_id": "<revision-24>", "expected_version": 7},
   "expected_versions": [],
   "idempotency_key": "world-02-examples:<run>:040",
   "reason": "world-02 天枢接入示例",
@@ -2327,7 +2308,7 @@
     "on_behalf_of": {
       "principal_id": "<principal:eo-owner>",
       "external_record_id": "tianshu:reopen:<run>-039",
-      "external_confirmed_at": "2026-09-30T19:59:45+08:00"
+      "external_confirmed_at": "2026-10-03T21:38:21+08:00"
     }
   }
 }
@@ -2345,15 +2326,15 @@
   "result": {
     "ref": "<task-1>@2",
     "version": 2,
-    "event_id": "<event-33>",
+    "event_id": "<event-31>",
     "domain_id": "<domain:eo>",
     "object_id": "<task-1>",
-    "revision_id": "<revision-20>",
+    "revision_id": "<revision-24>",
     "on_behalf_of": {
       "principal_id": "<principal:eo-owner>",
       "external_record_id": "tianshu:reopen:<run>-039",
-      "delegation_event_id": "<event-19>",
-      "external_confirmed_at": "2026-09-30T11:59:45Z"
+      "delegation_event_id": "<event-17>",
+      "external_confirmed_at": "2026-10-03T13:38:21Z"
     },
     "contract_version": "tkos.world/0.2",
     "responsible_through": "<mission-1>",
@@ -2362,7 +2343,7 @@
   },
   "object_versions": [{"object_id": "<task-1>", "object_version": 8}],
   "effect_task_ids": [],
-  "recorded_at": "2026-09-30T12:02:45.926356+00:00"
+  "recorded_at": "2026-10-03T13:41:21.874464+00:00"
 }
 ```
 
@@ -2379,7 +2360,7 @@
 {
   "action_type": "world_revise_object",
   "contract_version": "tkos.world/0.2",
-  "target": {"object_id": "<mission-1>", "revision_id": "<revision-18>", "expected_version": 6},
+  "target": {"object_id": "<mission-1>", "revision_id": "<revision-22>", "expected_version": 6},
   "expected_versions": [],
   "idempotency_key": "world-02-examples:<run>:045",
   "reason": "world-02 天枢接入示例",
@@ -2422,7 +2403,7 @@
   "result": {
     "ref": "<mission-1>@6",
     "version": 6,
-    "event_id": "<event-36>",
+    "event_id": "<event-34>",
     "domain_id": "<domain:eo>",
     "object_id": "<mission-1>",
     "declaration": {
@@ -2431,20 +2412,20 @@
         "block": null,
         "component": null,
         "object_id": "<mission-1>",
-        "revision_id": "<revision-18>",
+        "revision_id": "<revision-22>",
         "object_version": 5
       },
       "trigger": "按周会结论更新执行计划",
       "human_acceptance": {"required": false}
     },
-    "revision_id": "<revision-21>",
+    "revision_id": "<revision-25>",
     "contract_version": "tkos.world/0.2",
-    "referenced_object_ids": ["<period-goal-1>", "<mission-1>"],
+    "referenced_object_ids": ["<mission-1>", "<period-goal-1>"],
     "required_assignment_ids": ["<assignment:eo-coagent:AGENT@eo>"]
   },
   "object_versions": [{"object_id": "<mission-1>", "object_version": 7}],
   "effect_task_ids": [],
-  "recorded_at": "2026-09-30T12:02:46.671626+00:00"
+  "recorded_at": "2026-10-03T13:41:23.378597+00:00"
 }
 ```
 
@@ -2493,7 +2474,7 @@
       "display_name": "待路由",
       "primary_affected_object_id": "<mission-1>"
     },
-    "event_id": "<event-37>",
+    "event_id": "<event-35>",
     "domain_id": "<domain:eo>",
     "declaration": {
       "scene": {
@@ -2501,7 +2482,7 @@
         "block": null,
         "component": null,
         "object_id": "<mission-1>",
-        "revision_id": "<revision-21>",
+        "revision_id": "<revision-25>",
         "object_version": 6
       },
       "trigger": "每周同步发现的问题",
@@ -2513,7 +2494,7 @@
         "block": "issues",
         "component": "issue:demo-<run>-1",
         "object_id": "<snapshot-1>",
-        "revision_id": "<revision-15>",
+        "revision_id": "<revision-19>",
         "object_version": 1
       },
       {
@@ -2521,17 +2502,17 @@
         "block": null,
         "component": null,
         "object_id": "<mission-1>",
-        "revision_id": "<revision-21>",
+        "revision_id": "<revision-25>",
         "object_version": 6
       }
     ],
     "contract_version": "tkos.world/0.2",
-    "referenced_object_ids": ["<snapshot-1>", "<mission-1>"],
+    "referenced_object_ids": ["<mission-1>", "<snapshot-1>"],
     "required_assignment_ids": ["<assignment:tianshu:AGENT@eo>"]
   },
   "object_versions": [],
   "effect_task_ids": [],
-  "recorded_at": "2026-09-30T12:02:46.984687+00:00"
+  "recorded_at": "2026-10-03T13:41:24.050489+00:00"
 }
 ```
 
@@ -2576,7 +2557,7 @@
       "primary_affected_object_id": "<mission-1>"
     },
     "detail": {"to_principal_id": "<principal:eo-owner>"},
-    "event_id": "<event-38>",
+    "event_id": "<event-36>",
     "domain_id": "<domain:eo>",
     "declaration": {
       "scene": {
@@ -2584,7 +2565,7 @@
         "block": null,
         "component": null,
         "object_id": "<mission-1>",
-        "revision_id": "<revision-21>",
+        "revision_id": "<revision-25>",
         "object_version": 6
       },
       "trigger": "每周同步发现的问题",
@@ -2596,7 +2577,7 @@
         "block": "issues",
         "component": "issue:demo-<run>-1",
         "object_id": "<snapshot-1>",
-        "revision_id": "<revision-15>",
+        "revision_id": "<revision-19>",
         "object_version": 1
       },
       {
@@ -2604,17 +2585,17 @@
         "block": null,
         "component": null,
         "object_id": "<mission-1>",
-        "revision_id": "<revision-21>",
+        "revision_id": "<revision-25>",
         "object_version": 6
       }
     ],
     "contract_version": "tkos.world/0.2",
-    "referenced_object_ids": ["<snapshot-1>", "<mission-1>"],
+    "referenced_object_ids": ["<mission-1>", "<snapshot-1>"],
     "required_assignment_ids": ["<assignment:tianshu:AGENT@eo>"]
   },
   "object_versions": [],
   "effect_task_ids": [],
-  "recorded_at": "2026-09-30T12:02:47.092607+00:00"
+  "recorded_at": "2026-10-03T13:41:24.318204+00:00"
 }
 ```
 
@@ -2635,7 +2616,7 @@
     "on_behalf_of": {
       "principal_id": "<principal:eo-owner>",
       "external_record_id": "tianshu:own_issue:<run>-048",
-      "external_confirmed_at": "2026-09-30T19:59:47+08:00"
+      "external_confirmed_at": "2026-10-03T21:38:24+08:00"
     }
   }
 }
@@ -2657,13 +2638,13 @@
       "display_name": "已承接",
       "primary_affected_object_id": "<mission-1>"
     },
-    "event_id": "<event-39>",
+    "event_id": "<event-37>",
     "domain_id": "<domain:eo>",
     "on_behalf_of": {
       "principal_id": "<principal:eo-owner>",
       "external_record_id": "tianshu:own_issue:<run>-048",
-      "delegation_event_id": "<event-19>",
-      "external_confirmed_at": "2026-09-30T11:59:47Z"
+      "delegation_event_id": "<event-17>",
+      "external_confirmed_at": "2026-10-03T13:38:24Z"
     },
     "subject_refs": [
       {
@@ -2671,7 +2652,7 @@
         "block": "issues",
         "component": "issue:demo-<run>-1",
         "object_id": "<snapshot-1>",
-        "revision_id": "<revision-15>",
+        "revision_id": "<revision-19>",
         "object_version": 1
       },
       {
@@ -2679,17 +2660,17 @@
         "block": null,
         "component": null,
         "object_id": "<mission-1>",
-        "revision_id": "<revision-21>",
+        "revision_id": "<revision-25>",
         "object_version": 6
       }
     ],
     "contract_version": "tkos.world/0.2",
-    "referenced_object_ids": ["<snapshot-1>", "<mission-1>"],
+    "referenced_object_ids": ["<mission-1>", "<snapshot-1>"],
     "required_assignment_ids": ["<assignment:eo-owner:IC@eo>"]
   },
   "object_versions": [],
   "effect_task_ids": [],
-  "recorded_at": "2026-09-30T12:02:47.200250+00:00"
+  "recorded_at": "2026-10-03T13:41:24.543725+00:00"
 }
 ```
 
@@ -2711,7 +2692,7 @@
     "on_behalf_of": {
       "principal_id": "<principal:eo-owner>",
       "external_record_id": "tianshu:return_issue:<run>-050",
-      "external_confirmed_at": "2026-09-30T19:59:47+08:00"
+      "external_confirmed_at": "2026-10-03T21:38:24+08:00"
     }
   }
 }
@@ -2733,13 +2714,13 @@
       "display_name": "形成中",
       "primary_affected_object_id": "<mission-1>"
     },
-    "event_id": "<event-40>",
+    "event_id": "<event-38>",
     "domain_id": "<domain:eo>",
     "on_behalf_of": {
       "principal_id": "<principal:eo-owner>",
       "external_record_id": "tianshu:return_issue:<run>-050",
-      "delegation_event_id": "<event-19>",
-      "external_confirmed_at": "2026-09-30T11:59:47Z"
+      "delegation_event_id": "<event-17>",
+      "external_confirmed_at": "2026-10-03T13:38:24Z"
     },
     "subject_refs": [
       {
@@ -2747,7 +2728,7 @@
         "block": "issues",
         "component": "issue:demo-<run>-1",
         "object_id": "<snapshot-1>",
-        "revision_id": "<revision-15>",
+        "revision_id": "<revision-19>",
         "object_version": 1
       },
       {
@@ -2755,18 +2736,18 @@
         "block": null,
         "component": null,
         "object_id": "<mission-1>",
-        "revision_id": "<revision-21>",
+        "revision_id": "<revision-25>",
         "object_version": 6
       }
     ],
     "contract_version": "tkos.world/0.2",
     "responsible_through": "<mission-1>",
-    "referenced_object_ids": ["<snapshot-1>", "<mission-1>"],
+    "referenced_object_ids": ["<mission-1>", "<snapshot-1>"],
     "required_assignment_ids": ["<assignment:eo-owner:OWNER@eo>"]
   },
   "object_versions": [],
   "effect_task_ids": [],
-  "recorded_at": "2026-09-30T12:02:47.320408+00:00"
+  "recorded_at": "2026-10-03T13:41:24.847615+00:00"
 }
 ```
 
@@ -2789,7 +2770,7 @@
     "on_behalf_of": {
       "principal_id": "<principal:eo-owner>",
       "external_record_id": "tianshu:dispose_issue:<run>-056",
-      "external_confirmed_at": "2026-09-30T19:59:47+08:00"
+      "external_confirmed_at": "2026-10-03T21:38:25+08:00"
     }
   }
 }
@@ -2811,14 +2792,14 @@
       "display_name": "已处置",
       "primary_affected_object_id": "<mission-1>"
     },
-    "event_id": "<event-44>",
+    "event_id": "<event-42>",
     "domain_id": "<domain:eo>",
     "disposition": "current_layer_action",
     "on_behalf_of": {
       "principal_id": "<principal:eo-owner>",
       "external_record_id": "tianshu:dispose_issue:<run>-056",
-      "delegation_event_id": "<event-19>",
-      "external_confirmed_at": "2026-09-30T11:59:47Z"
+      "delegation_event_id": "<event-17>",
+      "external_confirmed_at": "2026-10-03T13:38:25Z"
     },
     "subject_refs": [
       {
@@ -2826,7 +2807,7 @@
         "block": "issues",
         "component": "issue:demo-<run>-1",
         "object_id": "<snapshot-1>",
-        "revision_id": "<revision-15>",
+        "revision_id": "<revision-19>",
         "object_version": 1
       },
       {
@@ -2834,33 +2815,33 @@
         "block": null,
         "component": null,
         "object_id": "<mission-1>",
-        "revision_id": "<revision-21>",
+        "revision_id": "<revision-25>",
         "object_version": 6
       }
     ],
     "contract_version": "tkos.world/0.2",
-    "referenced_object_ids": ["<snapshot-1>", "<mission-1>"],
+    "referenced_object_ids": ["<mission-1>", "<snapshot-1>"],
     "required_assignment_ids": ["<assignment:eo-owner:IC@eo>"]
   },
   "object_versions": [],
   "effect_task_ids": [],
-  "recorded_at": "2026-09-30T12:02:47.732863+00:00"
+  "recorded_at": "2026-10-03T13:41:25.985090+00:00"
 }
 ```
 
 **取 Mission 的事件（`since` 之后）：议题事件，代记的带被代记的人与外部确认记录**
 
-`GET /v1/world/objects/<mission-1>/events?since=2026-09-30T12:02:46.817773Z`，身份：`tianshu`（天枢服务主体）
+`GET /v1/world/objects/<mission-1>/events?since=2026-10-03T13:41:23.671457Z`，身份：`tianshu`（天枢服务主体）
 
 返回 `200`：
 
 ```json
 {
   "object_id": "<mission-1>",
-  "since": "2026-09-30T12:02:46.817773Z",
+  "since": "2026-10-03T13:41:23.671457Z",
   "events": [
     {
-      "event_id": "<event-37>",
+      "event_id": "<event-35>",
       "scope_id": "<scope>",
       "kind": "issue.raised",
       "class": "record",
@@ -2872,7 +2853,7 @@
           "block": "issues",
           "component": "issue:demo-<run>-1",
           "object_id": "<snapshot-1>",
-          "revision_id": "<revision-15>",
+          "revision_id": "<revision-19>",
           "object_version": 1,
           "ref": "<snapshot-1>@1#issues/issue:demo-<run>-1"
         },
@@ -2880,7 +2861,7 @@
           "block": null,
           "component": null,
           "object_id": "<mission-1>",
-          "revision_id": "<revision-21>",
+          "revision_id": "<revision-25>",
           "object_version": 6,
           "ref": "<mission-1>@6"
         }
@@ -2892,8 +2873,8 @@
       },
       "on_behalf_of": null,
       "external_confirmation": null,
-      "occurred_at": "2026-09-30T12:02:46.984397Z",
-      "recorded_at": "2026-09-30T12:02:46.984397Z",
+      "occurred_at": "2026-10-03T13:41:24.050150Z",
+      "recorded_at": "2026-10-03T13:41:24.050150Z",
       "late": false,
       "content": {"refs": [], "text": "每周同步提出", "artifacts": [], "components": []},
       "detail": null,
@@ -2904,7 +2885,7 @@
       "withdrawn_by": []
     },
     {
-      "event_id": "<event-38>",
+      "event_id": "<event-36>",
       "scope_id": "<scope>",
       "kind": "issue.routed",
       "class": "record",
@@ -2916,7 +2897,7 @@
           "block": "issues",
           "component": "issue:demo-<run>-1",
           "object_id": "<snapshot-1>",
-          "revision_id": "<revision-15>",
+          "revision_id": "<revision-19>",
           "object_version": 1,
           "ref": "<snapshot-1>@1#issues/issue:demo-<run>-1"
         },
@@ -2924,7 +2905,7 @@
           "block": null,
           "component": null,
           "object_id": "<mission-1>",
-          "revision_id": "<revision-21>",
+          "revision_id": "<revision-25>",
           "object_version": 6,
           "ref": "<mission-1>@6"
         }
@@ -2936,8 +2917,8 @@
       },
       "on_behalf_of": null,
       "external_confirmation": null,
-      "occurred_at": "2026-09-30T12:02:47.092316Z",
-      "recorded_at": "2026-09-30T12:02:47.092316Z",
+      "occurred_at": "2026-10-03T13:41:24.317901Z",
+      "recorded_at": "2026-10-03T13:41:24.317901Z",
       "late": false,
       "content": null,
       "detail": {"to_principal_id": "<principal:eo-owner>"},
@@ -2948,7 +2929,7 @@
       "withdrawn_by": []
     },
     {
-      "event_id": "<event-39>",
+      "event_id": "<event-37>",
       "scope_id": "<scope>",
       "kind": "issue.owned",
       "class": "record",
@@ -2960,7 +2941,7 @@
           "block": "issues",
           "component": "issue:demo-<run>-1",
           "object_id": "<snapshot-1>",
-          "revision_id": "<revision-15>",
+          "revision_id": "<revision-19>",
           "object_version": 1,
           "ref": "<snapshot-1>@1#issues/issue:demo-<run>-1"
         },
@@ -2968,7 +2949,7 @@
           "block": null,
           "component": null,
           "object_id": "<mission-1>",
-          "revision_id": "<revision-21>",
+          "revision_id": "<revision-25>",
           "object_version": 6,
           "ref": "<mission-1>@6"
         }
@@ -2981,10 +2962,10 @@
       "on_behalf_of": {"principal_id": "<principal:eo-owner>", "display_name": "E&O Mission Owner"},
       "external_confirmation": {
         "external_record_id": "tianshu:own_issue:<run>-048",
-        "external_confirmed_at": "2026-09-30T11:59:47Z"
+        "external_confirmed_at": "2026-10-03T13:38:24Z"
       },
-      "occurred_at": "2026-09-30T12:02:47.199945Z",
-      "recorded_at": "2026-09-30T12:02:47.199945Z",
+      "occurred_at": "2026-10-03T13:41:24.543411Z",
+      "recorded_at": "2026-10-03T13:41:24.543411Z",
       "late": false,
       "content": null,
       "detail": null,
@@ -3018,7 +2999,7 @@
 {
   "contract_version": "tkos.world/0.2",
   "context_pack_id": "<context-pack-1>",
-  "created_at": "2026-09-30T12:02:48.368732Z",
+  "created_at": "2026-10-03T13:41:26.383353Z",
   "object_id": "<mission-1>",
   "question": "这个 Mission 为什么做、做什么、谁负责、现在怎样？",
   "context_pack": {
@@ -3038,7 +3019,7 @@
           "pinned": {
             "object_id": "<mission-1>",
             "object_version": 6,
-            "revision_id": "<revision-21>",
+            "revision_id": "<revision-25>",
             "block": null,
             "component": null,
             "ref": "<mission-1>@6"
@@ -3046,7 +3027,7 @@
           "lifecycle": {
             "status": "established",
             "display_name": "已成立",
-            "event_id": "<event-24>"
+            "event_id": "<event-22>"
           },
           "formal": true,
           "responsible": {
@@ -3079,7 +3060,7 @@
                       "block": "target",
                       "component": "pg-ac1",
                       "object_id": "<period-goal-1>",
-                      "revision_id": "<revision-11>",
+                      "revision_id": "<revision-15>",
                       "object_version": 1,
                       "ref": "<period-goal-1>@1#target/pg-ac1"
                     }
@@ -3093,7 +3074,7 @@
                   "pinned": {
                     "object_id": "<mission-1>",
                     "object_version": 6,
-                    "revision_id": "<revision-21>",
+                    "revision_id": "<revision-25>",
                     "block": "definition",
                     "component": "m-ac1",
                     "ref": "<mission-1>@6#definition/m-ac1"
@@ -3112,7 +3093,7 @@
                     "block": "target",
                     "component": "pg-ac1",
                     "object_id": "<period-goal-1>",
-                    "revision_id": "<revision-11>",
+                    "revision_id": "<revision-15>",
                     "object_version": 1,
                     "ref": "<period-goal-1>@1#target/pg-ac1"
                   }
@@ -3126,7 +3107,7 @@
                 "pinned": {
                   "object_id": "<mission-1>",
                   "object_version": 6,
-                  "revision_id": "<revision-21>",
+                  "revision_id": "<revision-25>",
                   "block": "definition",
                   "component": "m-ac1",
                   "ref": "<mission-1>@6#definition/m-ac1"
@@ -3138,7 +3119,7 @@
             "pinned": {
               "object_id": "<mission-1>",
               "object_version": 6,
-              "revision_id": "<revision-21>",
+              "revision_id": "<revision-25>",
               "block": "definition",
               "component": null,
               "ref": "<mission-1>@6#definition"
@@ -3154,19 +3135,19 @@
           "object_type": "StateSnapshot",
           "category": {"id": "time_record", "display_name": "时间记录"},
           "version": 1,
-          "revision_id": "<revision-15>",
+          "revision_id": "<revision-19>",
           "ref": "<snapshot-1>@1",
           "title": "示例 <run> 执行状态 2026-W40",
           "subject_ref": {
             "block": null,
             "component": null,
             "object_id": "<mission-1>",
-            "revision_id": "<revision-14>",
+            "revision_id": "<revision-18>",
             "object_version": 3,
             "ref": "<mission-1>@3"
           },
-          "as_of": "2026-09-30T12:02:09Z",
-          "period": "2026-09",
+          "as_of": "2026-10-03T13:40:42Z",
+          "period": "2026-10",
           "generator": {
             "principal_id": "<principal:tianshu>",
             "principal_type": "agent",
@@ -3174,8 +3155,8 @@
           },
           "source_event_refs": [
             {
-              "event_id": "<event-14>",
-              "ref": "event:<event-14>"
+              "event_id": "<event-12>",
+              "ref": "event:<event-12>"
             }
           ],
           "payload_type": {"id": "execution_state", "display_name": "执行状态"},
@@ -3193,7 +3174,7 @@
               "pinned": {
                 "object_id": "<snapshot-1>",
                 "object_version": 1,
-                "revision_id": "<revision-15>",
+                "revision_id": "<revision-19>",
                 "block": "current_state",
                 "component": null,
                 "ref": "<snapshot-1>@1#current_state"
@@ -3205,7 +3186,7 @@
           "pinned": {
             "object_id": "<snapshot-1>",
             "object_version": 1,
-            "revision_id": "<revision-15>",
+            "revision_id": "<revision-19>",
             "block": null,
             "component": null,
             "ref": "<snapshot-1>@1"
@@ -3213,7 +3194,7 @@
         },
         "events": [
           {
-            "event_id": "<event-44>",
+            "event_id": "<event-42>",
             "scope_id": "<scope>",
             "kind": "issue.disposed",
             "class": "record",
@@ -3225,7 +3206,7 @@
                 "block": "issues",
                 "component": "issue:demo-<run>-1",
                 "object_id": "<snapshot-1>",
-                "revision_id": "<revision-15>",
+                "revision_id": "<revision-19>",
                 "object_version": 1,
                 "ref": "<snapshot-1>@1#issues/issue:demo-<run>-1"
               },
@@ -3233,7 +3214,7 @@
                 "block": null,
                 "component": null,
                 "object_id": "<mission-1>",
-                "revision_id": "<revision-21>",
+                "revision_id": "<revision-25>",
                 "object_version": 6,
                 "ref": "<mission-1>@6"
               }
@@ -3249,10 +3230,10 @@
             },
             "external_confirmation": {
               "external_record_id": "tianshu:dispose_issue:<run>-056",
-              "external_confirmed_at": "2026-09-30T11:59:47Z"
+              "external_confirmed_at": "2026-10-03T13:38:25Z"
             },
-            "occurred_at": "2026-09-30T12:02:47.732562Z",
-            "recorded_at": "2026-09-30T12:02:47.732562Z",
+            "occurred_at": "2026-10-03T13:41:25.984734Z",
+            "recorded_at": "2026-10-03T13:41:25.984734Z",
             "late": false,
             "content": {
               "refs": [],
@@ -3266,7 +3247,7 @@
             "supersedes_event_id": null,
             "corrected_by": [],
             "withdrawn_by": [],
-            "ref": "event:<event-44>",
+            "ref": "event:<event-42>",
             "assignee": null
           },
           "……（截去 11 项）"
@@ -3284,7 +3265,7 @@
               "pinned": {
                 "object_id": "<task-1>",
                 "object_version": 2,
-                "revision_id": "<revision-20>",
+                "revision_id": "<revision-24>",
                 "block": null,
                 "component": null,
                 "ref": "<task-1>@2"
@@ -3297,7 +3278,7 @@
                       "block": "definition",
                       "component": "m-ac1",
                       "object_id": "<mission-1>",
-                      "revision_id": "<revision-18>",
+                      "revision_id": "<revision-22>",
                       "object_version": 5,
                       "ref": "<mission-1>@5#definition/m-ac1"
                     }
@@ -3311,7 +3292,7 @@
                   "pinned": {
                     "object_id": "<task-1>",
                     "object_version": 2,
-                    "revision_id": "<revision-20>",
+                    "revision_id": "<revision-24>",
                     "block": "definition",
                     "component": "t-ac1",
                     "ref": "<task-1>@2#definition/t-ac1"
@@ -3325,7 +3306,7 @@
       "……（截去 5 项）"
     ],
     "carried": {"issues": []},
-    "markdown": "# 上下文\n\n问题：这个 Mission 为什么做、做什么、谁负责、现在怎样？\n\n出发对象：`<mission-1>@6`\n\n## 六问指引\n按问题给出处，内容在下文各节。\n- 为什么：周期目标 `<period-goal-1>@2#alignment`、`<period-goal-1>@2#target` → 长期目标 `<long-term-goal-2>@1#target` → 公司级长期目标 `<long-term-goal-1>@1#target` → 责任单元 `<unit:eo>@2#definition` → 战略 `<strategy>@1#responsibility_structure` → 公司 `<company>@1#identity`\n- 做什么：当前对象 `<mission-1>@6#definition`、`<mission-1>@6#mission_plan`、`<mission-1>@6#execution_plan`；当前对象的投影项「Task 预期结果与质量标准」（1 项，读取时从下级对象投影）\n- 谁负责：当前对象 `<mission-1>@6`：E&O Mission Owner，指派事件 `event:<event-8>`（2026-09-30T12:02:38.658692Z，E&O DRI 指派给 E&O Mission Owner）\n- 现在怎样：当前对象 已成立（事件 `event:<event-24>`）；最新快照 当前对象 `<snapshot-1>@1`（快照都未经确认）\n- 发生了什么：窗口内没有外部事件；另有 12 条门、生命周期与其余记录事件\n- 凭什么：验收标准与约束 `<mission-1>@6#definition/m-ac1`、`<mission-1>@6#definition/m-time`、`<period-goal-1>@2#target/pg-ac1`、`<period-goal-1>@2#target/pg-time`；上层已确认 周期目标 `<period-goal-1>@2`、长期目标 `<long-term-goal-2>@1`、公司级长期目标 `<long-term-goal-1>@1`；文档链接在快照 `<snapshot-1>@1#materials`\n\n## 为什么\n\n### 周期目标·定位与承接 `<period-goal-1>@2#alignment`\n- 本周期必要性 `<period-goal-1>@2#alignment/pg-why`：示例：本期必要性（月度计划里写的）\n\n### 周期目标·目标定义 `<period-goal-1>@2#target`\n- 目标结果 / 战役结果 / 工作结果 `<period-goal-1>@2#target/pg-o1`：示例：本期结果\n  引用：`<long-term-goal-2>@1#target/uo-1`\n- 成功 / 验收标准 `<period-goal-1>@2#target/pg-ac1`：示例：本期验收\n- 时间边界 `<period-goal-1>@2#target/pg-time`：示例：本月底前\n\n### 长期目标·定位与承接 `<long-term-goal-2>@1#alignment`\n定位与承接：暂无\n\n### 长期目标·目标定义 `<long-term-goal-2>@1#target`\n- 目标结果 / 战役结果 / 工作结果 `<long-term-goal-2……（截去 4583 字）"
+    "markdown": "# 上下文\n\n问题：这个 Mission 为什么做、做什么、谁负责、现在怎样？\n\n出发对象：`<mission-1>@6`\n\n## 六问指引\n按问题给出处，内容在下文各节。\n- 为什么：周期目标 `<period-goal-1>@2#alignment`、`<period-goal-1>@2#target` → 长期目标 `<long-term-goal-2>@1#target` → 公司级长期目标 `<long-term-goal-1>@1#target` → 责任单元 `<unit:eo>@3#definition` → 战略 `<strategy>@1#responsibility_structure` → 公司 `<company>@1#identity`\n- 做什么：当前对象 `<mission-1>@6#definition`、`<mission-1>@6#mission_plan`、`<mission-1>@6#execution_plan`；当前对象的投影项「Task 预期结果与质量标准」（1 项，读取时从下级对象投影）\n- 谁负责：当前对象 `<mission-1>@6`：E&O Mission Owner，指派事件 `event:<event-8>`（2026-10-03T13:41:10.957834Z，E&O DRI 指派给 E&O Mission Owner）\n- 现在怎样：当前对象 已成立（事件 `event:<event-22>`）；最新快照 当前对象 `<snapshot-1>@1`（快照都未经确认）\n- 发生了什么：窗口内没有外部事件；另有 12 条门、生命周期与其余记录事件\n- 凭什么：验收标准与约束 `<mission-1>@6#definition/m-ac1`、`<mission-1>@6#definition/m-time`、`<period-goal-1>@2#target/pg-ac1`、`<period-goal-1>@2#target/pg-time`；上层已确认 周期目标 `<period-goal-1>@2`、长期目标 `<long-term-goal-2>@1`、公司级长期目标 `<long-term-goal-1>@1`；文档链接在快照 `<snapshot-1>@1#materials`\n\n## 为什么\n\n### 周期目标·定位与承接 `<period-goal-1>@2#alignment`\n- 本周期必要性 `<period-goal-1>@2#alignment/pg-why`：示例：本期必要性（月度计划里写的）\n\n### 周期目标·目标定义 `<period-goal-1>@2#target`\n- 目标结果 / 战役结果 / 工作结果 `<period-goal-1>@2#target/pg-o1`：示例：本期结果\n  引用：`<long-term-goal-2>@1#target/uo-1`\n- 成功 / 验收标准 `<period-goal-1>@2#target/pg-ac1`：示例：本期验收\n- 时间边界 `<period-goal-1>@2#target/pg-time`：示例：本月底前\n\n### 长期目标·定位与承接 `<long-term-goal-2>@1#alignment`\n定位与承接：暂无\n\n### 长期目标·目标定义 `<long-term-goal-2>@1#target`\n- 目标结果 / 战役结果 / 工作结果 `<long-term-goal-2……（截去 4583 字）"
   },
   "plan": {
     "walked": [
@@ -3351,7 +3332,7 @@
       "……（截去 25 项）"
     ],
     "trimmed": [
-      {"kind": "event", "level": 0, "key": "event:<event-23>", "reason": "over_level_cap"},
+      {"kind": "event", "level": 0, "key": "event:<event-21>", "reason": "over_level_cap"},
       "……（截去 5 项）"
     ],
     "state_and_events_from_levels": [0],
@@ -3385,7 +3366,7 @@
     "happened": {
       "question": "发生了什么",
       "answered": true,
-      "evidence": [{"ref": "event:<event-44>"}, "……（截去 11 项）"],
+      "evidence": [{"ref": "event:<event-42>"}, "……（截去 11 项）"],
       "gap": null
     },
     "basis": {
@@ -3399,7 +3380,7 @@
     "max_chars": 100000,
     "max_events_per_object": 10,
     "recent_days": 30,
-    "window_start": "2026-08-31T12:02:48.355012Z",
+    "window_start": "2026-09-03T13:41:26.369433Z",
     "used_chars": 8591,
     "estimated_tokens": 4296,
     "over_budget": false
@@ -3433,10 +3414,10 @@
     "payload": {
       "title": "示例 <run> 执行状态（块放错）",
       "subject_ref": "<mission-1>@6",
-      "as_of": "2026-09-30T20:02:43+08:00",
-      "period": "2026-09",
+      "as_of": "2026-10-03T21:41:21+08:00",
+      "period": "2026-10",
       "payload_type": "execution_state",
-      "source_event_refs": ["event:<event-14>"],
+      "source_event_refs": ["event:<event-12>"],
       "progress": {"text": "块应当放在 payload.blocks 里"}
     }
   }
@@ -3498,14 +3479,14 @@
 {
   "action_type": "world_revise_object",
   "contract_version": "tkos.world/0.2",
-  "target": {"object_id": "<unit:eo>", "revision_id": "<revision-7>", "expected_version": 3},
+  "target": {"object_id": "<unit:eo>", "revision_id": "<revision-11>", "expected_version": 4},
   "expected_versions": [],
   "idempotency_key": "world-02-examples:<run>:060",
   "reason": "world-02 天枢接入示例",
   "params": {
     "payload": {"external_refs": [{"system": "tianshu", "id": "capability:05"}]},
     "declaration": {
-      "scene": "<unit:eo>@2",
+      "scene": "<unit:eo>@3",
       "trigger": "天枢能力域关联本体责任单元",
       "human_acceptance": {"required": false}
     }
@@ -3532,7 +3513,7 @@
 {
   "action_type": "world_assign",
   "contract_version": "tkos.world/0.2",
-  "target": {"object_id": "<mission-1>", "revision_id": "<revision-21>", "expected_version": 7},
+  "target": {"object_id": "<mission-1>", "revision_id": "<revision-25>", "expected_version": 7},
   "expected_versions": [],
   "idempotency_key": "world-02-examples:<run>:062",
   "reason": "world-02 天枢接入示例",
@@ -3541,7 +3522,7 @@
     "on_behalf_of": {
       "principal_id": "<principal:eo-dri>",
       "external_record_id": "tianshu:assign-owner:<run>-061",
-      "external_confirmed_at": "2026-09-30T19:59:49+08:00"
+      "external_confirmed_at": "2026-10-03T21:38:27+08:00"
     }
   }
 }
@@ -3566,7 +3547,7 @@
 {
   "action_type": "world_revise_object",
   "contract_version": "tkos.world/0.2",
-  "target": {"object_id": "<period-goal-1>", "revision_id": "<revision-16>", "expected_version": 3},
+  "target": {"object_id": "<period-goal-1>", "revision_id": "<revision-20>", "expected_version": 3},
   "expected_versions": [],
   "idempotency_key": "world-02-examples:<run>:063",
   "reason": "world-02 天枢接入示例",
@@ -3609,7 +3590,7 @@
   "expected_versions": [],
   "idempotency_key": "world-02-examples:<run>:064",
   "reason": "world-02 天枢接入示例",
-  "params": {"delegation_event_id": "<event-17>"}
+  "params": {"delegation_event_id": "<event-15>"}
 }
 ```
 
@@ -3623,8 +3604,8 @@
   "auth_epoch": 4,
   "status": "committed",
   "result": {
-    "detail": {"delegation_event_id": "<event-17>"},
-    "event_id": "<event-46>",
+    "detail": {"delegation_event_id": "<event-15>"},
+    "event_id": "<event-44>",
     "domain_id": "<domain:company>",
     "subject_refs": [
       {
@@ -3632,7 +3613,7 @@
         "block": null,
         "component": null,
         "object_id": "<company>",
-        "revision_id": "<revision-8>",
+        "revision_id": "<revision-12>",
         "object_version": 1
       }
     ],
@@ -3642,6 +3623,6 @@
   },
   "object_versions": [],
   "effect_task_ids": [],
-  "recorded_at": "2026-09-30T12:02:50.149137+00:00"
+  "recorded_at": "2026-10-03T13:41:28.156598+00:00"
 }
 ```

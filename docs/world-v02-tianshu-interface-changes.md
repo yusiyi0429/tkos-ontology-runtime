@@ -6,6 +6,8 @@
 
 **状态说明**：0.2 契约已于 9 月 30 日锁版。实验实例 9 月 29 日上线，同日按实现完成的版本重建；最近一次重建在 9 月 29 日晚，版本为 `24e6202`，含议题代记族，并按天枢个人任务重播了十月起点。本清单写到的动作与读取都已可调，实测示例见 `docs/world-v02-tianshu-examples.md`。本清单里的动作名、字段名与规则按契约写，是天枢可以开始改的依据；请求与返回的完整 JSON 以交付时附的实测示例为准。标「可能变」的若再改，走契约的新修订，改了会单独通知。示例里的 id 都是占位。
 
+**读面补齐（2026-10-03，#93）**：0.2 契约写「同 0.1」的几处读取按契约补齐，只加不换，见第十项：取子对象对 0.2 对象可用；取对象的 `business` 多 `referenced_by` 与 `supersedes` 两项；按属性解析的责任人须当前持对应角色。另在第十项「取事件」补了一条早已如此、此前没写进清单的差别：事件顶层没有 `assignee` 与 `phase`。
+
 **Content Pact 替换（2026-09-30）**：0.2 按方法侧 Content Pact 替换了对象的块与组件类型，天枢要改的只有代记承诺时带的候选内容块与文档里的叫法，其余形状不变，见第十四项。实测示例已按新块在本机隔离栈上重新生成；实验实例仍是 `24e6202`（替换前的块），10 月 8 日切换（天枢已确认 10 月 12 日前改完），随之按新块重建实例；契约已锁版。
 
 ## 一、环境与版本
@@ -246,9 +248,16 @@
 
 **取对象的返回改为三组**（第 15.1 节）：
 
-- `business`：id、类型、类别、版本与 `revision_id`、属性（含 `external_refs`）、关系引用、块与组件、组件台账、正式内容指针、进行中的一轮。
-- `identity`：责任人（注明来自属性还是角色）、与该对象有关的当前有效委托（委托的域覆盖该对象所在的域即算有关）。
+- `business`：id、类型、类别、版本与 `revision_id`、属性（含 `external_refs`）、关系引用、指向它的跨链关系 `referenced_by`、修订链 `supersedes`、块与组件、组件台账、正式内容指针、进行中的一轮。
+- `identity`：责任人（注明来自属性还是角色）、与该对象有关的当前有效委托（委托的域覆盖该对象所在的域即算有关）。来自属性 `responsible` 的人还须启用、当前在对象所在域持对应角色才列为责任人（第 3.3 节同 0.1 第 4 节）：Mission 是 `OWNER`，Task 是 `IC`，Activity 是人持 `IC`、Agent 持 `AGENT`。撤了角色，属性仍指向他，`identity.responsible.principals` 为空，取上下文的「谁负责」随之成为缺口、表头写「未指派」（2026-10-03 补齐，此前不核对角色）。
 - `records`：生命周期与推出它的事件、最新快照（标明未经确认）、最近的已确认复盘、未处置的问题。
+
+**跨链关系与修订链**（第 6 节沿用 0.1，2026-10-03 补齐）：
+
+- `business.referenced_by`：被指向的一端列出指向它的跨链关系——本 scope 各对象最新修订的 `depends_on`、`contributes_to` 里钉着该对象（任一版本）的，含周期目标的 `depends_on`。每条 `{field, relation, source, target}`：`source` 是指向它的那个对象的最新修订，`target` 是那条钉定引用（可能钉在该对象的旧版本），两者都给钉定结构（含 `component`）与业务形式 `ref`。没有为空列表。建对象时写的 `parent_ref`、`goal_ref` 不在其中。
+- `business.supersedes`：修订链，所读修订取代的上一修订的钉定引用（`<object_id>@<version - 1>`，两种形式），按所读的修订算（带 `version` 时是那一版的上一版）；第一个修订为 null。
+
+**取子对象**（第 15.1 节「同 0.1」，2026-10-03 补齐）：`GET /v1/world/objects/{id}/children` 对 0.2 对象可用（此前返回 `409 PROTOCOL_NOT_SUPPORTED`），列出本 scope 最新修订的 `parent_ref` 指向它（任一版本）的对象，按建立先后，形状同 0.1：`{object_id, children: [{object_id, object_type, title, version, revision_id, ref, parent_ref}]}`，`parent_ref` 给钉定结构（含 `component`）与业务形式。只看 `parent_ref`：Mission 挂周期目标走 `goal_ref`，不在周期目标的子对象里。取子对象不在 Agent 面（MCP、CLI）上，直接打 HTTP；读权限同取对象，scope 外 404。
 
 写前取 `revision_id` 与 `object_version` 的做法不变，只是它们挪进了 `business` 组：`target` 取 `business.object_id`、`business.revision_id` 与 `business.object_version`（作 `expected_version`）。`business.version` 是修订序号，引用里的版本用它；`object_version` 是并发版本，两者不必相等。
 
@@ -257,6 +266,8 @@
 **读 0.1 对象**（第 15.4 节，实验实例上用不到，写在这里备查）：取对象、取状态对 0.1 对象默认仍给 0.1 的形状；带 `view=tkos.world/0.2` 时按上面的三组给出，内容仍按 0.1 契约解释（块、属性按 0.1 登记，生命周期按 0.1 的状态机），0.1 的引用读成 0.2 的对象或块形式，0.1 快照按只读的 `legacy_0_1` payload 给出（`progress`、`issue`、`artifacts` 三块，生成者是写它的人，没有来源事件）。0.2 对象带不带这个参数都一样；`view` 只认 `tkos.world/0.2`，其余取值 422。
 
 **取事件**：按发生时刻升序；每条带 `class`（门、生命周期、记录）、记录者、被代记的人与外部确认记录、迟记标记（补记过去时刻时）、被更正与被撤回的关系。
+
+事件顶层不再有 0.1 的 `assignee` 与 `phase`（第 8.1 节）：指派的被指派者在 `detail` 里（`detail.principal_id`），`phase` 已取消（Mission 的门只在立项，交付改由生命周期事件表达）；记录者是 `principal`（`{principal_id, principal_type, display_name}`），代记时被代记的人在 `on_behalf_of`。按 0.1 读 `assignee`、`phase`、顶层 `principal_id` 的地方要改。
 
 **取上下文**（第 15.3 节）：接口与请求不变；默认预算改为 100000 字符（0.1 是 12000），每个对象 10 条事件、近期 30 天不变。0.2 的预算只报成本、不作门（决 18）。变化：
 

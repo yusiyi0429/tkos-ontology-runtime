@@ -52,7 +52,7 @@ HTTP 面的返回（包括拒绝）原样打到标准输出，JSON 缩进打印�
 | 命令 | 与 0.1 的差别 |
 |-|-|
 | `get <id>`、`state <id>`、`events <id>`、`context <id>` | 端点与选项不变，HTTP 面按对象绑定的契约版本出形状：0.2 对象分 `business`、`identity`、`records` 三组，引用细到组件（`<id>@<版本>#<块>/<组件>`），事件写成 `event:<事件 id>` |
-| `children <id>` | 没有：取子对象不在 0.2 的 Agent 面上，HTTP 面对 0.2 对象也不支持 |
+| `children <id>` | 没有：取子对象不在 0.2 的 Agent 面上（契约第 9.3 节、登记 `agent_face`）。HTTP 面对 0.2 对象已支持（`GET /v1/world/objects/{id}/children`，形状同 0.1，引用细到组件形式），要用直接打 HTTP |
 | `list` | 新增，列对象（`GET /v1/world/objects`，契约第 15.2 节）：`--unit-id`（责任单元的对象 id，即它所在的域）或 `--domain-id`、`--type`、`--period`（`YYYY-MM`；Mission 按其周期目标，Task、Activity 按其 Mission）、`--external-system` 与 `--external-id`（按外部引用查找，两者都给时至多一项），`--limit`（默认 50，最多 100）、`--cursor`（上一页的 `next_cursor`）；给了的原样作查询参数，返回 `{"items": [对象头…], "next_cursor"}`，字段见《接口变化清单》第十项 |
 | `act <动作>` | 动作是 `world_record_event`、`world_refresh_state`、`world_revise_object`、`world_start`、`world_deliver`、`world_raise_issue`、`world_route_issue`、`world_return_issue`；`contract_version` 为 `tkos.world/0.2` |
 

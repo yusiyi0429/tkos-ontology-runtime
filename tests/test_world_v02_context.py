@@ -100,7 +100,9 @@ CEO, DRI, OWNER, IC, AGENT, TIANSHU = (uid(n) for n in range(31, 37))
 CREATED, ASSIGNED, CONFIRMED, MET, STARTED, LATE, REFRESHED, CORRECTED = (uid(n) for n in range(41, 49))
 PEOPLE = {CEO: ("CEO", "human"), DRI: ("E&O DRI", "human"), OWNER: ("Mission Owner", "human"),
           IC: ("方案 IC", "human"), AGENT: ("E&O Agent", "agent"), TIANSHU: ("天枢", "agent")}
-ROLES = {("company", "CEO"): [CEO], ("eo", "CEO"): [CEO], ("eo", "DOMAIN_DRI"): [DRI]}
+# 域与角色 -> 当前持该角色的人；按属性解析的责任人也须在对象所在域持对应角色才算（契约第 3.3 节，票 #93）。
+ROLES = {("company", "CEO"): [CEO], ("eo", "CEO"): [CEO], ("eo", "DOMAIN_DRI"): [DRI], ("eo", "OWNER"): [OWNER],
+         ("eo", "IC"): [IC], ("eo", "AGENT"): [AGENT]}
 
 
 def rev(object_id: str, version: int) -> str:
@@ -378,6 +380,8 @@ class Conn:
         if sql.startswith("SELECT principal_id, principal_type, display_name FROM gov_principals"):
             name, kind = PEOPLE[params[1]]
             return [{"principal_id": params[1], "principal_type": kind, "display_name": name}]
+        if sql.startswith("SELECT 1 FROM gov_role_assignments"):  # holds_role：该身份当前在该域持这个角色
+            return [{"?column?": 1}] if params[1] in ROLES.get((params[2], params[3]), []) else []
         if sql.startswith("SELECT DISTINCT p.principal_id"):
             return [{"principal_id": person, "principal_type": PEOPLE[person][1], "display_name": PEOPLE[person][0]}
                     for person in ROLES.get((params[1], params[2]), [])]
@@ -576,6 +580,24 @@ def test_responsible_follows_the_read_projection_and_names_its_source(world):
         "- 上溯第 5 层 责任单元 生命周期：无（只有版本）",
         f"- 上溯第 6 层 战略 生命周期：草稿（事件 `event:{uid(60)}`），正式内容：尚未确认",
         "- 上溯第 7 层 公司 生命周期：无（只有版本）"]
+
+
+def test_a_responsible_whose_role_was_revoked_is_nobody_and_who_becomes_a_gap(world, monkeypatch):
+    """按属性解析的责任人还须当前在对象所在域持对应角色（契约第 3.3 节同 0.1 第 4 节，票 #93）：撤了 Agent 的 AGENT，
+    Activity 的属性仍指向它，读投影里却没有责任人；「谁负责」覆盖成缺口，表头与指引写「未指派」（同 0.1 的写法）。"""
+    monkeypatch.setitem(ROLES, ("eo", "AGENT"), [])
+    result = build(world)
+    current = result["context_pack"]["layers"][0]["object"]
+    assert current["responsible"] == {"source": "attribute", "roles": {"agent": "AGENT", "human": "IC"}, "principals": []}
+    assert result["coverage"]["who"] == {"question": "谁负责", "answered": False, "evidence": [],
+                                         "gap": "当前对象没有可解析的责任人"}
+    parts = sections(result["context_pack"]["markdown"])
+    assert parts["谁负责"].splitlines()[0] == (
+        f"- 当前对象 Activity《改建模材料》 `{ACTIVITY}@2` 责任人（来自属性 responsible）：未指派")
+    assert parts["六问指引"].splitlines()[3].startswith(f"- 谁负责：当前对象 `{ACTIVITY}@2`：未指派，指派事件")
+    # 上溯的 Task、Mission 仍持角色，照旧列出。
+    assert [layer["object"]["responsible"]["principals"][0]["principal_id"]
+            for layer in result["context_pack"]["layers"][1:3]] == [IC, OWNER]
 
 
 def test_cross_chain_relations_are_listed_and_not_followed(world):

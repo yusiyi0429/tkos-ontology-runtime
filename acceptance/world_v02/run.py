@@ -280,9 +280,11 @@ def company(book, h, f, flow):
     check('the_0_2_receipt_is_read_by_the_world_rule', seen['receipt']['receipt_id'] == receipt['receipt_id'])
     check('an_identity_from_another_scope_cannot_read_the_company',
           flow.read('foreign_ceo', made['object_id'], expected=404)['error']['code'] == 'NOT_FOUND')
-    later = flow.children('ceo', made['object_id'], expected=409)
-    check('read_endpoints_not_yet_wired_for_0_2_refuse_instead_of_reading_it_as_0_1',
-          later['error']['code'] == 'PROTOCOL_NOT_SUPPORTED')
+    # 取子对象（契约第 15.1 节「同 0.1」，#93）：按 0.2 读，不再 409；Company 此时还没有子对象，列出它们在 objects 里核对。
+    check('the_children_of_a_0_2_object_are_read_under_0_2_and_start_empty',
+          flow.children('ceo', made['object_id']) == {'object_id': made['object_id'], 'children': []})
+    check('an_identity_from_another_scope_cannot_read_the_children_of_a_0_2_object',
+          flow.children('foreign_ceo', made['object_id'], expected=404)['error']['code'] == 'NOT_FOUND')
 
     replay = flow.commit('ceo', deepcopy(body))
     check('replaying_the_same_command_returns_the_original_receipt',
@@ -517,6 +519,27 @@ def objects(book, h, f, flow, company):
           and blocks_of(unit_goal_view)['alignment']['text'] == '定位与承接：暂无'
           and blocks_of(task_view)['task_plan']['text'] == 'Task 计划：暂无'
           and not blocks_of(mission_view)['mission_plan']['empty'])
+    # 取子对象（#93）：最新修订的 parent_ref 指向它的对象，按建立先后，形状同 0.1，引用给 0.2 的两种形式。
+    def child(made_object, object_type, title, parent):
+        return {'object_id': made_object['object_id'], 'object_type': object_type, 'title': title, 'version': 1,
+                'revision_id': made_object['revision_id'], 'ref': made_object['ref'],
+                'parent_ref': {'object_id': parent['object_id'], 'object_version': 1, 'revision_id': parent['revision_id'],
+                               'block': None, 'component': None, 'ref': parent['ref']}}
+
+    def children_of(parent):
+        listed = flow.children('outsider', parent['object_id'])
+        return listed['object_id'] == parent['object_id'] and listed['children']
+
+    check('children_list_the_objects_whose_latest_parent_ref_points_at_it_with_0_2_references',
+          children_of(company) == [child(strategy, 'Strategy', '2026 战略', company),
+                                   child(company_goal, 'LongTermGoal', '公司三年目标', company)]
+          and children_of(unit) == [child(unit_goal, 'LongTermGoal', '战场 A 长期目标', unit)]
+          and children_of(mission) == [child(task, 'Task', '准备演示', mission)]
+          and children_of(task) == [child(activity, 'Activity', '录屏', task)]
+          and children_of(activity) == [])
+    check('a_mission_hangs_on_its_period_goal_by_goal_ref_and_is_not_its_child',
+          children_of(goal) == [] and mission_view['business']['relations'][0]['value']['object_id'] == goal['object_id'])
+
     events = flow.rows("SELECT kind, contract_version, subject_refs FROM gov_world_events WHERE scope_id=%s", (f['scope_id'],))
     check('every_creation_wrote_one_0_2_object_created_event_pinned_to_its_first_revision',
           len(events) == 9  # Company 与主干上的八个对象（长期目标公司级、单元级各一）
@@ -1440,6 +1463,29 @@ def revise_relate(book, h, f, flow, trunk):
     check('a_revision_keeps_the_relations_written_by_relate',
           revised_goal['result']['version'] == 3 and [item['ref'] for item in relations['depends_on']]
           == [other_goal['ref'], mission['ref']])
+
+    # 契约第 6 节沿用 0.1（#93）：被指向的一端列出指向它的跨链关系，修订链 supersedes 指向所读修订取代的上一修订。
+    def pinned(oid, version, revision_id):
+        return {'object_id': oid, 'object_version': version, 'revision_id': revision_id, 'block': None,
+                'component': None, 'ref': f'{oid}@{version}'}
+
+    mid = mission['object_id']
+    by_version = {version: flow.read('a', mid, version=version)['business'] for version in (1, 2, 3)}
+    latest = flow.read('a', mid)['business']
+    check('supersedes_pins_the_revision_the_read_one_replaced_and_the_first_revision_replaces_nothing',
+          latest['version'] == 4 and latest['supersedes'] == pinned(mid, 3, by_version[3]['revision_id'])
+          and by_version[3]['supersedes'] == pinned(mid, 2, revised['result']['revision_id'])
+          and by_version[2]['supersedes'] == pinned(mid, 1, mission['revision_id'])
+          and by_version[1]['supersedes'] is None)
+    source = pinned(goal['object_id'], 3, revised_goal['result']['revision_id'])
+    check('referenced_by_lists_a_period_goals_depends_on_from_its_latest_revision_pinning_any_version',
+          flow.read('a', other_goal['object_id'])['business']['referenced_by'] == [
+              {'field': 'depends_on', 'relation': 'depends_on', 'source': source,
+               'target': pinned(other_goal['object_id'], 1, other_goal['revision_id'])}]
+          and latest['referenced_by'] == [
+              {'field': 'depends_on', 'relation': 'depends_on', 'source': source,
+               'target': pinned(mid, 1, mission['revision_id'])}]
+          and flow.read('a', goal['object_id'])['business']['referenced_by'] == [])
     deny_relate('a', goal['object_id'], 'depends_on', [goal['ref']], {'INVALID_REQUEST'}, 'itself')
     check('a_period_goal_cannot_depend_on_itself')
     deny_relate('a', goal['object_id'], 'depends_on', [other_goal['ref'], other_goal['object_id'] + '@1'],
@@ -2852,8 +2898,33 @@ def delegation(book, h, f, flow, trunk):
 
 
 
-def revocation(book, h, f, flow, command):
-    """撤掉 CEO 的公司域指派后，原 0.2 命令不能重放成成功（重放按 0.2 回执的规则复核）。"""
+def revocation(book, h, f, flow, trunk, command):
+    """按属性解析的责任人撤了角色就不算责任人（#93，契约第 3.3 节同 0.1 第 4 节）：单元 a 的 DRI 建一条 Mission、指派给
+    一位只为这里播种的 Owner，取对象列出他；撤掉他的 OWNER 指派后属性仍指向他，取对象与取上下文都没有责任人，「谁负责」
+    是缺口。之后撤掉 CEO 的公司域指派，原 0.2 命令不能重放成成功（重放按 0.2 回执的规则复核）。"""
+    check = book.check
+    leaving = f['actors']['owner_leaving']
+    mission = flow.create('a', 'Mission', 'a', {'title': '撤角色的 Mission（#93）',
+                                                'goal_ref': trunk['made']['PeriodGoal']['ref']})['result']
+    flow.assign('a', mission['object_id'], leaving['principal_id'])
+    before = flow.read('outsider', mission['object_id'])
+    check('a_responsible_by_attribute_is_listed_while_holding_the_role',
+          before['business']['attributes']['responsible'] == leaving['principal_id']
+          and [p['principal_id'] for p in before['identity']['responsible']['principals']] == [leaving['principal_id']])
+    revoke_assignment(h.env, f, leaving['assignment_id'])
+    after = flow.read('outsider', mission['object_id'])
+    check('after_the_role_is_revoked_the_attribute_still_names_him_but_he_is_not_responsible',
+          after['business']['attributes']['responsible'] == leaving['principal_id']
+          and after['identity']['responsible'] == {'source': 'attribute', 'roles': {'human': 'OWNER'}, 'principals': []}
+          and after['business']['version'] == before['business']['version'])
+    packed = flow.context('outsider', mission['object_id'], {'question': '这条 Mission 谁负责？'})
+    current = packed['context_pack']['layers'][0]['object']
+    check('the_context_reports_who_as_a_gap_once_the_responsible_lost_the_role',
+          current['responsible']['principals'] == []
+          and packed['coverage']['who'] == {'question': '谁负责', 'answered': False, 'evidence': [],
+                                            'gap': '当前对象没有可解析的责任人'}
+          and f"`{current['ref']}` 责任人（来自属性 responsible）：未指派" in packed['context_pack']['markdown'])
+
     ceo = f['actors']['ceo']
     revoke_assignment(h.env, f, ceo['assignment_id'])
     response = flow.clients['ceo'].json('POST', '/v1/actions', deepcopy(command), expected={403})
@@ -2885,6 +2956,8 @@ def run(book, h, source, upgrade_evidence):
     f['actors']['tianshu'] = _seed_actor(h.env, f, 'AGENT', f['domains']['company'], principal_type='agent')
     _grant(h.env, f, f['actors']['tianshu']['principal_id'], 'AGENT', f['domains']['a'])
     f['actors']['leaver'] = _seed_actor(h.env, f, 'IC', f['domains']['a'])
+    # 单元 a 里一位之后会被撤掉 OWNER 的人：按属性解析的责任人撤了角色就不算（#93）。
+    f['actors']['owner_leaving'] = _seed_actor(h.env, f, 'OWNER', f['domains']['a'])
     with scenario('control_plane'):
         control_plane(book, h, source, f)
     process, url, _ = h.start_api(source)
@@ -2929,7 +3002,7 @@ def run(book, h, source, upgrade_evidence):
         with scenario('state_cells'):
             state_cells(book, h, f, flow, trunk)
         with scenario('revocation'):
-            revocation(book, h, f, flow, made['command'])
+            revocation(book, h, f, flow, trunk, made['command'])
         with scenario('experiment_e'):
             experiment_e(book, h, source, url)
         with scenario('experiment_b'):

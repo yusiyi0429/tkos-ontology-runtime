@@ -176,8 +176,11 @@ def world_object_context(object_id: uuid.UUID, body: WorldContextRequest, respon
 
 @router.get("/world/objects/{object_id}/children")
 def world_object_children(object_id: uuid.UUID, token: Annotated[str, Depends(bearer)]):
-    from . import world_v01_readers
+    """取子对象：按对象绑定的契约版本分派（0.2 契约第 15.1 节「同 0.1」，票 #93），0.1 对象的输出不变。"""
+    from . import world_v01_readers, world_v02_readers
     with db.transaction(token) as (conn, ctx):
+        if world_v02_readers.bound_contract(conn, ctx, str(object_id)) == world_v02_readers.CONTRACT_VERSION:
+            return world_v02_readers.children(conn, ctx, str(object_id))
         return world_v01_readers.children(conn, ctx, str(object_id))
 
 

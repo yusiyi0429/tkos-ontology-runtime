@@ -19,10 +19,11 @@ HEADER = {'object_id', 'object_type', 'type_display_name', 'category', 'title', 
 V01_OBJECT = {'object_id', 'object_type', 'type_display_name', 'version', 'revision_id', 'title', 'attributes',
               'blocks', 'relations', 'referenced_by', 'supersedes', 'object_version', 'formal', 'protocol',
               'lifecycle', 'state'}
-# 0.2 取对象 business 组的键（#79 起多了投影项 projection，没有投影项的类型为 null）；对象头核对时对着真读回的核一遍。
+# 0.2 取对象 business 组的键（#79 起多了投影项 projection，没有投影项的类型为 null；#93 起多了 referenced_by 与
+# supersedes）；对象头核对时对着真读回的核一遍。
 BUSINESS = {'object_id', 'object_type', 'type_display_name', 'category', 'candidate', 'version', 'revision_id',
-            'object_version', 'title', 'attributes', 'relations', 'blocks', 'component_ledger', 'projection', 'formal',
-            'round'}
+            'object_version', 'title', 'attributes', 'relations', 'referenced_by', 'supersedes', 'blocks',
+            'component_ledger', 'projection', 'formal', 'round'}
 SYSTEM = 'tianshu-63'  # 本场景专用的外部系统名：按系统筛时期望集合就是这里播种的对象
 
 
@@ -298,3 +299,19 @@ def list_objects(book, h, f, flow, trunk, foreign):
           and [item['lifecycle'] for item in foreign_items] == [None, plain['lifecycle'], None]
           and [item['category']['id'] for item in foreign_items] == ['business_object', 'business_object', 'time_record']
           and all(set(item) == HEADER and item['external_refs'] == [] for item in foreign_items))
+
+    # 修订链与指向它的跨链关系（#93）：0.1 视图按 0.1 的数据给出、读成 0.2 形式，与 0.1 自己读到的一致。0.1 的 CEO 把这条
+    # 长期目标修订一次，第二个修订的 supersedes 钉到第一个；指向它的跨链关系（0.1 只有 Mission、Task 的）为空。
+    revise = flow.command('world_revise_object', {'payload': {'title': '0.1 三年目标（改）'}}, contract=V01)
+    revise['target'] = {'object_id': ltg['object_id'], 'revision_id': plain['revision_id'],
+                        'expected_version': plain['object_version']}
+    flow.commit('foreign_ceo', flow.prepare('foreign_ceo', revise))
+    plain_v2, grouped_v2 = read(ltg['object_id']), read(ltg['object_id'], **VIEW)
+    check('the_0_2_view_of_a_0_1_object_gives_supersedes_and_referenced_by_as_0_1_reads_them',
+          (business['supersedes'], plain['supersedes'], business['referenced_by'], plain['referenced_by'])
+          == (None, None, [], [])
+          and grouped_v2['business']['version'] == plain_v2['version'] == 2
+          and grouped_v2['business']['supersedes'] == {**plain_v2['supersedes'], 'component': None}
+          == {'object_id': ltg['object_id'], 'object_version': 1, 'revision_id': plain['revision_id'], 'block': None,
+              'component': None, 'ref': ltg['ref']}
+          and grouped_v2['business']['referenced_by'] == plain_v2['referenced_by'] == [])

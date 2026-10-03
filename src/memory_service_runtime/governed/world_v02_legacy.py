@@ -3,7 +3,7 @@
 读端点对 0.1 对象默认仍给 0.1 的形状（world_v01_readers，一行不改）；请求带 ``view=tkos.world/0.2`` 时才走这里：
 内容按 0.1 契约与登记解释——类型、块、属性与关系按 0.1 登记，生命周期按 0.1 的状态机、推出它的是 0.1 的事件——输出按
 0.2 读投影的三组（第 15.1 节），键与 0.2 对象的相同。0.1 的引用读成 0.2 的对象或块形式：钉定结构补上 ``component: null``，
-另给业务形式。类别按类型名取 0.2 登记的三层（0.1 的九种类型在 0.2 里同名）。0.1 没有的给空值：块类别为 null，没有组件、
+另给业务形式；修订链与指向它的跨链关系按 0.1 的数据给出，同样读成 0.2 形式（票 #93）。类别按类型名取 0.2 登记的三层（0.1 的九种类型在 0.2 里同名）。0.1 没有的给空值：块类别为 null，没有组件、
 组件台账与委托，不是候选类型；0.1 的读侧不投影进行中的一轮，这里同样给 null；没有已确认复盘与未处置的问题。
 
 0.1 快照按只读的 ``legacy_0_1`` payload 给出（登记 ``state.legacy_read``：progress、issue、artifacts 三块），外壳同 0.2 的
@@ -20,9 +20,9 @@ from . import world_v01_readers as v01
 from . import world_v01_registry as v01_registry
 from . import world_v02_registry as world_registry
 from .errors import GovernedError
-from .world_v01_models import utc_text
+from .world_v01_models import RESPONSIBLE_ROLES, utc_text
 from .world_v02_models import citation
-from .world_v02_readers import block_view, cited, principal, responsible_principals
+from .world_v02_readers import block_view, cited, principal, responsible_principals, supersedes
 
 VIEW = "tkos.world/0.2"
 LEGACY_DISPLAY_NAME = "0.1 状态快照（只读）"
@@ -50,9 +50,10 @@ def category(object_type: str) -> dict[str, Any]:
 
 def object_view(head: dict[str, Any], revision: dict[str, Any], metadata: dict[str, Any], *,
                 responsible: list[dict[str, Any]], lifecycle: dict[str, Any] | None = None,
-                latest_state: dict[str, Any] | None = None) -> dict[str, Any]:
-    """一个 0.1 业务对象的三组视图：business 按 0.1 登记的属性、关系与块；identity 是 0.1 规则解析的责任人；records 是
-    0.1 状态机推出的生命周期与最新的 0.1 快照（legacy_0_1）。"""
+                latest_state: dict[str, Any] | None = None, supersedes: dict[str, Any] | None = None,
+                referenced_by: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+    """一个 0.1 业务对象的三组视图：business 按 0.1 登记的属性、关系与块，另给指向它的跨链关系与修订链（已读成 0.2
+    形式）；identity 是 0.1 规则解析的责任人；records 是 0.1 状态机推出的生命周期与最新的 0.1 快照（legacy_0_1）。"""
     spec = v01_registry.object_spec(head["object_type"])
     payload, version = revision["payload"], revision["object_version"]
     business = {
@@ -64,6 +65,7 @@ def object_view(head: dict[str, Any], revision: dict[str, Any], metadata: dict[s
                        else payload.get(attribute["id"]) for attribute in spec["attributes"] if attribute["id"] != "title"},
         "relations": [{"field": field["field"], "relation": field["relation"],
                        "value": cited(pinned(payload.get(field["field"])))} for field in spec["relation_fields"]],
+        "referenced_by": referenced_by or [], "supersedes": supersedes,
         "blocks": blocks(head["object_id"], version, spec["blocks"], payload["blocks"]),
         "component_ledger": [],
         "projection": None,  # 键同 0.2 取对象（契约第 15.4 节按第 15.1 节分组）；0.1 对象没有投影项
@@ -131,10 +133,20 @@ def read_object(conn: Any, ctx: Any, object_id: str, version: int | None = None)
     revision = db.jsonable(row)
     if head["object_type"] == "StateSnapshot":
         return {**snapshot_view(head, revision, generator=writer(conn, ctx, head["object_id"])), "protocol": metadata}
-    rule = v01_registry.object_spec(head["object_type"])["responsible"]
+    # 0.1 登记的属性规则不带角色：责任人须持的角色按 0.1 的规定（契约第 4 节）补进来，解析同 0.1 的读法。
+    rule = {**v01_registry.object_spec(head["object_type"])["responsible"],
+            "roles": RESPONSIBLE_ROLES.get(head["object_type"], {})}
     return object_view(head, revision, metadata,
                        responsible=responsible_principals(conn, ctx, head, revision["payload"], rule),
-                       lifecycle=v01.lifecycle(conn, ctx, head), latest_state=latest_snapshot(conn, ctx, head["object_id"]))
+                       lifecycle=v01.lifecycle(conn, ctx, head), latest_state=latest_snapshot(conn, ctx, head["object_id"]),
+                       supersedes=supersedes(conn, ctx, head["object_id"], revision["object_version"]),
+                       referenced_by=referenced_by(conn, ctx, head["object_id"]))
+
+
+def referenced_by(conn: Any, ctx: Any, object_id: str) -> list[dict[str, Any]]:
+    """指向这个 0.1 对象的跨链关系：同 0.1 的读法（关系字段取 0.1 登记），源与钉定引用读成 0.2 形式。"""
+    return [{**item, "source": cited(pinned(item["source"])), "target": cited(pinned(item["target"]))}
+            for item in v01.referenced_by(conn, ctx, object_id)]
 
 
 def state(conn: Any, ctx: Any, object_id: str, as_of: Any = None) -> dict[str, Any]:

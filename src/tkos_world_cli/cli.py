@@ -42,7 +42,8 @@ _READS = {"get": ("", "version"), "state": ("/state", "as_of"), "events": ("/eve
           "children": ("/children", None)}
 # 列对象（#63）的查询参数：筛选与分页，与 HTTP 面同名；子命令的选项是它们的连字符写法。
 _LIST_QUERY = ("unit_id", "domain_id", "type", "period", "external_system", "external_id", "limit", "cursor")
-# 0.2 没有取子对象：它不在契约第 9.3 节的 Agent 面上，HTTP 面对 0.2 对象也不支持。0.2 另有列对象，不带对象 id。
+# 0.2 没有取子对象：它不在契约第 9.3 节的 Agent 面上（登记 agent_face 不含它）；HTTP 面对 0.2 对象支持取子对象
+# （票 #93），要用直接打 HTTP。0.2 另有列对象，不带对象 id。
 _READS_V02 = {**{name: read for name, read in _READS.items() if name != "children"}, "list": (None, _LIST_QUERY)}
 # 契约版本 -> (act 接受的动作, 读子命令)。
 FACES = {CONTRACT_VERSION: (AGENT_ACTIONS, _READS), CONTRACT_V02: (AGENT_ACTIONS_V02, _READS_V02)}

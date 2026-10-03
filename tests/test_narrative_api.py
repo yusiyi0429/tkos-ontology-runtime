@@ -246,6 +246,21 @@ def test_compression_never_rewrites_governance(boundary, monkeypatch):
     assert result["narrative"].endswith("Outcome=not_achieved；MF=investigating。")
 
 
+def test_compression_cut_off_at_max_tokens_fails_closed(monkeypatch):
+    monkeypatch.setenv("TKOS_NARRATIVE_MODEL", "controlled-chat")
+    monkeypatch.setenv("TKOS_NARRATIVE_MODEL_BASE_URL", "https://controlled-narrative.test/v1")
+    monkeypatch.setenv("TKOS_NARRATIVE_MODEL_API_KEY", "synthetic-secret")
+    replies = []
+    monkeypatch.setattr(api, "_provider_json", lambda *args: replies[-1])
+    compressor, messages = api.Compressor(1), [{"role": "user", "content": "历史背景原文。"}]
+    replies.append({"choices": [{"message": {"content": "完整摘要。"}, "finish_reason": "stop"}]})
+    assert compressor.chat(messages, max_tokens=800).content == "完整摘要。"
+    replies.append({"choices": [{"message": {"content": "推导链的前"}, "finish_reason": "length"}]})
+    with pytest.raises(GovernedError) as error:
+        compressor.chat(messages, max_tokens=800)
+    assert error.value.code == "NARRATIVE_UNAVAILABLE"
+
+
 @pytest.mark.parametrize("endpoint", ["http://remote.test/v1", "https://user:secret@provider.test/v1", "https://provider.test/v1?token=secret", "file:///etc/passwd"])
 def test_model_url_rejects_insecure_or_credential_embedded_endpoints(monkeypatch, endpoint):
     monkeypatch.setenv("TKOS_NARRATIVE_MODEL_BASE_URL", endpoint)

@@ -173,8 +173,10 @@ class Compressor:
         result = _provider_json(_endpoint("TKOS_NARRATIVE_MODEL_BASE_URL") + "/chat/completions",
             env_value("TKOS_NARRATIVE_MODEL_API_KEY", required=True),
             {"model": self.model, "messages": messages, "max_tokens": min(max_tokens, 4096)}, self.timeout)
-        content = result["choices"][0]["message"]["content"]
-        if not isinstance(content, str) or not content.strip() or len(content) > MAX_TEXT:
+        choice = result["choices"][0]
+        content = choice["message"]["content"]
+        # A reply cut off at max_tokens is a failed compression, not a shorter one.
+        if choice.get("finish_reason") == "length" or not isinstance(content, str) or not content.strip() or len(content) > MAX_TEXT:
             raise unavailable()
         return SimpleNamespace(content=content)
 
